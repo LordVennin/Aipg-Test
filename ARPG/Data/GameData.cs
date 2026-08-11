@@ -44,6 +44,8 @@ public class LootTable
     public float DropChance { get; set; } = 0.5f;
     /// <summary>Independent chance (0..1) that a Skill Scroll drops.</summary>
     public float ScrollDropChance { get; set; } = 0.08f;
+    /// <summary>Independent chance (0..1) that an Enchanting Scroll drops.</summary>
+    public float EnchantScrollDropChance { get; set; } = 0.12f;
     /// <summary>Independent chance (0..1) that gold drops; amount scales with enemy level.</summary>
     public float GoldDropChance { get; set; } = 0.4f;
     public int GoldMin { get; set; } = 4;

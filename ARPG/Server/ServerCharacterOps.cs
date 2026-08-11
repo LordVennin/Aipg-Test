@@ -45,6 +45,20 @@ public partial class ServerWorld
                         placed.X = dst.X; placed.Y = dst.Y;
                         return true;
                     }
+                    // Dropping a stackable onto a same-base stack merges them.
+                    var under = inv.ItemAtCell(dst.X, dst.Y, Data);
+                    var itemBaseDef = item.GetBase(Data);
+                    if (under != null && under.Item.InstanceId != item.InstanceId &&
+                        itemBaseDef.MaxStack > 1 && under.Item.BaseItemId == item.BaseItemId)
+                    {
+                        int space = itemBaseDef.MaxStack - under.Item.StackCount;
+                        int moved = Math.Min(space, item.StackCount);
+                        if (moved <= 0) { error = "That stack is full."; return false; }
+                        under.Item.StackCount += moved;
+                        item.StackCount -= moved;
+                        if (item.StackCount <= 0) inv.Items.Remove(placed);
+                        return true;
+                    }
                     // Swap with a single blocking item if both fit afterwards.
                     var blocking = inv.SingleOverlap(Data, item, dst.X, dst.Y);
                     if (blocking == null) { error = "No room there."; return false; }
@@ -220,6 +234,47 @@ public partial class ServerWorld
         _ => null,
     };
 
+    /// <summary>
+    /// Apply an Enchanting Scroll (by instance id) to a target item (grid or equipped).
+    /// Fully server-validated: scroll ownership, target ownership, enchant rules, seal state.
+    /// One charge is consumed from the stack only on success.
+    /// </summary>
+    public void ApplyEnchant(int playerId, Guid scrollId, Guid targetId)
+    {
+        if (!Players.TryGetValue(playerId, out var p)) return;
+        var c = p.Character;
+
+        var scrollPlaced = c.Inventory.FindByInstance(scrollId);
+        var scrollBase = scrollPlaced?.Item.GetBase(Data);
+        if (scrollPlaced == null || scrollBase?.Category != ItemCategory.EnchantScroll ||
+            scrollBase.EnchantType == EnchantType.None)
+        {
+            _events.MessageFor(p, "That is not an Enchanting Scroll.");
+            return;
+        }
+
+        ItemInstance target = c.Inventory.FindByInstance(targetId)?.Item
+                              ?? c.Equipment.Values.FirstOrDefault(e => e != null && e.InstanceId == targetId);
+        if (target == null || target.InstanceId == scrollId) return;
+
+        if (EnchantSystem.Apply(Data, _rng, Loot, scrollBase.EnchantType, target, out string error))
+        {
+            // Consume one charge.
+            scrollPlaced.Item.StackCount--;
+            if (scrollPlaced.Item.StackCount <= 0)
+                c.Inventory.Items.Remove(scrollPlaced);
+            _events.MessageFor(p, $"{scrollBase.Name} applied to {target.DisplayName(Data)}.");
+        }
+        else if (error != null)
+        {
+            _events.MessageFor(p, error);
+        }
+
+        p.RecomputeStats(Data);
+        _events.PlayerHealthChanged(p);
+        _events.CharacterChanged(p);
+    }
+
     public void DropItem(int playerId, Guid instanceId)
     {
         if (!Players.TryGetValue(playerId, out var p)) return;
@@ -291,8 +346,8 @@ public partial class ServerWorld
             }
             case "give_10mod":
             {
-                // Demonstrates per-item modifier limits: this item's own limit is raised to 12,
-                // then 10 modifiers are rolled. No universal cap interferes.
+                // Demonstrates per-item modifier limits: this item's own slot caps are raised
+                // to 6/6, then 10 modifiers are rolled. No universal cap interferes.
                 var itemBase = Data.Items.Values.Where(b => b.IsWeapon)
                     .OrderBy(_ => Guid.NewGuid()).FirstOrDefault();
                 if (itemBase != null)
@@ -303,9 +358,22 @@ public partial class ServerWorld
                         ItemLevel = 10,
                         Rarity = ItemRarity.Rare,
                         BaseModifierLimit = 12,
+                        MaxPrefixes = 6,
+                        MaxSuffixes = 6,
                     };
                     Loot.RollModifiers(item, itemBase, 10);
                     changed = GiveItem(p, item);
+                }
+                break;
+            }
+            case "give_enchant":
+            {
+                // A stack of 3 of a random (or named) Enchanting Scroll type.
+                var scroll = Loot.GenerateEnchantScrollItem(string.IsNullOrEmpty(arg) ? null : arg);
+                if (scroll != null)
+                {
+                    scroll.StackCount = 3;
+                    changed = GiveItem(p, scroll);
                 }
                 break;
             }

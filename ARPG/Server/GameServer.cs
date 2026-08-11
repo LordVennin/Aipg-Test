@@ -143,6 +143,9 @@ public class GameServer : IServerEvents
             case PacketType.DodgeRequest:
                 World.RequestDodge(playerId, r.GetVec2());
                 break;
+            case PacketType.ApplyEnchantRequest:
+                World.ApplyEnchant(playerId, r.GetGuid(), r.GetGuid());
+                break;
         }
     }
 

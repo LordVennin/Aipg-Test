@@ -150,7 +150,7 @@ public class DebugUI
     public DebugUI(GameClient client)
     {
         _client = client;
-        _panel = new Panel { Bounds = new Rectangle(8, 30, 250, 560), Background = new Color(16, 16, 22, 235) };
+        _panel = new Panel { Bounds = new Rectangle(8, 30, 250, 600), Background = new Color(16, 16, 22, 235) };
         var commands = new (string label, string cmd, string arg)[]
         {
             ("Spawn Enemy", "spawn_enemy", ""),
@@ -159,6 +159,7 @@ public class DebugUI
             ("Give Random Rare", "give_rare", ""),
             ("Give 10-Modifier Item", "give_10mod", ""),
             ("Give Skill Scroll", "give_scroll", ""),
+            ("Give Enchant Scrolls", "give_enchant", ""),
             ("Grant Skill XP", "skill_xp", ""),
             ("Grant Character XP", "char_xp", ""),
             ("Kill Nearby Enemies", "kill_nearby", ""),
@@ -203,7 +204,7 @@ public class DebugUI
             $"Weapon: {world.MyStats.WeaponMinDamage:0}-{world.MyStats.WeaponMaxDamage:0} @ {world.MyStats.WeaponAttackSpeed:0.0#}aps",
             $"Res F/C/L: {world.MyStats.FireResistance:0}/{world.MyStats.ColdResistance:0}/{world.MyStats.LightningResistance:0}",
         };
-        int ly = _panel.Bounds.Y + 34 + 10 * 33 + 6;
+        int ly = _panel.Bounds.Y + 34 + 11 * 33 + 6;
         foreach (var line in lines)
         {
             sb.DrawString(font, line, new Vector2(_panel.Bounds.X + 10, ly), new Color(190, 200, 190));

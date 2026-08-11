@@ -129,6 +129,26 @@ public class InventoryUI
     public bool TryDropAt(Point mouse)
     {
         if (!Open || !_drag.Active || !_panelRect.Contains(mouse)) return false;
+        var character = _client.World.MyCharacter;
+
+        // Enchanting Scroll dropped ONTO another item = apply it (PoE-orb style crafting).
+        bool dragIsEnchant = _drag.Item.GetBase(_data).Category == ItemCategory.EnchantScroll;
+        if (dragIsEnchant)
+        {
+            ItemInstance target = null;
+            var overGrid = HitGridItem(character, mouse);
+            if (overGrid != null && overGrid.Item.InstanceId != _drag.Item.InstanceId &&
+                overGrid.Item.BaseItemId != _drag.Item.BaseItemId)
+                target = overGrid.Item;
+            var overSlot = HitEquipSlot(mouse);
+            if (target == null && overSlot.HasValue)
+                target = character.Equipment.GetValueOrDefault(overSlot.Value);
+            if (target != null)
+            {
+                _client.RequestApplyEnchant(_drag.Item.InstanceId, target.InstanceId);
+                return true;
+            }
+        }
 
         var slot = HitEquipSlot(mouse);
         if (slot.HasValue)
@@ -141,7 +161,6 @@ public class InventoryUI
             var b = _drag.Item.GetBase(_data);
             int cellX = (int)MathF.Floor((mouse.X - _gridRect.X) / (float)Cell - (b.InventoryWidth - 1) / 2f);
             int cellY = (int)MathF.Floor((mouse.Y - _gridRect.Y) / (float)Cell - (b.InventoryHeight - 1) / 2f);
-            var character = _client.World.MyCharacter;
             cellX = Math.Clamp(cellX, 0, character.Inventory.Width - b.InventoryWidth);
             cellY = Math.Clamp(cellY, 0, character.Inventory.Height - b.InventoryHeight);
             _client.RequestMoveItem(_drag.Source, ItemLocation.AtGrid(cellX, cellY));
@@ -235,7 +254,7 @@ public class InventoryUI
         }
 
         var hint = FontManager.Get(12);
-        sb.DrawString(hint, "drag to move / equip · right-click to quick equip · drag outside to drop",
+        sb.DrawString(hint, "drag to move/equip · right-click quick equip · drag an Enchanting Scroll onto an item",
             new Vector2(_panelRect.X + 12, _panelRect.Bottom - 22), new Color(120, 116, 104));
     }
 
@@ -245,6 +264,23 @@ public class InventoryUI
         var rarity = WorldRenderer.RarityColor(item.Rarity);
         sb.Draw(TextureGen.Pixel, rect, CategoryFill(b.Category));
         DrawBorder(sb, rect, rarity);
+
+        // Enchanting Scrolls show their type sprite plus the stack count.
+        var enchantTex = SpriteGen.GetEnchantScrollSprite(b);
+        if (enchantTex != null)
+        {
+            int iconSize = Math.Min(rect.Width, rect.Height) - 6;
+            sb.Draw(enchantTex, new Rectangle(rect.Center.X - iconSize / 2, rect.Center.Y - iconSize / 2, iconSize, iconSize), Color.White);
+            if (item.StackCount > 1)
+            {
+                var stackFont = FontManager.GetBold(12);
+                string count = item.StackCount.ToString();
+                var cSize = stackFont.MeasureString(count);
+                sb.DrawString(stackFont, count,
+                    new Vector2(rect.Right - cSize.X - 3, rect.Bottom - cSize.Y - 1), new Color(255, 240, 190));
+            }
+            return;
+        }
 
         // Weapons show their actual sprite (upright); everything else keeps initials.
         var weaponTex = SpriteGen.GetWeaponSprite(b);
@@ -271,6 +307,7 @@ public class InventoryUI
         ItemCategory.Mace => new Color(66, 50, 40),
         ItemCategory.Staff => new Color(46, 44, 70),
         ItemCategory.SkillScroll => new Color(70, 44, 74),
+        ItemCategory.EnchantScroll => new Color(58, 50, 38),
         ItemCategory.Ring or ItemCategory.Amulet => new Color(70, 64, 36),
         _ => new Color(44, 52, 56),
     };

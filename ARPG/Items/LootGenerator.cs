@@ -36,7 +36,43 @@ public class LootGenerator
             var scroll = GenerateScrollItem();
             if (scroll != null) drops.Add(scroll);
         }
+        if (_rng.NextDouble() < table.EnchantScrollDropChance)
+        {
+            var enchant = GenerateEnchantScrollItem();
+            if (enchant != null) drops.Add(enchant);
+        }
         return drops;
+    }
+
+    /// <summary>
+    /// Roll an item's prefix/suffix slot caps. Total is weighted: 5 is the standard,
+    /// below 5 is uncommon, 8 is extremely rare. The total splits roughly evenly
+    /// between prefixes and suffixes with occasional lopsided items.
+    /// </summary>
+    public (int maxPrefixes, int maxSuffixes) RollSlots()
+    {
+        // total:  3    4    5    6    7    8
+        // weight: 2    8   55   22   10    3
+        int roll = _rng.Next(100);
+        int total = roll switch
+        {
+            < 2 => 3,
+            < 10 => 4,
+            < 65 => 5,
+            < 87 => 6,
+            < 97 => 7,
+            _ => 8,
+        };
+        int prefixes = total / 2;
+        int suffixes = total - prefixes;
+        if ((total & 1) == 1 && _rng.Next(2) == 0) (prefixes, suffixes) = (suffixes, prefixes);
+        // Occasional lopsided split, always leaving at least one slot per side.
+        if (_rng.Next(6) == 0)
+        {
+            if (_rng.Next(2) == 0 && prefixes > 1) { prefixes--; suffixes++; }
+            else if (suffixes > 1) { suffixes--; prefixes++; }
+        }
+        return (prefixes, suffixes);
     }
 
     public ItemInstance GenerateEquipment(LootTable table, int itemLevel, ItemRarity? forcedRarity = null)
@@ -47,56 +83,76 @@ public class LootGenerator
         return Generate(itemBase, itemLevel, rarity);
     }
 
-    /// <summary>Generate a concrete item from a base with rolled affixes.</summary>
+    /// <summary>Generate a concrete item from a base: rolled slot caps, then rolled affixes.
+    /// Blue (magic) items hold at most 2 modifiers; gold (rare) items are limited only by
+    /// their rolled slots.</summary>
     public ItemInstance Generate(ItemBase itemBase, int itemLevel, ItemRarity rarity, int? forcedModifierCount = null)
     {
+        var (maxPrefixes, maxSuffixes) = RollSlots();
         var item = new ItemInstance
         {
             BaseItemId = itemBase.Id,
             ItemLevel = itemLevel,
             Rarity = rarity,
             BaseModifierLimit = itemBase.BaseModifierLimit,
+            MaxPrefixes = maxPrefixes,
+            MaxSuffixes = maxSuffixes,
         };
 
         int desired = forcedModifierCount ?? rarity switch
         {
             ItemRarity.Normal => 0,
-            ItemRarity.Magic => _rng.Next(1, 3),   // 1-2
-            ItemRarity.Rare => _rng.Next(3, 6),    // 3-5
+            ItemRarity.Magic => _rng.Next(1, EnchantSystem.MagicModifierCap + 1),
+            ItemRarity.Rare => _rng.Next(3, 6),    // 3-5, clamped by the item's slots
             _ => 0,
         };
+        if (rarity == ItemRarity.Magic) desired = Math.Min(desired, EnchantSystem.MagicModifierCap);
 
         RollModifiers(item, itemBase, desired);
         return item;
     }
 
     /// <summary>
-    /// Roll up to `desired` additional modifiers onto an existing item, clamped against the
-    /// item's CURRENT modifier limit (which itself may grow if an "Expanded"-style affix that
-    /// raises ModifierLimit is rolled mid-generation — by design, no universal cap exists).
+    /// Roll up to `desired` additional modifiers onto an existing item, respecting the
+    /// item's own prefix/suffix slot caps (plus any flexible "Expanded" bonus slots —
+    /// by design there is no universal cap, only per-item capacity).
     /// </summary>
     public void RollModifiers(ItemInstance item, ItemBase itemBase, int desired)
     {
         for (int i = 0; i < desired; i++)
         {
-            if (item.Modifiers.Count >= item.CurrentModifierLimit(_data)) break;
-
-            var usedGroups = item.Modifiers
-                .Select(r => _data.Modifiers.GetValueOrDefault(r.ModifierId)?.ModifierGroup)
-                .Where(g => g != null)
-                .ToHashSet();
-
-            var candidates = _data.Modifiers.Values.Where(m =>
-                m.CompatibleWith(itemBase.Category) &&
-                m.MinimumItemLevel <= item.ItemLevel &&
-                !usedGroups.Contains(m.ModifierGroup)).ToList();
-
-            var pick = WeightedPick(candidates, m => m.Weight);
-            if (pick == null) break;
-
-            float value = pick.MinimumValue + (float)_rng.NextDouble() * (pick.MaximumValue - pick.MinimumValue);
-            item.Modifiers.Add(new ItemModifierRoll { ModifierId = pick.Id, Value = MathF.Round(value) });
+            bool prefixOpen = item.CanAddAffix(_data, AffixType.Prefix);
+            bool suffixOpen = item.CanAddAffix(_data, AffixType.Suffix);
+            if (!prefixOpen && !suffixOpen) break;
+            AffixType affix = prefixOpen && suffixOpen
+                ? (_rng.Next(2) == 0 ? AffixType.Prefix : AffixType.Suffix)
+                : (prefixOpen ? AffixType.Prefix : AffixType.Suffix);
+            if (!TryRollAffix(item, itemBase, affix)) break;
         }
+    }
+
+    /// <summary>Roll one modifier of the given affix type onto the item (group-exclusive,
+    /// item-level gated). Returns false when no compatible modifier exists.
+    /// The caller is responsible for slot checks.</summary>
+    public bool TryRollAffix(ItemInstance item, ItemBase itemBase, AffixType affix)
+    {
+        var usedGroups = item.Modifiers
+            .Select(r => _data.Modifiers.GetValueOrDefault(r.ModifierId)?.ModifierGroup)
+            .Where(g => g != null)
+            .ToHashSet();
+
+        var candidates = _data.Modifiers.Values.Where(m =>
+            m.AffixType == affix &&
+            m.CompatibleWith(itemBase.Category) &&
+            m.MinimumItemLevel <= item.ItemLevel &&
+            !usedGroups.Contains(m.ModifierGroup)).ToList();
+
+        var pick = WeightedPick(candidates, m => m.Weight);
+        if (pick == null) return false;
+
+        float value = pick.MinimumValue + (float)_rng.NextDouble() * (pick.MaximumValue - pick.MinimumValue);
+        item.Modifiers.Add(new ItemModifierRoll { ModifierId = pick.Id, Value = MathF.Round(value) });
+        return true;
     }
 
     public ItemInstance GenerateScrollItem()
@@ -110,6 +166,27 @@ public class LootGenerator
             ItemLevel = 1,
             Rarity = ItemRarity.Normal,
             BaseModifierLimit = 0,
+        };
+    }
+
+    public ItemInstance GenerateEnchantScrollItem(string baseId = null)
+    {
+        ItemBase pick;
+        if (baseId != null)
+            pick = _data.Items.GetValueOrDefault(baseId);
+        else
+        {
+            var bases = _data.Items.Values.Where(b => b.Category == ItemCategory.EnchantScroll).ToList();
+            pick = WeightedPick(bases, b => b.DropWeight);
+        }
+        if (pick == null) return null;
+        return new ItemInstance
+        {
+            BaseItemId = pick.Id,
+            ItemLevel = 1,
+            Rarity = ItemRarity.Normal,
+            BaseModifierLimit = 0,
+            StackCount = 1,
         };
     }
 

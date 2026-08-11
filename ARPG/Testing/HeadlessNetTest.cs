@@ -332,6 +332,85 @@ public static class HeadlessNetTest
         Check(kbTarget.Dead || kbAfter > kbBefore + 0.3f,
               $"basic strike knocked the enemy back ({kbBefore:0.00} -> {kbAfter:0.00} tiles)");
 
+        Console.WriteLine("\n-- Enchanting Scrolls, slot caps, stacking, stun --");
+        Check(data.Items.Values.Count(b => b.Category == Items.ItemCategory.EnchantScroll) == 11,
+              "all 11 Enchanting Scroll types loaded");
+
+        // Slot cap distribution: totals within 3..8, 5 the most common.
+        var slotGen = new Items.LootGenerator(data, new Random(7));
+        var totals = new Dictionary<int, int>();
+        bool sidesOk = true;
+        for (int i = 0; i < 2000; i++)
+        {
+            var (mp, ms) = slotGen.RollSlots();
+            if (mp < 1 || ms < 1) sidesOk = false;
+            totals[mp + ms] = totals.GetValueOrDefault(mp + ms) + 1;
+        }
+        Check(sidesOk, "every rolled item has at least 1 prefix and 1 suffix slot");
+        Check(totals.Keys.Min() >= 3 && totals.Keys.Max() <= 8,
+              $"slot totals stay within 3..8 (saw {totals.Keys.Min()}..{totals.Keys.Max()})");
+        Check(totals.OrderByDescending(kv => kv.Value).First().Key == 5,
+              $"5 total slots is the most common roll ({string.Join(", ", totals.OrderBy(k => k.Key).Select(kv => $"{kv.Key}:{kv.Value}"))})");
+        Check(totals.GetValueOrDefault(8) > 0 && totals.GetValueOrDefault(8) < 100,
+              $"8 slots is extremely rare ({totals.GetValueOrDefault(8)}/2000)");
+
+        // Pure crafting logic: white -> blue, blue 2-mod cap, sealing.
+        var craftRng = new Random(11);
+        var craftLoot = new Items.LootGenerator(data, craftRng);
+        var white = new Items.ItemInstance { BaseItemId = "iron_mace", ItemLevel = 5, MaxPrefixes = 3, MaxSuffixes = 3 };
+        Check(Items.EnchantSystem.Apply(data, craftRng, craftLoot, Items.EnchantType.Awaken, white, out _) &&
+              white.Rarity == Items.ItemRarity.Magic && white.Modifiers.Count == 1,
+              "Awakening: white item gained a modifier and turned blue");
+        // Fill the blue item to 2 mods, then a third add must fail (blue cap).
+        bool second = Items.EnchantSystem.Apply(data, craftRng, craftLoot,
+            white.CountAffixes(data, Items.AffixType.Prefix) == 0 ? Items.EnchantType.AddPrefixMagic : Items.EnchantType.AddSuffixMagic,
+            white, out _);
+        bool third = Items.EnchantSystem.Apply(data, craftRng, craftLoot, Items.EnchantType.AddPrefixMagic, white, out string capError);
+        Check(second && !third && white.Modifiers.Count == 2,
+              $"blue items cap at 2 modifiers ('{capError}')");
+
+        var rare = craftLoot.Generate(data.Items["arcane_staff"], 10, Items.ItemRarity.Rare);
+        int slotsBefore = rare.MaxPrefixes + rare.MaxSuffixes;
+        Check(Items.EnchantSystem.Apply(data, craftRng, craftLoot, Items.EnchantType.SealExpand, rare, out _) &&
+              rare.Locked && rare.MaxPrefixes + rare.MaxSuffixes == slotsBefore + 2,
+              $"Sealing: +2 slots ({slotsBefore} -> {rare.MaxPrefixes + rare.MaxSuffixes}) and item locked");
+        Check(!Items.EnchantSystem.Apply(data, craftRng, craftLoot, Items.EnchantType.AddRandomRare, rare, out string sealError),
+              $"sealed item rejects further enchanting ('{sealError}')");
+
+        // Networked crafting: B awakens its white oak staff with a debug-given scroll stack.
+        clientB.SendDebugCommand("give_enchant", "es_awakening");
+        Pump(0.5f);
+        var bChar = clientB.World.MyCharacter;
+        var bScroll = bChar.Inventory.Items.FirstOrDefault(pl => pl.Item.BaseItemId == "es_awakening");
+        var bStaff = bChar.Inventory.Items.FirstOrDefault(pl =>
+            pl.Item.BaseItemId == "oak_staff" && pl.Item.Rarity == Items.ItemRarity.Normal);
+        Check(bScroll != null && bScroll.Item.StackCount == 3, $"scroll stack arrived (x{bScroll?.Item.StackCount})");
+        if (bScroll != null && bStaff != null)
+        {
+            clientB.RequestApplyEnchant(bScroll.Item.InstanceId, bStaff.Item.InstanceId);
+            Pump(0.5f);
+            bChar = clientB.World.MyCharacter;
+            var staffAfter = bChar.Inventory.FindByInstance(bStaff.Item.InstanceId)?.Item;
+            var scrollAfter = bChar.Inventory.FindByInstance(bScroll.Item.InstanceId)?.Item;
+            Check(staffAfter != null && staffAfter.Rarity == Items.ItemRarity.Magic && staffAfter.Modifiers.Count == 1,
+                  $"networked Awakening turned the staff blue with 1 modifier");
+            Check(scrollAfter != null && scrollAfter.StackCount == 2,
+                  $"one scroll charge consumed (stack {scrollAfter?.StackCount})");
+        }
+
+        // Ground Slam stun.
+        clientA.RequestLearnSkill("ground_slam");
+        Pump(0.3f);
+        clientA.SendDebugCommand("spawn_enemy", "grunt");
+        Pump(0.3f);
+        var stunPlayer = server.World.Players[clientA.World.MyPlayerId];
+        clientA.RequestUseSkill("ground_slam", stunPlayer.Position);
+        Pump(0.2f);
+        var stunned = server.World.Enemies.Values.FirstOrDefault(e => !e.Dead && e.StunnedUntil > server.World.Time);
+        Check(stunned != null || server.World.Enemies.Values.All(e => e.Dead ||
+              Vector2.Distance(e.Position, stunPlayer.Position) > 3f),
+              "ground slam stunned nearby enemies");
+
         Console.WriteLine("\n-- Fire bolt projectile --");
         Pump(4.0f); // ride out a possible death/respawn cycle from roaming enemies
         clientB.SendDebugCommand("heal");

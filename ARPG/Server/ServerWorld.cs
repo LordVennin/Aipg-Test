@@ -81,6 +81,9 @@ public partial class ServerWorld
     {
         character ??= CharacterData.CreateNew(Data, name);
         character.Name = name;
+        // Migrate items from older saves: derive per-side slot caps and stack counts.
+        foreach (var placed in character.Inventory.Items) placed.Item.EnsureSlotData();
+        foreach (var equipped in character.Equipment.Values) equipped?.EnsureSlotData();
         var p = new ServerPlayer
         {
             Id = id,
@@ -214,6 +217,8 @@ public partial class ServerWorld
                     e.BurnEmitTimer = 0;
                 }
             }
+
+            if (Time < e.StunnedUntil) continue; // stunned: no movement, no attacks
 
             var target = NearestAlivePlayer(e.Position, out float dist);
             switch (e.State)
@@ -422,7 +427,11 @@ public partial class ServerWorld
             {
                 effectPoint = p.Position;
                 foreach (var e in EnemiesNear(p.Position, stats.Radius))
+                {
                     HitEnemy(e, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, stats.DamageKind, RollIgnite(stats));
+                    if (!e.Dead && def.StunDuration > 0)
+                        e.StunnedUntil = Time + def.StunDuration;
+                }
                 break;
             }
             case SkillArchetype.Projectile:

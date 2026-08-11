@@ -14,6 +14,7 @@ public enum ItemCategory
     Amulet,
     Ring,
     SkillScroll,
+    EnchantScroll,
 }
 
 public enum ItemRarity
@@ -66,6 +67,12 @@ public class ItemBase
     /// <summary>Only for Category == SkillScroll: which scroll definition this item carries.</summary>
     public string ScrollId { get; set; }
 
+    /// <summary>Only for Category == EnchantScroll: which crafting behavior this scroll applies.</summary>
+    public EnchantType EnchantType { get; set; } = EnchantType.None;
+
+    /// <summary>Maximum stack size in one inventory slot (1 = not stackable).</summary>
+    public int MaxStack { get; set; } = 1;
+
     /// <summary>Accent color (RRGGBB hex) for the procedural held-weapon sprite
     /// (mace head metal / staff orb). Falls back to a per-category default.</summary>
     public string SpriteColor { get; set; }
@@ -73,7 +80,9 @@ public class ItemBase
     public string Description { get; set; }
 
     public bool IsWeapon => Category is ItemCategory.Mace or ItemCategory.Staff;
-    public bool IsEquippable => Category != ItemCategory.SkillScroll;
+    public bool IsEquippable => Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll);
+    /// <summary>Categories that can receive prefix/suffix modifiers (enchantable gear).</summary>
+    public bool IsEnchantable => IsEquippable;
 
     /// <summary>Which equipment slots this category may occupy. Adding a new weapon category only
     /// requires extending this mapping and the data files — no inventory/skill system changes.</summary>

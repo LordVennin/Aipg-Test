@@ -67,6 +67,9 @@ public class SkillDefinition
     /// <summary>Tiles the target is pushed away from the caster on hit (melee skills).</summary>
     public float Knockback { get; set; }
 
+    /// <summary>Seconds hit enemies are stunned (no movement, no attacks).</summary>
+    public float StunDuration { get; set; }
+
     /// <summary>"Attack" skills scale with attack speed; "Spell" with cast speed.</summary>
     public bool IsAttack => Tags.Contains(SkillTags.Attack);
 

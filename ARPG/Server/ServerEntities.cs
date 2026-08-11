@@ -57,6 +57,8 @@ public class ServerEnemy
     public EnemyState State = EnemyState.Idle;
     public float AttackReadyAt;
     public int TargetPlayerId = -1;
+    /// <summary>While the server clock is below this, the enemy neither moves nor attacks.</summary>
+    public float StunnedUntil;
 
     // Ignite (burning damage over time) bookkeeping. Burn ticks apply every frame but
     // damage events/health updates are batched via the accumulator to avoid packet spam.

@@ -287,6 +287,86 @@ public static class SpriteGen
         return c.Bake(_device);
     }
 
+    // ------------------------------------------------------------------ enchanting scrolls
+
+    /// <summary>
+    /// Sprite for an Enchanting Scroll base: a parchment scroll whose ribbon color comes from
+    /// the base's SpriteColor and whose markings encode the effect — ribbon position shows the
+    /// affix side (left = prefix, right = suffix, center = random), notches show the required
+    /// rarity tier, a cut line marks remover types, and a wax blob marks the Sealing scroll.
+    /// </summary>
+    public static Texture2D GetEnchantScrollSprite(Items.ItemBase itemBase)
+    {
+        if (itemBase == null || _device == null || itemBase.Category != Items.ItemCategory.EnchantScroll)
+            return null;
+        string key = "enchant:" + itemBase.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+
+        var accent = WorldRenderer.ParseColor(itemBase.SpriteColor, new Color(180, 160, 220));
+        var tex = DrawEnchantScroll(accent, itemBase.EnchantType);
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    private static Texture2D DrawEnchantScroll(Color accent, Items.EnchantType type)
+    {
+        const int w = 16, h = 16;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int rw, int rh, Color c)
+        { for (int y = y0; y < y0 + rh; y++) for (int x = x0; x < x0 + rw; x++) Set(x, y, c); }
+
+        var parchment = new Color(226, 214, 180);
+        var parchDark = new Color(188, 174, 140);
+        var accentDark = Shade(accent, 0.6f);
+
+        // Parchment body with rolled ends.
+        Rect(2, 5, 12, 6, parchment);
+        Rect(2, 10, 12, 1, parchDark);
+        Rect(1, 4, 2, 8, parchDark);       // left roll
+        Rect(13, 4, 2, 8, parchDark);
+        Set(1, 4, Shade(parchDark, 0.8f));
+        Set(14, 4, Shade(parchDark, 0.8f));
+
+        // Ribbon: left = prefix effects, right = suffix effects, center = random/any.
+        int ribbonX = type switch
+        {
+            Items.EnchantType.AddPrefixMagic or Items.EnchantType.AddPrefixRare or Items.EnchantType.ReforgePrefix => 4,
+            Items.EnchantType.AddSuffixMagic or Items.EnchantType.AddSuffixRare or Items.EnchantType.ReforgeSuffix => 10,
+            _ => 7,
+        };
+        Rect(ribbonX, 3, 2, 10, accent);
+        Rect(ribbonX, 11, 2, 2, accentDark);
+
+        // Rarity tier notches above the parchment: 1 = blue-tier, 2 = gold-tier.
+        int tier = type switch
+        {
+            Items.EnchantType.AddPrefixMagic or Items.EnchantType.AddSuffixMagic => 1,
+            Items.EnchantType.AddRandomRare or Items.EnchantType.AddPrefixRare or
+            Items.EnchantType.AddSuffixRare or Items.EnchantType.SealExpand => 2,
+            _ => 0,
+        };
+        for (int i = 0; i < tier; i++)
+            Rect(3 + i * 3, 1, 2, 2, accent);
+
+        // Remover types: a dark cut across the parchment.
+        if (type is Items.EnchantType.RemoveRandom or Items.EnchantType.Reforge
+            or Items.EnchantType.ReforgePrefix or Items.EnchantType.ReforgeSuffix)
+        {
+            for (int i = 0; i < 5; i++) Set(4 + i * 2, 7 + (i & 1), new Color(60, 44, 44));
+        }
+
+        // Sealing scroll: a wax seal blob.
+        if (type == Items.EnchantType.SealExpand)
+        {
+            Rect(10, 8, 4, 4, accent);
+            Set(11, 9, Shade(accent, 1.5f));
+            Set(13, 11, accentDark);
+        }
+
+        return BakeStrip(px, w, h);
+    }
+
     // ------------------------------------------------------------------ gold pile
 
     private static Texture2D _goldPile;

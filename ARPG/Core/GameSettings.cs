@@ -47,7 +47,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 2; // v2: gold drops in WorldItemSpawn
+    public const int ProtocolVersion = 3; // v3: enchanting scrolls, item slot caps, stacking
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

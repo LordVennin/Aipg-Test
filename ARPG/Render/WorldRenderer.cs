@@ -89,6 +89,12 @@ public class WorldRenderer
                             pile.Width * 2, pile.Height * 2), Color.White);
                     return;
                 }
+                var enchantTex = SpriteGen.GetEnchantScrollSprite(item.GetBase(_data));
+                if (enchantTex != null)
+                {
+                    batch.Draw(enchantTex, new Rectangle((int)screen.X - 12, (int)screen.Y - 16, 24, 24), Color.White);
+                    return;
+                }
                 var weaponTex = SpriteGen.GetWeaponSprite(item.GetBase(_data));
                 if (weaponTex != null)
                 {
@@ -261,6 +267,7 @@ public class WorldRenderer
         {
             var screen = camera.WorldToScreen(drop.Position);
             string label = drop.IsGold ? $"{drop.GoldAmount} Gold" : drop.Item.DisplayName(_data);
+            if (!drop.IsGold && drop.Item.StackCount > 1) label += $" x{drop.Item.StackCount}";
             var labelColor = drop.IsGold ? new Color(240, 200, 90) : RarityColor(drop.Item.Rarity);
             var size = labelFont.MeasureString(label);
             var rect = new Rectangle((int)(screen.X - size.X / 2) - 4, (int)(screen.Y - 30), (int)size.X + 8, (int)size.Y + 4);
