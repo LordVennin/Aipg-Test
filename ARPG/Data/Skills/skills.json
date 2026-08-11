@@ -3,7 +3,12 @@
     "Id": "basic_strike",
     "Name": "Basic Strike",
     "Description": "A quick single-target swipe with your mace that knocks the enemy back.",
-    "Tags": ["Attack", "Melee", "Physical", "Mace"],
+    "Tags": [
+      "Attack",
+      "Melee",
+      "Physical",
+      "Mace"
+    ],
     "Archetype": "MeleeSingle",
     "DamageKind": "Blunt",
     "UsesWeaponDamage": true,
@@ -19,7 +24,12 @@
     "Id": "mace_strike",
     "Name": "Mace Strike",
     "Description": "A heavy blow with your mace, striking enemies near the aimed point.",
-    "Tags": ["Attack", "Melee", "Physical", "Mace"],
+    "Tags": [
+      "Attack",
+      "Melee",
+      "Physical",
+      "Mace"
+    ],
     "Archetype": "MeleeStrike",
     "DamageKind": "Blunt",
     "UsesWeaponDamage": true,
@@ -29,13 +39,20 @@
     "Cooldown": 0.35,
     "Range": 1.5,
     "Radius": 1.0,
-    "RadiusPerLevel": 0.03
+    "RadiusPerLevel": 0.03,
+    "ManaCost": 4
   },
   {
     "Id": "ground_slam",
     "Name": "Ground Slam",
     "Description": "Slam the ground, damaging and briefly stunning all enemies around you.",
-    "Tags": ["Attack", "Melee", "Area", "Physical", "Mace"],
+    "Tags": [
+      "Attack",
+      "Melee",
+      "Area",
+      "Physical",
+      "Mace"
+    ],
     "Archetype": "MeleeArea",
     "DamageKind": "Blunt",
     "UsesWeaponDamage": true,
@@ -46,13 +63,19 @@
     "Range": 0,
     "Radius": 2.2,
     "RadiusPerLevel": 0.12,
-    "StunDuration": 0.9
+    "StunDuration": 0.9,
+    "ManaCost": 8
   },
   {
     "Id": "shield_bash",
     "Name": "Shield Bash",
     "Description": "Slam your shield into an enemy, knocking it back with a high chance to momentarily stun it. Heavier shields hit harder: gains damage from your shield's armor. Requires a shield equipped.",
-    "Tags": ["Attack", "Melee", "Physical", "Shield"],
+    "Tags": [
+      "Attack",
+      "Melee",
+      "Physical",
+      "Shield"
+    ],
     "Archetype": "MeleeSingle",
     "DamageKind": "Blunt",
     "UsesWeaponDamage": true,
@@ -65,13 +88,18 @@
     "Radius": 1.0,
     "Knockback": 1.6,
     "StunDuration": 0.5,
-    "StunChance": 0.8
+    "StunChance": 0.8,
+    "ManaCost": 6
   },
   {
     "Id": "fire_bolt",
     "Name": "Fire Bolt",
     "Description": "Launch a searing bolt of flame toward the cursor.",
-    "Tags": ["Spell", "Projectile", "Fire"],
+    "Tags": [
+      "Spell",
+      "Projectile",
+      "Fire"
+    ],
     "Archetype": "Projectile",
     "DamageKind": "Fire",
     "UsesWeaponDamage": false,
@@ -80,13 +108,18 @@
     "Cooldown": 0.7,
     "Range": 12,
     "ProjectileSpeed": 11,
-    "ProjectileCount": 1
+    "ProjectileCount": 1,
+    "ManaCost": 5
   },
   {
     "Id": "arcane_burst",
     "Name": "Arcane Burst",
     "Description": "Detonate arcane energy at the target location.",
-    "Tags": ["Spell", "Area", "Arcane"],
+    "Tags": [
+      "Spell",
+      "Area",
+      "Arcane"
+    ],
     "Archetype": "AreaBurst",
     "DamageKind": "Arcane",
     "UsesWeaponDamage": false,
@@ -95,6 +128,7 @@
     "Cooldown": 1.1,
     "Range": 5.5,
     "Radius": 1.8,
-    "RadiusPerLevel": 0.1
+    "RadiusPerLevel": 0.1,
+    "ManaCost": 9
   }
 ]

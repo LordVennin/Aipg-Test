@@ -23,7 +23,7 @@ public class MainMenuScreen : IScreen
     {
         _game = game;
         _message = message;
-        var size = game.ScreenSize;
+        var size = game.UiScreenSize;
         int cx = size.X / 2 - 130, y = size.Y / 2 - 130, w = 260, h = 44, gap = 12;
         _panel.Children.Add(new Button("Single Player", new Rectangle(cx, y, w, h), game.StartSinglePlayer));
         _panel.Children.Add(new Button("Host Game", new Rectangle(cx, y + (h + gap), w, h), () => game.SwitchScreen(new HostScreen(game))));
@@ -36,7 +36,7 @@ public class MainMenuScreen : IScreen
 
     public void Draw(SpriteBatch sb)
     {
-        var size = _game.ScreenSize;
+        var size = _game.UiScreenSize;
         var title = "SCROLLBOUND";
         var subtitle = "an isometric multiplayer ARPG prototype";
         var titleFont = FontManager.GetBold(52);
@@ -70,7 +70,7 @@ public class HostScreen : IScreen
     public HostScreen(GameMain game)
     {
         _game = game;
-        var size = game.ScreenSize;
+        var size = game.UiScreenSize;
         int cx = size.X / 2 - 170;
         int y = size.Y / 2 - 140;
         _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 340) };
@@ -121,7 +121,7 @@ public class JoinScreen : IScreen
     public JoinScreen(GameMain game)
     {
         _game = game;
-        var size = game.ScreenSize;
+        var size = game.UiScreenSize;
         int cx = size.X / 2 - 170;
         int y = size.Y / 2 - 170;
         _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 420) };
@@ -172,75 +172,135 @@ public class JoinScreen : IScreen
 }
 
 /// <summary>
-/// Reusable options panel: gameplay toggles (damage numbers, enemy health bars) and full
-/// control rebinding. Used both as a main-menu screen and as an overlay from the in-game
-/// pause menu. New InputActions automatically appear here — the rows are generated from
-/// the InputAction enum.
+/// Reusable options panel, organized into tabs: Display (fullscreen, resolution),
+/// Gameplay (HUD toggles) and Controls (full rebinding). Used both as a main-menu screen
+/// and as an overlay from the in-game pause menu. New InputActions automatically appear
+/// in the Controls tab — the rows are generated from the InputAction enum.
 /// </summary>
 public class OptionsPanel
 {
     private readonly GameMain _game;
-    private readonly Panel _panel;
+    private readonly Rectangle _bounds;
+    private readonly Panel _framePanel;    // tab row + bottom buttons, always active
+    private readonly Panel[] _tabPanels;   // 0 = Display, 1 = Gameplay, 2 = Controls
+    private readonly Button[] _tabButtons;
+    private static readonly string[] TabNames = { "Display", "Gameplay", "Controls" };
+    private int _tab;
+
     private InputAction? _rebinding;
     private readonly Dictionary<InputAction, Button> _bindButtons = new();
-    private Button _damageNumbersButton, _healthBarsButton;
+    private Button _damageNumbersButton, _healthBarsButton, _playerListButton;
+    private Button _fullscreenButton, _resolutionButton;
 
     public OptionsPanel(GameMain game, Action onClose)
     {
         _game = game;
-        var size = game.ScreenSize;
+        var size = game.UiScreenSize;
         var actions = Enum.GetValues<InputAction>();
-        int rows = actions.Length;
-        int panelH = rows * 34 + 240;
+        int panelH = Math.Min(actions.Length * 34 + 200, size.Y - 12);
         int cx = size.X / 2 - 240;
         int y = Math.Max(16, size.Y / 2 - panelH / 2);
-        _panel = new Panel { Bounds = new Rectangle(cx - 20, y - 10, 520, Math.Min(panelH, size.Y - 12)) };
-        _panel.Children.Add(new Label("Options", cx, y, 24, bold: true));
+        _bounds = new Rectangle(cx - 20, y - 10, 520, panelH);
 
-        // --- gameplay toggles (persisted in settings.json) ---
-        int rowY = y + 38;
-        _damageNumbersButton = new Button(ToggleLabel("Damage Numbers", game.Settings.ShowDamageNumbers),
-            new Rectangle(cx, rowY, 240, 28), () =>
-            {
-                game.Settings.ShowDamageNumbers = !game.Settings.ShowDamageNumbers;
-                RefreshLabels();
-            }) { FontSize = 15 };
-        _panel.Children.Add(_damageNumbersButton);
-        _healthBarsButton = new Button(ToggleLabel("Enemy Health Bars", game.Settings.ShowEnemyHealthBars),
-            new Rectangle(cx + 250, rowY, 240, 28), () =>
-            {
-                game.Settings.ShowEnemyHealthBars = !game.Settings.ShowEnemyHealthBars;
-                RefreshLabels();
-            }) { FontSize = 15 };
-        _panel.Children.Add(_healthBarsButton);
-        rowY += 40;
+        _framePanel = new Panel { Bounds = _bounds };
+        _framePanel.Children.Add(new Label("Options", cx, y, 24, bold: true));
 
-        _panel.Children.Add(new Label("Controls — click a binding, then press the new key or mouse button.", cx, rowY, 14));
-        rowY += 26;
-        foreach (var action in actions)
+        // --- tab row ---
+        _tabButtons = new Button[TabNames.Length];
+        for (int i = 0; i < TabNames.Length; i++)
         {
-            var a = action;
-            _panel.Children.Add(new Label(ActionName(a), cx, rowY + 6, 16));
-            var btn = new Button(game.Input.Bindings[a].Display(), new Rectangle(cx + 260, rowY, 200, 28),
-                () => _rebinding = a) { FontSize = 15 };
-            _bindButtons[a] = btn;
-            _panel.Children.Add(btn);
-            rowY += 34;
+            int tabIndex = i;
+            _tabButtons[i] = new Button(TabNames[i], new Rectangle(cx + i * 160, y + 36, 150, 30),
+                () => { _tab = tabIndex; _rebinding = null; RefreshLabels(); }) { FontSize = 15 };
+            _framePanel.Children.Add(_tabButtons[i]);
         }
-        _panel.Children.Add(new Button("Reset Default Keys", new Rectangle(cx, rowY + 10, 200, 36), () =>
-        {
-            game.Input.ApplyBindings(null);
-            RefreshLabels();
-        }));
-        _panel.Children.Add(new Button("Save & Close", new Rectangle(cx + 260, rowY + 10, 200, 36), () =>
+        int contentY = y + 80;
+        int bottomY = _bounds.Bottom - 56;
+
+        _framePanel.Children.Add(new Button("Save & Close", new Rectangle(cx + 260, bottomY, 200, 36), () =>
         {
             game.Settings.Bindings = game.Input.ExportBindings();
             game.Settings.Save();
             onClose();
         }));
+
+        // --- Display tab ---
+        var display = new Panel { Bounds = Rectangle.Empty, Background = Color.Transparent, Border = Color.Transparent };
+        _fullscreenButton = new Button(ToggleLabel("Fullscreen", game.Settings.Fullscreen),
+            new Rectangle(cx, contentY, 240, 30), () =>
+            {
+                game.Settings.Fullscreen = !game.Settings.Fullscreen;
+                game.ApplyDisplaySettings();
+                game.Settings.Save();
+                RefreshLabels();
+            }) { FontSize = 15 };
+        display.Children.Add(_fullscreenButton);
+        _resolutionButton = new Button(ResolutionLabel(),
+            new Rectangle(cx + 250, contentY, 240, 30), () =>
+            {
+                var list = GameSettings.Resolutions;
+                int idx = Array.FindIndex(list, r => r.W == game.Settings.ResolutionWidth && r.H == game.Settings.ResolutionHeight);
+                var next = list[(idx + 1 + list.Length) % list.Length];
+                (game.Settings.ResolutionWidth, game.Settings.ResolutionHeight) = next;
+                game.ApplyDisplaySettings();
+                game.Settings.Save();
+                RefreshLabels();
+            }) { FontSize = 15 };
+        display.Children.Add(_resolutionButton);
+        display.Children.Add(new Label("Fullscreen is borderless (uses the desktop display).", cx, contentY + 44, 14));
+        display.Children.Add(new Label("Menus and HUD scale automatically with the resolution.", cx, contentY + 66, 14));
+
+        // --- Gameplay tab ---
+        var gameplay = new Panel { Bounds = Rectangle.Empty, Background = Color.Transparent, Border = Color.Transparent };
+        _damageNumbersButton = new Button(ToggleLabel("Damage Numbers", game.Settings.ShowDamageNumbers),
+            new Rectangle(cx, contentY, 240, 30), () =>
+            {
+                game.Settings.ShowDamageNumbers = !game.Settings.ShowDamageNumbers;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        gameplay.Children.Add(_damageNumbersButton);
+        _healthBarsButton = new Button(ToggleLabel("Enemy Health Bars", game.Settings.ShowEnemyHealthBars),
+            new Rectangle(cx + 250, contentY, 240, 30), () =>
+            {
+                game.Settings.ShowEnemyHealthBars = !game.Settings.ShowEnemyHealthBars;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        gameplay.Children.Add(_healthBarsButton);
+        _playerListButton = new Button(ToggleLabel("Player List & Pings", game.Settings.ShowPlayerList),
+            new Rectangle(cx, contentY + 40, 240, 30), () =>
+            {
+                game.Settings.ShowPlayerList = !game.Settings.ShowPlayerList;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        gameplay.Children.Add(_playerListButton);
+
+        // --- Controls tab ---
+        var controls = new Panel { Bounds = Rectangle.Empty, Background = Color.Transparent, Border = Color.Transparent };
+        controls.Children.Add(new Label("Click a binding, then press the new key or mouse button.", cx, contentY, 14));
+        int rowY = contentY + 24;
+        foreach (var action in actions)
+        {
+            var a = action;
+            controls.Children.Add(new Label(ActionName(a), cx, rowY + 6, 16));
+            var btn = new Button(game.Input.Bindings[a].Display(), new Rectangle(cx + 260, rowY, 200, 28),
+                () => _rebinding = a) { FontSize = 15 };
+            _bindButtons[a] = btn;
+            controls.Children.Add(btn);
+            rowY += 34;
+        }
+        controls.Children.Add(new Button("Reset Default Keys", new Rectangle(cx, bottomY, 200, 36), () =>
+        {
+            game.Input.ApplyBindings(null);
+            RefreshLabels();
+        }));
+
+        _tabPanels = new[] { display, gameplay, controls };
+        RefreshLabels();
     }
 
     private static string ToggleLabel(string name, bool on) => $"{name}: {(on ? "ON" : "OFF")}";
+    private string ResolutionLabel() =>
+        $"Resolution: {_game.Settings.ResolutionWidth}x{_game.Settings.ResolutionHeight}";
 
     public static string ActionName(InputAction a) => a switch
     {
@@ -267,8 +327,17 @@ public class OptionsPanel
     {
         foreach (var (action, btn) in _bindButtons)
             btn.Text = _game.Input.Bindings[action].Display();
-        _damageNumbersButton.Text = ToggleLabel("Damage Numbers", _game.Settings.ShowDamageNumbers);
-        _healthBarsButton.Text = ToggleLabel("Enemy Health Bars", _game.Settings.ShowEnemyHealthBars);
+        if (_damageNumbersButton != null)
+        {
+            _damageNumbersButton.Text = ToggleLabel("Damage Numbers", _game.Settings.ShowDamageNumbers);
+            _healthBarsButton.Text = ToggleLabel("Enemy Health Bars", _game.Settings.ShowEnemyHealthBars);
+            _playerListButton.Text = ToggleLabel("Player List & Pings", _game.Settings.ShowPlayerList);
+            _fullscreenButton.Text = ToggleLabel("Fullscreen", _game.Settings.Fullscreen);
+            _resolutionButton.Text = ResolutionLabel();
+        }
+        if (_tabButtons != null)
+            for (int i = 0; i < _tabButtons.Length; i++)
+                _tabButtons[i].Text = i == _tab ? $"[ {TabNames[i]} ]" : TabNames[i];
     }
 
     public void Update(InputManager input)
@@ -286,11 +355,16 @@ public class OptionsPanel
             input.KeyboardCapturedByUI = true;
             return; // swallow other UI input while capturing
         }
-        _panel.Update(input);
+        _framePanel.Update(input);
+        _tabPanels[_tab].Update(input);
         input.KeyboardCapturedByUI = true; // an open options panel owns the keyboard
     }
 
-    public void Draw(SpriteBatch sb) => _panel.Draw(sb);
+    public void Draw(SpriteBatch sb)
+    {
+        _framePanel.Draw(sb);
+        _tabPanels[_tab].Draw(sb);
+    }
 }
 
 /// <summary>Main-menu wrapper around the reusable OptionsPanel.</summary>

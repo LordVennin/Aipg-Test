@@ -173,8 +173,26 @@ public static class HeadlessNetTest
         Check(dropA.Item.InstanceId == dropB.Item.InstanceId, "drop shares one InstanceId across peers");
 
         Console.WriteLine("\n-- Exclusive pickup --");
+        // Drops can land inside wall pillars (the server rejects teleports into walls, so a
+        // player standing "at" such a drop never actually moves). Stand at the nearest
+        // walkable spot within pickup range instead.
+        Vector2 SafeNear(Vector2 target)
+        {
+            foreach (var off in new[]
+                     {
+                         Vector2.Zero, new Vector2(1, 0), new Vector2(-1, 0), new Vector2(0, 1),
+                         new Vector2(0, -1), new Vector2(1.2f, 1.2f), new Vector2(-1.2f, -1.2f),
+                         new Vector2(1.7f, 0), new Vector2(0, 1.7f),
+                     })
+            {
+                var cand = target + off;
+                if (!clientA.World.Map.CircleHitsWall(cand, 0.35f)) return cand;
+            }
+            return target;
+        }
+
         // Both clients race to pick up the same item; exactly one may win.
-        var dropPos = server.World.Drops[dropId].Position;
+        var dropPos = SafeNear(server.World.Drops[dropId].Position);
         int invA = clientA.World.MyCharacter.Inventory.Items.Count;
         int invB = clientB.World.MyCharacter.Inventory.Items.Count;
         int gainedA = 0, gainedB = 0;
@@ -331,7 +349,7 @@ public static class HeadlessNetTest
                     Pump(0.5f);
                 clientA.SendDebugCommand("kill_nearby"); // roaming zombies can kill A mid-pickup
                 clientA.SendDebugCommand("heal");
-                clientA.World.Me.Position = goldDrop.Position;
+                clientA.World.Me.Position = SafeNear(goldDrop.Position);
                 Pump(0.4f);
                 clientA.RequestPickup(goldDrop.DropId);
                 Pump(0.4f);
@@ -432,15 +450,44 @@ public static class HeadlessNetTest
         {
             for (int wait = 0; wait < 20 && !clientA.World.Me.Alive; wait++)
                 Pump(0.5f);
+            // Park A at the map spawn (guaranteed open ground) so the debug grunt can't
+            // spawn inside a wall pillar next to wherever A happened to be standing.
+            clientA.World.Me.Position = clientA.World.Map.PlayerSpawn;
+            Pump(0.4f);
             clientA.SendDebugCommand("kill_nearby"); // clear campers that could kill A mid-slam
             clientA.SendDebugCommand("heal");
+            stunPlayer.Mana = stunPlayer.Stats.MaxMana; // slams cost mana; refill between attempts
             Pump(0.2f);
             clientA.SendDebugCommand("spawn_enemy", "grunt");
             Pump(0.3f);
+            // The grunt may immediately chase the OTHER player out of slam radius —
+            // teleport A onto it before slamming.
+            var slamTarget = server.World.Enemies.Values.Where(e => !e.Dead)
+                .OrderByDescending(e => e.Id).FirstOrDefault();
+            if (slamTarget != null)
+            {
+                // A strong mace one-shots the grunt, and dead enemies can't read as
+                // stunned — buff its health so the slam stuns instead of kills.
+                slamTarget.Health = 999f;
+                clientA.World.Me.Position = SafeNear(slamTarget.Position);
+                Pump(0.3f);
+            }
             clientA.RequestUseSkill("ground_slam", stunPlayer.Position);
             Pump(0.25f);
             stunConfirmed = server.World.Enemies.Values.Any(e => !e.Dead && e.StunnedUntil > server.World.Time);
-            if (!stunConfirmed) Pump(0.7f); // ride out the skill cooldown before retrying
+            if (!stunConfirmed)
+            {
+                int near = server.World.Enemies.Values.Count(e => !e.Dead &&
+                    Vector2.Distance(e.Position, stunPlayer.Position) < 2.2f);
+                var closest = server.World.Enemies.Values.Where(e => !e.Dead)
+                    .OrderBy(e => Vector2.Distance(e.Position, stunPlayer.Position)).FirstOrDefault();
+                Console.WriteLine($"  [diag] slam attempt {attempt}: alive={stunPlayer.Alive} mana={stunPlayer.Mana:0} " +
+                                  $"near={near} serverPos={stunPlayer.Position} clientPos={clientA.World.Me.Position} " +
+                                  $"closest={closest?.Def.Id}@{closest?.Position} " +
+                                  $"dist={(closest != null ? Vector2.Distance(closest.Position, stunPlayer.Position) : -1):0.0} " +
+                                  $"cd={stunPlayer.SkillReadyAt.GetValueOrDefault("ground_slam") - server.World.Time:0.00}");
+                Pump(0.7f); // ride out the skill cooldown before retrying
+            }
         }
         Check(stunConfirmed, "ground slam stunned nearby enemies");
 
@@ -455,9 +502,17 @@ public static class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 301, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
-        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 30,
-              "every family has a tier X (10 tiers x 30 tiered families)");
+        Check(data.Modifiers.Count == 351, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 35,
+              "every family has a tier X (10 tiers x 35 tiered families)");
+        Check(data.Modifiers["of_nullification"].StatAffected == Stats.StatType.ArcaneResistance,
+              "Arcane Resistance suffix family loaded");
+        Check(data.Modifiers["occult"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Mace }) &&
+              data.Modifiers["eldritch"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Staff }),
+              "Arcane added-damage prefixes split melee (mace) / spell (staff)");
+        Check(data.Modifiers["sapphire"].StatAffected == Stats.StatType.MaximumMana &&
+              data.Modifiers["of_clarity"].StatAffected == Stats.StatType.ManaRegeneration,
+              "Maximum Mana prefix and Mana Regeneration suffix families loaded");
 
         // Added-damage split: attack adds are melee-weapon-only, spell adds caster-weapon-only.
         Check(data.Modifiers["searing"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Mace }),
@@ -583,8 +638,10 @@ public static class HeadlessNetTest
             .First();
         gruntDef.Resistances[Skills.DamageKind.Fire] = 100;
         float immuneHp = resistTarget.Health;
+        var resistCaster = server.World.Players[clientA.World.MyPlayerId];
         for (int i = 0; i < 3 && !resistTarget.Dead; i++)
         {
+            resistCaster.Mana = resistCaster.Stats.MaxMana; // bolts cost mana now
             clientA.RequestUseSkill("fire_bolt", resistTarget.Position);
             Pump(0.8f);
         }
@@ -595,6 +652,7 @@ public static class HeadlessNetTest
         bool damaged = false;
         for (int i = 0; i < 6 && !damaged; i++)
         {
+            resistCaster.Mana = resistCaster.Stats.MaxMana;
             clientA.RequestUseSkill("fire_bolt", resistTarget.Position);
             Pump(0.8f);
             damaged = resistTarget.Dead || resistTarget.Health < vulnerableHp - 0.01f;
@@ -654,6 +712,7 @@ public static class HeadlessNetTest
         Pump(0.4f);
         Check(!server.World.Players[bId].SkillReadyAt.ContainsKey("shield_bash"),
               "Shield Bash rejected without a shield (no cooldown consumed)");
+        server.World.Players[aId].Mana = server.World.Players[aId].Stats.MaxMana; // bash costs mana
         clientA.RequestUseSkill("shield_bash", clientA.World.Me.Position + new Vector2(1, 0));
         Pump(0.4f);
         Check(server.World.Players[aId].SkillReadyAt.ContainsKey("shield_bash"),
@@ -737,6 +796,35 @@ public static class HeadlessNetTest
         Check(clientA.World.MyCharacter.OffHand == null,
               "off-hand refuses a shield while a two-handed staff is equipped");
 
+        Console.WriteLine("\n-- Mana --");
+        Check(data.Skills["fire_bolt"].ManaCost > 0 && data.Skills["basic_strike"].ManaCost == 0,
+              "skills carry mana costs (Basic Strike stays free)");
+        var manaPlayer = server.World.Players[bId];
+        Check(manaPlayer.Stats.MaxMana > 0 && manaPlayer.Stats.ManaRegeneration > 0,
+              $"level-based mana pool and regen computed ({manaPlayer.Stats.MaxMana:0} max, {manaPlayer.Stats.ManaRegeneration:0.0}/s)");
+        Pump(1.0f); // let earlier cooldowns clear
+        manaPlayer.Mana = manaPlayer.Stats.MaxMana;
+        float manaBefore = manaPlayer.Mana;
+        clientB.RequestUseSkill("fire_bolt", clientB.World.Me.Position + new Vector2(3, 0));
+        Pump(0.4f);
+        // Regen refills a little during the pump, so require most of the cost to be gone.
+        Check(manaPlayer.Mana < manaBefore - data.Skills["fire_bolt"].ManaCost + 1.5f,
+              $"casting Fire Bolt spent mana server-side ({manaBefore:0} -> {manaPlayer.Mana:0.#})");
+
+        Pump(1.0f);
+        manaPlayer.Mana = 1;
+        manaPlayer.SkillReadyAt.Remove("fire_bolt");
+        clientB.RequestUseSkill("fire_bolt", clientB.World.Me.Position + new Vector2(3, 0));
+        Pump(0.4f);
+        Check(!manaPlayer.SkillReadyAt.ContainsKey("fire_bolt") && manaPlayer.Mana <= 1.01f + manaPlayer.Stats.ManaRegeneration,
+              "insufficient mana rejects the cast (no cooldown consumed)");
+
+        float manaLow = manaPlayer.Mana;
+        Pump(2.0f);
+        Check(manaPlayer.Mana > manaLow + 1f,
+              $"mana regenerates over time ({manaLow:0.#} -> {manaPlayer.Mana:0.#})");
+        manaPlayer.Mana = manaPlayer.Stats.MaxMana; // refill for the projectile section below
+
         Console.WriteLine("\n-- Fire bolt projectile --");
         Pump(4.0f); // ride out a possible death/respawn cycle from roaming enemies
         clientB.SendDebugCommand("kill_nearby"); // the spitter (and friends) can kill B mid-cast otherwise
@@ -745,9 +833,15 @@ public static class HeadlessNetTest
         bool projectileSeen = false;
         for (int attempt = 0; attempt < 6 && !projectileSeen; attempt++)
         {
+            for (int wait = 0; wait < 20 && !clientB.World.Me.Alive; wait++)
+                Pump(0.5f); // heal doesn't revive — ride out the respawn cycle
+            // Cast from open ground: against a wall the bolt would spawn and despawn in
+            // the same tick and never be observable on the other client.
+            clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
             clientB.SendDebugCommand("kill_nearby");
             clientB.SendDebugCommand("heal");
-            Pump(0.2f);
+            manaPlayer.Mana = manaPlayer.Stats.MaxMana; // bolts cost mana
+            Pump(0.4f);
             clientB.RequestUseSkill("fire_bolt", clientB.World.Me.Position + new Vector2(3, 0));
             for (int i = 0; i < 60 && !projectileSeen; i++)
             {

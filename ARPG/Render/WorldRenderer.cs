@@ -177,13 +177,12 @@ public class WorldRenderer
                 var offHandTex = SpriteGen.GetWeaponSprite(offHandBase);
                 bool weaponBehind = screenDir.Y < -0.1f;
                 // With both hands full, items shift apart perpendicular to the aim — one in
-                // each hand — instead of overlapping at the center. The perpendicular is
-                // normalized to point down-screen so the main-hand weapon always takes the
-                // NEAR (lower) hand and the off-hand shield the FAR one; without this, aiming
-                // left mirrors the offsets and the shield ends up in front of the weapon.
+                // each hand — instead of overlapping at the center. Hands keep their true
+                // sides in every aim direction; overlap is resolved by painter's order:
+                // whichever hand hangs lower on screen (nearer the viewer) draws on top.
                 var perp = new Vector2(-screenDir.Y, screenDir.X);
-                if (perp.Y < -0.001f || (MathF.Abs(perp.Y) <= 0.001f && perp.X < 0)) perp = -perp;
                 bool bothHands = weaponTex != null && offHandTex != null;
+                bool swinging = p.SwingTimeLeft > 0 && weaponTex != null;
 
                 void DrawHeld(Texture2D tex, float side)
                 {
@@ -193,16 +192,43 @@ public class WorldRenderer
                         new Vector2(tex.Width * 0.4f, tex.Height / 2f), 2f, SpriteEffects.None, 0f);
                 }
 
+                // Melee swing: the weapon sweeps an arc through the aim direction, gripped
+                // at its handle, instead of standing upright.
+                void DrawSwingingWeapon()
+                {
+                    float st = 1f - Math.Clamp(p.SwingTimeLeft / ClientPlayer.SwingDuration, 0f, 1f);
+                    var swingIso = new Vector2(p.SwingDir.X - p.SwingDir.Y, (p.SwingDir.X + p.SwingDir.Y) * 0.5f);
+                    if (swingIso.LengthSquared() < 0.001f) swingIso = screenDir;
+                    swingIso.Normalize();
+                    float aimAng = MathF.Atan2(swingIso.Y, swingIso.X);
+                    float ang = aimAng - 1.25f + 2.5f * st;
+                    var hand = screen + new Vector2(MathF.Cos(ang), MathF.Sin(ang) * 0.6f) * 20f + new Vector2(0, -12);
+                    batch.Draw(weaponTex, hand, null, Color.White, ang,
+                        new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
+                }
+
                 void DrawHands()
                 {
-                    // Off-hand (shield) always renders BELOW the main-hand weapon.
-                    if (offHandTex != null) DrawHeld(offHandTex, bothHands ? -1f : 0f);
-                    if (weaponTex != null) DrawHeld(weaponTex, bothHands ? 1f : 0f);
+                    if (!bothHands)
+                    {
+                        if (offHandTex != null) DrawHeld(offHandTex, 0f);
+                        if (weaponTex != null && !swinging) DrawHeld(weaponTex, 0f);
+                        return;
+                    }
+                    if (swinging)
+                    {
+                        DrawHeld(offHandTex, -1f); // weapon is mid-swing, drawn separately on top
+                        return;
+                    }
+                    bool weaponNearHand = perp.Y >= 0; // weapon sits at +perp
+                    if (weaponNearHand) { DrawHeld(offHandTex, -1f); DrawHeld(weaponTex, 1f); }
+                    else { DrawHeld(weaponTex, 1f); DrawHeld(offHandTex, -1f); }
                 }
 
                 if (weaponBehind) DrawHands();
                 DrawUnitToken(batch, screen, 34f, color);
                 if (!weaponBehind) DrawHands();
+                if (swinging) DrawSwingingWeapon();
                 if (weaponTex == null && offHandTex == null)
                 {
                     var tip = screen + screenDir * 22f;

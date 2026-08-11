@@ -48,6 +48,10 @@ public class ServerPlayer
     /// <summary>Last health value broadcast to clients (throttles regen sync spam).</summary>
     public float LastSyncedHealth;
 
+    /// <summary>Current mana (server-authoritative; skills spend it, level-based regen refills it).</summary>
+    public float Mana;
+    public float LastSyncedMana;
+
     public const float Radius = 0.35f;
     public const float PickupRange = 2.0f;
 
@@ -55,6 +59,7 @@ public class ServerPlayer
     {
         Stats = StatCalculator.Compute(data, Character);
         if (Health > Stats.MaxHealth) Health = Stats.MaxHealth;
+        if (Mana > Stats.MaxMana) Mana = Stats.MaxMana;
     }
 }
 

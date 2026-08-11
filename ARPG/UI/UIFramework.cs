@@ -190,3 +190,38 @@ public class TextInput : UIElement
         }
     }
 }
+
+/// <summary>
+/// Shared tiny "x" close button for in-game panels (inventory, skills, character sheet),
+/// drawn in the panel's top-right corner so menus can be closed with the mouse.
+/// </summary>
+public static class CloseButton
+{
+    public static Rectangle RectFor(in Rectangle panel) => new(panel.Right - 26, panel.Y + 6, 20, 20);
+
+    /// <summary>True when the close button was clicked this frame (also claims the mouse).</summary>
+    public static bool Handle(InputManager input, in Rectangle panel)
+    {
+        if (input.MouseLeftPressed && RectFor(panel).Contains(input.MousePosition))
+        {
+            input.MouseCapturedByUI = true;
+            return true;
+        }
+        return false;
+    }
+
+    public static void Draw(SpriteBatch sb, in Rectangle panel, Point mouse)
+    {
+        var r = RectFor(panel);
+        bool hover = r.Contains(mouse);
+        sb.Draw(TextureGen.Pixel, r, hover ? new Color(150, 60, 55) : new Color(52, 50, 46));
+        var border = new Color(95, 88, 62);
+        sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Y, r.Width, 1), border);
+        sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Bottom - 1, r.Width, 1), border);
+        sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Y, 1, r.Height), border);
+        sb.Draw(TextureGen.Pixel, new Rectangle(r.Right - 1, r.Y, 1, r.Height), border);
+        var font = FontManager.GetBold(13);
+        var size = font.MeasureString("X");
+        sb.DrawString(font, "X", new Vector2(r.Center.X - size.X / 2, r.Center.Y - size.Y / 2), new Color(225, 215, 200));
+    }
+}

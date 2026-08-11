@@ -25,8 +25,11 @@ public class GameMain : Game
     public GameSettings Settings { get; private set; }
     public GameData Data { get; private set; }
     public Point ScreenSize => new(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
+    /// <summary>Screen size in UI (virtual) space — what menus/HUD lay out against.</summary>
+    public Point UiScreenSize => new((int)(ScreenSize.X / UIScale.Value), (int)(ScreenSize.Y / UIScale.Value));
 
     private IScreen _screen;
+    private bool _applyingDisplayChange;
     private static readonly Random SeedRng = new();
 
     /// <summary>Start straight into single player (command line --sp), for quick dev iteration.</summary>
@@ -45,11 +48,16 @@ public class GameMain : Game
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += (_, _) =>
         {
+            // ApplyChanges() itself raises ClientSizeChanged — guard against recursing
+            // (toggling fullscreen would otherwise overflow the stack).
+            if (_applyingDisplayChange || _graphics.IsFullScreen) return;
             if (Window.ClientBounds.Width > 100 && Window.ClientBounds.Height > 100)
             {
+                _applyingDisplayChange = true;
                 _graphics.PreferredBackBufferWidth = Window.ClientBounds.Width;
                 _graphics.PreferredBackBufferHeight = Window.ClientBounds.Height;
                 _graphics.ApplyChanges();
+                _applyingDisplayChange = false;
             }
         };
     }
@@ -62,6 +70,7 @@ public class GameMain : Game
         FontManager.Initialize();
         Data = GameData.LoadDefault();
         Settings = GameSettings.Load();
+        ApplyDisplaySettings();
         Input.ApplyBindings(Settings.Bindings);
         Window.TextInput += (_, e) => Input.PushTypedChar(e.Character);
         _screen = new MainMenuScreen(this);
@@ -72,6 +81,19 @@ public class GameMain : Game
     {
         Input.ClearTypedChars();
         _screen = screen;
+    }
+
+    /// <summary>Apply the persisted resolution + fullscreen mode (borderless).</summary>
+    public void ApplyDisplaySettings()
+    {
+        _applyingDisplayChange = true;
+        _graphics.PreferredBackBufferWidth = Math.Max(640, Settings.ResolutionWidth);
+        _graphics.PreferredBackBufferHeight = Math.Max(480, Settings.ResolutionHeight);
+        _graphics.HardwareModeSwitch = false; // borderless fullscreen — no display mode change
+        _graphics.IsFullScreen = Settings.Fullscreen;
+        _graphics.ApplyChanges();
+        _applyingDisplayChange = false;
+        UIScale.Update(ScreenSize.X, ScreenSize.Y);
     }
 
     // ------------------------------------------------------------------ session startup
@@ -124,6 +146,7 @@ public class GameMain : Game
     protected override void Update(GameTime gameTime)
     {
         float dt = Math.Min((float)gameTime.ElapsedGameTime.TotalSeconds, 0.1f);
+        UIScale.Update(ScreenSize.X, ScreenSize.Y);
         Input.BeginFrame();
         _screen?.Update(dt);
         base.Update(gameTime);
@@ -132,9 +155,23 @@ public class GameMain : Game
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(new Color(16, 17, 22));
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-        _screen?.Draw(_spriteBatch);
-        _spriteBatch.End();
+        var uiMatrix = Matrix.CreateScale(UIScale.Value);
+        if (_screen is PlayScreen play)
+        {
+            // World renders unscaled (its own camera); menus/HUD render through the UI scale.
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            play.DrawWorld(_spriteBatch);
+            _spriteBatch.End();
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: uiMatrix);
+            play.DrawUI(_spriteBatch);
+            _spriteBatch.End();
+        }
+        else
+        {
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: uiMatrix);
+            _screen?.Draw(_spriteBatch);
+            _spriteBatch.End();
+        }
         base.Draw(gameTime);
     }
 

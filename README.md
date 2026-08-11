@@ -7,8 +7,9 @@ with one/two-handed weapon rules, randomized
 prefix/suffix loot with **per-item rolled prefix/suffix slot caps**, gold drops with
 modifier-based item values, **Enchanting Scrolls** (stackable PoE-orb-style crafting
 currency — right-click a scroll, then click an item to apply it), learnable skills
-with levels, Skill Scrolls, a character sheet with per-damage-type DPS,
-procedural pixel-art sprites, data-driven JSON content and local JSON saves.
+with levels, Skill Scrolls, a mana system with level-based regeneration, a character
+sheet with per-damage-type DPS, procedural pixel-art sprites, data-driven JSON content
+and local JSON saves.
 
 Crafting rules: white items have no modifiers, blue (magic) items hold at most 2, gold
 (rare) items are limited only by the item's own rolled slots (3-8 total, 5 typical,
@@ -90,8 +91,22 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Pause / close panels / menu | `Escape` |
 
 Bindings are saved to `Saves/settings.json` next to the executable and restored on start.
-The Options screen (main menu, or Pause → Options in game) also has persistent
-**Damage Numbers** and **Enemy Health Bars** toggles.
+The Options screen (main menu, or Pause → Options in game) is organized into tabs:
+**Display** (borderless fullscreen + selectable resolution — menus and HUD scale
+automatically with resolution via a global UI scale), **Gameplay** (persistent
+**Damage Numbers**, **Enemy Health Bars** and **Player List & Pings** toggles) and
+**Controls** (rebinding). In-game panels (inventory, skills, character sheet) also
+have mouse "X" close buttons. In multiplayer, the player list (bottom left) shows
+every connected player's round-trip ping, measured server-side and broadcast to all.
+
+**Mana**: every skill except Basic Strike costs mana (shown in the Skill Menu). The
+mana pool and its regeneration grow with character level (a PoE-style skill point
+system will layer on top later), and items can roll **Sapphire** (+max mana) and
+**of Clarity** (+% mana regen) modifiers. Costs are validated and spent server-side;
+the blue orb (bottom right) tracks it. Melee strikes play a weapon swing animation
+on the caster's held weapon. Arcane damage now has its own resistance plus melee
+("Occult", mace-only) and spell ("Eldritch", staff-only) added-damage prefix
+families. F1 → "Drop All Scrolls" drops one of every crafting and skill scroll.
 
 **Dodge** base distance/duration/cooldown/i-frame duration are configured in
 `Data/Config/dodge.json` and routed through the stat system (`DodgeDistance`,

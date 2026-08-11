@@ -16,10 +16,19 @@ public class ClientPlayer
     public Vector2 Facing = new(1, 0);
     public float Health;
     public float MaxHealth;
+    /// <summary>Current mana (server-authoritative; meaningful for the local player's orb).</summary>
+    public float Mana;
     public bool Alive = true;
     public bool IsLocal;
+    /// <summary>Latest round-trip ping in ms (from PlayerPings packets), for the player list.</summary>
+    public int PingMs;
     /// <summary>Counts down while this player is dodge-dashing (visual flair + i-frame hint).</summary>
     public float DodgeTimeLeft;
+    /// <summary>Counts down while the held weapon plays its melee swing animation.</summary>
+    public float SwingTimeLeft;
+    public const float SwingDuration = 0.26f;
+    /// <summary>World-space direction of the current swing (toward the impact point).</summary>
+    public Vector2 SwingDir = new(1, 0);
     /// <summary>Main-hand weapon base id (from PlayerAppearance packets), for held-weapon rendering.</summary>
     public string WeaponBaseId;
     /// <summary>Off-hand item base id (usually a shield), rendered in the other hand.</summary>
@@ -129,6 +138,7 @@ public class ClientWorld
     {
         foreach (var p in Players.Values)
         {
+            if (p.SwingTimeLeft > 0) p.SwingTimeLeft -= dt;
             if (p.IsLocal) continue;
             p.Position = Vector2.Lerp(p.Position, p.NetTarget, Math.Clamp(dt * 12f, 0f, 1f));
         }
