@@ -32,6 +32,27 @@ public static class SpriteGen
         return frames;
     }
 
+    /// <summary>
+    /// Held-weapon sprite for a weapon ItemBase, drawn pointing RIGHT with the grip at the
+    /// left edge; the renderer rotates it toward the player's aim. Cached per base id.
+    /// </summary>
+    public static Texture2D GetWeaponSprite(Items.ItemBase itemBase)
+    {
+        if (itemBase == null || _device == null || !itemBase.IsWeapon) return null;
+        string key = "weapon:" + itemBase.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+
+        var accent = WorldRenderer.ParseColor(itemBase.SpriteColor,
+            itemBase.Category == Items.ItemCategory.Staff ? new Color(140, 170, 255) : new Color(150, 150, 160));
+        var tex = itemBase.Category switch
+        {
+            Items.ItemCategory.Staff => DrawStaff(accent),
+            _ => DrawMace(accent, big: itemBase.InventoryWidth >= 2),
+        };
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
     // ------------------------------------------------------------------ pixel canvas
 
     private const int W = 26, H = 36;
@@ -73,7 +94,97 @@ public static class SpriteGen
     }
 
     private static Color Shade(Color c, float factor) =>
-        new((int)(c.R * factor), (int)(c.G * factor), (int)(c.B * factor));
+        new((int)Math.Min(255, c.R * factor), (int)Math.Min(255, c.G * factor), (int)Math.Min(255, c.B * factor));
+
+    // ------------------------------------------------------------------ held weapons
+
+    /// <summary>Small horizontal canvas for held weapons (grip left, business end right).</summary>
+    private static Texture2D BakeStrip(Color[] px, int w, int h)
+    {
+        // Outline pass identical in spirit to Canvas.Bake.
+        var outline = new Color(14, 10, 16);
+        var result = (Color[])px.Clone();
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                if (px[y * w + x].A != 0) continue;
+                bool nearBody =
+                    (x > 0 && px[y * w + x - 1].A != 0) || (x < w - 1 && px[y * w + x + 1].A != 0) ||
+                    (y > 0 && px[(y - 1) * w + x].A != 0) || (y < h - 1 && px[(y + 1) * w + x].A != 0);
+                if (nearBody) result[y * w + x] = outline;
+            }
+        var tex = new Texture2D(_device, w, h);
+        tex.SetData(result);
+        return tex;
+    }
+
+    private static Texture2D DrawMace(Color metal, bool big)
+    {
+        const int w = 26, h = 12;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int rw, int rh, Color c)
+        { for (int y = y0; y < y0 + rh; y++) for (int x = x0; x < x0 + rw; x++) Set(x, y, c); }
+
+        var wood = new Color(120, 86, 48);
+        var woodDark = Shade(wood, 0.7f);
+        var metalDark = Shade(metal, 0.65f);
+        var metalLight = Shade(metal, 1.35f);
+
+        // Haft with a wrapped grip.
+        Rect(1, 5, 15, 2, wood);
+        Rect(1, 5, 4, 2, woodDark);       // grip wrap
+        Set(3, 5, wood);
+
+        // Head: rounded block with studs; bigger for two-handed maces.
+        int headW = big ? 9 : 7, headH = big ? 10 : 8;
+        int hx = 15, hy = (h - headH) / 2;
+        Rect(hx, hy + 1, headW, headH - 2, metal);
+        Rect(hx + 1, hy, headW - 2, headH, metal);
+        Rect(hx + 1, hy + headH - 2, headW - 2, 2, metalDark);   // bottom shading
+        Rect(hx + 1, hy, headW - 2, 1, metalLight);              // top highlight
+        // Studs
+        Set(hx + 2, hy + 3, metalLight);
+        Set(hx + headW - 3, hy + 3, metalLight);
+        Set(hx + headW / 2, hy + headH - 3, metalDark);
+        Set(hx + headW / 2, hy + 1, metalLight);
+
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawStaff(Color orb)
+    {
+        const int w = 30, h = 12;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int rw, int rh, Color c)
+        { for (int y = y0; y < y0 + rh; y++) for (int x = x0; x < x0 + rw; x++) Set(x, y, c); }
+
+        var wood = new Color(104, 76, 46);
+        var woodDark = Shade(wood, 0.7f);
+        var orbDark = Shade(orb, 0.6f);
+        var orbLight = Shade(orb, 1.5f);
+
+        // Long shaft with grip wrap and a couple of carved rings.
+        Rect(1, 5, 22, 2, wood);
+        Rect(1, 5, 4, 2, woodDark);
+        Set(10, 5, woodDark); Set(10, 6, woodDark);
+        Set(16, 5, woodDark); Set(16, 6, woodDark);
+
+        // Prongs cradling the orb.
+        Set(22, 3, woodDark); Set(23, 2, woodDark);
+        Set(22, 8, woodDark); Set(23, 9, woodDark);
+
+        // Glowing orb.
+        int ox = 24, oy = 3;
+        Rect(ox, oy + 1, 5, 4, orb);
+        Rect(ox + 1, oy, 3, 6, orb);
+        Set(ox + 1, oy + 1, orbLight);   // sparkle highlight
+        Set(ox + 3, oy + 4, orbDark);
+        Set(ox + 4, oy + 4, orbDark);
+
+        return BakeStrip(px, w, h);
+    }
 
     // ------------------------------------------------------------------ zombie (shambler)
 

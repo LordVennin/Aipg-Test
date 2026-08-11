@@ -444,6 +444,15 @@ public class GameClient
                 break;
             }
 
+            case PacketType.PlayerAppearance:
+            {
+                int playerId = r.GetInt();
+                string weaponBaseId = r.GetString();
+                if (World.Players.TryGetValue(playerId, out var p))
+                    p.WeaponBaseId = string.IsNullOrEmpty(weaponBaseId) ? null : weaponBaseId;
+                break;
+            }
+
             case PacketType.ServerMessage:
                 ServerMessageReceived?.Invoke(r.GetString());
                 break;

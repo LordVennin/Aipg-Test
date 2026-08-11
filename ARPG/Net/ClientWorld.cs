@@ -20,6 +20,8 @@ public class ClientPlayer
     public bool IsLocal;
     /// <summary>Counts down while this player is dodge-dashing (visual flair + i-frame hint).</summary>
     public float DodgeTimeLeft;
+    /// <summary>Main-hand weapon base id (from PlayerAppearance packets), for held-weapon rendering.</summary>
+    public string WeaponBaseId;
 }
 
 public class ClientEnemy

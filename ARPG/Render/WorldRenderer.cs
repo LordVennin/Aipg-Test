@@ -142,9 +142,25 @@ public class WorldRenderer
             _sorted.Add((pos.X + pos.Y, batch =>
             {
                 DrawUnitToken(batch, screen, 34f, color);
-                // Facing indicator
-                var tip = screen + new Vector2(p.Facing.X - p.Facing.Y, (p.Facing.X + p.Facing.Y) * 0.5f) * 22f;
-                batch.Draw(TextureGen.Circle32, new Rectangle((int)tip.X - 3, (int)tip.Y - 3 - 14, 6, 6), Color.White);
+
+                // Held weapon (or a small facing dot when unarmed), rotated toward the aim.
+                var screenDir = new Vector2(p.Facing.X - p.Facing.Y, (p.Facing.X + p.Facing.Y) * 0.5f);
+                if (screenDir.LengthSquared() < 0.001f) screenDir = new Vector2(1, 0);
+                screenDir.Normalize();
+                var weaponBase = p.WeaponBaseId != null ? _data.Items.GetValueOrDefault(p.WeaponBaseId) : null;
+                var weaponTex = SpriteGen.GetWeaponSprite(weaponBase);
+                if (weaponTex != null)
+                {
+                    float angle = MathF.Atan2(screenDir.Y, screenDir.X);
+                    var hand = screen + screenDir * 12f + new Vector2(0, -16);
+                    batch.Draw(weaponTex, hand, null, Color.White, angle,
+                        new Vector2(2, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
+                }
+                else
+                {
+                    var tip = screen + screenDir * 22f;
+                    batch.Draw(TextureGen.Circle32, new Rectangle((int)tip.X - 3, (int)tip.Y - 3 - 14, 6, 6), Color.White);
+                }
 
                 var font = FontManager.Get(13);
                 var nameSize = font.MeasureString(name);
