@@ -50,6 +50,8 @@ public enum PacketType : byte
     PlayerAppearance,
     /// <summary>Periodic per-player round-trip pings, for the HUD player list.</summary>
     PlayerPings,
+    /// <summary>Chain-lightning path: the exact points the bolt leaps between.</summary>
+    ChainEffect,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

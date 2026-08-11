@@ -90,7 +90,7 @@
     "StunDuration": 0.5,
     "StunChance": 0.8,
     "ManaCost": 6,
-    "LungeDistance": 1.1
+    "LungeDistance": 1.8
   },
   {
     "Id": "fire_bolt",
@@ -131,5 +131,46 @@
     "Radius": 1.8,
     "RadiusPerLevel": 0.1,
     "ManaCost": 9
+  },
+  {
+    "Id": "ice_spike",
+    "Name": "Ice Spike",
+    "Description": "Hurl a jagged spike of ice toward the cursor, dealing cold damage.",
+    "Tags": [
+      "Spell",
+      "Projectile",
+      "Cold"
+    ],
+    "Archetype": "Projectile",
+    "DamageKind": "Cold",
+    "UsesWeaponDamage": false,
+    "BaseDamage": 15,
+    "DamagePerLevel": 4.5,
+    "Cooldown": 0.85,
+    "Range": 11,
+    "ProjectileSpeed": 13,
+    "ProjectileCount": 1,
+    "ManaCost": 6,
+    "ProjectileSprite": "IceSpike"
+  },
+  {
+    "Id": "chain_lightning",
+    "Name": "Chain Lightning",
+    "Description": "Loose a bolt of lightning that instantly strikes a nearby enemy and leaps between targets. Added projectiles grant extra jumps.",
+    "Tags": [
+      "Spell",
+      "Projectile",
+      "Lightning"
+    ],
+    "Archetype": "ChainLightning",
+    "DamageKind": "Lightning",
+    "UsesWeaponDamage": false,
+    "BaseDamage": 12,
+    "DamagePerLevel": 3.5,
+    "Cooldown": 0.95,
+    "Range": 7,
+    "Radius": 3.2,
+    "ProjectileCount": 3,
+    "ManaCost": 8
   }
 ]

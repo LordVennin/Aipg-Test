@@ -26,6 +26,7 @@ public enum SkillArchetype
     MeleeArea,     // hits all enemies in a radius around the caster
     Projectile,    // launches one or more projectiles toward the cursor
     AreaBurst,     // damages enemies in a radius around the aimed point (range-limited)
+    ChainLightning, // instantly hits a target near the aim, then leaps between nearby enemies
 }
 
 /// <summary>
@@ -86,6 +87,10 @@ public class SkillDefinition
     public float RadiusPerLevel { get; set; }
     public float ProjectileSpeed { get; set; } = 10f;
     public int ProjectileCount { get; set; } = 1;
+
+    /// <summary>Named procedural sprite for this skill's projectiles ("IceSpike");
+    /// null falls back to the generic glowing orb.</summary>
+    public string ProjectileSprite { get; set; }
 
     /// <summary>Tiles the target is pushed away from the caster on hit (melee skills).</summary>
     public float Knockback { get; set; }

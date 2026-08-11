@@ -58,7 +58,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 6; // v6: mana in health/join/respawn packets, player pings
+    public const int ProtocolVersion = 7; // v7: chain-lightning effect packet
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

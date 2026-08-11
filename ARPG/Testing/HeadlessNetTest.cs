@@ -873,6 +873,81 @@ public static class HeadlessNetTest
               $"mana regenerates over time ({manaLow:0.#} -> {manaPlayer.Mana:0.#})");
         manaPlayer.Mana = manaPlayer.Stats.MaxMana; // refill for the projectile section below
 
+        Console.WriteLine("\n-- Ice Spike & Chain Lightning --");
+        Check(data.Skills["ice_spike"].DamageKind == Skills.DamageKind.Cold &&
+              data.Skills["ice_spike"].ProjectileSprite == "IceSpike",
+              "Ice Spike loaded (cold projectile with a named sprite)");
+        Check(data.Skills["chain_lightning"].Archetype == Skills.SkillArchetype.ChainLightning &&
+              data.Skills["chain_lightning"].DamageKind == Skills.DamageKind.Lightning,
+              "Chain Lightning loaded (chain archetype)");
+
+        // Skill Scroll compatibility: Multishot (Projectile tag) fits both new spells and
+        // adds shards / chain jumps through the same generic math.
+        var multishot = data.Scrolls["multishot"];
+        Check(multishot.CompatibleWith(data.Skills["ice_spike"]) &&
+              multishot.CompatibleWith(data.Skills["chain_lightning"]),
+              "projectile Skill Scrolls attach to both new spells");
+        var clPlain = Skills.SkillMath.Compute(data, data.Skills["chain_lightning"], 1,
+            Array.Empty<Skills.ScrollDefinition>(), default);
+        var clScrolled = Skills.SkillMath.Compute(data, data.Skills["chain_lightning"], 1,
+            new[] { multishot }, default);
+        Check(clScrolled.ProjectileCount == clPlain.ProjectileCount + 2 && clScrolled.MaxDamage < clPlain.MaxDamage,
+              $"Multishot adds chain jumps ({clPlain.ProjectileCount} -> {clScrolled.ProjectileCount}) for less damage");
+
+        // End-to-end: cluster tanky grunts at open ground and zap them.
+        clientB.RequestLearnSkill("chain_lightning");
+        clientB.RequestLearnSkill("ice_spike");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        Pump(0.4f);
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.3f);
+        for (int i = 0; i < 3; i++) clientB.SendDebugCommand("spawn_enemy", "grunt");
+        Pump(0.5f);
+        var bServerPos = server.World.Players[bId].Position;
+        var cluster = server.World.Enemies.Values
+            .Where(e => !e.Dead && Vector2.Distance(e.Position, bServerPos) < 5f).ToList();
+        Check(cluster.Count >= 2, $"grunt cluster assembled ({cluster.Count} enemies)");
+        foreach (var e in cluster) e.Health = 500f; // survive the zaps so hits are countable
+
+        Check(cluster.Count < 2 || Vector2.Distance(cluster[0].Position, cluster[1].Position) > 0.4f,
+              "overlapping enemies push apart instead of stacking");
+
+        bool chainSeen = false;
+        int zapped = 0;
+        for (int attempt = 0; attempt < 5 && zapped < 2; attempt++)
+        {
+            server.World.Players[bId].Mana = server.World.Players[bId].Stats.MaxMana;
+            clientB.RequestUseSkill("chain_lightning", cluster[0].Position);
+            for (int i = 0; i < 20; i++)
+            {
+                Pump(0.05f);
+                chainSeen |= clientA.World.Effects.Any(fx => fx.Kind == "chain" && fx.Points is { Count: > 2 });
+            }
+            zapped = cluster.Count(e => e.Health < 499.9f);
+        }
+        Check(zapped >= 2, $"Chain Lightning leapt between enemies ({zapped} of {cluster.Count} hit)");
+        Check(chainSeen, "chain path replicated to the other client for the bolt visual");
+
+        // Clear the cluster first — a spike that hits a grunt on its very first tick
+        // spawns and despawns inside one server update and can't be observed.
+        foreach (var e in cluster) e.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.4f);
+        server.World.Players[bId].Mana = server.World.Players[bId].Stats.MaxMana;
+        clientB.RequestUseSkill("ice_spike", clientB.World.Me.Position + new Vector2(3, 0));
+        bool spikeSeen = false;
+        Skills.DamageKind? spikeKind = null;
+        for (int i = 0; i < 60 && !spikeSeen; i++)
+        {
+            Pump(0.03f);
+            var sp = server.World.Projectiles.Values.FirstOrDefault(pr => pr.SkillId == "ice_spike");
+            if (sp != null) spikeKind = sp.DamageKind;
+            spikeSeen = clientA.World.Projectiles.Values.Any(pr => pr.SkillId == "ice_spike");
+        }
+        Check(spikeSeen && spikeKind == Skills.DamageKind.Cold,
+              $"Ice Spike fires a cold projectile replicated to peers ({spikeKind})");
+
         Console.WriteLine("\n-- Fire bolt projectile --");
         Pump(4.0f); // ride out a possible death/respawn cycle from roaming enemies
         clientB.SendDebugCommand("kill_nearby"); // the spitter (and friends) can kill B mid-cast otherwise

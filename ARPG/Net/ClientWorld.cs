@@ -95,9 +95,11 @@ public class ClientEffect
     public float Radius;
     public float TimeLeft;
     public float Duration;
-    public string Kind; // "slam", "burst", "hit", "melee", "swipe"
+    public string Kind; // "slam", "burst", "hit", "melee", "swipe", "chain"
     /// <summary>World-space direction, used by directional effects (the swipe arc).</summary>
     public Vector2 Dir;
+    /// <summary>World-space path for chained effects (chain lightning: caster -> victims).</summary>
+    public List<Vector2> Points;
 }
 
 /// <summary>
