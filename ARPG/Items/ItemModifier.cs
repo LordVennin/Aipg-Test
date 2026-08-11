@@ -30,6 +30,11 @@ public class ItemModifier
     public float MaximumValue { get; set; }
     public int Weight { get; set; } = 100;
 
+    /// <summary>Tier within its family (1 = weakest). Tiers share a ModifierGroup, so two
+    /// tiers of the same modifier can never coexist on one item; MinimumItemLevel gates
+    /// the strong tiers to high-level items (low tiers can always roll).</summary>
+    public int Tier { get; set; } = 1;
+
     /// <summary>True for percent-increased stats — controls tooltip formatting only.</summary>
     public bool IsPercent { get; set; }
 
@@ -53,7 +58,16 @@ public class ItemModifier
             StatType.FireResistance => "Fire Resistance",
             StatType.ColdResistance => "Cold Resistance",
             StatType.LightningResistance => "Lightning Resistance",
+            StatType.AcidResistance => "Acid Resistance",
+            StatType.DarkResistance => "Dark Resistance",
+            StatType.LightResistance => "Light Resistance",
             StatType.AddedPhysicalDamage => "Added Physical Damage",
+            StatType.AddedFireDamage => "Added Fire Damage",
+            StatType.AddedColdDamage => "Added Cold Damage",
+            StatType.AddedLightningDamage => "Added Lightning Damage",
+            StatType.AddedAcidDamage => "Added Acid Damage",
+            StatType.AddedDarkDamage => "Added Dark Damage",
+            StatType.AddedLightDamage => "Added Light Damage",
             StatType.ModifierLimit => "Modifier Limit",
             _ => StatAffected.ToString(),
         };
