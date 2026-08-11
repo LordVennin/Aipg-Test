@@ -32,6 +32,8 @@ public class ClientEnemy
     public float Health;
     public float MaxHealth;
     public byte State;
+    /// <summary>Which way the sprite should face on screen (updated from movement).</summary>
+    public bool FacingLeft;
 }
 
 public class ClientProjectile
@@ -114,7 +116,13 @@ public class ClientWorld
             p.Position = Vector2.Lerp(p.Position, p.NetTarget, Math.Clamp(dt * 12f, 0f, 1f));
         }
         foreach (var e in Enemies.Values)
+        {
+            // Screen-space horizontal direction in isometric projection: (dx - dy).
+            var delta = e.NetTarget - e.Position;
+            float screenDx = delta.X - delta.Y;
+            if (MathF.Abs(screenDx) > 0.02f) e.FacingLeft = screenDx < 0;
             e.Position = Vector2.Lerp(e.Position, e.NetTarget, Math.Clamp(dt * 10f, 0f, 1f));
+        }
 
         foreach (var pr in Projectiles.Values.ToList())
         {

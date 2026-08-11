@@ -13,7 +13,8 @@
     "Radius": 0.38,
     "XpReward": 18,
     "LootTableId": "default",
-    "Color": "C04040"
+    "Color": "C04040",
+    "SpriteStyle": "Zombie"
   },
   {
     "Id": "spitter",
@@ -30,6 +31,7 @@
     "Radius": 0.36,
     "XpReward": 26,
     "LootTableId": "default",
-    "Color": "50B050"
+    "Color": "50B050",
+    "SpriteStyle": "Ghoul"
   }
 ]

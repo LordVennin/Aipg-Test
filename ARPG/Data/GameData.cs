@@ -21,7 +21,9 @@ public class EnemyDefinition
     public float Radius { get; set; } = 0.4f;    // collision/visual size in tiles
     public float XpReward { get; set; } = 20;
     public string LootTableId { get; set; } = "default";
-    public string Color { get; set; } = "C04040"; // placeholder art tint (RRGGBB hex)
+    public string Color { get; set; } = "C04040"; // art tint (RRGGBB hex)
+    /// <summary>Procedural sprite style: "Zombie", "Ghoul", or empty for a plain token.</summary>
+    public string SpriteStyle { get; set; } = "";
 }
 
 /// <summary>Base dodge tuning, loaded from Data/Config/dodge.json. Final values are these
