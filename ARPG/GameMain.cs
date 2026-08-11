@@ -58,6 +58,7 @@ public class GameMain : Game
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         TextureGen.Initialize(GraphicsDevice);
+        SpriteGen.Initialize(GraphicsDevice);
         FontManager.Initialize();
         Data = GameData.LoadDefault();
         Settings = GameSettings.Load();

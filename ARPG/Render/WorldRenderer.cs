@@ -87,6 +87,7 @@ public class WorldRenderer
             }));
         }
 
+        long animClock = Environment.TickCount64; // visual-only animation timer
         foreach (var e in world.Enemies.Values)
         {
             var pos = e.Position;
@@ -94,13 +95,35 @@ public class WorldRenderer
             var def = e.Def;
             var color = ParseColor(def?.Color, new Color(190, 60, 60));
             float size = (def?.Radius ?? 0.4f) * 90f;
+            var frames = SpriteGen.GetEnemyFrames(def);
             _sorted.Add((pos.X + pos.Y, batch =>
             {
-                DrawUnitToken(batch, screen, size, color);
+                int barY;
+                if (frames != null)
+                {
+                    // Procedural pixel sprite: shamble animation while chasing/attacking.
+                    bool animated = e.State is (byte)Server.EnemyState.Chase or (byte)Server.EnemyState.Attack;
+                    int frame = animated ? (int)((animClock / 170 + e.Id) % frames.Length) : 0;
+                    var tex = frames[frame];
+                    const int scale = 2;
+                    int w = tex.Width * scale, h = tex.Height * scale;
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size / 4), (int)size, (int)(size / 2)),
+                        new Color(0, 0, 0, 90)); // shadow
+                    batch.Draw(tex, new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 6, w, h), null,
+                        Color.White, 0f, Vector2.Zero,
+                        e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
+                    barY = (int)screen.Y - h + 2;
+                }
+                else
+                {
+                    DrawUnitToken(batch, screen, size, color);
+                    barY = (int)screen.Y - (int)size - 26;
+                }
                 if (_settings.ShowEnemyHealthBars)
                 {
                     float frac = e.MaxHealth > 0 ? Math.Clamp(e.Health / e.MaxHealth, 0f, 1f) : 0;
-                    var bar = new Rectangle((int)screen.X - 16, (int)screen.Y - (int)size - 26, 32, 4);
+                    var bar = new Rectangle((int)screen.X - 16, barY, 32, 4);
                     batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));
                     batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
                         new Color(200, 50, 50));
