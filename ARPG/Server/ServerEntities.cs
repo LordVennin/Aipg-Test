@@ -89,6 +89,8 @@ public class ServerProjectile
     public float MaxDamage;
     public DamageKind DamageKind;
     public float IgniteChance;
+    /// <summary>Typed added-damage components carried by the projectile (spell adds).</summary>
+    public List<DamageComponent> Added;
 }
 
 /// <summary>An ItemInstance or gold pile lying in the world. Generated once by the host.</summary>

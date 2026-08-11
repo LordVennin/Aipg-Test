@@ -990,176 +990,6 @@
     "IsPercent": true
   },
   {
-    "Id": "jagged",
-    "Name": "Jagged I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 3,
-    "Weight": 80,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t2",
-    "Name": "Jagged II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 3,
-    "MaximumValue": 6,
-    "Weight": 75,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t3",
-    "Name": "Jagged III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 6,
-    "MaximumValue": 9,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t4",
-    "Name": "Jagged IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 8,
-    "MaximumValue": 12,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t5",
-    "Name": "Jagged V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 10,
-    "MaximumValue": 15,
-    "Weight": 61,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t6",
-    "Name": "Jagged VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 13,
-    "MaximumValue": 18,
-    "Weight": 56,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t7",
-    "Name": "Jagged VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 15,
-    "MaximumValue": 21,
-    "Weight": 51,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t8",
-    "Name": "Jagged VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 17,
-    "MaximumValue": 24,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t9",
-    "Name": "Jagged IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 20,
-    "MaximumValue": 27,
-    "Weight": 42,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t10",
-    "Name": "Jagged X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 22,
-    "MaximumValue": 30,
-    "Weight": 37,
-    "IsPercent": false
-  },
-  {
     "Id": "mending",
     "Name": "Mending I",
     "AffixType": "Prefix",
@@ -1380,14 +1210,173 @@
     "IsPercent": false
   },
   {
+    "Id": "jagged",
+    "Name": "Jagged I",
+    "AffixType": "Prefix",
+    "Tier": 1,
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 1,
+    "MaximumValue": 3,
+    "Weight": 80,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t2",
+    "Name": "Jagged II",
+    "AffixType": "Prefix",
+    "Tier": 2,
+    "MinimumItemLevel": 2,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 3,
+    "MaximumValue": 6,
+    "Weight": 75,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t3",
+    "Name": "Jagged III",
+    "AffixType": "Prefix",
+    "Tier": 3,
+    "MinimumItemLevel": 4,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 6,
+    "MaximumValue": 9,
+    "Weight": 70,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t4",
+    "Name": "Jagged IV",
+    "AffixType": "Prefix",
+    "Tier": 4,
+    "MinimumItemLevel": 6,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 8,
+    "MaximumValue": 12,
+    "Weight": 66,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t5",
+    "Name": "Jagged V",
+    "AffixType": "Prefix",
+    "Tier": 5,
+    "MinimumItemLevel": 8,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 10,
+    "MaximumValue": 15,
+    "Weight": 61,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t6",
+    "Name": "Jagged VI",
+    "AffixType": "Prefix",
+    "Tier": 6,
+    "MinimumItemLevel": 10,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 13,
+    "MaximumValue": 18,
+    "Weight": 56,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t7",
+    "Name": "Jagged VII",
+    "AffixType": "Prefix",
+    "Tier": 7,
+    "MinimumItemLevel": 12,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 15,
+    "MaximumValue": 21,
+    "Weight": 51,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t8",
+    "Name": "Jagged VIII",
+    "AffixType": "Prefix",
+    "Tier": 8,
+    "MinimumItemLevel": 14,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 17,
+    "MaximumValue": 24,
+    "Weight": 46,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t9",
+    "Name": "Jagged IX",
+    "AffixType": "Prefix",
+    "Tier": 9,
+    "MinimumItemLevel": 16,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 20,
+    "MaximumValue": 27,
+    "Weight": 42,
+    "IsPercent": false
+  },
+  {
+    "Id": "jagged_t10",
+    "Name": "Jagged X",
+    "AffixType": "Prefix",
+    "Tier": 10,
+    "MinimumItemLevel": 18,
+    "CompatibleItemCategories": [
+      "Mace"
+    ],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 22,
+    "MaximumValue": 30,
+    "Weight": 37,
+    "IsPercent": false
+  },
+  {
     "Id": "searing",
     "Name": "Searing I",
     "AffixType": "Prefix",
     "Tier": 1,
     "MinimumItemLevel": 1,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1403,8 +1392,7 @@
     "Tier": 2,
     "MinimumItemLevel": 2,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1420,8 +1408,7 @@
     "Tier": 3,
     "MinimumItemLevel": 4,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1437,8 +1424,7 @@
     "Tier": 4,
     "MinimumItemLevel": 6,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1454,8 +1440,7 @@
     "Tier": 5,
     "MinimumItemLevel": 8,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1471,8 +1456,7 @@
     "Tier": 6,
     "MinimumItemLevel": 10,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1488,8 +1472,7 @@
     "Tier": 7,
     "MinimumItemLevel": 12,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1505,8 +1488,7 @@
     "Tier": 8,
     "MinimumItemLevel": 14,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1522,8 +1504,7 @@
     "Tier": 9,
     "MinimumItemLevel": 16,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1539,8 +1520,7 @@
     "Tier": 10,
     "MinimumItemLevel": 18,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_fire",
     "StatAffected": "AddedFireDamage",
@@ -1556,8 +1536,7 @@
     "Tier": 1,
     "MinimumItemLevel": 1,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1573,8 +1552,7 @@
     "Tier": 2,
     "MinimumItemLevel": 2,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1590,8 +1568,7 @@
     "Tier": 3,
     "MinimumItemLevel": 4,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1607,8 +1584,7 @@
     "Tier": 4,
     "MinimumItemLevel": 6,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1624,8 +1600,7 @@
     "Tier": 5,
     "MinimumItemLevel": 8,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1641,8 +1616,7 @@
     "Tier": 6,
     "MinimumItemLevel": 10,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1658,8 +1632,7 @@
     "Tier": 7,
     "MinimumItemLevel": 12,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1675,8 +1648,7 @@
     "Tier": 8,
     "MinimumItemLevel": 14,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1692,8 +1664,7 @@
     "Tier": 9,
     "MinimumItemLevel": 16,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1709,8 +1680,7 @@
     "Tier": 10,
     "MinimumItemLevel": 18,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_cold",
     "StatAffected": "AddedColdDamage",
@@ -1726,8 +1696,7 @@
     "Tier": 1,
     "MinimumItemLevel": 1,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1743,8 +1712,7 @@
     "Tier": 2,
     "MinimumItemLevel": 2,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1760,8 +1728,7 @@
     "Tier": 3,
     "MinimumItemLevel": 4,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1777,8 +1744,7 @@
     "Tier": 4,
     "MinimumItemLevel": 6,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1794,8 +1760,7 @@
     "Tier": 5,
     "MinimumItemLevel": 8,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1811,8 +1776,7 @@
     "Tier": 6,
     "MinimumItemLevel": 10,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1828,8 +1792,7 @@
     "Tier": 7,
     "MinimumItemLevel": 12,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1845,8 +1808,7 @@
     "Tier": 8,
     "MinimumItemLevel": 14,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1862,8 +1824,7 @@
     "Tier": 9,
     "MinimumItemLevel": 16,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1879,8 +1840,7 @@
     "Tier": 10,
     "MinimumItemLevel": 18,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_lightning",
     "StatAffected": "AddedLightningDamage",
@@ -1896,8 +1856,7 @@
     "Tier": 1,
     "MinimumItemLevel": 1,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -1913,8 +1872,7 @@
     "Tier": 2,
     "MinimumItemLevel": 2,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -1930,8 +1888,7 @@
     "Tier": 3,
     "MinimumItemLevel": 4,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -1947,8 +1904,7 @@
     "Tier": 4,
     "MinimumItemLevel": 6,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -1964,8 +1920,7 @@
     "Tier": 5,
     "MinimumItemLevel": 8,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -1981,8 +1936,7 @@
     "Tier": 6,
     "MinimumItemLevel": 10,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -1998,8 +1952,7 @@
     "Tier": 7,
     "MinimumItemLevel": 12,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -2015,8 +1968,7 @@
     "Tier": 8,
     "MinimumItemLevel": 14,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -2032,8 +1984,7 @@
     "Tier": 9,
     "MinimumItemLevel": 16,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -2049,8 +2000,7 @@
     "Tier": 10,
     "MinimumItemLevel": 18,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_acid",
     "StatAffected": "AddedAcidDamage",
@@ -2066,8 +2016,7 @@
     "Tier": 1,
     "MinimumItemLevel": 1,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2083,8 +2032,7 @@
     "Tier": 2,
     "MinimumItemLevel": 2,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2100,8 +2048,7 @@
     "Tier": 3,
     "MinimumItemLevel": 4,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2117,8 +2064,7 @@
     "Tier": 4,
     "MinimumItemLevel": 6,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2134,8 +2080,7 @@
     "Tier": 5,
     "MinimumItemLevel": 8,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2151,8 +2096,7 @@
     "Tier": 6,
     "MinimumItemLevel": 10,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2168,8 +2112,7 @@
     "Tier": 7,
     "MinimumItemLevel": 12,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2185,8 +2128,7 @@
     "Tier": 8,
     "MinimumItemLevel": 14,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2202,8 +2144,7 @@
     "Tier": 9,
     "MinimumItemLevel": 16,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2219,8 +2160,7 @@
     "Tier": 10,
     "MinimumItemLevel": 18,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_dark",
     "StatAffected": "AddedDarkDamage",
@@ -2236,8 +2176,7 @@
     "Tier": 1,
     "MinimumItemLevel": 1,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2253,8 +2192,7 @@
     "Tier": 2,
     "MinimumItemLevel": 2,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2270,8 +2208,7 @@
     "Tier": 3,
     "MinimumItemLevel": 4,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2287,8 +2224,7 @@
     "Tier": 4,
     "MinimumItemLevel": 6,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2304,8 +2240,7 @@
     "Tier": 5,
     "MinimumItemLevel": 8,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2321,8 +2256,7 @@
     "Tier": 6,
     "MinimumItemLevel": 10,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2338,8 +2272,7 @@
     "Tier": 7,
     "MinimumItemLevel": 12,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2355,8 +2288,7 @@
     "Tier": 8,
     "MinimumItemLevel": 14,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2372,8 +2304,7 @@
     "Tier": 9,
     "MinimumItemLevel": 16,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
@@ -2389,13 +2320,972 @@
     "Tier": 10,
     "MinimumItemLevel": 18,
     "CompatibleItemCategories": [
-      "Mace",
-      "Staff"
+      "Mace"
     ],
     "ModifierGroup": "added_light",
     "StatAffected": "AddedLightDamage",
     "MinimumValue": 24,
     "MaximumValue": 32,
+    "Weight": 28,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing",
+    "Name": "Blazing I",
+    "AffixType": "Prefix",
+    "Tier": 1,
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 1,
+    "MaximumValue": 2,
+    "Weight": 70,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t2",
+    "Name": "Blazing II",
+    "AffixType": "Prefix",
+    "Tier": 2,
+    "MinimumItemLevel": 2,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 3,
+    "MaximumValue": 4,
+    "Weight": 66,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t3",
+    "Name": "Blazing III",
+    "AffixType": "Prefix",
+    "Tier": 3,
+    "MinimumItemLevel": 4,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 5,
+    "MaximumValue": 7,
+    "Weight": 62,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t4",
+    "Name": "Blazing IV",
+    "AffixType": "Prefix",
+    "Tier": 4,
+    "MinimumItemLevel": 6,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 7,
+    "MaximumValue": 9,
+    "Weight": 57,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t5",
+    "Name": "Blazing V",
+    "AffixType": "Prefix",
+    "Tier": 5,
+    "MinimumItemLevel": 8,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 9,
+    "MaximumValue": 12,
+    "Weight": 53,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t6",
+    "Name": "Blazing VI",
+    "AffixType": "Prefix",
+    "Tier": 6,
+    "MinimumItemLevel": 10,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 10,
+    "MaximumValue": 14,
+    "Weight": 49,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t7",
+    "Name": "Blazing VII",
+    "AffixType": "Prefix",
+    "Tier": 7,
+    "MinimumItemLevel": 12,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 12,
+    "MaximumValue": 17,
+    "Weight": 45,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t8",
+    "Name": "Blazing VIII",
+    "AffixType": "Prefix",
+    "Tier": 8,
+    "MinimumItemLevel": 14,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 14,
+    "MaximumValue": 19,
+    "Weight": 41,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t9",
+    "Name": "Blazing IX",
+    "AffixType": "Prefix",
+    "Tier": 9,
+    "MinimumItemLevel": 16,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 16,
+    "MaximumValue": 22,
+    "Weight": 36,
+    "IsPercent": false
+  },
+  {
+    "Id": "blazing_t10",
+    "Name": "Blazing X",
+    "AffixType": "Prefix",
+    "Tier": 10,
+    "MinimumItemLevel": 18,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_fire",
+    "StatAffected": "AddedFireSpellDamage",
+    "MinimumValue": 18,
+    "MaximumValue": 24,
+    "Weight": 32,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling",
+    "Name": "Chilling I",
+    "AffixType": "Prefix",
+    "Tier": 1,
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 1,
+    "MaximumValue": 2,
+    "Weight": 70,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t2",
+    "Name": "Chilling II",
+    "AffixType": "Prefix",
+    "Tier": 2,
+    "MinimumItemLevel": 2,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 3,
+    "MaximumValue": 4,
+    "Weight": 66,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t3",
+    "Name": "Chilling III",
+    "AffixType": "Prefix",
+    "Tier": 3,
+    "MinimumItemLevel": 4,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 5,
+    "MaximumValue": 7,
+    "Weight": 62,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t4",
+    "Name": "Chilling IV",
+    "AffixType": "Prefix",
+    "Tier": 4,
+    "MinimumItemLevel": 6,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 7,
+    "MaximumValue": 9,
+    "Weight": 57,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t5",
+    "Name": "Chilling V",
+    "AffixType": "Prefix",
+    "Tier": 5,
+    "MinimumItemLevel": 8,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 9,
+    "MaximumValue": 12,
+    "Weight": 53,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t6",
+    "Name": "Chilling VI",
+    "AffixType": "Prefix",
+    "Tier": 6,
+    "MinimumItemLevel": 10,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 10,
+    "MaximumValue": 14,
+    "Weight": 49,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t7",
+    "Name": "Chilling VII",
+    "AffixType": "Prefix",
+    "Tier": 7,
+    "MinimumItemLevel": 12,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 12,
+    "MaximumValue": 17,
+    "Weight": 45,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t8",
+    "Name": "Chilling VIII",
+    "AffixType": "Prefix",
+    "Tier": 8,
+    "MinimumItemLevel": 14,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 14,
+    "MaximumValue": 19,
+    "Weight": 41,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t9",
+    "Name": "Chilling IX",
+    "AffixType": "Prefix",
+    "Tier": 9,
+    "MinimumItemLevel": 16,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 16,
+    "MaximumValue": 22,
+    "Weight": 36,
+    "IsPercent": false
+  },
+  {
+    "Id": "chilling_t10",
+    "Name": "Chilling X",
+    "AffixType": "Prefix",
+    "Tier": 10,
+    "MinimumItemLevel": 18,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_cold",
+    "StatAffected": "AddedColdSpellDamage",
+    "MinimumValue": 18,
+    "MaximumValue": 24,
+    "Weight": 32,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking",
+    "Name": "Sparking I",
+    "AffixType": "Prefix",
+    "Tier": 1,
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 1,
+    "MaximumValue": 2,
+    "Weight": 70,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t2",
+    "Name": "Sparking II",
+    "AffixType": "Prefix",
+    "Tier": 2,
+    "MinimumItemLevel": 2,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 3,
+    "MaximumValue": 4,
+    "Weight": 66,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t3",
+    "Name": "Sparking III",
+    "AffixType": "Prefix",
+    "Tier": 3,
+    "MinimumItemLevel": 4,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 5,
+    "MaximumValue": 7,
+    "Weight": 62,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t4",
+    "Name": "Sparking IV",
+    "AffixType": "Prefix",
+    "Tier": 4,
+    "MinimumItemLevel": 6,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 7,
+    "MaximumValue": 9,
+    "Weight": 57,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t5",
+    "Name": "Sparking V",
+    "AffixType": "Prefix",
+    "Tier": 5,
+    "MinimumItemLevel": 8,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 9,
+    "MaximumValue": 12,
+    "Weight": 53,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t6",
+    "Name": "Sparking VI",
+    "AffixType": "Prefix",
+    "Tier": 6,
+    "MinimumItemLevel": 10,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 10,
+    "MaximumValue": 14,
+    "Weight": 49,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t7",
+    "Name": "Sparking VII",
+    "AffixType": "Prefix",
+    "Tier": 7,
+    "MinimumItemLevel": 12,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 12,
+    "MaximumValue": 17,
+    "Weight": 45,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t8",
+    "Name": "Sparking VIII",
+    "AffixType": "Prefix",
+    "Tier": 8,
+    "MinimumItemLevel": 14,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 14,
+    "MaximumValue": 19,
+    "Weight": 41,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t9",
+    "Name": "Sparking IX",
+    "AffixType": "Prefix",
+    "Tier": 9,
+    "MinimumItemLevel": 16,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 16,
+    "MaximumValue": 22,
+    "Weight": 36,
+    "IsPercent": false
+  },
+  {
+    "Id": "sparking_t10",
+    "Name": "Sparking X",
+    "AffixType": "Prefix",
+    "Tier": 10,
+    "MinimumItemLevel": 18,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_lightning",
+    "StatAffected": "AddedLightningSpellDamage",
+    "MinimumValue": 18,
+    "MaximumValue": 24,
+    "Weight": 32,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive",
+    "Name": "Corrosive I",
+    "AffixType": "Prefix",
+    "Tier": 1,
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 1,
+    "MaximumValue": 2,
+    "Weight": 70,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t2",
+    "Name": "Corrosive II",
+    "AffixType": "Prefix",
+    "Tier": 2,
+    "MinimumItemLevel": 2,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 3,
+    "MaximumValue": 4,
+    "Weight": 66,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t3",
+    "Name": "Corrosive III",
+    "AffixType": "Prefix",
+    "Tier": 3,
+    "MinimumItemLevel": 4,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 5,
+    "MaximumValue": 7,
+    "Weight": 62,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t4",
+    "Name": "Corrosive IV",
+    "AffixType": "Prefix",
+    "Tier": 4,
+    "MinimumItemLevel": 6,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 7,
+    "MaximumValue": 9,
+    "Weight": 57,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t5",
+    "Name": "Corrosive V",
+    "AffixType": "Prefix",
+    "Tier": 5,
+    "MinimumItemLevel": 8,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 9,
+    "MaximumValue": 12,
+    "Weight": 53,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t6",
+    "Name": "Corrosive VI",
+    "AffixType": "Prefix",
+    "Tier": 6,
+    "MinimumItemLevel": 10,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 10,
+    "MaximumValue": 14,
+    "Weight": 49,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t7",
+    "Name": "Corrosive VII",
+    "AffixType": "Prefix",
+    "Tier": 7,
+    "MinimumItemLevel": 12,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 12,
+    "MaximumValue": 17,
+    "Weight": 45,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t8",
+    "Name": "Corrosive VIII",
+    "AffixType": "Prefix",
+    "Tier": 8,
+    "MinimumItemLevel": 14,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 14,
+    "MaximumValue": 19,
+    "Weight": 41,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t9",
+    "Name": "Corrosive IX",
+    "AffixType": "Prefix",
+    "Tier": 9,
+    "MinimumItemLevel": 16,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 16,
+    "MaximumValue": 22,
+    "Weight": 36,
+    "IsPercent": false
+  },
+  {
+    "Id": "corrosive_t10",
+    "Name": "Corrosive X",
+    "AffixType": "Prefix",
+    "Tier": 10,
+    "MinimumItemLevel": 18,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_acid",
+    "StatAffected": "AddedAcidSpellDamage",
+    "MinimumValue": 18,
+    "MaximumValue": 24,
+    "Weight": 32,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed",
+    "Name": "Shadowed I",
+    "AffixType": "Prefix",
+    "Tier": 1,
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 1,
+    "MaximumValue": 2,
+    "Weight": 60,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t2",
+    "Name": "Shadowed II",
+    "AffixType": "Prefix",
+    "Tier": 2,
+    "MinimumItemLevel": 2,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 3,
+    "MaximumValue": 4,
+    "Weight": 56,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t3",
+    "Name": "Shadowed III",
+    "AffixType": "Prefix",
+    "Tier": 3,
+    "MinimumItemLevel": 4,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 5,
+    "MaximumValue": 7,
+    "Weight": 53,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t4",
+    "Name": "Shadowed IV",
+    "AffixType": "Prefix",
+    "Tier": 4,
+    "MinimumItemLevel": 6,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 7,
+    "MaximumValue": 9,
+    "Weight": 49,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t5",
+    "Name": "Shadowed V",
+    "AffixType": "Prefix",
+    "Tier": 5,
+    "MinimumItemLevel": 8,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 9,
+    "MaximumValue": 12,
+    "Weight": 46,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t6",
+    "Name": "Shadowed VI",
+    "AffixType": "Prefix",
+    "Tier": 6,
+    "MinimumItemLevel": 10,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 10,
+    "MaximumValue": 14,
+    "Weight": 42,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t7",
+    "Name": "Shadowed VII",
+    "AffixType": "Prefix",
+    "Tier": 7,
+    "MinimumItemLevel": 12,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 12,
+    "MaximumValue": 17,
+    "Weight": 38,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t8",
+    "Name": "Shadowed VIII",
+    "AffixType": "Prefix",
+    "Tier": 8,
+    "MinimumItemLevel": 14,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 14,
+    "MaximumValue": 19,
+    "Weight": 35,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t9",
+    "Name": "Shadowed IX",
+    "AffixType": "Prefix",
+    "Tier": 9,
+    "MinimumItemLevel": 16,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 16,
+    "MaximumValue": 22,
+    "Weight": 31,
+    "IsPercent": false
+  },
+  {
+    "Id": "shadowed_t10",
+    "Name": "Shadowed X",
+    "AffixType": "Prefix",
+    "Tier": 10,
+    "MinimumItemLevel": 18,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_dark",
+    "StatAffected": "AddedDarkSpellDamage",
+    "MinimumValue": 18,
+    "MaximumValue": 24,
+    "Weight": 28,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous",
+    "Name": "Luminous I",
+    "AffixType": "Prefix",
+    "Tier": 1,
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 1,
+    "MaximumValue": 2,
+    "Weight": 60,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t2",
+    "Name": "Luminous II",
+    "AffixType": "Prefix",
+    "Tier": 2,
+    "MinimumItemLevel": 2,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 3,
+    "MaximumValue": 4,
+    "Weight": 56,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t3",
+    "Name": "Luminous III",
+    "AffixType": "Prefix",
+    "Tier": 3,
+    "MinimumItemLevel": 4,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 5,
+    "MaximumValue": 7,
+    "Weight": 53,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t4",
+    "Name": "Luminous IV",
+    "AffixType": "Prefix",
+    "Tier": 4,
+    "MinimumItemLevel": 6,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 7,
+    "MaximumValue": 9,
+    "Weight": 49,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t5",
+    "Name": "Luminous V",
+    "AffixType": "Prefix",
+    "Tier": 5,
+    "MinimumItemLevel": 8,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 9,
+    "MaximumValue": 12,
+    "Weight": 46,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t6",
+    "Name": "Luminous VI",
+    "AffixType": "Prefix",
+    "Tier": 6,
+    "MinimumItemLevel": 10,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 10,
+    "MaximumValue": 14,
+    "Weight": 42,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t7",
+    "Name": "Luminous VII",
+    "AffixType": "Prefix",
+    "Tier": 7,
+    "MinimumItemLevel": 12,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 12,
+    "MaximumValue": 17,
+    "Weight": 38,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t8",
+    "Name": "Luminous VIII",
+    "AffixType": "Prefix",
+    "Tier": 8,
+    "MinimumItemLevel": 14,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 14,
+    "MaximumValue": 19,
+    "Weight": 35,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t9",
+    "Name": "Luminous IX",
+    "AffixType": "Prefix",
+    "Tier": 9,
+    "MinimumItemLevel": 16,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 16,
+    "MaximumValue": 22,
+    "Weight": 31,
+    "IsPercent": false
+  },
+  {
+    "Id": "luminous_t10",
+    "Name": "Luminous X",
+    "AffixType": "Prefix",
+    "Tier": 10,
+    "MinimumItemLevel": 18,
+    "CompatibleItemCategories": [
+      "Staff"
+    ],
+    "ModifierGroup": "added_spell_light",
+    "StatAffected": "AddedLightSpellDamage",
+    "MinimumValue": 18,
+    "MaximumValue": 24,
     "Weight": 28,
     "IsPercent": false
   },

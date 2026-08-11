@@ -319,7 +319,9 @@ public static class HeadlessNetTest
         }
 
         clientA.RequestLearnSkill("basic_strike");
-        Pump(0.3f);
+        // Move to the map spawn (guaranteed open ground) so the debug enemy can't land in a wall.
+        clientA.World.Me.Position = server.World.Map.PlayerSpawn;
+        Pump(0.4f);
         clientA.SendDebugCommand("spawn_enemy", "grunt");
         Pump(0.3f);
         var kbPlayer = server.World.Players[clientA.World.MyPlayerId];
@@ -412,9 +414,15 @@ public static class HeadlessNetTest
               "ground slam stunned nearby enemies");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 221, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
-        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 22,
-              "every family has a tier X (10 tiers x 22 tiered families)");
+        Check(data.Modifiers.Count == 281, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 28,
+              "every family has a tier X (10 tiers x 28 tiered families)");
+
+        // Added-damage split: attack adds are melee-weapon-only, spell adds caster-weapon-only.
+        Check(data.Modifiers["searing"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Mace }),
+              "attack added-damage prefixes roll only on melee weapons (maces)");
+        Check(data.Modifiers["blazing"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Staff }),
+              "spell added-damage prefixes roll only on caster weapons (staffs)");
 
         // Item level gating: an ilvl-1 item can only roll tier-appropriate (ilvl<=1) mods,
         // even when forced to roll many; an ilvl-18 item can roll high tiers.
@@ -452,6 +460,23 @@ public static class HeadlessNetTest
               $"Searing roll adds a fire component to attacks (+{fireStats.AddedFire} fire)");
         Check(strikeStats.DamageKind == Skills.DamageKind.Blunt,
               "mace attacks deal Blunt damage (physical split into thrust/blunt/slash)");
+
+        // Spell adds: a Blazing staff roll adds a fire component to Fire Bolt, and the
+        // melee-only attack adds do NOT leak onto spells.
+        var casterChar = new Sim.CharacterData();
+        var blazeStaff = new Items.ItemInstance { BaseItemId = "oak_staff", Rarity = Items.ItemRarity.Magic, MaxPrefixes = 3, MaxSuffixes = 3 };
+        blazeStaff.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "blazing_t5", Value = 9 });
+        casterChar.Equipment[Items.EquipSlot.MainHand] = blazeStaff;
+        var casterStats = Stats.StatCalculator.Compute(data, casterChar);
+        var boltStats = Skills.SkillMath.Compute(data, data.Skills["fire_bolt"], 1,
+            Array.Empty<Skills.ScrollDefinition>(), casterStats);
+        Check(casterStats.SpellAddedFire == 9 && boltStats.Added != null &&
+              boltStats.Added.Any(c => c.Kind == Skills.DamageKind.Fire && c.Max > 0),
+              $"Blazing staff roll adds fire damage to spells like Fire Bolt (+{casterStats.SpellAddedFire})");
+        var meleeOnSpell = Skills.SkillMath.Compute(data, data.Skills["fire_bolt"], 1,
+            Array.Empty<Skills.ScrollDefinition>(), fireStats); // fireStats has melee Searing only
+        Check(meleeOnSpell.Added == null,
+              "melee attack adds do not apply to spells");
 
         // New resistances compute through the stat system.
         var resChar = new Sim.CharacterData();
