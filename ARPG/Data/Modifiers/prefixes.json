@@ -3343,5 +3343,575 @@
   "MaximumValue": 2,
   "Weight": 12,
   "IsPercent": false
+ },
+ {
+  "Id": "occult",
+  "Name": "Occult I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 3,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t2",
+  "Name": "Occult II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t3",
+  "Name": "Occult III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t4",
+  "Name": "Occult IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 13,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t5",
+  "Name": "Occult V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 11,
+  "MaximumValue": 16,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t6",
+  "Name": "Occult VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t7",
+  "Name": "Occult VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t8",
+  "Name": "Occult VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 19,
+  "MaximumValue": 26,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t9",
+  "Name": "Occult IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "occult_t10",
+  "Name": "Occult X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "melee_arcane",
+  "StatAffected": "AddedArcaneDamage",
+  "MinimumValue": 24,
+  "MaximumValue": 32,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch",
+  "Name": "Eldritch I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t2",
+  "Name": "Eldritch II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 3,
+  "MaximumValue": 4,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t3",
+  "Name": "Eldritch III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t4",
+  "Name": "Eldritch IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t5",
+  "Name": "Eldritch V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 12,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t6",
+  "Name": "Eldritch VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 14,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t7",
+  "Name": "Eldritch VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 12,
+  "MaximumValue": 17,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t8",
+  "Name": "Eldritch VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t9",
+  "Name": "Eldritch IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "eldritch_t10",
+  "Name": "Eldritch X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "spell_arcane",
+  "StatAffected": "AddedArcaneSpellDamage",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire",
+  "Name": "Sapphire I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 6,
+  "MaximumValue": 11,
+  "Weight": 100,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t2",
+  "Name": "Sapphire II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 14,
+  "MaximumValue": 20,
+  "Weight": 94,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t3",
+  "Name": "Sapphire III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 20,
+  "MaximumValue": 29,
+  "Weight": 88,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t4",
+  "Name": "Sapphire IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 27,
+  "MaximumValue": 38,
+  "Weight": 82,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t5",
+  "Name": "Sapphire V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 34,
+  "MaximumValue": 47,
+  "Weight": 76,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t6",
+  "Name": "Sapphire VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 41,
+  "MaximumValue": 56,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t7",
+  "Name": "Sapphire VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 47,
+  "MaximumValue": 65,
+  "Weight": 64,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t8",
+  "Name": "Sapphire VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 54,
+  "MaximumValue": 74,
+  "Weight": 58,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t9",
+  "Name": "Sapphire IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 61,
+  "MaximumValue": 83,
+  "Weight": 52,
+  "IsPercent": false
+ },
+ {
+  "Id": "sapphire_t10",
+  "Name": "Sapphire X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "max_mana",
+  "StatAffected": "MaximumMana",
+  "MinimumValue": 68,
+  "MaximumValue": 92,
+  "Weight": 46,
+  "IsPercent": false
  }
 ]

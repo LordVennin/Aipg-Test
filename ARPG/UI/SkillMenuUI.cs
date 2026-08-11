@@ -52,6 +52,11 @@ public class SkillMenuUI
         var character = _client.World.MyCharacter;
         if (character == null) return;
         var mouse = input.MousePosition;
+        if (CloseButton.Handle(input, _panelRect))
+        {
+            Open = false;
+            return;
+        }
         if (_panelRect.Contains(mouse)) input.MouseCapturedByUI = true;
 
         _selectedSkillId ??= character.Skills.FirstOrDefault()?.SkillId;
@@ -106,6 +111,7 @@ public class SkillMenuUI
 
         sb.Draw(TextureGen.Pixel, _panelRect, new Color(22, 22, 30, 240));
         Border(sb, _panelRect, new Color(95, 88, 62));
+        CloseButton.Draw(sb, _panelRect, input.MousePosition);
         int x = _panelRect.X + 12, y = _panelRect.Y + 8;
         sb.DrawString(FontManager.GetBold(19), "Skills", new Vector2(x, y), new Color(230, 215, 165));
         y += 34;
@@ -179,6 +185,7 @@ public class SkillMenuUI
         string statLine2 = $"Range {stats.Range:0.0}" +
                            (stats.Radius > 0 ? $"   Radius {stats.Radius:0.0}" : "") +
                            (selDef.Archetype == SkillArchetype.Projectile ? $"   Projectiles {stats.ProjectileCount}" : "") +
+                           (stats.ManaCost > 0 ? $"   Mana {stats.ManaCost:0}" : "") +
                            (stats.IgniteChance > 0 ? $"   Ignite {stats.IgniteChance:P0}" : "") +
                            (selDef.StunDuration > 0
                                ? $"   Stun {selDef.StunDuration:0.0}s" +

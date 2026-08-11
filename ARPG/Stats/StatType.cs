@@ -13,6 +13,8 @@ public enum StatType
     // Flat character stats
     MaxHealth,
     LifeRegeneration, // health per second
+    MaximumMana,      // flat added to the level-based mana pool
+    ManaRegeneration, // percent-increased over the level-based base regen
     Armor,
     FireResistance,
     ColdResistance,
@@ -20,6 +22,7 @@ public enum StatType
     AcidResistance,
     DarkResistance,
     LightResistance,
+    ArcaneResistance,
 
     // Percent-increased character stats
     MovementSpeed,
@@ -42,6 +45,7 @@ public enum StatType
     AddedAcidDamage,
     AddedDarkDamage,
     AddedLightDamage,
+    AddedArcaneDamage,
 
     // Flat added elemental damage on SPELLS (rolls on caster weapons only)
     AddedFireSpellDamage,
@@ -50,6 +54,7 @@ public enum StatType
     AddedAcidSpellDamage,
     AddedDarkSpellDamage,
     AddedLightSpellDamage,
+    AddedArcaneSpellDamage,
 
     // Blocking (shields grant base BlockChance; a successful block avoids ALL damage from
     // one hit, then blocking goes on cooldown — base 2s, sped up by BlockCooldownRecovery)

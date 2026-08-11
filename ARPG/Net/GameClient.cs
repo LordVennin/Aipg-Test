@@ -235,6 +235,7 @@ public class GameClient
                 var pos = r.GetVec2();
                 float hp = r.GetFloat();
                 float maxHp = r.GetFloat();
+                float mana = r.GetFloat();
                 World.MyCharacter = Json.Load<CharacterData>(r.GetString());
                 World.Map = new GameMap(mapSeed);
                 World.Players[World.MyPlayerId] = new ClientPlayer
@@ -245,6 +246,7 @@ public class GameClient
                     NetTarget = pos,
                     Health = hp,
                     MaxHealth = maxHp,
+                    Mana = mana,
                     IsLocal = true,
                 };
                 World.RecomputeMyStats(_data);
@@ -291,8 +293,20 @@ public class GameClient
             case PacketType.PlayerHealth:
             {
                 int id = r.GetInt();
-                float hp = r.GetFloat(), maxHp = r.GetFloat();
-                if (World.Players.TryGetValue(id, out var p)) { p.Health = hp; p.MaxHealth = maxHp; }
+                float hp = r.GetFloat(), maxHp = r.GetFloat(), mana = r.GetFloat();
+                if (World.Players.TryGetValue(id, out var p)) { p.Health = hp; p.MaxHealth = maxHp; p.Mana = mana; }
+                break;
+            }
+
+            case PacketType.PlayerPings:
+            {
+                int count = r.GetInt();
+                for (int i = 0; i < count; i++)
+                {
+                    int id = r.GetInt();
+                    int ping = r.GetShort();
+                    if (World.Players.TryGetValue(id, out var p)) p.PingMs = ping;
+                }
                 break;
             }
             case PacketType.PlayerDeath:
@@ -305,12 +319,14 @@ public class GameClient
                 int id = r.GetInt();
                 var pos = r.GetVec2();
                 float hp = r.GetFloat(), maxHp = r.GetFloat();
+                float respawnMana = r.GetFloat();
                 if (World.Players.TryGetValue(id, out var p))
                 {
                     p.Alive = true;
                     p.Position = p.NetTarget = pos;
                     p.Health = hp;
                     p.MaxHealth = maxHp;
+                    p.Mana = respawnMana;
                 }
                 break;
             }
@@ -409,31 +425,26 @@ public class GameClient
                 var def = _data.Skills.GetValueOrDefault(skillId);
                 if (def != null && World.Players.ContainsKey(playerId))
                 {
+                    // Melee strikes play a real weapon-swing animation on the caster's
+                    // held weapon (replacing the old abstract swipe arc).
+                    if (def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
+                        World.Players.GetValueOrDefault(playerId) is { } swingCaster)
+                    {
+                        var swingDir = effectPoint - swingCaster.Position;
+                        swingCaster.SwingTimeLeft = ClientPlayer.SwingDuration;
+                        swingCaster.SwingDir = swingDir.LengthSquared() > 0.001f
+                            ? Vector2.Normalize(swingDir)
+                            : swingCaster.Facing;
+                    }
+
                     switch (def.Archetype)
                     {
                         case Skills.SkillArchetype.MeleeStrike:
                             World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius), 0.18f, "melee");
                             break;
                         case Skills.SkillArchetype.MeleeSingle:
-                        {
-                            // Swipe arc around the caster, sweeping toward the impact point.
-                            var caster = World.Players.GetValueOrDefault(playerId);
-                            if (caster != null)
-                            {
-                                var dir = effectPoint - caster.Position;
-                                World.Effects.Add(new ClientEffect
-                                {
-                                    Position = caster.Position,
-                                    Radius = MathF.Max(1.1f, def.Range * 0.8f),
-                                    TimeLeft = 0.22f,
-                                    Duration = 0.22f,
-                                    Kind = "swipe",
-                                    Dir = dir.LengthSquared() > 0.001f ? Vector2.Normalize(dir) : caster.Facing,
-                                });
-                                World.AddEffect(effectPoint, 0.45f, 0.15f, "melee");
-                            }
+                            World.AddEffect(effectPoint, 0.45f, 0.15f, "melee");
                             break;
-                        }
                         case Skills.SkillArchetype.MeleeArea:
                             World.AddEffect(effectPoint, def.Radius, 0.3f, "slam");
                             break;

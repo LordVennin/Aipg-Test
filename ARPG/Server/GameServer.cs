@@ -28,7 +28,7 @@ public class GameServer : IServerEvents
     private readonly Dictionary<NetPeer, int> _peerToPlayer = new();
     private readonly Dictionary<int, NetPeer> _playerToPeer = new();
     private int _nextPlayerId = 1;
-    private float _playerStateTimer, _enemyStateTimer;
+    private float _playerStateTimer, _enemyStateTimer, _pingTimer;
 
     public GameServer(GameData data, int mapSeed)
     {
@@ -94,6 +94,26 @@ public class GameServer : IServerEvents
             _enemyStateTimer = 0;
             BroadcastEnemyStates();
         }
+        _pingTimer += dt;
+        if (_pingTimer >= 2f)
+        {
+            _pingTimer = 0;
+            BroadcastPings();
+        }
+    }
+
+    /// <summary>Round-trip pings for the HUD player list, measured by LiteNetLib per peer.</summary>
+    private void BroadcastPings()
+    {
+        if (_peerToPlayer.Count == 0) return;
+        var w = Packets.Make(PacketType.PlayerPings);
+        w.Put(_peerToPlayer.Count);
+        foreach (var (peer, playerId) in _peerToPlayer)
+        {
+            w.Put(playerId);
+            w.Put((short)peer.Ping);
+        }
+        Broadcast(w, DeliveryMethod.Unreliable);
     }
 
     // ------------------------------------------------------------------ inbound
@@ -183,6 +203,7 @@ public class GameServer : IServerEvents
         accept.PutVec2(player.Position);
         accept.Put(player.Health);
         accept.Put(player.Stats.MaxHealth);
+        accept.Put(player.Mana);
         accept.Put(Json.SaveCompact(player.Character));
         peer.Send(accept, DeliveryMethod.ReliableOrdered);
 
@@ -335,6 +356,7 @@ public class GameServer : IServerEvents
         w.Put(p.Id);
         w.Put(p.Health);
         w.Put(p.Stats.MaxHealth);
+        w.Put(p.Mana);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -352,6 +374,7 @@ public class GameServer : IServerEvents
         w.PutVec2(p.Position);
         w.Put(p.Health);
         w.Put(p.Stats.MaxHealth);
+        w.Put(p.Mana);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

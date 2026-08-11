@@ -14,12 +14,14 @@ public class HudUI
 {
     private readonly GameData _data;
     private readonly GameClient _client;
+    private readonly GameSettings _settings;
     private readonly List<(string text, float timeLeft)> _messages = new();
 
-    public HudUI(GameData data, GameClient client)
+    public HudUI(GameData data, GameClient client, GameSettings settings)
     {
         _data = data;
         _client = client;
+        _settings = settings;
     }
 
     public void AddMessage(string text) => _messages.Insert(0, (text, 4f));
@@ -58,9 +60,41 @@ public class HudUI
         var hpSize = font.MeasureString(hpText);
         sb.DrawString(font, hpText, new Vector2(orbRect.Center.X - hpSize.X / 2, orbRect.Center.Y - hpSize.Y / 2), Color.White);
 
+        // --- mana orb (bottom right) ---
+        float maxMana = _client.World.MyStats.MaxMana;
+        var manaRect = new Rectangle(screen.X - orbSize - 18, screen.Y - orbSize - 18, orbSize, orbSize);
+        sb.Draw(TextureGen.Circle32, manaRect, new Color(12, 16, 42));
+        float manaFrac = maxMana > 0 ? Math.Clamp(me.Mana / maxMana, 0f, 1f) : 0f;
+        if (manaFrac > 0)
+        {
+            int mSrcY = (int)(32 * (1 - manaFrac));
+            var mSrc = new Rectangle(0, mSrcY, 32, 32 - mSrcY);
+            var mDst = new Rectangle(manaRect.X, manaRect.Y + (int)(orbSize * (1 - manaFrac)), orbSize, (int)(orbSize * manaFrac));
+            sb.Draw(TextureGen.Circle32, mDst, mSrc, new Color(50, 90, 220));
+        }
+        string manaText = $"{me.Mana:0}/{maxMana:0}";
+        var manaSize = font.MeasureString(manaText);
+        sb.DrawString(font, manaText, new Vector2(manaRect.Center.X - manaSize.X / 2, manaRect.Center.Y - manaSize.Y / 2), Color.White);
+
         // Character level + name above the orb
         var nameFont = FontManager.Get(14);
         sb.DrawString(nameFont, $"{character.Name}  ·  Level {character.Level}", new Vector2(20, orbRect.Y - 22), new Color(220, 210, 180));
+
+        // --- player list + pings (bottom left, above the health orb; Options toggle) ---
+        if (_settings.ShowPlayerList)
+        {
+            var listFont = FontManager.Get(13);
+            var players = _client.World.Players.Values.OrderBy(p => p.Id).ToList();
+            int ly = orbRect.Y - 40 - (players.Count - 1) * 18;
+            foreach (var p in players)
+            {
+                string line = $"{p.Name}  {p.PingMs} ms";
+                var color = p.IsLocal ? new Color(150, 200, 255) : new Color(180, 220, 180);
+                if (!p.Alive) color = new Color(120, 115, 110);
+                sb.DrawString(listFont, line, new Vector2(20, ly), color);
+                ly += 18;
+            }
+        }
 
         // --- hotbar (bottom center) ---
         int slotSize = 54, gap = 8;
@@ -150,7 +184,7 @@ public class DebugUI
     public DebugUI(GameClient client)
     {
         _client = client;
-        _panel = new Panel { Bounds = new Rectangle(8, 30, 250, 640), Background = new Color(16, 16, 22, 235) };
+        _panel = new Panel { Bounds = new Rectangle(8, 30, 250, 672), Background = new Color(16, 16, 22, 235) };
         var commands = new (string label, string cmd, string arg)[]
         {
             ("Spawn Enemy", "spawn_enemy", ""),
@@ -161,6 +195,7 @@ public class DebugUI
             ("Give 10-Modifier Item", "give_10mod", ""),
             ("Give Skill Scroll", "give_scroll", ""),
             ("Give Enchant Scrolls", "give_enchant", ""),
+            ("Drop All Scrolls", "drop_scrolls", ""),
             ("Grant Skill XP", "skill_xp", ""),
             ("Grant Character XP", "char_xp", ""),
             ("Kill Nearby Enemies", "kill_nearby", ""),
@@ -205,7 +240,7 @@ public class DebugUI
             $"Weapon: {world.MyStats.WeaponMinDamage:0}-{world.MyStats.WeaponMaxDamage:0} @ {world.MyStats.WeaponAttackSpeed:0.0#}aps",
             $"Res F/C/L: {world.MyStats.FireResistance:0}/{world.MyStats.ColdResistance:0}/{world.MyStats.LightningResistance:0}",
         };
-        int ly = _panel.Bounds.Y + 34 + 12 * 33 + 6;
+        int ly = _panel.Bounds.Y + 34 + 13 * 33 + 6;
         foreach (var line in lines)
         {
             sb.DrawString(font, line, new Vector2(_panel.Bounds.X + 10, ly), new Color(190, 200, 190));

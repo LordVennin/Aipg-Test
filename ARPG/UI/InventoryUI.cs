@@ -81,6 +81,13 @@ public class InventoryUI
         if (character == null) return;
         var mouse = input.MousePosition;
 
+        if (CloseButton.Handle(input, _panelRect))
+        {
+            Open = false;
+            CancelEnchantMode();
+            return;
+        }
+
         if (_panelRect.Contains(mouse))
             input.MouseCapturedByUI = true;
 
@@ -214,13 +221,14 @@ public class InventoryUI
         DrawBorder(sb, _panelRect, new Color(95, 88, 62));
         var title = FontManager.GetBold(19);
         sb.DrawString(title, "Equipment & Inventory", new Vector2(_panelRect.X + 12, _panelRect.Y + 8), new Color(230, 215, 165));
+        CloseButton.Draw(sb, _panelRect, input.MousePosition);
 
         // --- gold display ---
         var goldFont = FontManager.GetBold(16);
         string goldText = $"{character.Gold:n0}";
         var goldSize = goldFont.MeasureString(goldText);
         var pile = SpriteGen.GetGoldPile();
-        float goldX = _panelRect.Right - 16 - goldSize.X;
+        float goldX = _panelRect.Right - 44 - goldSize.X; // leave room for the close button
         if (pile != null)
             sb.Draw(pile, new Rectangle((int)goldX - pile.Width * 2 - 6, _panelRect.Y + 12, pile.Width * 2, pile.Height * 2), Color.White);
         sb.DrawString(goldFont, goldText, new Vector2(goldX, _panelRect.Y + 10), new Color(240, 200, 90));

@@ -164,7 +164,12 @@ public class InputManager
     }
 
     // Raw helpers (used by UI internals and the rebinding screen, not by gameplay code).
-    public Point MousePosition => _mouse.Position;
+    /// <summary>Mouse position in UI (virtual) space: raw pixels divided by the UI scale.
+    /// All menus/panels lay out and hit-test in this space.</summary>
+    public Point MousePosition => new((int)(_mouse.Position.X / UIScale.Value), (int)(_mouse.Position.Y / UIScale.Value));
+    /// <summary>Mouse position in raw screen pixels — for WORLD interactions (aiming,
+    /// camera picking), which render unscaled.</summary>
+    public Point RawMousePosition => _mouse.Position;
     public bool MouseLeftDown => _mouse.LeftButton == ButtonState.Pressed;
     public bool MouseLeftPressed => _mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released;
     public bool MouseLeftReleased => _mouse.LeftButton == ButtonState.Released && _prevMouse.LeftButton == ButtonState.Pressed;

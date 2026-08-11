@@ -35,9 +35,17 @@ public class CharacterSheetUI
 
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
 
+    private Point _lastMouse;
+
     public void Update(InputManager input)
     {
         if (!Open) return;
+        _lastMouse = input.MousePosition;
+        if (CloseButton.Handle(input, _panelRect))
+        {
+            Open = false;
+            return;
+        }
         if (_panelRect.Contains(input.MousePosition))
             input.MouseCapturedByUI = true;
     }
@@ -51,6 +59,7 @@ public class CharacterSheetUI
 
         sb.Draw(TextureGen.Pixel, _panelRect, new Color(22, 22, 30, 240));
         Border(sb, _panelRect, new Color(95, 88, 62));
+        CloseButton.Draw(sb, _panelRect, _lastMouse);
         int x = _panelRect.X + 14, y = _panelRect.Y + 8;
         var title = FontManager.GetBold(19);
         var font = FontManager.Get(15);
@@ -74,6 +83,8 @@ public class CharacterSheetUI
         var me = _client.World.Me;
         StatLine("Maximum Health", $"{me?.Health ?? 0:0} / {stats.MaxHealth:0}");
         StatLine("Life Regeneration", stats.LifeRegeneration > 0 ? $"+{stats.LifeRegeneration:0.#}/s" : "—");
+        StatLine("Maximum Mana", $"{me?.Mana ?? 0:0} / {stats.MaxMana:0}");
+        StatLine("Mana Regeneration", $"+{stats.ManaRegeneration:0.#}/s");
         StatLine("Armor", $"{stats.Armor:0}  ({stats.PhysicalReduction:P0} physical reduction)");
         StatLine("Block Chance", stats.BlockChance > 0
             ? $"{stats.BlockChance:0}%  (recovers in {stats.BlockCooldown:0.0}s)"
@@ -90,6 +101,7 @@ public class CharacterSheetUI
             ("Acid", stats.AcidResistance, DamageKind.Acid),
             ("Dark", stats.DarkResistance, DamageKind.Dark),
             ("Light", stats.LightResistance, DamageKind.Light),
+            ("Arcane", stats.ArcaneResistance, DamageKind.Arcane),
         };
         for (int i = 0; i < resists.Length; i++)
         {
@@ -98,7 +110,7 @@ public class CharacterSheetUI
             sb.DrawString(font, $"{resists[i].name} Resistance", pos, WorldRenderer.DamageKindColor(resists[i].kind));
             sb.DrawString(font, $"{resists[i].val:0}%", pos + new Vector2(160, 0), value);
         }
-        y += 3 * 21 + 10;
+        y += (resists.Length + 1) / 2 * 21 + 10;
 
         // ------------------------------------------------ skill DPS
         sb.Draw(TextureGen.Pixel, new Rectangle(x, y, _panelRect.Width - 28, 2), new Color(90, 85, 70));

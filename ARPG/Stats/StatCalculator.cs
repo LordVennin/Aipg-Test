@@ -9,6 +9,8 @@ public struct ComputedStats
 {
     public float MaxHealth;
     public float LifeRegeneration;       // health per second
+    public float MaxMana;                // level-based pool + flat modifiers
+    public float ManaRegeneration;       // mana per second (level-based, scaled by % mods)
     public float MovementSpeed;          // tiles per second
     public float Armor;
     public float FireResistance;         // percent, capped
@@ -17,6 +19,7 @@ public struct ComputedStats
     public float AcidResistance;
     public float DarkResistance;
     public float LightResistance;
+    public float ArcaneResistance;
     public float PhysicalDamageIncrease; // percent
     public float SpellDamageIncrease;    // percent
     public float AttackSpeedIncrease;    // percent
@@ -52,6 +55,7 @@ public struct ComputedStats
     public float AddedAcid;
     public float AddedDark;
     public float AddedLight;
+    public float AddedArcane;
 
     // Flat added elemental damage on SPELLS (from caster-weapon "Added X Spell Damage" rolls).
     public float SpellAddedFire;
@@ -60,6 +64,7 @@ public struct ComputedStats
     public float SpellAddedAcid;
     public float SpellAddedDark;
     public float SpellAddedLight;
+    public float SpellAddedArcane;
 
     public const float ResistanceCap = 75f;
     public const float BlockChanceCap = 75f;
@@ -76,6 +81,7 @@ public struct ComputedStats
         Skills.DamageKind.Acid => AcidResistance,
         Skills.DamageKind.Dark => DarkResistance,
         Skills.DamageKind.Light => LightResistance,
+        Skills.DamageKind.Arcane => ArcaneResistance,
         _ => 0f,
     };
 }
@@ -96,6 +102,13 @@ public static class StatCalculator
     public const float UnarmedRange = 1.2f;
     /// <summary>Base seconds between successful blocks, before BlockCooldownRecovery.</summary>
     public const float BaseBlockCooldown = 2f;
+
+    // Mana: pool and regen grow with character level (a PoE-style passive skill point
+    // system will layer on top later); item modifiers add flat mana / % regen.
+    public const float BaseMaxMana = 40f;
+    public const float ManaPerCharLevel = 4f;
+    public const float BaseManaRegen = 1.2f;       // per second at level 1
+    public const float ManaRegenPerCharLevel = 0.15f;
 
     public static ComputedStats Compute(GameData data, CharacterData character, StatCollection temporaryEffects = null)
     {
@@ -123,6 +136,9 @@ public static class StatCalculator
         {
             MaxHealth = BaseMaxHealth + HealthPerCharLevel * (character.Level - 1) + total.Get(StatType.MaxHealth),
             LifeRegeneration = total.Get(StatType.LifeRegeneration),
+            MaxMana = BaseMaxMana + ManaPerCharLevel * (character.Level - 1) + total.Get(StatType.MaximumMana),
+            ManaRegeneration = (BaseManaRegen + ManaRegenPerCharLevel * (character.Level - 1))
+                               * (1f + total.Get(StatType.ManaRegeneration) / 100f),
             MovementSpeed = BaseMoveSpeed * (1f + total.Get(StatType.MovementSpeed) / 100f),
             Armor = total.Get(StatType.Armor),
             FireResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.FireResistance)),
@@ -131,18 +147,21 @@ public static class StatCalculator
             AcidResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.AcidResistance)),
             DarkResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.DarkResistance)),
             LightResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.LightResistance)),
+            ArcaneResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.ArcaneResistance)),
             AddedFire = total.Get(StatType.AddedFireDamage),
             AddedCold = total.Get(StatType.AddedColdDamage),
             AddedLightning = total.Get(StatType.AddedLightningDamage),
             AddedAcid = total.Get(StatType.AddedAcidDamage),
             AddedDark = total.Get(StatType.AddedDarkDamage),
             AddedLight = total.Get(StatType.AddedLightDamage),
+            AddedArcane = total.Get(StatType.AddedArcaneDamage),
             SpellAddedFire = total.Get(StatType.AddedFireSpellDamage),
             SpellAddedCold = total.Get(StatType.AddedColdSpellDamage),
             SpellAddedLightning = total.Get(StatType.AddedLightningSpellDamage),
             SpellAddedAcid = total.Get(StatType.AddedAcidSpellDamage),
             SpellAddedDark = total.Get(StatType.AddedDarkSpellDamage),
             SpellAddedLight = total.Get(StatType.AddedLightSpellDamage),
+            SpellAddedArcane = total.Get(StatType.AddedArcaneSpellDamage),
             PhysicalDamageIncrease = total.Get(StatType.PhysicalDamage),
             SpellDamageIncrease = total.Get(StatType.SpellDamage),
             AttackSpeedIncrease = total.Get(StatType.AttackSpeed),

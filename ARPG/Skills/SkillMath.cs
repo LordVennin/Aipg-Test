@@ -25,6 +25,7 @@ public struct EffectiveSkillStats
     public float ProjectileSpeed;
     public int ProjectileCount;
     public float IgniteChance;    // 0..1
+    public float ManaCost;
     public DamageKind DamageKind;
 
     public float AverageDamage => (MinDamage + MaxDamage) * 0.5f;
@@ -109,6 +110,7 @@ public static class SkillMath
             ProjectileSpeed = def.ProjectileSpeed,
             ProjectileCount = def.ProjectileCount,
             IgniteChance = 0f,
+            ManaCost = def.ManaCost,
         };
 
         // Base damage: weapon-driven for attacks, skill-progression-driven for spells.
@@ -134,6 +136,7 @@ public static class SkillMath
                 AddComp(DamageKind.Acid, playerStats.AddedAcid);
                 AddComp(DamageKind.Dark, playerStats.AddedDark);
                 AddComp(DamageKind.Light, playerStats.AddedLight);
+                AddComp(DamageKind.Arcane, playerStats.AddedArcane);
                 if (added.Count > 0) s.Added = added;
             }
         }
@@ -163,6 +166,7 @@ public static class SkillMath
             AddComp(DamageKind.Acid, playerStats.SpellAddedAcid);
             AddComp(DamageKind.Dark, playerStats.SpellAddedDark);
             AddComp(DamageKind.Light, playerStats.SpellAddedLight);
+            AddComp(DamageKind.Arcane, playerStats.SpellAddedArcane);
             if (added.Count > 0) s.Added = added;
         }
 

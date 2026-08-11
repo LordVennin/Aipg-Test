@@ -412,6 +412,25 @@ public partial class ServerWorld
                 if (scroll != null) changed = GiveItem(p, scroll);
                 break;
             }
+            case "drop_scrolls":
+            {
+                // One drop of every crafting (Enchanting) scroll type and every Skill
+                // Scroll, scattered around the character for crafting/testing sessions.
+                foreach (var b in Data.Items.Values.Where(b =>
+                             b.Category is ItemCategory.EnchantScroll or ItemCategory.SkillScroll))
+                {
+                    var item = new ItemInstance
+                    {
+                        BaseItemId = b.Id,
+                        ItemLevel = 1,
+                        Rarity = ItemRarity.Normal,
+                        BaseModifierLimit = 0,
+                        StackCount = b.Category == ItemCategory.EnchantScroll ? Math.Min(5, b.MaxStack) : 1,
+                    };
+                    SpawnDrop(item, p.Position);
+                }
+                break;
+            }
             case "skill_xp":
             {
                 foreach (var skill in c.Skills)

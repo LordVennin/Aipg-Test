@@ -93,7 +93,9 @@ public partial class ServerWorld
         };
         p.RecomputeStats(Data);
         p.Health = p.Stats.MaxHealth;
+        p.Mana = p.Stats.MaxMana;
         p.LastSyncedHealth = p.Health;
+        p.LastSyncedMana = p.Mana;
         Players[id] = p;
         return p;
     }
@@ -135,22 +137,34 @@ public partial class ServerWorld
                     p.Alive = true;
                     p.Position = Map.PlayerSpawn;
                     p.Health = p.Stats.MaxHealth;
+                    p.Mana = p.Stats.MaxMana;
                     p.LastSyncedHealth = p.Health;
                     _events.PlayerRespawned(p);
                 }
                 continue;
             }
 
-            // Life regeneration (from the LifeRegeneration stat, e.g. the Mending prefix).
-            // Health changes are broadcast in whole-point steps to avoid packet spam.
+            // Life regeneration (from the LifeRegeneration stat, e.g. the Mending prefix)
+            // and level-based mana regeneration. Changes are broadcast in whole-point
+            // steps to avoid packet spam.
+            bool resourceChanged = false;
             if (p.Stats.LifeRegeneration > 0 && p.Health < p.Stats.MaxHealth)
             {
                 p.Health = MathF.Min(p.Stats.MaxHealth, p.Health + p.Stats.LifeRegeneration * dt);
                 if (MathF.Abs(p.Health - p.LastSyncedHealth) >= 1f || p.Health >= p.Stats.MaxHealth)
-                {
-                    p.LastSyncedHealth = p.Health;
-                    _events.PlayerHealthChanged(p);
-                }
+                    resourceChanged = true;
+            }
+            if (p.Stats.ManaRegeneration > 0 && p.Mana < p.Stats.MaxMana)
+            {
+                p.Mana = MathF.Min(p.Stats.MaxMana, p.Mana + p.Stats.ManaRegeneration * dt);
+                if (MathF.Abs(p.Mana - p.LastSyncedMana) >= 1f || p.Mana >= p.Stats.MaxMana)
+                    resourceChanged = true;
+            }
+            if (resourceChanged)
+            {
+                p.LastSyncedHealth = p.Health;
+                p.LastSyncedMana = p.Mana;
+                _events.PlayerHealthChanged(p);
             }
         }
     }
@@ -399,6 +413,20 @@ public partial class ServerWorld
             return;
 
         var stats = SkillMath.Compute(Data, def, learned.Level, learned.ScrollDefinitions(Data), p.Stats);
+
+        // Mana: validated and spent server-side (no cooldown consumed on failure).
+        if (stats.ManaCost > 0)
+        {
+            if (p.Mana < stats.ManaCost - 0.01f)
+            {
+                _events.MessageFor(p, "Not enough mana.");
+                return;
+            }
+            p.Mana -= stats.ManaCost;
+            p.LastSyncedMana = p.Mana;
+            _events.PlayerHealthChanged(p);
+        }
+
         p.SkillReadyAt[skillId] = Time + stats.Cooldown;
 
         // The effect point is computed ONCE here and broadcast; hit detection below and

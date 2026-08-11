@@ -77,6 +77,9 @@ public class SkillDefinition
     /// <summary>True: the skill needs a shield equipped in either hand (e.g. Shield Bash).</summary>
     public bool RequiresShield { get; set; }
 
+    /// <summary>Mana spent per use (0 = free, e.g. Basic Strike). Server-validated.</summary>
+    public float ManaCost { get; set; }
+
     public float Cooldown { get; set; } = 0.5f;
     public float Range { get; set; } = 1.5f;
     public float Radius { get; set; }

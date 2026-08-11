@@ -10,7 +10,18 @@ public class GameSettings
     public int LastPort { get; set; } = GameNetConfig.DefaultPort;
     public bool ShowDamageNumbers { get; set; } = true;
     public bool ShowEnemyHealthBars { get; set; } = true;
+    /// <summary>Show the multiplayer player list with pings (bottom left of the HUD).</summary>
+    public bool ShowPlayerList { get; set; } = true;
+    public bool Fullscreen { get; set; }
+    public int ResolutionWidth { get; set; } = 1280;
+    public int ResolutionHeight { get; set; } = 720;
     public Dictionary<string, string> Bindings { get; set; } = new();
+
+    /// <summary>Selectable window resolutions (Display options cycle through these).</summary>
+    public static readonly (int W, int H)[] Resolutions =
+    {
+        (1280, 720), (1366, 768), (1600, 900), (1920, 1080), (2560, 1440),
+    };
 
     public static string SaveDirectory =>
         Path.Combine(AppContext.BaseDirectory, "Saves");
@@ -47,7 +58,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 5; // v5: enemy debuff flags in snapshots
+    public const int ProtocolVersion = 6; // v6: mana in health/join/respawn packets, player pings
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

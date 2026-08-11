@@ -32,6 +32,7 @@ public class PlayScreen : IScreen
     private readonly DragState _drag = new();
 
     private bool _paused;
+    private Point _lastUiScreen;
     private Panel _pausePanel;
     private OptionsPanel _optionsPanel; // non-null while options is open from the pause menu
     private string _pendingDisconnect;
@@ -53,7 +54,7 @@ public class PlayScreen : IScreen
         _server = server;
         _client = client;
         _renderer = new WorldRenderer(game.Data, game.Settings);
-        _hud = new HudUI(game.Data, client);
+        _hud = new HudUI(game.Data, client, game.Settings);
         _inventory = new InventoryUI(game.Data, client, _drag);
         _skillMenu = new SkillMenuUI(game.Data, client, _drag);
         _characterSheet = new CharacterSheetUI(game.Data, client);
@@ -66,7 +67,7 @@ public class PlayScreen : IScreen
 
     private void BuildPauseMenu()
     {
-        var size = _game.ScreenSize;
+        var size = _game.UiScreenSize;
         int cx = size.X / 2 - 120, cy = size.Y / 2 - 95;
         _pausePanel = new Panel { Bounds = new Rectangle(cx - 20, cy - 20, 280, 240) };
         _pausePanel.Children.Add(new Label("Paused", cx, cy - 8, 22, bold: true));
@@ -121,9 +122,10 @@ public class PlayScreen : IScreen
         var screen = _game.ScreenSize;
         _camera.ScreenWidth = screen.X;
         _camera.ScreenHeight = screen.Y;
-        _inventory.Layout(screen);
-        _skillMenu.Layout(screen);
-        _characterSheet.Layout(screen);
+        var uiScreen = _game.UiScreenSize;
+        _inventory.Layout(uiScreen);
+        _skillMenu.Layout(uiScreen);
+        _characterSheet.Layout(uiScreen);
 
         if (_client.Status != ClientStatus.InGame)
         {
@@ -146,6 +148,15 @@ public class PlayScreen : IScreen
         {
             _autosaveTimer = 0;
             SaveLocalCharacter();
+        }
+
+        // Rebuild open overlays when the resolution/UI scale changes under them.
+        if (uiScreen != _lastUiScreen)
+        {
+            _lastUiScreen = uiScreen;
+            BuildPauseMenu();
+            if (_optionsPanel != null)
+                _optionsPanel = new OptionsPanel(_game, () => _optionsPanel = null);
         }
 
         // --- pause overlay (with nested options panel) ---
@@ -171,7 +182,10 @@ public class PlayScreen : IScreen
                 _inventory.CancelEnchantMode();
             }
             else
+            {
+                BuildPauseMenu(); // relayout for the current resolution/UI scale
                 _paused = true;
+            }
         }
 
         // --- panel toggles ---
@@ -234,7 +248,7 @@ public class PlayScreen : IScreen
                 me.Position = _client.World.Map.MoveWithCollision(me.Position, worldDir * speed * dt, 0.3f);
             }
 
-            var mouseWorld = _camera.ScreenToWorld(input.MousePosition);
+            var mouseWorld = _camera.ScreenToWorld(input.RawMousePosition);
             var facing = mouseWorld - me.Position;
             if (facing.LengthSquared() > 0.001f)
                 me.Facing = NumVec2.Normalize(facing);
@@ -256,7 +270,7 @@ public class PlayScreen : IScreen
             {
                 foreach (var (rect, dropId) in _renderer.DropLabelRects)
                 {
-                    if (rect.Contains(input.MousePosition))
+                    if (rect.Contains(input.RawMousePosition)) // drop labels render in world space
                     {
                         _client.RequestPickup(dropId);
                         break;
@@ -285,9 +299,24 @@ public class PlayScreen : IScreen
         _client.RequestUseSkill(skillId, target);
     }
 
+    /// <summary>Fallback combined draw (unused by GameMain, which calls the split methods).</summary>
     public void Draw(SpriteBatch sb)
     {
-        var screen = _game.ScreenSize;
+        DrawWorld(sb);
+        DrawUI(sb);
+    }
+
+    /// <summary>World rendering — drawn UNSCALED in raw screen space (camera-driven).</summary>
+    public void DrawWorld(SpriteBatch sb)
+    {
+        if (_client.Status != ClientStatus.InGame) return;
+        _renderer.Draw(sb, _camera, _client.World);
+    }
+
+    /// <summary>HUD + menus — drawn in UI (virtual) space through the global UI scale matrix.</summary>
+    public void DrawUI(SpriteBatch sb)
+    {
+        var screen = _game.UiScreenSize;
 
         if (_client.Status != ClientStatus.InGame)
         {
@@ -307,7 +336,6 @@ public class PlayScreen : IScreen
             return;
         }
 
-        _renderer.Draw(sb, _camera, _client.World);
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
         _skillMenu.Draw(sb, _game.Input);
         _characterSheet.Draw(sb);
