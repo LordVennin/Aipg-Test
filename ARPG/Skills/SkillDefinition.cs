@@ -15,6 +15,7 @@ public static class SkillTags
     public const string Arcane = "Arcane";
     public const string Mace = "Mace";
     public const string Staff = "Staff";
+    public const string Shield = "Shield";
 }
 
 /// <summary>How the server executes a skill. New archetypes extend the combat switch only.</summary>
@@ -72,6 +73,9 @@ public class SkillDefinition
 
     /// <summary>Required weapon category, if any (e.g. Mace for Mace Strike, Staff optional for spells).</summary>
     public ItemCategory? RequiredWeapon { get; set; }
+
+    /// <summary>True: the skill needs a shield equipped in either hand (e.g. Shield Bash).</summary>
+    public bool RequiresShield { get; set; }
 
     public float Cooldown { get; set; } = 0.5f;
     public float Range { get; set; } = 1.5f;

@@ -47,7 +47,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 3; // v3: enchanting scrolls, item slot caps, stacking
+    public const int ProtocolVersion = 4; // v4: shields, off-hand appearance, block events
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

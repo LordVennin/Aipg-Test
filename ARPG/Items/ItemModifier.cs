@@ -74,6 +74,8 @@ public class ItemModifier
             StatType.AddedAcidSpellDamage => "Added Acid Damage to Spells",
             StatType.AddedDarkSpellDamage => "Added Dark Damage to Spells",
             StatType.AddedLightSpellDamage => "Added Light Damage to Spells",
+            StatType.BlockChance => "Block Chance",
+            StatType.BlockCooldownRecovery => "Block Cooldown Recovery",
             StatType.ModifierLimit => "Modifier Limit",
             _ => StatAffected.ToString(),
         };

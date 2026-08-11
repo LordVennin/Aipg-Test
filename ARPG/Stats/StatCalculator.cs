@@ -22,6 +22,11 @@ public struct ComputedStats
     public float AttackSpeedIncrease;    // percent
     public float CastSpeedIncrease;      // percent
 
+    // Blocking (requires shields only in practice: BlockChance rolls solely on shields)
+    public float BlockChance;            // percent chance to fully avoid one hit
+    public float BlockCooldown;          // seconds between successful blocks
+    public bool HasShield;               // a shield is equipped in either hand
+
     // Dodge (base values from Data/Config/dodge.json, scaled by Dodge* stats)
     public float DodgeDistance;          // tiles
     public float DodgeDuration;          // seconds the dash lasts
@@ -55,6 +60,7 @@ public struct ComputedStats
     public float SpellAddedLight;
 
     public const float ResistanceCap = 75f;
+    public const float BlockChanceCap = 75f;
 
     /// <summary>Standard armor mitigation: armor / (armor + 60). Applied to physical hits
     /// (Thrust, Blunt and Slash alike).</summary>
@@ -86,17 +92,21 @@ public static class StatCalculator
     public const float UnarmedMaxDamage = 4f;
     public const float UnarmedAttackSpeed = 1.2f;
     public const float UnarmedRange = 1.2f;
+    /// <summary>Base seconds between successful blocks, before BlockCooldownRecovery.</summary>
+    public const float BaseBlockCooldown = 2f;
 
     public static ComputedStats Compute(GameData data, CharacterData character, StatCollection temporaryEffects = null)
     {
         // 1) Aggregate flat/percent contributions from all equipped items.
         var total = new StatCollection();
         ItemInstance weapon = null;
+        bool hasShield = false;
         foreach (var (slot, item) in character.Equipment)
         {
             if (item == null) continue;
             total.AddAll(item.TotalStats(data));
             if (slot == EquipSlot.MainHand) weapon = item;
+            if (item.GetBase(data)?.Category == ItemCategory.Shield) hasShield = true;
         }
 
         // 2) Temporary effects (buffs/debuffs) merge into the same pool.
@@ -131,6 +141,12 @@ public static class StatCalculator
             AttackSpeedIncrease = total.Get(StatType.AttackSpeed),
             CastSpeedIncrease = total.Get(StatType.CastSpeed),
         };
+
+        // Blocking: chance comes entirely from gear (shields and their modifiers); a block
+        // avoids one hit completely, then waits out a cooldown that recovery stats shorten.
+        s.HasShield = hasShield;
+        s.BlockChance = MathF.Min(ComputedStats.BlockChanceCap, total.Get(StatType.BlockChance));
+        s.BlockCooldown = MathF.Max(0.25f, BaseBlockCooldown / (1f + total.Get(StatType.BlockCooldownRecovery) / 100f));
 
         // Dodge: config base values scaled by percent-increased stats, so items and
         // modifiers can grant e.g. "+20% Dodge Distance" or faster recovery.

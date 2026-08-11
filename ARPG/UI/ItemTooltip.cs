@@ -71,7 +71,8 @@ public static class ItemTooltip
         var modColor = new Color(120, 145, 255);
 
         lines.Add(new Line(item.DisplayName(data), WorldRenderer.RarityColor(item.Rarity), Bold: true));
-        lines.Add(new Line($"{item.Rarity} {CategoryName(itemBase.Category)}", gray));
+        string handedness = itemBase.IsWeapon ? (itemBase.TwoHanded ? "Two-Handed " : "One-Handed ") : "";
+        lines.Add(new Line($"{item.Rarity} {handedness}{CategoryName(itemBase.Category)}", gray));
 
         // --- base properties ---
         var bs = itemBase.BaseStats;
@@ -177,6 +178,8 @@ public static class ItemTooltip
     private static string DescribeBaseStat(StatType stat, float value) => stat switch
     {
         StatType.Armor => $"Armor: {value:0}",
+        StatType.BlockChance => $"Block Chance: {value:0}%",
+        StatType.BlockCooldownRecovery => $"+{value:0}% Block Cooldown Recovery",
         StatType.SpellDamage => $"+{value:0}% Spell Damage",
         StatType.CastSpeed => $"+{value:0}% Cast Speed",
         StatType.MaxHealth => $"+{value:0} Maximum Health",

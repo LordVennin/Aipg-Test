@@ -193,7 +193,7 @@ public class LootGenerator
     private ItemBase PickEquipmentBase(LootTable table, int itemLevel)
     {
         var candidates = _data.Items.Values.Where(b =>
-            b.Category != ItemCategory.SkillScroll && b.RequiredLevel <= Math.Max(1, itemLevel)).ToList();
+            b.IsEquippable && b.RequiredLevel <= Math.Max(1, itemLevel)).ToList();
         return WeightedPick(candidates, b =>
         {
             int catWeight = table.CategoryWeights.GetValueOrDefault(b.Category, 100);

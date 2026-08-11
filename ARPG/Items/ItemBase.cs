@@ -6,6 +6,7 @@ public enum ItemCategory
 {
     Mace,
     Staff,
+    Shield,
     Helmet,
     BodyArmor,
     Gloves,
@@ -64,6 +65,11 @@ public class ItemBase
     /// <summary>Base gold value before modifiers/rarity are factored in.</summary>
     public int BaseGoldValue { get; set; } = 8;
 
+    /// <summary>Weapons only: a two-handed weapon (staffs) occupies both hands — nothing can be
+    /// equipped in the off-hand alongside it. One-handed weapons (maces) leave the off-hand free
+    /// for a shield. Data-driven so future weapon types choose per base.</summary>
+    public bool TwoHanded { get; set; }
+
     /// <summary>Only for Category == SkillScroll: which scroll definition this item carries.</summary>
     public string ScrollId { get; set; }
 
@@ -80,6 +86,8 @@ public class ItemBase
     public string Description { get; set; }
 
     public bool IsWeapon => Category is ItemCategory.Mace or ItemCategory.Staff;
+    /// <summary>Items rendered in the character's hands (weapons and shields).</summary>
+    public bool IsHandheld => IsWeapon || Category == ItemCategory.Shield;
     public bool IsEquippable => Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll);
     /// <summary>Categories that can receive prefix/suffix modifiers (enchantable gear).</summary>
     public bool IsEnchantable => IsEquippable;
@@ -90,6 +98,8 @@ public class ItemBase
     {
         ItemCategory.Mace => new[] { EquipSlot.MainHand },
         ItemCategory.Staff => new[] { EquipSlot.MainHand },
+        // Shields are one-handed and fit EITHER hand (off-hand preferred by quick-equip).
+        ItemCategory.Shield => new[] { EquipSlot.OffHand, EquipSlot.MainHand },
         ItemCategory.Helmet => new[] { EquipSlot.Helmet },
         ItemCategory.BodyArmor => new[] { EquipSlot.BodyArmor },
         ItemCategory.Gloves => new[] { EquipSlot.Gloves },

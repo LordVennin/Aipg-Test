@@ -119,6 +119,29 @@ public partial class ServerWorld
                     return false;
                 }
 
+                // Hand rules: a two-handed weapon occupies both hands.
+                if (slot == EquipSlot.OffHand &&
+                    c.Equipment.GetValueOrDefault(EquipSlot.MainHand)?.GetBase(Data) is { IsWeapon: true, TwoHanded: true } mainBase)
+                {
+                    error = $"Cannot use the off-hand while the two-handed {mainBase.Name} is equipped.";
+                    return false;
+                }
+                if (slot == EquipSlot.MainHand && itemBase.IsWeapon && itemBase.TwoHanded)
+                {
+                    var offHand = c.Equipment.GetValueOrDefault(EquipSlot.OffHand);
+                    if (offHand != null)
+                    {
+                        // Auto-unequip the off-hand item to the bag; fail if there is no room.
+                        if (!inv.TryFindFreeSlot(Data, offHand, out int ox, out int oy))
+                        {
+                            error = "No room to unequip the off-hand item.";
+                            return false;
+                        }
+                        c.Equipment.Remove(EquipSlot.OffHand);
+                        inv.Items.Add(new PlacedItem { Item = offHand, X = ox, Y = oy });
+                    }
+                }
+
                 var previous = c.Equipment.GetValueOrDefault(slot);
 
                 if (src.Kind == ItemLocationKind.Grid)
@@ -330,8 +353,14 @@ public partial class ServerWorld
             }
             case "give_mace":
             case "give_staff":
+            case "give_shield":
             {
-                var category = cmd == "give_mace" ? ItemCategory.Mace : ItemCategory.Staff;
+                var category = cmd switch
+                {
+                    "give_mace" => ItemCategory.Mace,
+                    "give_staff" => ItemCategory.Staff,
+                    _ => ItemCategory.Shield,
+                };
                 var itemBase = Data.Items.Values.Where(b => b.Category == category)
                     .OrderBy(_ => Guid.NewGuid()).FirstOrDefault();
                 if (itemBase != null)

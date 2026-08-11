@@ -51,6 +51,7 @@ public class CharacterData
     public LearnedSkill GetSkill(string skillId) => Skills.FirstOrDefault(s => s.SkillId == skillId);
 
     public ItemInstance MainHand => Equipment.GetValueOrDefault(EquipSlot.MainHand);
+    public ItemInstance OffHand => Equipment.GetValueOrDefault(EquipSlot.OffHand);
 
     /// <summary>Starting character: a club, a staff in the bag, two starter skills on the bar.</summary>
     public static CharacterData CreateNew(GameData data, string name)

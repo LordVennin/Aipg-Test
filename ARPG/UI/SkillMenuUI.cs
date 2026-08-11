@@ -191,6 +191,11 @@ public class SkillMenuUI
             sb.DrawString(small, $"Requires weapon: {selDef.RequiredWeapon}", new Vector2(x, y), new Color(220, 170, 130));
             y += 18;
         }
+        if (selDef.RequiresShield)
+        {
+            sb.DrawString(small, "Requires a shield equipped", new Vector2(x, y), new Color(220, 170, 130));
+            y += 18;
+        }
 
         // --- Skill Scroll slots ---
         int unlockedSlots = SkillMath.ScrollSlotsAtLevel(_data, sel.Level);

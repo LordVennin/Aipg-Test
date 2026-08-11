@@ -465,6 +465,8 @@ public class GameClient
                 fn.Amount = r.GetFloat();
                 fn.Kind = r.GetByte();
                 fn.Position = r.GetVec2();
+                fn.Blocked = r.GetBool();
+                if (fn.Blocked) World.BlockedEventsSeen++;
                 // Anchor to the entity's current client-side position when we know it.
                 if (fn.TargetIsPlayer && World.Players.TryGetValue(targetId, out var tp))
                     fn.Position = tp.Position;
@@ -478,8 +480,12 @@ public class GameClient
             {
                 int playerId = r.GetInt();
                 string weaponBaseId = r.GetString();
+                string offHandBaseId = r.GetString();
                 if (World.Players.TryGetValue(playerId, out var p))
+                {
                     p.WeaponBaseId = string.IsNullOrEmpty(weaponBaseId) ? null : weaponBaseId;
+                    p.OffHandBaseId = string.IsNullOrEmpty(offHandBaseId) ? null : offHandBaseId;
+                }
                 break;
             }
 

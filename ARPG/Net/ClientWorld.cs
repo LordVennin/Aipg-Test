@@ -22,6 +22,8 @@ public class ClientPlayer
     public float DodgeTimeLeft;
     /// <summary>Main-hand weapon base id (from PlayerAppearance packets), for held-weapon rendering.</summary>
     public string WeaponBaseId;
+    /// <summary>Off-hand item base id (usually a shield), rendered in the other hand.</summary>
+    public string OffHandBaseId;
 }
 
 public class ClientEnemy
@@ -68,6 +70,8 @@ public class FloatingNumber
     public float Amount;
     public byte Kind;          // (Skills.DamageKind)
     public bool TargetIsPlayer;
+    /// <summary>True: the hit was fully blocked — render "Blocked" instead of a number.</summary>
+    public bool Blocked;
     public float Age;
     public const float Lifetime = 0.9f;
 }
@@ -101,6 +105,8 @@ public class ClientWorld
     public readonly List<FloatingNumber> FloatingNumbers = new();
     /// <summary>Diagnostic counter: dodge events received (used by the headless net test).</summary>
     public int DodgeEventsSeen;
+    /// <summary>Diagnostic counter: blocked-hit events received (used by the headless net test).</summary>
+    public int BlockedEventsSeen;
 
     /// <summary>Authoritative character state for the local player (from CharacterState packets).</summary>
     public CharacterData MyCharacter;
