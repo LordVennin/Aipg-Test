@@ -141,23 +141,28 @@ public class WorldRenderer
             var name = p.Name ?? "?";
             _sorted.Add((pos.X + pos.Y, batch =>
             {
-                DrawUnitToken(batch, screen, 34f, color);
-
-                // Held weapon (or a small facing dot when unarmed), rotated toward the aim.
+                // Held weapon, upright, orbiting the body toward the aim (like the old
+                // facing dot). When the aim points up-screen the weapon is behind the
+                // character: draw it under the body and slightly faded.
                 var screenDir = new Vector2(p.Facing.X - p.Facing.Y, (p.Facing.X + p.Facing.Y) * 0.5f);
                 if (screenDir.LengthSquared() < 0.001f) screenDir = new Vector2(1, 0);
                 screenDir.Normalize();
                 var weaponBase = p.WeaponBaseId != null ? _data.Items.GetValueOrDefault(p.WeaponBaseId) : null;
                 var weaponTex = SpriteGen.GetWeaponSprite(weaponBase);
-                if (weaponTex != null)
+                bool weaponBehind = screenDir.Y < -0.1f;
+
+                void DrawWeapon()
                 {
-                    // Held upright, orbiting the body toward the aim (like the old facing dot).
-                    // Origin sits at ~40% along the shaft so the weapon centers on the hand.
                     var hand = screen + screenDir * 18f + new Vector2(0, -12);
-                    batch.Draw(weaponTex, hand, null, Color.White, -MathF.PI / 2f,
+                    var tint = weaponBehind ? Color.White * 0.55f : Color.White;
+                    batch.Draw(weaponTex, hand, null, tint, -MathF.PI / 2f,
                         new Vector2(weaponTex.Width * 0.4f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
                 }
-                else
+
+                if (weaponTex != null && weaponBehind) DrawWeapon();
+                DrawUnitToken(batch, screen, 34f, color);
+                if (weaponTex != null && !weaponBehind) DrawWeapon();
+                if (weaponTex == null)
                 {
                     var tip = screen + screenDir * 22f;
                     batch.Draw(TextureGen.Circle32, new Rectangle((int)tip.X - 3, (int)tip.Y - 3 - 14, 6, 6), Color.White);
