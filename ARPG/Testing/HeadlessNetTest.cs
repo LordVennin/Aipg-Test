@@ -341,22 +341,35 @@ public static class HeadlessNetTest
             Check(clientB.World.Drops.TryGetValue(goldDrop.DropId, out var goldOnB) && goldOnB.IsGold &&
                   goldOnB.GoldAmount == goldDrop.GoldAmount,
                   $"gold drop synchronized to client B ({goldDrop.GoldAmount} gold)");
+            // Gold is now picked up AUTOMATICALLY by walking over it: drop a pile at A's
+            // feet server-side and just wait — no pickup request at all.
             bool goldGained = false;
-            for (int attempt = 0; attempt < 6 && !goldGained; attempt++)
+            for (int attempt = 0; attempt < 8 && !goldGained; attempt++)
             {
                 // heal doesn't revive: if A is dead, ride out the respawn cycle first.
                 for (int wait = 0; wait < 20 && !clientA.World.Me.Alive; wait++)
                     Pump(0.5f);
+                if (!clientA.World.Me.Alive) continue; // auto-pickup only runs for the living
                 clientA.SendDebugCommand("kill_nearby"); // roaming zombies can kill A mid-pickup
                 clientA.SendDebugCommand("heal");
-                clientA.World.Me.Position = SafeNear(goldDrop.Position);
+                // A and B stand on the same tile after the pickup race — step A away so
+                // B can't vacuum up the pile first.
+                clientA.World.Me.Position = SafeNear(
+                    server.World.Players[clientB.World.MyPlayerId].Position + new Vector2(4, 0));
                 Pump(0.4f);
-                clientA.RequestPickup(goldDrop.DropId);
-                Pump(0.4f);
+                server.World.SpawnGoldDrop(25, server.World.Players[clientA.World.MyPlayerId].Position);
+                Pump(0.8f);
                 goldGained = clientA.World.MyCharacter.Gold > goldBefore;
+                if (!goldGained)
+                {
+                    var sp = server.World.Players[clientA.World.MyPlayerId];
+                    Console.WriteLine($"  [diag] gold attempt {attempt}: sAlive={sp.Alive} " +
+                        $"clientGold={clientA.World.MyCharacter.Gold} serverGold={sp.Character.Gold} " +
+                        $"goldDropsNear={server.World.Drops.Values.Count(d => d.IsGold && Vector2.Distance(d.Position, sp.Position) < 2f)}");
+                }
             }
             Check(goldGained,
-                  $"gold pickup increased character gold ({goldBefore} -> {clientA.World.MyCharacter.Gold})");
+                  $"walking over gold picks it up automatically ({goldBefore} -> {clientA.World.MyCharacter.Gold})");
         }
 
         clientA.RequestLearnSkill("basic_strike");
@@ -502,9 +515,33 @@ public static class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 351, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
-        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 35,
-              "every family has a tier X (10 tiers x 35 tiered families)");
+        Check(data.Modifiers.Count == 371, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 37,
+              "every family has a tier X (10 tiers x 37 tiered families)");
+        Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&
+              data.Modifiers["of_ferocity"].StatAffected == Stats.StatType.CriticalDamage &&
+              data.Modifiers["of_precision"].CompatibleItemCategories.All(c =>
+                  c is Items.ItemCategory.Mace or Items.ItemCategory.Staff),
+              "critical hit chance/damage suffixes roll on weapons only");
+        Check(!data.Modifiers["of_haste"].CompatibleItemCategories.Contains(Items.ItemCategory.Staff) &&
+              !data.Modifiers["of_casting"].CompatibleItemCategories.Contains(Items.ItemCategory.Mace),
+              "attack speed and cast speed suffixes are separated (no staff haste, no mace focus)");
+        Check(data.Modifiers.Values.Where(m => m.StatAffected is Stats.StatType.FireResistance
+                  or Stats.StatType.ArcaneResistance or Stats.StatType.Armor)
+              .All(m => !m.CompatibleWith(Items.ItemCategory.Mace) && !m.CompatibleWith(Items.ItemCategory.Staff)),
+              "defense modifiers (armor, resistances) no longer roll on weapons");
+        Check(data.Skills["basic_strike"].Name == "Mace Strike" && data.Skills["mace_strike"].Name == "Heavy Strike",
+              "skills renamed: Mace Strike (single target) and Heavy Strike (area)");
+
+        // Crit stats flow through the stat system: base 5% / 150% plus weapon suffixes.
+        var critChar = new Sim.CharacterData();
+        var critMace = new Items.ItemInstance { BaseItemId = "wooden_club", Rarity = Items.ItemRarity.Magic };
+        critMace.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_precision", Value = 3 });
+        critMace.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_ferocity", Value = 12 });
+        critChar.Equipment[Items.EquipSlot.MainHand] = critMace;
+        var critStats = Stats.StatCalculator.Compute(data, critChar);
+        Check(Math.Abs(critStats.CritChance - 8) < 0.01f && Math.Abs(critStats.CritDamage - 162) < 0.01f,
+              $"crit chance/damage computed from weapon suffixes ({critStats.CritChance}% / {critStats.CritDamage}%)");
         Check(data.Modifiers["of_nullification"].StatAffected == Stats.StatType.ArcaneResistance,
               "Arcane Resistance suffix family loaded");
         Check(data.Modifiers["occult"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Mace }) &&
@@ -714,9 +751,20 @@ public static class HeadlessNetTest
               "Shield Bash rejected without a shield (no cooldown consumed)");
         server.World.Players[aId].Mana = server.World.Players[aId].Stats.MaxMana; // bash costs mana
         clientA.RequestUseSkill("shield_bash", clientA.World.Me.Position + new Vector2(1, 0));
-        Pump(0.4f);
-        Check(server.World.Players[aId].SkillReadyAt.ContainsKey("shield_bash"),
-              "Shield Bash accepted with a shield equipped");
+        // Poll in small steps so the i-frame check runs right after the cast lands
+        // (the 0.35s invulnerability window would expire during one big pump).
+        bool bashAccepted = false;
+        for (int i = 0; i < 30 && !bashAccepted; i++)
+        {
+            Pump(0.03f);
+            bashAccepted = server.World.Players[aId].SkillReadyAt.ContainsKey("shield_bash");
+        }
+        Check(bashAccepted, "Shield Bash accepted with a shield equipped");
+        Check(bashAccepted && server.World.Players[aId].InvulnerableUntil > server.World.Time,
+              "Shield Bash lunge grants brief i-frames (ramming an enemy can't hurt)");
+        Check(data.Skills["shield_bash"].LungeDistance > 0 && data.Skills["shield_bash"].Knockback >= 2f,
+              "Shield Bash lunges forward and knocks back hard");
+        Pump(0.3f);
 
         // Shields are one-handed and fit EITHER hand: a second shield goes into the main hand.
         clientA.SendDebugCommand("give_shield");

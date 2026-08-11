@@ -126,11 +126,22 @@ actually held in each hand. **Blocking**: shields grant Block Chance (a % chance
 fully avoid one hit, capped at 75%); after a block it recovers for 2 seconds (base),
 shortened by Block Cooldown Recovery modifiers. Blocks are rolled server-side and
 show as a floating "Blocked" message. Shield Bash (a learnable skill) requires a
-shield equipped in either hand, knocks its target back with a high chance (80%) to
-momentarily stun it, and gains flat damage from your equipped shields' armor —
-heavier shields hit harder. The off-hand item always renders beneath the main-hand
-weapon. Enemy debuffs (stun, burning) replicate as snapshot flags and render as
-tiny per-debuff icons above the enemy's head.
+shield equipped in either hand: it lunges the caster forward (client-predicted,
+with brief server-granted i-frames so the body-check can't hurt you), knocks the
+target far back with a high chance (80%) to momentarily stun it, and gains +1
+damage per 10 points of equipped shield armor. Enemy debuffs (stun, burning)
+replicate as snapshot flags and render as tiny per-debuff icons above the enemy's
+head.
+
+**Skills**: *Mace Strike* (fast single-target swing with knockback, free), *Heavy
+Strike* (area blow at the aimed point), Ground Slam, Shield Bash, Fire Bolt and
+Arcane Burst. Melee strikes animate the actual held weapon sweeping an arc.
+**Critical hits**: every hit has a base 5% chance to crit for 150% damage;
+*of Precision* (crit chance) and *of Ferocity* (crit damage) suffixes roll on
+weapons only. Attack Speed suffixes roll on melee weapons, Cast Speed suffixes on
+staffs — never crossed. Defense modifiers (armor, resistances) no longer roll on
+weapons. Gold is picked up automatically by walking over it. Item tooltips show
+armor and weapon damage pre-calculated (base + rolled modifiers combined).
 
 ## 7. Source directory map
 

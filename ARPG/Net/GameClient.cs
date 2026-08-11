@@ -426,8 +426,10 @@ public class GameClient
                 if (def != null && World.Players.ContainsKey(playerId))
                 {
                     // Melee strikes play a real weapon-swing animation on the caster's
-                    // held weapon (replacing the old abstract swipe arc).
+                    // held weapon (replacing the old abstract swipe arc). Shield skills
+                    // don't swing — Shield Bash is a forward shove, not a swipe.
                     if (def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
+                        !def.RequiresShield &&
                         World.Players.GetValueOrDefault(playerId) is { } swingCaster)
                     {
                         var swingDir = effectPoint - swingCaster.Position;
@@ -442,9 +444,7 @@ public class GameClient
                         case Skills.SkillArchetype.MeleeStrike:
                             World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius), 0.18f, "melee");
                             break;
-                        case Skills.SkillArchetype.MeleeSingle:
-                            World.AddEffect(effectPoint, 0.45f, 0.15f, "melee");
-                            break;
+                        // MeleeSingle: the weapon swing itself is the visual — no impact circle.
                         case Skills.SkillArchetype.MeleeArea:
                             World.AddEffect(effectPoint, def.Radius, 0.3f, "slam");
                             break;

@@ -41,6 +41,11 @@ public class PlayScreen : IScreen
     private float _dodgeTimeLeft;
     private NumVec2 _dodgeDir;
     private float _dodgeCooldownEnd;
+
+    // Client-predicted lunge (Shield Bash's forward scoot; server grants the i-frames).
+    private float _lungeTimeLeft;
+    private NumVec2 _lungeDir;
+    private float _lungeSpeed;
     private float _clientTime;
     /// <summary>Client-side cooldown estimates per skill (server still validates).</summary>
     private readonly Dictionary<string, float> _cooldownEnds = new();
@@ -242,6 +247,11 @@ public class PlayScreen : IScreen
                 float dodgeSpeed = dodgeStats.DodgeDistance / MathF.Max(0.05f, dodgeStats.DodgeDuration);
                 me.Position = _client.World.Map.MoveWithCollision(me.Position, _dodgeDir * dodgeSpeed * dt, 0.3f);
             }
+            else if (_lungeTimeLeft > 0)
+            {
+                _lungeTimeLeft -= dt;
+                me.Position = _client.World.Map.MoveWithCollision(me.Position, _lungeDir * _lungeSpeed * dt, 0.3f);
+            }
             else if (worldDir != NumVec2.Zero)
             {
                 float speed = _client.World.MyStats.MovementSpeed; // stat-driven, equipment can modify it
@@ -297,6 +307,25 @@ public class PlayScreen : IScreen
         var stats = SkillMath.Compute(_game.Data, def, learned.Level, learned.ScrollDefinitions(_game.Data), _client.World.MyStats);
         _cooldownEnds[skillId] = _clientTime + stats.Cooldown;
         _client.RequestUseSkill(skillId, target);
+
+        // Lunge skills (Shield Bash): scoot toward the aim, stopping just short of the
+        // first enemy along the path so the shove reads as a body-check, not a pass-through.
+        if (def.LungeDistance > 0 && _client.World.Me is { Alive: true } lunger)
+        {
+            var toTarget = target - lunger.Position;
+            _lungeDir = toTarget.LengthSquared() > 0.001f ? NumVec2.Normalize(toTarget) : lunger.Facing;
+            float dist = def.LungeDistance;
+            foreach (var e in _client.World.Enemies.Values)
+            {
+                var toEnemy = e.Position - lunger.Position;
+                float along = NumVec2.Dot(toEnemy, _lungeDir);
+                if (along > 0.2f && (toEnemy - _lungeDir * along).Length() < 0.6f)
+                    dist = MathF.Min(dist, MathF.Max(0.15f, along - 0.55f));
+            }
+            const float lungeDuration = 0.14f;
+            _lungeTimeLeft = lungeDuration;
+            _lungeSpeed = dist / lungeDuration;
+        }
     }
 
     /// <summary>Fallback combined draw (unused by GameMain, which calls the split methods).</summary>

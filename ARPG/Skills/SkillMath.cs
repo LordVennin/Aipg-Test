@@ -26,6 +26,8 @@ public struct EffectiveSkillStats
     public int ProjectileCount;
     public float IgniteChance;    // 0..1
     public float ManaCost;
+    public float CritChance;      // percent
+    public float CritDamage;      // percent multiplier (150 = 1.5x)
     public DamageKind DamageKind;
 
     public float AverageDamage => (MinDamage + MaxDamage) * 0.5f;
@@ -111,6 +113,8 @@ public static class SkillMath
             ProjectileCount = def.ProjectileCount,
             IgniteChance = 0f,
             ManaCost = def.ManaCost,
+            CritChance = playerStats.CritChance,
+            CritDamage = playerStats.CritDamage,
         };
 
         // Base damage: weapon-driven for attacks, skill-progression-driven for spells.

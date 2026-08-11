@@ -105,6 +105,9 @@ public class ServerProjectile
     public float MaxDamage;
     public DamageKind DamageKind;
     public float IgniteChance;
+    /// <summary>Critical strike stats carried by player projectiles, rolled at impact.</summary>
+    public float CritChance;
+    public float CritDamage;
     /// <summary>Typed added-damage components carried by the projectile (spell adds).</summary>
     public List<DamageComponent> Added;
 }

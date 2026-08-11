@@ -24,6 +24,8 @@ public struct ComputedStats
     public float SpellDamageIncrease;    // percent
     public float AttackSpeedIncrease;    // percent
     public float CastSpeedIncrease;      // percent
+    public float CritChance;             // percent chance a skill hit crits (base 5)
+    public float CritDamage;             // crit damage multiplier percent (base 150)
 
     // Blocking (requires shields only in practice: BlockChance rolls solely on shields)
     public float BlockChance;            // percent chance to fully avoid one hit
@@ -110,6 +112,12 @@ public static class StatCalculator
     public const float BaseManaRegen = 1.2f;       // per second at level 1
     public const float ManaRegenPerCharLevel = 0.15f;
 
+    // Critical hits: every character starts with a small base chance and a 150%
+    // damage multiplier; weapon suffixes raise both.
+    public const float BaseCritChance = 5f;
+    public const float BaseCritDamage = 150f;
+    public const float CritChanceCap = 75f;
+
     public static ComputedStats Compute(GameData data, CharacterData character, StatCollection temporaryEffects = null)
     {
         // 1) Aggregate flat/percent contributions from all equipped items.
@@ -166,6 +174,8 @@ public static class StatCalculator
             SpellDamageIncrease = total.Get(StatType.SpellDamage),
             AttackSpeedIncrease = total.Get(StatType.AttackSpeed),
             CastSpeedIncrease = total.Get(StatType.CastSpeed),
+            CritChance = MathF.Min(CritChanceCap, BaseCritChance + total.Get(StatType.CriticalChance)),
+            CritDamage = BaseCritDamage + total.Get(StatType.CriticalDamage),
         };
 
         // Blocking: chance comes entirely from gear (shields and their modifiers); a block
