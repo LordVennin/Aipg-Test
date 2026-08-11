@@ -131,6 +131,8 @@ public static class ItemTooltip
         if (itemBase.RequiredLevel > 1)
             lines.Add(new Line($"Required Level: {itemBase.RequiredLevel}", gray));
         lines.Add(new Line($"Item Level: {item.ItemLevel}", gray));
+        if (itemBase.Category != ItemCategory.SkillScroll)
+            lines.Add(new Line($"Value: {item.GoldValue(data)} gold", new Color(240, 200, 90)));
         return lines;
     }
 

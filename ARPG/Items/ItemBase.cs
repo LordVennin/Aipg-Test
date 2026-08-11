@@ -60,6 +60,9 @@ public class ItemBase
     /// <summary>Relative chance for the loot generator to pick this base within its category.</summary>
     public int DropWeight { get; set; } = 100;
 
+    /// <summary>Base gold value before modifiers/rarity are factored in.</summary>
+    public int BaseGoldValue { get; set; } = 8;
+
     /// <summary>Only for Category == SkillScroll: which scroll definition this item carries.</summary>
     public string ScrollId { get; set; }
 

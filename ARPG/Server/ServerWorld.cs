@@ -90,6 +90,7 @@ public partial class ServerWorld
         };
         p.RecomputeStats(Data);
         p.Health = p.Stats.MaxHealth;
+        p.LastSyncedHealth = p.Health;
         Players[id] = p;
         return p;
     }
@@ -123,14 +124,30 @@ public partial class ServerWorld
     {
         foreach (var p in Players.Values)
         {
-            if (p.Alive) continue;
-            p.RespawnTimer -= dt;
-            if (p.RespawnTimer <= 0)
+            if (!p.Alive)
             {
-                p.Alive = true;
-                p.Position = Map.PlayerSpawn;
-                p.Health = p.Stats.MaxHealth;
-                _events.PlayerRespawned(p);
+                p.RespawnTimer -= dt;
+                if (p.RespawnTimer <= 0)
+                {
+                    p.Alive = true;
+                    p.Position = Map.PlayerSpawn;
+                    p.Health = p.Stats.MaxHealth;
+                    p.LastSyncedHealth = p.Health;
+                    _events.PlayerRespawned(p);
+                }
+                continue;
+            }
+
+            // Life regeneration (from the LifeRegeneration stat, e.g. the Mending prefix).
+            // Health changes are broadcast in whole-point steps to avoid packet spam.
+            if (p.Stats.LifeRegeneration > 0 && p.Health < p.Stats.MaxHealth)
+            {
+                p.Health = MathF.Min(p.Stats.MaxHealth, p.Health + p.Stats.LifeRegeneration * dt);
+                if (MathF.Abs(p.Health - p.LastSyncedHealth) >= 1f || p.Health >= p.Stats.MaxHealth)
+                {
+                    p.LastSyncedHealth = p.Health;
+                    _events.PlayerHealthChanged(p);
+                }
             }
         }
     }
@@ -381,6 +398,26 @@ public partial class ServerWorld
                     HitEnemy(e, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, stats.DamageKind, RollIgnite(stats));
                 break;
             }
+            case SkillArchetype.MeleeSingle:
+            {
+                // Single target: hit only the enemy closest to the impact point, then
+                // knock it back away from the caster (with wall collision).
+                effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
+                var victim = EnemiesNear(effectPoint, stats.Radius)
+                    .OrderBy(e => Vector2.Distance(e.Position, effectPoint))
+                    .FirstOrDefault();
+                if (victim != null)
+                {
+                    HitEnemy(victim, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, stats.DamageKind, RollIgnite(stats));
+                    if (!victim.Dead && def.Knockback > 0)
+                    {
+                        var push = (victim.Position - p.Position).NormalizedOrZero();
+                        if (push == Vector2.Zero) push = p.Facing;
+                        victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback, victim.Def.Radius);
+                    }
+                }
+                break;
+            }
             case SkillArchetype.MeleeArea:
             {
                 effectPoint = p.Position;
@@ -511,6 +548,15 @@ public partial class ServerWorld
 
         foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Def.Level))
             SpawnDrop(item, e.Position);
+
+        // Gold drop, scaled by enemy level.
+        var table = Data.GetLootTable(e.Def.LootTableId);
+        if (_rng.NextDouble() < table.GoldDropChance)
+        {
+            int amount = _rng.Next(table.GoldMin, table.GoldMax + 1);
+            amount = Math.Max(1, (int)(amount * (1f + 0.25f * (e.Def.Level - 1))));
+            SpawnGoldDrop(amount, e.Position);
+        }
     }
 
     public bool GrantCharacterXp(ServerPlayer p, float xp)
@@ -557,6 +603,7 @@ public partial class ServerWorld
 
         damage = MathF.Max(0.5f, damage);
         p.Health -= damage;
+        p.LastSyncedHealth = p.Health;
         _events.DamageDealt(true, p.Id, damage, kind, p.Position);
         if (p.Health <= 0)
         {
@@ -575,12 +622,22 @@ public partial class ServerWorld
 
     public void SpawnDrop(ItemInstance item, Vector2 pos)
     {
-        var jitter = new Vector2((float)(_rng.NextDouble() - 0.5), (float)(_rng.NextDouble() - 0.5)) * 0.8f;
-        var target = pos + jitter;
-        if (Map.IsWallAt(target)) target = pos;
-        var drop = new WorldItem { Position = target, Item = item };
+        var drop = new WorldItem { Position = Jitter(pos), Item = item };
         Drops[drop.DropId] = drop;
         _events.WorldItemSpawned(drop);
+    }
+
+    public void SpawnGoldDrop(int amount, Vector2 pos)
+    {
+        var drop = new WorldItem { Position = Jitter(pos), GoldAmount = amount };
+        Drops[drop.DropId] = drop;
+        _events.WorldItemSpawned(drop);
+    }
+
+    private Vector2 Jitter(Vector2 pos)
+    {
+        var target = pos + new Vector2((float)(_rng.NextDouble() - 0.5), (float)(_rng.NextDouble() - 0.5)) * 0.8f;
+        return Map.IsWallAt(target) ? pos : target;
     }
 
     /// <summary>Authoritative pickup: existence, range and inventory space are all checked here,
@@ -594,7 +651,11 @@ public partial class ServerWorld
             _events.MessageFor(p, "Too far away.");
             return;
         }
-        if (!p.Character.Inventory.TryAdd(Data, drop.Item))
+        if (drop.IsGold)
+        {
+            p.Character.Gold += drop.GoldAmount;
+        }
+        else if (!p.Character.Inventory.TryAdd(Data, drop.Item))
         {
             _events.MessageFor(p, "Inventory is full.");
             return;

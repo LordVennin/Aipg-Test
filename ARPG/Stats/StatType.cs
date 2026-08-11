@@ -12,6 +12,7 @@ public enum StatType
 {
     // Flat character stats
     MaxHealth,
+    LifeRegeneration, // health per second
     Armor,
     FireResistance,
     ColdResistance,

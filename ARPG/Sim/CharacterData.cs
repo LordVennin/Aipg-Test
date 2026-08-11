@@ -39,6 +39,7 @@ public class CharacterData
     public string Name { get; set; } = "Exile";
     public int Level { get; set; } = 1;
     public float Experience { get; set; }
+    public int Gold { get; set; }
     public InventoryGrid Inventory { get; set; } = new() { Width = 10, Height = 6 };
     public Dictionary<EquipSlot, ItemInstance> Equipment { get; set; } = new();
     public List<LearnedSkill> Skills { get; set; } = new();
@@ -69,10 +70,15 @@ public class CharacterData
         if (data.Items.ContainsKey("oak_staff"))
             c.Inventory.TryAdd(data, MakeNormal("oak_staff"));
 
+        if (data.Skills.ContainsKey("basic_strike"))
+        {
+            c.Skills.Add(new LearnedSkill { SkillId = "basic_strike" });
+            c.Hotbar[0] = "basic_strike";
+        }
         if (data.Skills.ContainsKey("mace_strike"))
         {
             c.Skills.Add(new LearnedSkill { SkillId = "mace_strike" });
-            c.Hotbar[0] = "mace_strike";
+            if (c.Hotbar[0] == null) c.Hotbar[0] = "mace_strike";
         }
         if (data.Skills.ContainsKey("fire_bolt"))
         {

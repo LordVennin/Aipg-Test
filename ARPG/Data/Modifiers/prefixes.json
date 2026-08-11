@@ -78,6 +78,19 @@
     "IsPercent": false
   },
   {
+    "Id": "mending",
+    "Name": "Mending",
+    "AffixType": "Prefix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Helmet", "BodyArmor", "Gloves", "Boots", "Belt", "Amulet", "Ring"],
+    "ModifierGroup": "life_regen",
+    "StatAffected": "LifeRegeneration",
+    "MinimumValue": 1,
+    "MaximumValue": 3,
+    "Weight": 80,
+    "IsPercent": false
+  },
+  {
     "Id": "expanded",
     "Name": "Expanded",
     "AffixType": "Prefix",
