@@ -1,0 +1,41 @@
+[
+  {
+    "Id": "multishot",
+    "Name": "Multishot",
+    "Description": "+2 Projectiles, 30% less damage.",
+    "RequiredTag": "Projectile",
+    "Effects": [
+      { "Stat": "AddedProjectiles", "Add": 2 },
+      { "Stat": "DamageMultiplier", "Mult": 0.7 }
+    ]
+  },
+  {
+    "Id": "greater_impact",
+    "Name": "Greater Impact",
+    "Description": "40% increased area, 20% reduced attack/cast speed.",
+    "RequiredTag": "Area",
+    "Effects": [
+      { "Stat": "AreaMultiplier", "Mult": 1.4 },
+      { "Stat": "SpeedMultiplier", "Mult": 0.8 }
+    ]
+  },
+  {
+    "Id": "burning",
+    "Name": "Burning",
+    "Description": "50% chance to ignite, burning the target for fire damage over time.",
+    "RequiredTag": "Fire",
+    "Effects": [
+      { "Stat": "IgniteChance", "Add": 0.5 }
+    ]
+  },
+  {
+    "Id": "rapid_casting",
+    "Name": "Rapid Casting",
+    "Description": "30% increased cast speed, 15% less damage.",
+    "RequiredTag": "Spell",
+    "Effects": [
+      { "Stat": "SpeedMultiplier", "Mult": 1.3 },
+      { "Stat": "DamageMultiplier", "Mult": 0.85 }
+    ]
+  }
+]

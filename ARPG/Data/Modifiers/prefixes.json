@@ -1,0 +1,93 @@
+[
+  {
+    "Id": "healthy",
+    "Name": "Healthy",
+    "AffixType": "Prefix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Mace", "Staff", "Helmet", "BodyArmor", "Gloves", "Boots", "Belt", "Amulet", "Ring"],
+    "ModifierGroup": "health_prefix",
+    "StatAffected": "MaxHealth",
+    "MinimumValue": 10,
+    "MaximumValue": 25,
+    "Weight": 100,
+    "IsPercent": false
+  },
+  {
+    "Id": "brutal",
+    "Name": "Brutal",
+    "AffixType": "Prefix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Mace", "Staff", "Amulet", "Ring"],
+    "ModifierGroup": "phys_damage",
+    "StatAffected": "PhysicalDamage",
+    "MinimumValue": 8,
+    "MaximumValue": 20,
+    "Weight": 90,
+    "IsPercent": true
+  },
+  {
+    "Id": "arcane",
+    "Name": "Arcane",
+    "AffixType": "Prefix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Staff", "Amulet", "Ring", "Helmet"],
+    "ModifierGroup": "spell_damage",
+    "StatAffected": "SpellDamage",
+    "MinimumValue": 8,
+    "MaximumValue": 20,
+    "Weight": 90,
+    "IsPercent": true
+  },
+  {
+    "Id": "armored",
+    "Name": "Armored",
+    "AffixType": "Prefix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Helmet", "BodyArmor", "Gloves", "Boots", "Belt"],
+    "ModifierGroup": "armor_prefix",
+    "StatAffected": "Armor",
+    "MinimumValue": 15,
+    "MaximumValue": 40,
+    "Weight": 100,
+    "IsPercent": false
+  },
+  {
+    "Id": "swift",
+    "Name": "Swift",
+    "AffixType": "Prefix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Boots", "Amulet"],
+    "ModifierGroup": "move_speed",
+    "StatAffected": "MovementSpeed",
+    "MinimumValue": 5,
+    "MaximumValue": 12,
+    "Weight": 80,
+    "IsPercent": true
+  },
+  {
+    "Id": "jagged",
+    "Name": "Jagged",
+    "AffixType": "Prefix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Mace", "Staff"],
+    "ModifierGroup": "added_phys",
+    "StatAffected": "AddedPhysicalDamage",
+    "MinimumValue": 2,
+    "MaximumValue": 6,
+    "Weight": 80,
+    "IsPercent": false
+  },
+  {
+    "Id": "expanded",
+    "Name": "Expanded",
+    "AffixType": "Prefix",
+    "MinimumItemLevel": 3,
+    "CompatibleItemCategories": ["Mace", "Staff", "Helmet", "BodyArmor", "Gloves", "Boots", "Belt", "Amulet", "Ring"],
+    "ModifierGroup": "modifier_limit",
+    "StatAffected": "ModifierLimit",
+    "MinimumValue": 1,
+    "MaximumValue": 2,
+    "Weight": 12,
+    "IsPercent": false
+  }
+]

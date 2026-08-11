@@ -1,0 +1,19 @@
+{
+  "Id": "default",
+  "DropChance": 0.45,
+  "ScrollDropChance": 0.1,
+  "RarityWeightNormal": 45,
+  "RarityWeightMagic": 38,
+  "RarityWeightRare": 17,
+  "CategoryWeights": {
+    "Mace": 120,
+    "Staff": 120,
+    "Helmet": 90,
+    "BodyArmor": 90,
+    "Gloves": 90,
+    "Boots": 90,
+    "Belt": 80,
+    "Amulet": 60,
+    "Ring": 80
+  }
+}
