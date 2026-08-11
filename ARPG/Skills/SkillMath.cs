@@ -99,28 +99,53 @@ public static class SkillMath
             float mult = def.WeaponDamageMultiplier + def.WeaponDamageMultiplierPerLevel * (level - 1);
             s.MinDamage = playerStats.WeaponMinDamage * mult;
             s.MaxDamage = playerStats.WeaponMaxDamage * mult;
-            // Attacks deal the weapon's physical subtype (Blunt for maces) and carry any
-            // "Added X Damage" rolls as separately-typed components.
+            // Attacks deal the weapon's physical subtype (Blunt for maces). Added ATTACK
+            // damage rolls apply to MELEE skills only, as separately-typed components.
             s.DamageKind = playerStats.PhysicalSubtype;
-            var added = new List<DamageComponent>();
-            void AddComp(DamageKind kind, float value)
+            if (def.HasTag(SkillTags.Melee))
             {
-                if (value > 0)
-                    added.Add(new DamageComponent { Kind = kind, Min = value * 0.8f, Max = value * 1.2f });
+                var added = new List<DamageComponent>();
+                void AddComp(DamageKind kind, float value)
+                {
+                    if (value > 0)
+                        added.Add(new DamageComponent { Kind = kind, Min = value * 0.8f, Max = value * 1.2f });
+                }
+                AddComp(DamageKind.Fire, playerStats.AddedFire);
+                AddComp(DamageKind.Cold, playerStats.AddedCold);
+                AddComp(DamageKind.Lightning, playerStats.AddedLightning);
+                AddComp(DamageKind.Acid, playerStats.AddedAcid);
+                AddComp(DamageKind.Dark, playerStats.AddedDark);
+                AddComp(DamageKind.Light, playerStats.AddedLight);
+                if (added.Count > 0) s.Added = added;
             }
-            AddComp(DamageKind.Fire, playerStats.AddedFire);
-            AddComp(DamageKind.Cold, playerStats.AddedCold);
-            AddComp(DamageKind.Lightning, playerStats.AddedLightning);
-            AddComp(DamageKind.Acid, playerStats.AddedAcid);
-            AddComp(DamageKind.Dark, playerStats.AddedDark);
-            AddComp(DamageKind.Light, playerStats.AddedLight);
-            if (added.Count > 0) s.Added = added;
         }
         else
         {
             float baseDmg = def.BaseDamage + def.DamagePerLevel * (level - 1);
             s.MinDamage = baseDmg * 0.85f;
             s.MaxDamage = baseDmg * 1.15f;
+
+            // Added SPELL damage rolls (caster weapons) attach typed components to spells,
+            // scaled by the same Spell Damage % as the spell's base damage.
+            float spellScale = 1f + playerStats.SpellDamageIncrease / 100f;
+            var added = new List<DamageComponent>();
+            void AddComp(DamageKind kind, float value)
+            {
+                if (value > 0)
+                    added.Add(new DamageComponent
+                    {
+                        Kind = kind,
+                        Min = value * 0.8f * spellScale,
+                        Max = value * 1.2f * spellScale,
+                    });
+            }
+            AddComp(DamageKind.Fire, playerStats.SpellAddedFire);
+            AddComp(DamageKind.Cold, playerStats.SpellAddedCold);
+            AddComp(DamageKind.Lightning, playerStats.SpellAddedLightning);
+            AddComp(DamageKind.Acid, playerStats.SpellAddedAcid);
+            AddComp(DamageKind.Dark, playerStats.SpellAddedDark);
+            AddComp(DamageKind.Light, playerStats.SpellAddedLight);
+            if (added.Count > 0) s.Added = added;
         }
 
         // Global damage scaling from character stats.

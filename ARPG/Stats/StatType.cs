@@ -35,13 +35,21 @@ public enum StatType
     WeaponRange,         // tiles
     AddedPhysicalDamage, // flat added to both min and max (local to weapon)
 
-    // Flat added elemental damage on attacks (rolls on weapons)
+    // Flat added elemental damage on MELEE attacks (rolls on melee weapons only)
     AddedFireDamage,
     AddedColdDamage,
     AddedLightningDamage,
     AddedAcidDamage,
     AddedDarkDamage,
     AddedLightDamage,
+
+    // Flat added elemental damage on SPELLS (rolls on caster weapons only)
+    AddedFireSpellDamage,
+    AddedColdSpellDamage,
+    AddedLightningSpellDamage,
+    AddedAcidSpellDamage,
+    AddedDarkSpellDamage,
+    AddedLightSpellDamage,
 
     // Item-local meta stat: raises the item's own modifier capacity ("Expanded" prefix)
     ModifierLimit,

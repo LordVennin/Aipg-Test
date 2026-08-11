@@ -38,13 +38,21 @@ public struct ComputedStats
     /// future swords = Slash, spears = Thrust).</summary>
     public Skills.DamageKind PhysicalSubtype;
 
-    // Flat added elemental damage on attacks (from "Added X Damage" weapon modifiers).
+    // Flat added elemental damage on MELEE attacks (from melee-weapon "Added X Damage" rolls).
     public float AddedFire;
     public float AddedCold;
     public float AddedLightning;
     public float AddedAcid;
     public float AddedDark;
     public float AddedLight;
+
+    // Flat added elemental damage on SPELLS (from caster-weapon "Added X Spell Damage" rolls).
+    public float SpellAddedFire;
+    public float SpellAddedCold;
+    public float SpellAddedLightning;
+    public float SpellAddedAcid;
+    public float SpellAddedDark;
+    public float SpellAddedLight;
 
     public const float ResistanceCap = 75f;
 
@@ -112,6 +120,12 @@ public static class StatCalculator
             AddedAcid = total.Get(StatType.AddedAcidDamage),
             AddedDark = total.Get(StatType.AddedDarkDamage),
             AddedLight = total.Get(StatType.AddedLightDamage),
+            SpellAddedFire = total.Get(StatType.AddedFireSpellDamage),
+            SpellAddedCold = total.Get(StatType.AddedColdSpellDamage),
+            SpellAddedLightning = total.Get(StatType.AddedLightningSpellDamage),
+            SpellAddedAcid = total.Get(StatType.AddedAcidSpellDamage),
+            SpellAddedDark = total.Get(StatType.AddedDarkSpellDamage),
+            SpellAddedLight = total.Get(StatType.AddedLightSpellDamage),
             PhysicalDamageIncrease = total.Get(StatType.PhysicalDamage),
             SpellDamageIncrease = total.Get(StatType.SpellDamage),
             AttackSpeedIncrease = total.Get(StatType.AttackSpeed),

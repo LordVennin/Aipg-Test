@@ -330,9 +330,9 @@ public partial class ServerWorld
                     if (e.Dead) continue;
                     if (Vector2.Distance(pr.Position, e.Position) <= e.Def.Radius + 0.25f)
                     {
-                        float dmg = Roll(pr.MinDamage, pr.MaxDamage);
+                        var (dmg, hitKind) = RollDamageSet(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
                         bool ignite = pr.IgniteChance > 0 && _rng.NextDouble() < pr.IgniteChance;
-                        HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, pr.DamageKind, ignite);
+                        HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind, ignite);
                         RemoveProjectile(pr, pr.Position);
                         break;
                     }
@@ -459,6 +459,7 @@ public partial class ServerWorld
                         MaxDamage = stats.MaxDamage,
                         DamageKind = stats.DamageKind,
                         IgniteChance = stats.IgniteChance,
+                        Added = stats.Added,
                     };
                     Projectiles[pr.Id] = pr;
                     _events.ProjectileSpawned(pr);
@@ -514,15 +515,19 @@ public partial class ServerWorld
     /// <summary>Roll a full skill hit: main damage plus any typed added components.
     /// Returns the total and the dominant damage kind (largest component) for the
     /// damage event / floating number.</summary>
-    private (float total, DamageKind kind) RollSkillDamage(in EffectiveSkillStats stats)
+    private (float total, DamageKind kind) RollSkillDamage(in EffectiveSkillStats stats) =>
+        RollDamageSet(stats.MinDamage, stats.MaxDamage, stats.DamageKind, stats.Added);
+
+    private (float total, DamageKind kind) RollDamageSet(float min, float max, DamageKind mainKind,
+        List<DamageComponent> added)
     {
-        float main = Roll(stats.MinDamage, stats.MaxDamage);
+        float main = Roll(min, max);
         float total = main;
-        var dominant = stats.DamageKind;
+        var dominant = mainKind;
         float dominantAmount = main;
-        if (stats.Added != null)
+        if (added != null)
         {
-            foreach (var comp in stats.Added)
+            foreach (var comp in added)
             {
                 float dmg = Roll(comp.Min, comp.Max);
                 total += dmg;
