@@ -432,7 +432,9 @@ public static class HeadlessNetTest
         {
             for (int wait = 0; wait < 20 && !clientA.World.Me.Alive; wait++)
                 Pump(0.5f);
+            clientA.SendDebugCommand("kill_nearby"); // clear campers that could kill A mid-slam
             clientA.SendDebugCommand("heal");
+            Pump(0.2f);
             clientA.SendDebugCommand("spawn_enemy", "grunt");
             Pump(0.3f);
             clientA.RequestUseSkill("ground_slam", stunPlayer.Position);
