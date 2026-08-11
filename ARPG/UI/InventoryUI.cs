@@ -177,6 +177,16 @@ public class InventoryUI
         var title = FontManager.GetBold(19);
         sb.DrawString(title, "Equipment & Inventory", new Vector2(_panelRect.X + 12, _panelRect.Y + 8), new Color(230, 215, 165));
 
+        // --- gold display ---
+        var goldFont = FontManager.GetBold(16);
+        string goldText = $"{character.Gold:n0}";
+        var goldSize = goldFont.MeasureString(goldText);
+        var pile = SpriteGen.GetGoldPile();
+        float goldX = _panelRect.Right - 16 - goldSize.X;
+        if (pile != null)
+            sb.Draw(pile, new Rectangle((int)goldX - pile.Width * 2 - 6, _panelRect.Y + 12, pile.Width * 2, pile.Height * 2), Color.White);
+        sb.DrawString(goldFont, goldText, new Vector2(goldX, _panelRect.Y + 10), new Color(240, 200, 90));
+
         // --- equipment slots ---
         foreach (var (slot, rect) in _slotRects)
         {
@@ -235,6 +245,21 @@ public class InventoryUI
         var rarity = WorldRenderer.RarityColor(item.Rarity);
         sb.Draw(TextureGen.Pixel, rect, CategoryFill(b.Category));
         DrawBorder(sb, rect, rarity);
+
+        // Weapons show their actual sprite (upright); everything else keeps initials.
+        var weaponTex = SpriteGen.GetWeaponSprite(b);
+        if (weaponTex != null)
+        {
+            // The strip is horizontal (grip left); rotate -90° so it stands upright and
+            // scale it to fit the box height with a small margin.
+            float scale = MathF.Min((rect.Height - 8) / (float)weaponTex.Width,
+                                    (rect.Width - 8) / (float)weaponTex.Height);
+            var center = new Vector2(rect.Center.X, rect.Center.Y);
+            sb.Draw(weaponTex, center, null, Color.White, -MathF.PI / 2f,
+                new Vector2(weaponTex.Width / 2f, weaponTex.Height / 2f), scale, SpriteEffects.None, 0f);
+            return;
+        }
+
         var font = FontManager.GetBold(13);
         string initials = Initials(b.Name);
         var size = font.MeasureString(initials);

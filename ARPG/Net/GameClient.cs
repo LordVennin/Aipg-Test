@@ -367,7 +367,9 @@ public class GameClient
             case PacketType.WorldItemSpawn:
             {
                 var drop = new ClientDrop { DropId = r.GetGuid(), Position = r.GetVec2() };
-                drop.Item = Json.Load<ItemInstance>(r.GetString());
+                bool isGold = r.GetBool();
+                if (isGold) drop.GoldAmount = r.GetInt();
+                else drop.Item = Json.Load<ItemInstance>(r.GetString());
                 World.Drops[drop.DropId] = drop;
                 break;
             }
@@ -402,6 +404,26 @@ public class GameClient
                         case Skills.SkillArchetype.MeleeStrike:
                             World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius), 0.18f, "melee");
                             break;
+                        case Skills.SkillArchetype.MeleeSingle:
+                        {
+                            // Swipe arc around the caster, sweeping toward the impact point.
+                            var caster = World.Players.GetValueOrDefault(playerId);
+                            if (caster != null)
+                            {
+                                var dir = effectPoint - caster.Position;
+                                World.Effects.Add(new ClientEffect
+                                {
+                                    Position = caster.Position,
+                                    Radius = MathF.Max(1.1f, def.Range * 0.8f),
+                                    TimeLeft = 0.22f,
+                                    Duration = 0.22f,
+                                    Kind = "swipe",
+                                    Dir = dir.LengthSquared() > 0.001f ? Vector2.Normalize(dir) : caster.Facing,
+                                });
+                                World.AddEffect(effectPoint, 0.45f, 0.15f, "melee");
+                            }
+                            break;
+                        }
                         case Skills.SkillArchetype.MeleeArea:
                             World.AddEffect(effectPoint, def.Radius, 0.3f, "slam");
                             break;

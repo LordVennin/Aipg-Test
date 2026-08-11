@@ -279,6 +279,59 @@ public static class HeadlessNetTest
         Check(bigItem != null,
               $"item exceeded the conventional six-affix limit (got {bigItem?.Modifiers.Count.ToString() ?? "none"} modifiers, limit {bigItem?.CurrentModifierLimit(data)})");
 
+        Console.WriteLine("\n-- Gold, item values, regen prefix, knockback --");
+        var valuedItem = clientA.World.MyCharacter.Inventory.Items
+            .FirstOrDefault(pl => pl.Item.GetBase(data).Category != Items.ItemCategory.SkillScroll)?.Item;
+        Check(valuedItem != null && valuedItem.GoldValue(data) > 0,
+              $"items have modifier-based gold values ({valuedItem?.GoldValue(data)} gold)");
+
+        Check(data.Modifiers.ContainsKey("mending"), "Mending (life regeneration) prefix loaded");
+        var regenChar = new Sim.CharacterData();
+        var regenRing = new Items.ItemInstance { BaseItemId = "copper_ring", Rarity = Items.ItemRarity.Magic };
+        regenRing.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "mending", Value = 2 });
+        regenChar.Equipment[Items.EquipSlot.Ring1] = regenRing;
+        var regenStats = Stats.StatCalculator.Compute(data, regenChar);
+        Check(Math.Abs(regenStats.LifeRegeneration - 2) < 0.01f,
+              $"Mending prefix grants life regen through the stat system ({regenStats.LifeRegeneration}/s)");
+
+        int goldBefore = clientA.World.MyCharacter.Gold;
+        for (int round = 0; round < 10 && !server.World.Drops.Values.Any(d => d.IsGold); round++)
+        {
+            clientA.SendDebugCommand("spawn_enemy", "grunt");
+            Pump(0.2f);
+            clientA.SendDebugCommand("kill_nearby");
+            Pump(0.3f);
+        }
+        var goldDrop = server.World.Drops.Values.FirstOrDefault(d => d.IsGold);
+        Check(goldDrop != null, "enemies drop gold");
+        if (goldDrop != null)
+        {
+            Pump(0.3f);
+            Check(clientB.World.Drops.TryGetValue(goldDrop.DropId, out var goldOnB) && goldOnB.IsGold &&
+                  goldOnB.GoldAmount == goldDrop.GoldAmount,
+                  $"gold drop synchronized to client B ({goldDrop.GoldAmount} gold)");
+            clientA.World.Me.Position = goldDrop.Position;
+            Pump(0.4f);
+            clientA.RequestPickup(goldDrop.DropId);
+            Pump(0.5f);
+            Check(clientA.World.MyCharacter.Gold > goldBefore,
+                  $"gold pickup increased character gold ({goldBefore} -> {clientA.World.MyCharacter.Gold})");
+        }
+
+        clientA.RequestLearnSkill("basic_strike");
+        Pump(0.3f);
+        clientA.SendDebugCommand("spawn_enemy", "grunt");
+        Pump(0.3f);
+        var kbPlayer = server.World.Players[clientA.World.MyPlayerId];
+        var kbTarget = server.World.Enemies.Values.Where(e => !e.Dead)
+            .OrderBy(e => Vector2.Distance(e.Position, kbPlayer.Position)).First();
+        float kbBefore = Vector2.Distance(kbTarget.Position, kbPlayer.Position);
+        clientA.RequestUseSkill("basic_strike", kbTarget.Position);
+        Pump(0.15f);
+        float kbAfter = Vector2.Distance(kbTarget.Position, kbPlayer.Position);
+        Check(kbTarget.Dead || kbAfter > kbBefore + 0.3f,
+              $"basic strike knocked the enemy back ({kbBefore:0.00} -> {kbAfter:0.00} tiles)");
+
         Console.WriteLine("\n-- Fire bolt projectile --");
         Pump(4.0f); // ride out a possible death/respawn cycle from roaming enemies
         clientB.SendDebugCommand("heal");

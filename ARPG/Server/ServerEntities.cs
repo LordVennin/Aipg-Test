@@ -34,6 +34,9 @@ public class ServerPlayer
     public float NextDodgeAt;
     public float InvulnerableUntil;
 
+    /// <summary>Last health value broadcast to clients (throttles regen sync spam).</summary>
+    public float LastSyncedHealth;
+
     public const float Radius = 0.35f;
     public const float PickupRange = 2.0f;
 
@@ -86,12 +89,17 @@ public class ServerProjectile
     public float IgniteChance;
 }
 
-/// <summary>An ItemInstance lying in the world. Generated once by the host; never rerolled.</summary>
+/// <summary>An ItemInstance or gold pile lying in the world. Generated once by the host.</summary>
 public class WorldItem
 {
     public Guid DropId = Guid.NewGuid();
     public Vector2 Position;
+    /// <summary>The dropped item, or null when this drop is a gold pile.</summary>
     public ItemInstance Item;
+    /// <summary>Gold amount when Item is null.</summary>
+    public int GoldAmount;
+
+    public bool IsGold => Item == null;
 }
 
 /// <summary>Respawning enemy spawn point.</summary>

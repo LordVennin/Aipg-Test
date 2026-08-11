@@ -54,7 +54,11 @@ public class ClientDrop
 {
     public Guid DropId;
     public Vector2 Position;
+    /// <summary>Dropped item, or null for a gold pile.</summary>
     public ItemInstance Item;
+    public int GoldAmount;
+
+    public bool IsGold => Item == null;
 }
 
 /// <summary>A floating combat number spawned from a server DamageEvent.</summary>
@@ -75,7 +79,9 @@ public class ClientEffect
     public float Radius;
     public float TimeLeft;
     public float Duration;
-    public string Kind; // "slam", "burst", "hit", "melee"
+    public string Kind; // "slam", "burst", "hit", "melee", "swipe"
+    /// <summary>World-space direction, used by directional effects (the swipe arc).</summary>
+    public Vector2 Dir;
 }
 
 /// <summary>

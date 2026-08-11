@@ -8,6 +8,7 @@ namespace ARPG.Stats;
 public struct ComputedStats
 {
     public float MaxHealth;
+    public float LifeRegeneration;       // health per second
     public float MovementSpeed;          // tiles per second
     public float Armor;
     public float FireResistance;         // percent, capped
@@ -78,6 +79,7 @@ public static class StatCalculator
         var s = new ComputedStats
         {
             MaxHealth = BaseMaxHealth + HealthPerCharLevel * (character.Level - 1) + total.Get(StatType.MaxHealth),
+            LifeRegeneration = total.Get(StatType.LifeRegeneration),
             MovementSpeed = BaseMoveSpeed * (1f + total.Get(StatType.MovementSpeed) / 100f),
             Armor = total.Get(StatType.Armor),
             FireResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.FireResistance)),

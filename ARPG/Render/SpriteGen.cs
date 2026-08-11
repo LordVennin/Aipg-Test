@@ -188,71 +188,132 @@ public static class SpriteGen
 
     // ------------------------------------------------------------------ zombie (shambler)
 
-    /// <summary>Classic shambler: rotting skin, tattered shirt (tinted by the enemy color),
-    /// both arms stretched forward, glowing eyes, 3-frame walk cycle. Faces right.</summary>
+    /// <summary>
+    /// Decomposed fantasy shambler: hunched posture, rotting mottled flesh with wounds,
+    /// ribs showing through the torn burial tunic, one skeletal arm, exposed skull patch,
+    /// jagged hem like grave-wrappings, glowing ember eyes. 3-frame shamble. Faces right.
+    /// </summary>
     private static Texture2D DrawZombie(Color clothTint, string seedKey, int frame)
     {
         var c = new Canvas();
         var rng = new Random(seedKey.GetHashCode() & int.MaxValue);
 
-        var skin = new Color(150, 176, 128);
-        var skinDark = Shade(skin, 0.72f);
-        var cloth = clothTint;
-        var clothDark = Shade(clothTint, 0.6f);
-        var pants = Shade(clothTint, 0.42f);
-        var eye = new Color(235, 60, 40);
-        var decay = new Color(84, 104, 62);
+        var skin = new Color(122, 150, 96);          // sickly grave-green
+        var skinLight = new Color(150, 178, 120);
+        var skinDark = Shade(skin, 0.62f);
+        var bone = new Color(214, 206, 178);
+        var boneDark = Shade(bone, 0.7f);
+        var wound = new Color(110, 42, 48);          // dried gore
+        var woundDark = Shade(wound, 0.6f);
+        var cloth = Shade(clothTint, 0.85f);
+        var clothDark = Shade(clothTint, 0.55f);
+        var wrap = new Color(96, 90, 70);            // rotten grave-wrappings
+        var eye = new Color(255, 96, 40);            // ember glow
+        var eyeCore = new Color(255, 200, 120);
 
-        // Walk cycle: legs alternate, arms/torso bob 1px on the middle frame.
         int leftLegUp = frame == 1 ? 1 : 0;
         int rightLegUp = frame == 2 ? 1 : 0;
         int bob = frame == 1 ? 1 : 0;
+        int lurch = frame == 2 ? 1 : 0;              // whole body lurches forward on frame 2
 
-        // Legs (pants), feet at y=34.
-        c.Rect(9, 27, 3, 8 - leftLegUp, pants);
-        c.Rect(14, 27, 3, 8 - rightLegUp, pants);
-        c.Rect(9, 33 - leftLegUp, 3, 1, Shade(pants, 0.7f));   // foot shading
-        c.Rect(14, 33 - rightLegUp, 3, 1, Shade(pants, 0.7f));
+        // Legs: one wrapped in rotten bandages, one bare rotting flesh; shuffling feet.
+        c.Rect(9, 28, 3, 7 - leftLegUp, wrap);
+        c.Set(10, 30, Shade(wrap, 0.7f));
+        c.Set(9, 32, Shade(wrap, 0.7f));
+        c.Rect(14, 28, 3, 7 - rightLegUp, skinDark);
+        c.Set(15, 31, wound);                                     // leg wound
+        c.Rect(9, 34 - leftLegUp, 3, 1, Shade(wrap, 0.5f));
+        c.Rect(14, 34 - rightLegUp, 3, 1, Shade(skin, 0.4f));
 
-        // Torso (tattered shirt).
-        int ty = 17 + bob;
-        c.Rect(8, ty, 10, 10, cloth);
-        c.Rect(16, ty, 2, 10, clothDark);                      // side shading
-        for (int i = 0; i < 4; i++)                            // torn hem
-            c.Set(8 + rng.Next(10), ty + 9, Color.Transparent);
-        c.Set(10, ty + 3, clothDark);                          // rips
-        c.Set(13, ty + 6, clothDark);
-
-        // Arms reaching forward (sleeve then bare skin).
-        int ay = 18 + bob;
-        c.Rect(17, ay, 3, 2, clothDark);
-        c.Rect(20, ay, 5, 2, skin);
-        c.Rect(24, ay, 1, 1, skinDark);                        // hand
-        c.Rect(17, ay + 4, 2, 2, clothDark);
-        c.Rect(19, ay + 4, 4, 2, skinDark);                    // lower arm, slightly shorter
-
-        // Head.
-        int hy = 8 + bob;
-        c.Rect(9, hy, 8, 9, skin);
-        c.Rect(9, hy + 7, 8, 2, skinDark);                     // jaw shadow
-        c.Rect(9, hy, 8, 1, new Color(60, 72, 48));            // scraggly hair
-        c.Set(10, hy + 1, new Color(60, 72, 48));
-        c.Set(15, hy + 1, new Color(60, 72, 48));
-        c.Set(12, hy + 3, eye);                                // glowing eyes
-        c.Set(15, hy + 3, eye);
-        c.Set(12, hy + 2, Shade(skin, 0.5f));                  // sunken sockets
-        c.Set(15, hy + 2, Shade(skin, 0.5f));
-        c.Rect(13, hy + 6, 3, 1, new Color(70, 40, 40));       // slack mouth
-
-        // Random decay patches on skin and shirt.
+        // Hunched torso in a torn burial tunic; chest split open showing ribs.
+        int ty = 18 + bob;
+        int tx = 8 + lurch;
+        c.Rect(tx, ty, 10, 10, cloth);
+        c.Rect(tx + 8, ty, 2, 10, clothDark);
+        c.Rect(tx - 1, ty + 1, 2, 4, clothDark);                  // hunch hump behind
+        // Torn-open chest: dark cavity with pale ribs.
+        c.Rect(tx + 3, ty + 2, 4, 5, woundDark);
+        c.Rect(tx + 3, ty + 2, 4, 1, bone);
+        c.Rect(tx + 3, ty + 4, 4, 1, bone);
+        c.Set(tx + 4, ty + 6, boneDark);
+        // Jagged hem, like decayed wrappings trailing off.
         for (int i = 0; i < 5; i++)
+            c.Set(tx + rng.Next(10), ty + 9, Color.Transparent);
+        c.Set(tx + 2, ty + 8, wrap);
+        c.Set(tx + 7, ty + 9, wrap);
+
+        // Leading arm: bare skeletal bone with clawed hand.
+        int ay = 19 + bob;
+        c.Rect(tx + 9, ay, 2, 2, skinDark);                       // rotted shoulder stump
+        c.Rect(tx + 11, ay, 6, 1, bone);                          // humerus
+        c.Set(tx + 14, ay, boneDark);                             // joint
+        c.Rect(tx + 16, ay - 1, 1, 2, bone);                      // claw up
+        c.Set(tx + 16, ay + 1, boneDark);                         // claw down
+        // Trailing arm: swollen flesh hanging low.
+        c.Rect(tx + 8, ay + 4, 4, 2, skin);
+        c.Set(tx + 11, ay + 5, skinDark);
+        c.Set(tx + 9, ay + 4, wound);                             // gash
+
+        // Head: hunched forward and low, half flesh half exposed skull.
+        int hx = 10 + lurch, hy = 10 + bob;
+        c.Rect(hx, hy, 8, 8, skin);
+        c.Rect(hx, hy, 8, 1, skinDark);                           // rotted scalp line
+        c.Rect(hx + 5, hy + 1, 3, 4, bone);                       // exposed skull side
+        c.Set(hx + 5, hy + 1, boneDark);
+        c.Rect(hx, hy + 6, 8, 2, skinDark);                       // sagging jaw shadow
+        c.Set(hx + 2, hy + 3, eye);                               // sunken ember eyes
+        c.Set(hx + 6, hy + 3, eye);
+        c.Set(hx + 6, hy + 3, eyeCore);
+        c.Set(hx + 2, hy + 2, Shade(skin, 0.4f));
+        c.Set(hx + 6, hy + 2, boneDark);
+        c.Rect(hx + 3, hy + 6, 4, 1, woundDark);                  // slack open mouth
+        c.Set(hx + 4, hy + 7, wound);                             // dripping ichor
+        c.Set(hx - 1, hy + 5, skinDark);                          // torn cheek flap
+
+        // Mottled rot, moss and old wounds scattered over flesh and cloth.
+        for (int i = 0; i < 7; i++)
         {
-            int x = 8 + rng.Next(10);
-            int y = hy + rng.Next(16);
-            if (c.Px[y * W + x].A != 0) c.Set(x, y, decay);
+            int x = tx + rng.Next(11);
+            int y = hy + rng.Next(17);
+            if (x < 0 || x >= W || y < 0 || y >= H || c.Px[y * W + x].A == 0) continue;
+            c.Set(x, y, rng.Next(3) switch
+            {
+                0 => wound,
+                1 => new Color(70, 96, 54),   // moss
+                _ => skinLight,               // blistered highlights
+            });
         }
 
         return c.Bake(_device);
+    }
+
+    // ------------------------------------------------------------------ gold pile
+
+    private static Texture2D _goldPile;
+
+    /// <summary>Small pile of coins for gold drops.</summary>
+    public static Texture2D GetGoldPile()
+    {
+        if (_goldPile != null || _device == null) return _goldPile;
+        const int w = 16, h = 10;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        var gold = new Color(232, 190, 70);
+        var goldDark = new Color(176, 134, 42);
+        var goldLight = new Color(255, 232, 150);
+        void Coin(int cx, int cy)
+        {
+            for (int y = -1; y <= 1; y++)
+                for (int x = -2; x <= 2; x++)
+                    if (Math.Abs(x) + Math.Abs(y) * 2 <= 3) Set(cx + x, cy + y, gold);
+            Set(cx - 2, cy + 1, goldDark); Set(cx + 2, cy + 1, goldDark);
+            Set(cx, cy + 1, goldDark);
+            Set(cx - 1, cy - 1, goldLight);
+        }
+        Coin(4, 6); Coin(11, 6); Coin(8, 7);
+        Coin(7, 3); // top coin
+        _goldPile = BakeStrip(px, w, h);
+        return _goldPile;
     }
 
     // ------------------------------------------------------------------ ghoul (hunched spitter)

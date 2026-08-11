@@ -43,6 +43,7 @@ public class ItemModifier
         string statName = StatAffected switch
         {
             StatType.MaxHealth => "Maximum Health",
+            StatType.LifeRegeneration => "Life Regeneration per second",
             StatType.MovementSpeed => "Movement Speed",
             StatType.PhysicalDamage => "Physical Damage",
             StatType.SpellDamage => "Spell Damage",

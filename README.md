@@ -1,10 +1,11 @@
 # Scrollbound — Isometric Multiplayer ARPG Prototype
 
 A playable isometric action-RPG prototype written **in plain C# with MonoGame** (no game
-engine/editor): WASD movement, rebindable controls, real-time combat, host-authoritative
-direct-IP multiplayer, grid inventory, equipment, randomized prefix/suffix loot with
-**per-item modifier limits**, learnable skills with levels, Skill Scrolls, data-driven JSON
-content and local JSON saves.
+engine/editor): WASD movement, rebindable controls, real-time combat with dodge and
+knockback, host-authoritative direct-IP multiplayer, grid inventory, equipment, randomized
+prefix/suffix loot with **per-item modifier limits**, gold drops with modifier-based item
+values, learnable skills with levels, Skill Scrolls, procedural pixel-art sprites,
+data-driven JSON content and local JSON saves.
 
 All artwork is generated at runtime (colored shapes) — this is intentionally a systems
 prototype, not a visual showcase.

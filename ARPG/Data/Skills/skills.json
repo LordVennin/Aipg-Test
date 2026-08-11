@@ -1,5 +1,21 @@
 [
   {
+    "Id": "basic_strike",
+    "Name": "Basic Strike",
+    "Description": "A quick single-target swipe with your mace that knocks the enemy back.",
+    "Tags": ["Attack", "Melee", "Physical", "Mace"],
+    "Archetype": "MeleeSingle",
+    "DamageKind": "Physical",
+    "UsesWeaponDamage": true,
+    "WeaponDamageMultiplier": 1.25,
+    "WeaponDamageMultiplierPerLevel": 0.09,
+    "RequiredWeapon": "Mace",
+    "Cooldown": 0.3,
+    "Range": 1.6,
+    "Radius": 1.0,
+    "Knockback": 0.8
+  },
+  {
     "Id": "mace_strike",
     "Name": "Mace Strike",
     "Description": "A heavy blow with your mace, striking enemies near the aimed point.",

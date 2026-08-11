@@ -81,6 +81,23 @@ public class WorldRenderer
             var item = drop.Item;
             _sorted.Add((pos.X + pos.Y - 0.3f, batch =>
             {
+                if (drop.IsGold)
+                {
+                    var pile = SpriteGen.GetGoldPile();
+                    if (pile != null)
+                        batch.Draw(pile, new Rectangle((int)screen.X - pile.Width, (int)screen.Y - pile.Height,
+                            pile.Width * 2, pile.Height * 2), Color.White);
+                    return;
+                }
+                var weaponTex = SpriteGen.GetWeaponSprite(item.GetBase(_data));
+                if (weaponTex != null)
+                {
+                    // Weapons lie on the ground as their actual sprite (diagonal, as if dropped).
+                    batch.Draw(weaponTex, new Vector2(screen.X, screen.Y - 4), null, Color.White,
+                        -MathF.PI / 5f, new Vector2(weaponTex.Width / 2f, weaponTex.Height / 2f),
+                        1.6f, SpriteEffects.None, 0f);
+                    return;
+                }
                 var color = RarityColor(item.Rarity);
                 batch.Draw(TextureGen.Diamond,
                     new Rectangle((int)screen.X - 10, (int)screen.Y - 5, 20, 10), color);
@@ -191,6 +208,35 @@ public class WorldRenderer
         {
             var screen = camera.WorldToScreen(fx.Position);
             float t = 1f - fx.TimeLeft / fx.Duration;
+
+            if (fx.Kind == "swipe")
+            {
+                // Weapon swipe: an arc of fading slashes sweeping across the aim direction.
+                var isoDir = new Vector2(fx.Dir.X - fx.Dir.Y, (fx.Dir.X + fx.Dir.Y) * 0.5f);
+                if (isoDir.LengthSquared() < 0.001f) isoDir = new Vector2(1, 0);
+                float baseAngle = MathF.Atan2(isoDir.Y, isoDir.X);
+                float arcRadius = fx.Radius * IsoCamera.HalfTileW;
+                const float halfArc = 1.1f;
+                float head = -halfArc + 2f * halfArc * t; // sweep position this frame
+                _sorted.Add((fx.Position.X + fx.Position.Y + 0.6f, batch =>
+                {
+                    for (int k = 0; k < 5; k++)
+                    {
+                        float a = head - k * 0.22f;
+                        if (a < -halfArc) break;
+                        float ang = baseAngle + a;
+                        var p = new Vector2(screen.X + MathF.Cos(ang) * arcRadius,
+                                            screen.Y - 14 + MathF.Sin(ang) * arcRadius * 0.55f);
+                        float fade = (1f - t * 0.6f) * (1f - k * 0.18f);
+                        int size = 12 - k * 2;
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(p.X - size / 2f), (int)(p.Y - size / 2f), size, size),
+                            Color.White * fade);
+                    }
+                }));
+                continue;
+            }
+
             float radiusPx = fx.Radius * 2f * IsoCamera.HalfTileW * (0.4f + 0.6f * t);
             byte alpha = (byte)(180 * (1f - t));
             var color = fx.Kind switch
@@ -214,12 +260,12 @@ public class WorldRenderer
         foreach (var drop in world.Drops.Values)
         {
             var screen = camera.WorldToScreen(drop.Position);
-            string label = drop.Item.DisplayName(_data);
+            string label = drop.IsGold ? $"{drop.GoldAmount} Gold" : drop.Item.DisplayName(_data);
+            var labelColor = drop.IsGold ? new Color(240, 200, 90) : RarityColor(drop.Item.Rarity);
             var size = labelFont.MeasureString(label);
             var rect = new Rectangle((int)(screen.X - size.X / 2) - 4, (int)(screen.Y - 30), (int)size.X + 8, (int)size.Y + 4);
-            bool hover = false; // filled by caller via DropLabelRects; draw hover tint next frame if needed
-            sb.Draw(TextureGen.Pixel, rect, new Color(0, 0, 0, hover ? 220 : 170));
-            sb.DrawString(labelFont, label, new Vector2(rect.X + 4, rect.Y + 2), RarityColor(drop.Item.Rarity));
+            sb.Draw(TextureGen.Pixel, rect, new Color(0, 0, 0, 170));
+            sb.DrawString(labelFont, label, new Vector2(rect.X + 4, rect.Y + 2), labelColor);
             DropLabelRects.Add((rect, drop.DropId));
         }
 

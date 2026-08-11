@@ -266,7 +266,9 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.WorldItemSpawn);
         w.PutGuid(item.DropId);
         w.PutVec2(item.Position);
-        w.Put(Json.SaveCompact(item.Item));
+        w.Put(item.IsGold);
+        if (item.IsGold) w.Put(item.GoldAmount);
+        else w.Put(Json.SaveCompact(item.Item));
         return w;
     }
 
