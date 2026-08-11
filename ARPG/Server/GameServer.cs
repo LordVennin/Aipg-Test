@@ -140,6 +140,9 @@ public class GameServer : IServerEvents
             case PacketType.DebugCommand:
                 World.DebugCommand(playerId, r.GetString(), r.GetString());
                 break;
+            case PacketType.DodgeRequest:
+                World.RequestDodge(playerId, r.GetVec2());
+                break;
         }
     }
 
@@ -375,12 +378,33 @@ public class GameServer : IServerEvents
         SendTo(p.Id, w, DeliveryMethod.ReliableOrdered);
     }
 
-    public void SkillUsed(ServerPlayer p, string skillId, Vector2 target)
+    public void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint)
     {
         var w = Packets.Make(PacketType.SkillEffect);
         w.Put(p.Id);
         w.Put(skillId);
-        w.PutVec2(target);
+        w.PutVec2(effectPoint);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void PlayerDodged(ServerPlayer p, Vector2 direction, float distance, float duration)
+    {
+        var w = Packets.Make(PacketType.DodgeEvent);
+        w.Put(p.Id);
+        w.PutVec2(direction);
+        w.Put(distance);
+        w.Put(duration);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void DamageDealt(bool targetIsPlayer, int targetId, float amount, Skills.DamageKind kind, Vector2 position)
+    {
+        var w = Packets.Make(PacketType.DamageEvent);
+        w.Put(targetIsPlayer);
+        w.Put(targetId);
+        w.Put(amount);
+        w.Put((byte)kind);
+        w.PutVec2(position);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

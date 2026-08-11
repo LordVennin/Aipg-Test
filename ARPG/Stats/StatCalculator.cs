@@ -18,6 +18,12 @@ public struct ComputedStats
     public float AttackSpeedIncrease;    // percent
     public float CastSpeedIncrease;      // percent
 
+    // Dodge (base values from Data/Config/dodge.json, scaled by Dodge* stats)
+    public float DodgeDistance;          // tiles
+    public float DodgeDuration;          // seconds the dash lasts
+    public float DodgeCooldown;          // seconds between dodges
+    public float DodgeInvulnerability;   // i-frame duration in seconds
+
     // From the equipped weapon (or unarmed defaults)
     public float WeaponMinDamage;
     public float WeaponMaxDamage;
@@ -82,6 +88,14 @@ public static class StatCalculator
             AttackSpeedIncrease = total.Get(StatType.AttackSpeed),
             CastSpeedIncrease = total.Get(StatType.CastSpeed),
         };
+
+        // Dodge: config base values scaled by percent-increased stats, so items and
+        // modifiers can grant e.g. "+20% Dodge Distance" or faster recovery.
+        var dodge = data.Dodge;
+        s.DodgeDistance = dodge.Distance * (1f + total.Get(StatType.DodgeDistance) / 100f);
+        s.DodgeDuration = MathF.Max(0.05f, dodge.Duration * (1f + total.Get(StatType.DodgeDuration) / 100f));
+        s.DodgeCooldown = MathF.Max(0.2f, dodge.Cooldown / (1f + total.Get(StatType.DodgeCooldownRecovery) / 100f));
+        s.DodgeInvulnerability = dodge.InvulnerabilityDuration * (1f + total.Get(StatType.DodgeInvulnerability) / 100f);
 
         // 3) Weapon-local numbers (base stats + local added phys rolled on the weapon itself).
         if (weapon != null)

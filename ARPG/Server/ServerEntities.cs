@@ -30,6 +30,10 @@ public class ServerPlayer
     /// <summary>Next allowed use time per skill id (server clock seconds).</summary>
     public readonly Dictionary<string, float> SkillReadyAt = new();
 
+    // Dodge: cooldown and invulnerability are server-authoritative.
+    public float NextDodgeAt;
+    public float InvulnerableUntil;
+
     public const float Radius = 0.35f;
     public const float PickupRange = 2.0f;
 
@@ -51,9 +55,12 @@ public class ServerEnemy
     public float AttackReadyAt;
     public int TargetPlayerId = -1;
 
-    // Ignite (burning damage over time) bookkeeping.
+    // Ignite (burning damage over time) bookkeeping. Burn ticks apply every frame but
+    // damage events/health updates are batched via the accumulator to avoid packet spam.
     public float BurnDps;
     public float BurnTimeLeft;
+    public float BurnAccum;
+    public float BurnEmitTimer;
 
     // Kill credit for XP and skill XP.
     public int LastHitByPlayer = -1;

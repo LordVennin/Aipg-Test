@@ -13,6 +13,7 @@ namespace ARPG.Render;
 public class WorldRenderer
 {
     private readonly GameData _data;
+    private readonly Core.GameSettings _settings;
     private readonly List<(float depth, Action<SpriteBatch> draw)> _sorted = new();
 
     /// <summary>Screen rectangles of drop name labels this frame, for click-to-pick-up.</summary>
@@ -20,9 +21,10 @@ public class WorldRenderer
 
     private const int WallHeight = 24;
 
-    public WorldRenderer(GameData data)
+    public WorldRenderer(GameData data, Core.GameSettings settings)
     {
         _data = data;
+        _settings = settings;
     }
 
     public void Draw(SpriteBatch sb, IsoCamera camera, ClientWorld world)
@@ -95,12 +97,14 @@ public class WorldRenderer
             _sorted.Add((pos.X + pos.Y, batch =>
             {
                 DrawUnitToken(batch, screen, size, color);
-                // Health bar
-                float frac = e.MaxHealth > 0 ? Math.Clamp(e.Health / e.MaxHealth, 0f, 1f) : 0;
-                var bar = new Rectangle((int)screen.X - 16, (int)screen.Y - (int)size - 26, 32, 4);
-                batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));
-                batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
-                    new Color(200, 50, 50));
+                if (_settings.ShowEnemyHealthBars)
+                {
+                    float frac = e.MaxHealth > 0 ? Math.Clamp(e.Health / e.MaxHealth, 0f, 1f) : 0;
+                    var bar = new Rectangle((int)screen.X - 16, (int)screen.Y - (int)size - 26, 32, 4);
+                    batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));
+                    batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
+                        new Color(200, 50, 50));
+                }
             }));
         }
 
@@ -110,6 +114,7 @@ public class WorldRenderer
             var screen = camera.WorldToScreen(pos);
             var color = p.IsLocal ? new Color(90, 170, 255) : new Color(110, 235, 140);
             if (!p.Alive) color = new Color(80, 80, 90);
+            if (p.DodgeTimeLeft > 0) color = Color.Lerp(color, Color.White, 0.65f); // dash flash / i-frame hint
             var name = p.Name ?? "?";
             _sorted.Add((pos.X + pos.Y, batch =>
             {
@@ -171,6 +176,32 @@ public class WorldRenderer
             sb.Draw(TextureGen.Pixel, rect, new Color(0, 0, 0, hover ? 220 : 170));
             sb.DrawString(labelFont, label, new Vector2(rect.X + 4, rect.Y + 2), RarityColor(drop.Item.Rarity));
             DropLabelRects.Add((rect, drop.DropId));
+        }
+
+        // --- floating damage numbers (from server DamageEvents; toggle in Options) ---
+        if (_settings.ShowDamageNumbers)
+        {
+            var dmgFont = FontManager.GetBold(15);
+            foreach (var fn in world.FloatingNumbers)
+            {
+                float t = fn.Age / Net.FloatingNumber.Lifetime;
+                var screen = camera.WorldToScreen(fn.Position);
+                screen.Y -= 42 + 34 * t; // rise as it ages
+                byte alpha = (byte)(255 * (1f - t * t));
+                var color = fn.TargetIsPlayer
+                    ? new Color((byte)255, (byte)80, (byte)80, alpha)
+                    : (Skills.DamageKind)fn.Kind switch
+                    {
+                        Skills.DamageKind.Fire => new Color((byte)255, (byte)150, (byte)60, alpha),
+                        Skills.DamageKind.Cold => new Color((byte)120, (byte)190, (byte)255, alpha),
+                        Skills.DamageKind.Lightning => new Color((byte)250, (byte)235, (byte)120, alpha),
+                        Skills.DamageKind.Arcane => new Color((byte)200, (byte)130, (byte)255, alpha),
+                        _ => new Color((byte)245, (byte)240, (byte)230, alpha),
+                    };
+                string text = $"{MathF.Max(1, MathF.Round(fn.Amount)):0}";
+                var size = dmgFont.MeasureString(text);
+                sb.DrawString(dmgFont, text, new Vector2(screen.X - size.X / 2, screen.Y), color);
+            }
         }
     }
 

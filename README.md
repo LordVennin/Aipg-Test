@@ -71,6 +71,7 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Move North / South / West / East | `W` / `S` / `A` / `D` (screen-relative, isometric-corrected, normalized diagonals) |
 | Primary attack (hotbar slot 1) | Left mouse (aimed at cursor) |
 | Skills 2–5 | `1` `2` `3` `4` |
+| Dodge (dash with i-frames) | `Space` (direction = movement keys, else facing) |
 | Inventory | `I` |
 | Skill Menu | `K` |
 | Interact / pick up nearest item | `F` (or click an item's ground label) |
@@ -78,6 +79,16 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Pause / close panels / menu | `Escape` |
 
 Bindings are saved to `Saves/settings.json` next to the executable and restored on start.
+The Options screen (main menu, or Pause → Options in game) also has persistent
+**Damage Numbers** and **Enemy Health Bars** toggles.
+
+**Dodge** base distance/duration/cooldown/i-frame duration are configured in
+`Data/Config/dodge.json` and routed through the stat system (`DodgeDistance`,
+`DodgeDuration`, `DodgeCooldownRecovery`, `DodgeInvulnerability` stats — equipment
+modifiers can scale them). The cooldown and invulnerability are enforced
+server-side; the dash movement is client-predicted for responsiveness. Damage is
+shown via a networked damage-event system: the server broadcasts every damage
+application and clients render floating combat numbers from those events.
 
 ## 7. Source directory map
 

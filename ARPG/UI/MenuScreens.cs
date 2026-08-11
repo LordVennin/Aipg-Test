@@ -171,28 +171,52 @@ public class JoinScreen : IScreen
     public void Draw(SpriteBatch sb) => _panel.Draw(sb);
 }
 
-/// <summary>Options: rebind every input action; bindings persist to Saves/settings.json.</summary>
-public class OptionsScreen : IScreen
+/// <summary>
+/// Reusable options panel: gameplay toggles (damage numbers, enemy health bars) and full
+/// control rebinding. Used both as a main-menu screen and as an overlay from the in-game
+/// pause menu. New InputActions automatically appear here — the rows are generated from
+/// the InputAction enum.
+/// </summary>
+public class OptionsPanel
 {
     private readonly GameMain _game;
     private readonly Panel _panel;
     private InputAction? _rebinding;
     private readonly Dictionary<InputAction, Button> _bindButtons = new();
+    private Button _damageNumbersButton, _healthBarsButton;
 
-    public OptionsScreen(GameMain game)
+    public OptionsPanel(GameMain game, Action onClose)
     {
         _game = game;
         var size = game.ScreenSize;
         var actions = Enum.GetValues<InputAction>();
         int rows = actions.Length;
-        int panelH = rows * 34 + 150;
+        int panelH = rows * 34 + 240;
         int cx = size.X / 2 - 240;
-        int y = Math.Max(20, size.Y / 2 - panelH / 2);
-        _panel = new Panel { Bounds = new Rectangle(cx - 20, y - 10, 520, panelH) };
-        _panel.Children.Add(new Label("Options — Controls", cx, y, 24, bold: true));
-        _panel.Children.Add(new Label("Click a binding, then press the new key or mouse button.", cx, y + 34, 14));
+        int y = Math.Max(16, size.Y / 2 - panelH / 2);
+        _panel = new Panel { Bounds = new Rectangle(cx - 20, y - 10, 520, Math.Min(panelH, size.Y - 12)) };
+        _panel.Children.Add(new Label("Options", cx, y, 24, bold: true));
 
-        int rowY = y + 64;
+        // --- gameplay toggles (persisted in settings.json) ---
+        int rowY = y + 38;
+        _damageNumbersButton = new Button(ToggleLabel("Damage Numbers", game.Settings.ShowDamageNumbers),
+            new Rectangle(cx, rowY, 240, 28), () =>
+            {
+                game.Settings.ShowDamageNumbers = !game.Settings.ShowDamageNumbers;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        _panel.Children.Add(_damageNumbersButton);
+        _healthBarsButton = new Button(ToggleLabel("Enemy Health Bars", game.Settings.ShowEnemyHealthBars),
+            new Rectangle(cx + 250, rowY, 240, 28), () =>
+            {
+                game.Settings.ShowEnemyHealthBars = !game.Settings.ShowEnemyHealthBars;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        _panel.Children.Add(_healthBarsButton);
+        rowY += 40;
+
+        _panel.Children.Add(new Label("Controls — click a binding, then press the new key or mouse button.", cx, rowY, 14));
+        rowY += 26;
         foreach (var action in actions)
         {
             var a = action;
@@ -203,18 +227,20 @@ public class OptionsScreen : IScreen
             _panel.Children.Add(btn);
             rowY += 34;
         }
-        _panel.Children.Add(new Button("Reset Defaults", new Rectangle(cx, rowY + 10, 200, 36), () =>
+        _panel.Children.Add(new Button("Reset Default Keys", new Rectangle(cx, rowY + 10, 200, 36), () =>
         {
             game.Input.ApplyBindings(null);
             RefreshLabels();
         }));
-        _panel.Children.Add(new Button("Save & Back", new Rectangle(cx + 260, rowY + 10, 200, 36), () =>
+        _panel.Children.Add(new Button("Save & Close", new Rectangle(cx + 260, rowY + 10, 200, 36), () =>
         {
             game.Settings.Bindings = game.Input.ExportBindings();
             game.Settings.Save();
-            game.SwitchScreen(new MainMenuScreen(game));
+            onClose();
         }));
     }
+
+    private static string ToggleLabel(string name, bool on) => $"{name}: {(on ? "ON" : "OFF")}";
 
     public static string ActionName(InputAction a) => a switch
     {
@@ -229,6 +255,7 @@ public class OptionsScreen : IScreen
         InputAction.Skill4 => "Skill 4",
         InputAction.Inventory => "Inventory",
         InputAction.SkillMenu => "Skill Menu",
+        InputAction.Dodge => "Dodge",
         InputAction.Interact => "Interact / Pickup",
         InputAction.Pause => "Pause",
         InputAction.DebugMenu => "Debug Menu",
@@ -239,23 +266,44 @@ public class OptionsScreen : IScreen
     {
         foreach (var (action, btn) in _bindButtons)
             btn.Text = _game.Input.Bindings[action].Display();
+        _damageNumbersButton.Text = ToggleLabel("Damage Numbers", _game.Settings.ShowDamageNumbers);
+        _healthBarsButton.Text = ToggleLabel("Enemy Health Bars", _game.Settings.ShowEnemyHealthBars);
     }
 
-    public void Update(float dt)
+    public void Update(InputManager input)
     {
         if (_rebinding.HasValue)
         {
             _bindButtons[_rebinding.Value].Text = "press a key...";
-            if (_game.Input.TryCaptureBinding(out var binding))
+            if (input.TryCaptureBinding(out var binding))
             {
-                _game.Input.Bindings[_rebinding.Value] = binding;
+                input.Bindings[_rebinding.Value] = binding;
                 _rebinding = null;
                 RefreshLabels();
             }
+            input.MouseCapturedByUI = true;
+            input.KeyboardCapturedByUI = true;
             return; // swallow other UI input while capturing
         }
-        _panel.Update(_game.Input);
+        _panel.Update(input);
+        input.KeyboardCapturedByUI = true; // an open options panel owns the keyboard
     }
 
     public void Draw(SpriteBatch sb) => _panel.Draw(sb);
+}
+
+/// <summary>Main-menu wrapper around the reusable OptionsPanel.</summary>
+public class OptionsScreen : IScreen
+{
+    private readonly GameMain _game;
+    private readonly OptionsPanel _options;
+
+    public OptionsScreen(GameMain game)
+    {
+        _game = game;
+        _options = new OptionsPanel(game, () => game.SwitchScreen(new MainMenuScreen(game)));
+    }
+
+    public void Update(float dt) => _options.Update(_game.Input);
+    public void Draw(SpriteBatch sb) => _options.Draw(sb);
 }

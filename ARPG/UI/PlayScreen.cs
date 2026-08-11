@@ -32,7 +32,13 @@ public class PlayScreen : IScreen
 
     private bool _paused;
     private Panel _pausePanel;
+    private OptionsPanel _optionsPanel; // non-null while options is open from the pause menu
     private string _pendingDisconnect;
+
+    // Client-predicted dodge state (cooldown + i-frames stay server-authoritative).
+    private float _dodgeTimeLeft;
+    private NumVec2 _dodgeDir;
+    private float _dodgeCooldownEnd;
     private float _clientTime;
     /// <summary>Client-side cooldown estimates per skill (server still validates).</summary>
     private readonly Dictionary<string, float> _cooldownEnds = new();
@@ -45,7 +51,7 @@ public class PlayScreen : IScreen
         _game = game;
         _server = server;
         _client = client;
-        _renderer = new WorldRenderer(game.Data);
+        _renderer = new WorldRenderer(game.Data, game.Settings);
         _hud = new HudUI(game.Data, client);
         _inventory = new InventoryUI(game.Data, client, _drag);
         _skillMenu = new SkillMenuUI(game.Data, client, _drag);
@@ -59,11 +65,13 @@ public class PlayScreen : IScreen
     private void BuildPauseMenu()
     {
         var size = _game.ScreenSize;
-        int cx = size.X / 2 - 120, cy = size.Y / 2 - 70;
-        _pausePanel = new Panel { Bounds = new Rectangle(cx - 20, cy - 20, 280, 190) };
+        int cx = size.X / 2 - 120, cy = size.Y / 2 - 95;
+        _pausePanel = new Panel { Bounds = new Rectangle(cx - 20, cy - 20, 280, 240) };
         _pausePanel.Children.Add(new Label("Paused", cx, cy - 8, 22, bold: true));
         _pausePanel.Children.Add(new Button("Resume", new Rectangle(cx, cy + 30, 240, 40), () => _paused = false));
-        _pausePanel.Children.Add(new Button("Save & Exit to Menu", new Rectangle(cx, cy + 80, 240, 40), LeaveToMenu));
+        _pausePanel.Children.Add(new Button("Options", new Rectangle(cx, cy + 80, 240, 40),
+            () => _optionsPanel = new OptionsPanel(_game, () => _optionsPanel = null)));
+        _pausePanel.Children.Add(new Button("Save & Exit to Menu", new Rectangle(cx, cy + 130, 240, 40), LeaveToMenu));
     }
 
     private void LeaveToMenu()
@@ -137,22 +145,27 @@ public class PlayScreen : IScreen
             SaveLocalCharacter();
         }
 
-        // --- pause overlay ---
-        if (input.WasActionPressed(InputAction.Pause))
+        // --- pause overlay (with nested options panel) ---
+        if (_paused)
         {
-            if (_inventory.Open || _skillMenu.Open || _debug.Open)
+            if (_optionsPanel != null)
             {
-                _inventory.Open = _skillMenu.Open = _debug.Open = false;
+                if (input.WasActionPressed(InputAction.Pause)) _optionsPanel = null;
+                else _optionsPanel.Update(input);
             }
             else
             {
-                _paused = !_paused;
+                if (input.WasActionPressed(InputAction.Pause)) _paused = false;
+                _pausePanel.Update(input);
             }
-        }
-        if (_paused)
-        {
-            _pausePanel.Update(input);
             return;
+        }
+        if (input.WasActionPressed(InputAction.Pause))
+        {
+            if (_inventory.Open || _skillMenu.Open || _debug.Open)
+                _inventory.Open = _skillMenu.Open = _debug.Open = false;
+            else
+                _paused = true;
         }
 
         // --- panel toggles ---
@@ -186,7 +199,27 @@ public class PlayScreen : IScreen
             if (input.IsActionDown(InputAction.MoveLeft)) screenDir.X -= 1;
             if (input.IsActionDown(InputAction.MoveRight)) screenDir.X += 1;
             var worldDir = IsoCamera.ScreenDirToWorldDir(screenDir); // normalized: diagonals aren't faster
-            if (worldDir != NumVec2.Zero)
+
+            // --- dodge: movement is client-predicted for responsiveness; the server
+            // authoritatively validates the cooldown and grants the i-frames ---
+            if (input.WasActionPressed(InputAction.Dodge) && _dodgeTimeLeft <= 0 && _clientTime >= _dodgeCooldownEnd)
+            {
+                var dodgeStats = _client.World.MyStats;
+                _dodgeDir = worldDir != NumVec2.Zero ? worldDir : me.Facing;
+                _dodgeTimeLeft = dodgeStats.DodgeDuration;
+                _dodgeCooldownEnd = _clientTime + dodgeStats.DodgeCooldown;
+                me.DodgeTimeLeft = dodgeStats.DodgeDuration; // local dash visual
+                _client.RequestDodge(_dodgeDir);
+            }
+
+            if (_dodgeTimeLeft > 0)
+            {
+                _dodgeTimeLeft -= dt;
+                var dodgeStats = _client.World.MyStats;
+                float dodgeSpeed = dodgeStats.DodgeDistance / MathF.Max(0.05f, dodgeStats.DodgeDuration);
+                me.Position = _client.World.Map.MoveWithCollision(me.Position, _dodgeDir * dodgeSpeed * dt, 0.3f);
+            }
+            else if (worldDir != NumVec2.Zero)
             {
                 float speed = _client.World.MyStats.MovementSpeed; // stat-driven, equipment can modify it
                 me.Position = _client.World.Map.MoveWithCollision(me.Position, worldDir * speed * dt, 0.3f);
@@ -301,7 +334,8 @@ public class PlayScreen : IScreen
         if (_paused)
         {
             sb.Draw(TextureGen.Pixel, new Rectangle(0, 0, screen.X, screen.Y), new Color(0, 0, 0, 120));
-            _pausePanel.Draw(sb);
+            if (_optionsPanel != null) _optionsPanel.Draw(sb);
+            else _pausePanel.Draw(sb);
         }
     }
 }

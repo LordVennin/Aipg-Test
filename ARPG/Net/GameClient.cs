@@ -198,6 +198,13 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestDodge(Vector2 direction)
+    {
+        var w = Packets.Make(PacketType.DodgeRequest);
+        w.PutVec2(direction);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void SendDebugCommand(string cmd, string arg = "")
     {
         var w = Packets.Make(PacketType.DebugCommand);
@@ -384,23 +391,56 @@ public class GameClient
             {
                 int playerId = r.GetInt();
                 string skillId = r.GetString();
-                var target = r.GetVec2();
+                // The server sends the exact computed impact point; visuals render there —
+                // never at a client-side recomputation of the target.
+                var effectPoint = r.GetVec2();
                 var def = _data.Skills.GetValueOrDefault(skillId);
-                if (def != null && World.Players.TryGetValue(playerId, out var caster))
+                if (def != null && World.Players.ContainsKey(playerId))
                 {
                     switch (def.Archetype)
                     {
                         case Skills.SkillArchetype.MeleeStrike:
-                            World.AddEffect(target, MathF.Max(0.8f, def.Radius), 0.18f, "melee");
+                            World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius), 0.18f, "melee");
                             break;
                         case Skills.SkillArchetype.MeleeArea:
-                            World.AddEffect(caster.Position, def.Radius, 0.3f, "slam");
+                            World.AddEffect(effectPoint, def.Radius, 0.3f, "slam");
                             break;
                         case Skills.SkillArchetype.AreaBurst:
-                            World.AddEffect(target, def.Radius, 0.3f, "burst");
+                            World.AddEffect(effectPoint, def.Radius, 0.3f, "burst");
                             break;
                     }
                 }
+                break;
+            }
+
+            case PacketType.DodgeEvent:
+            {
+                int playerId = r.GetInt();
+                r.GetVec2(); // direction (movement is predicted/synced separately)
+                r.GetFloat(); // distance
+                float duration = r.GetFloat();
+                World.DodgeEventsSeen++;
+                if (World.Players.TryGetValue(playerId, out var dodger))
+                    dodger.DodgeTimeLeft = duration;
+                break;
+            }
+
+            case PacketType.DamageEvent:
+            {
+                var fn = new FloatingNumber
+                {
+                    TargetIsPlayer = r.GetBool(),
+                };
+                int targetId = r.GetInt();
+                fn.Amount = r.GetFloat();
+                fn.Kind = r.GetByte();
+                fn.Position = r.GetVec2();
+                // Anchor to the entity's current client-side position when we know it.
+                if (fn.TargetIsPlayer && World.Players.TryGetValue(targetId, out var tp))
+                    fn.Position = tp.Position;
+                else if (!fn.TargetIsPlayer && World.Enemies.TryGetValue(targetId, out var te))
+                    fn.Position = te.Position;
+                World.FloatingNumbers.Add(fn);
                 break;
             }
 

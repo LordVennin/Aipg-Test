@@ -20,6 +20,7 @@ public enum PacketType : byte
     LearnSkillRequest,
     AssignHotbarRequest,
     DebugCommand,
+    DodgeRequest,
 
     // Server -> Client
     JoinAccept,
@@ -41,6 +42,8 @@ public enum PacketType : byte
     CharacterState,
     SkillEffect,
     ServerMessage,
+    DodgeEvent,
+    DamageEvent,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

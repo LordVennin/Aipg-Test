@@ -33,6 +33,13 @@ public enum StatType
 
     // Item-local meta stat: raises the item's own modifier capacity ("Expanded" prefix)
     ModifierLimit,
+
+    // Dodge stats (percent-increased over the Data/Config/dodge.json base values,
+    // so equipment and modifiers can scale them)
+    DodgeDistance,
+    DodgeDuration,
+    DodgeCooldownRecovery, // % faster cooldown recovery (reduces effective cooldown)
+    DodgeInvulnerability,
 }
 
 /// <summary>Sum of stat contributions from one source group (equipment, temporary effects, ...).</summary>
