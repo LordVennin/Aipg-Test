@@ -109,7 +109,9 @@ ARPG/
 ├── Testing/              HeadlessNetTest (automated 2-client multiplayer test)
 ├── Data/                 ALL game content as JSON (items, modifiers, skills, scrolls,
 │                         enemies, loot tables, scroll-slot progression)
-└── Content/Fonts/        DejaVu TTFs (loaded at runtime by FontStashSharp)
+└── Content/Fonts/        optional bundled TTFs — if absent, FontManager falls back to
+                          common OS-installed fonts (DejaVu/Liberation on Linux,
+                          Segoe UI/Arial on Windows, Arial/Helvetica on macOS)
 ```
 
 ## 8. Authoritative networking model
