@@ -411,6 +411,58 @@ public static class HeadlessNetTest
               Vector2.Distance(e.Position, stunPlayer.Position) > 3f),
               "ground slam stunned nearby enemies");
 
+        Console.WriteLine("\n-- Tiered modifiers and damage types --");
+        Check(data.Modifiers.Count == 221, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 22,
+              "every family has a tier X (10 tiers x 22 tiered families)");
+
+        // Item level gating: an ilvl-1 item can only roll tier-appropriate (ilvl<=1) mods,
+        // even when forced to roll many; an ilvl-18 item can roll high tiers.
+        var tierGen = new Items.LootGenerator(data, new Random(3));
+        bool gatingOk = true;
+        int highTierSeen = 0;
+        for (int i = 0; i < 60; i++)
+        {
+            var low = tierGen.Generate(data.Items["iron_mace"], 1, Items.ItemRarity.Rare, forcedModifierCount: 5);
+            foreach (var roll in low.Modifiers)
+                if (data.Modifiers[roll.ModifierId].MinimumItemLevel > 1) gatingOk = false;
+            var high = tierGen.Generate(data.Items["iron_mace"], 18, Items.ItemRarity.Rare, forcedModifierCount: 5);
+            highTierSeen += high.Modifiers.Count(r => data.Modifiers[r.ModifierId].Tier >= 6);
+        }
+        Check(gatingOk, "ilvl-1 items never roll modifiers above their item level");
+        Check(highTierSeen > 0, $"ilvl-18 items roll high tiers ({highTierSeen} tier-6+ rolls seen)");
+
+        // Same-family tiers can never stack: all groups on a many-mod item are distinct.
+        var stackItem = tierGen.Generate(data.Items["arcane_staff"], 18, Items.ItemRarity.Rare, forcedModifierCount: 12);
+        var groups = stackItem.Modifiers.Select(r => data.Modifiers[r.ModifierId].ModifierGroup).ToList();
+        Check(groups.Count == groups.Distinct().Count(),
+              $"no duplicate modifier groups on one item ({groups.Count} mods, all distinct families)");
+
+        // Added elemental damage flows: a Searing (added fire) weapon roll produces a fire
+        // damage component on attack skills.
+        var fireChar = new Sim.CharacterData();
+        var fireMace = new Items.ItemInstance { BaseItemId = "iron_mace", Rarity = Items.ItemRarity.Magic, MaxPrefixes = 3, MaxSuffixes = 3 };
+        fireMace.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "searing_t5", Value = 12 });
+        fireChar.Equipment[Items.EquipSlot.MainHand] = fireMace;
+        var fireStats = Stats.StatCalculator.Compute(data, fireChar);
+        var strikeStats = Skills.SkillMath.Compute(data, data.Skills["basic_strike"], 1,
+            Array.Empty<Skills.ScrollDefinition>(), fireStats);
+        Check(fireStats.AddedFire == 12 && strikeStats.Added != null &&
+              strikeStats.Added.Any(c => c.Kind == Skills.DamageKind.Fire && c.Max > 0),
+              $"Searing roll adds a fire component to attacks (+{fireStats.AddedFire} fire)");
+        Check(strikeStats.DamageKind == Skills.DamageKind.Blunt,
+              "mace attacks deal Blunt damage (physical split into thrust/blunt/slash)");
+
+        // New resistances compute through the stat system.
+        var resChar = new Sim.CharacterData();
+        var resRing = new Items.ItemInstance { BaseItemId = "copper_ring", Rarity = Items.ItemRarity.Magic, MaxPrefixes = 3, MaxSuffixes = 3 };
+        resRing.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_acid_resistance_t3", Value = 15 });
+        resRing.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_dark_resistance", Value = 8 });
+        resChar.Equipment[Items.EquipSlot.Ring1] = resRing;
+        var resStats = Stats.StatCalculator.Compute(data, resChar);
+        Check(resStats.AcidResistance == 15 && resStats.DarkResistance == 8,
+              $"acid/dark/light resistances compute ({resStats.AcidResistance}% acid, {resStats.DarkResistance}% dark)");
+
         Console.WriteLine("\n-- Fire bolt projectile --");
         Pump(4.0f); // ride out a possible death/respawn cycle from roaming enemies
         clientB.SendDebugCommand("heal");

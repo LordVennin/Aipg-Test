@@ -294,7 +294,10 @@ public class WorldRenderer
                         Skills.DamageKind.Cold => new Color((byte)120, (byte)190, (byte)255, alpha),
                         Skills.DamageKind.Lightning => new Color((byte)250, (byte)235, (byte)120, alpha),
                         Skills.DamageKind.Arcane => new Color((byte)200, (byte)130, (byte)255, alpha),
-                        _ => new Color((byte)245, (byte)240, (byte)230, alpha),
+                        Skills.DamageKind.Acid => new Color((byte)140, (byte)220, (byte)70, alpha),
+                        Skills.DamageKind.Dark => new Color((byte)150, (byte)110, (byte)185, alpha),
+                        Skills.DamageKind.Light => new Color((byte)255, (byte)252, (byte)210, alpha),
+                        _ => new Color((byte)245, (byte)240, (byte)230, alpha), // physical: thrust/blunt/slash
                     };
                 string text = $"{MathF.Max(1, MathF.Round(fn.Amount)):0}";
                 var size = dmgFont.MeasureString(text);

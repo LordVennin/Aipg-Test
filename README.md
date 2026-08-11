@@ -190,8 +190,14 @@ learned skills with levels/XP/attached scrolls, and hotbar assignments included.
   `BaseStats`, `DropWeight`. It immediately enters the loot pool.
 - **New prefix**: add to `Data/Modifiers/prefixes.json` with `"AffixType": "Prefix"`,
   a `StatAffected` (see `Stats/StatType.cs`), value range, `Weight`, `ModifierGroup`
-  (mutual exclusion) and `CompatibleItemCategories`.
+  (mutual exclusion) and `CompatibleItemCategories`. Modifiers come in 10 tiers per
+  family (`Tier`, `MinimumItemLevel` gates the strong tiers to high-level items; all
+  tiers of a family share one `ModifierGroup` so they can never stack).
 - **New suffix**: same, in `suffixes.json` with `"AffixType": "Suffix"`.
+- **Damage types**: physical damage is split into Thrust/Blunt/Slash (armor-mitigated;
+  the weapon category picks the subtype — maces are Blunt) plus Fire/Cold/Lightning/
+  Acid/Dark/Light (each with its own resistance) and unresisted Arcane. "Added X
+  Damage" weapon modifiers attach typed components to attack hits.
 - **New weapon category**: add a value to `ItemCategory`, map it to slots in
   `ItemBase.CompatibleSlots`, and add bases in JSON. Inventory, tooltips, loot and the
   skill system are category-driven — skills reference weapon *categories*

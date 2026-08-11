@@ -14,6 +14,9 @@ public struct ComputedStats
     public float FireResistance;         // percent, capped
     public float ColdResistance;
     public float LightningResistance;
+    public float AcidResistance;
+    public float DarkResistance;
+    public float LightResistance;
     public float PhysicalDamageIncrease; // percent
     public float SpellDamageIncrease;    // percent
     public float AttackSpeedIncrease;    // percent
@@ -31,10 +34,22 @@ public struct ComputedStats
     public float WeaponAttackSpeed;      // attacks per second
     public float WeaponRange;            // tiles
     public ItemCategory? WeaponCategory;
+    /// <summary>Which physical damage type this weapon's hits deal (maces = Blunt;
+    /// future swords = Slash, spears = Thrust).</summary>
+    public Skills.DamageKind PhysicalSubtype;
+
+    // Flat added elemental damage on attacks (from "Added X Damage" weapon modifiers).
+    public float AddedFire;
+    public float AddedCold;
+    public float AddedLightning;
+    public float AddedAcid;
+    public float AddedDark;
+    public float AddedLight;
 
     public const float ResistanceCap = 75f;
 
-    /// <summary>Standard armor mitigation: armor / (armor + 60). Applied to physical hits.</summary>
+    /// <summary>Standard armor mitigation: armor / (armor + 60). Applied to physical hits
+    /// (Thrust, Blunt and Slash alike).</summary>
     public readonly float PhysicalReduction => Armor / (Armor + 60f);
 
     public readonly float ResistanceFor(Skills.DamageKind kind) => kind switch
@@ -42,6 +57,9 @@ public struct ComputedStats
         Skills.DamageKind.Fire => FireResistance,
         Skills.DamageKind.Cold => ColdResistance,
         Skills.DamageKind.Lightning => LightningResistance,
+        Skills.DamageKind.Acid => AcidResistance,
+        Skills.DamageKind.Dark => DarkResistance,
+        Skills.DamageKind.Light => LightResistance,
         _ => 0f,
     };
 }
@@ -85,6 +103,15 @@ public static class StatCalculator
             FireResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.FireResistance)),
             ColdResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.ColdResistance)),
             LightningResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.LightningResistance)),
+            AcidResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.AcidResistance)),
+            DarkResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.DarkResistance)),
+            LightResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.LightResistance)),
+            AddedFire = total.Get(StatType.AddedFireDamage),
+            AddedCold = total.Get(StatType.AddedColdDamage),
+            AddedLightning = total.Get(StatType.AddedLightningDamage),
+            AddedAcid = total.Get(StatType.AddedAcidDamage),
+            AddedDark = total.Get(StatType.AddedDarkDamage),
+            AddedLight = total.Get(StatType.AddedLightDamage),
             PhysicalDamageIncrease = total.Get(StatType.PhysicalDamage),
             SpellDamageIncrease = total.Get(StatType.SpellDamage),
             AttackSpeedIncrease = total.Get(StatType.AttackSpeed),
@@ -114,6 +141,13 @@ public static class StatCalculator
         if (s.WeaponMinDamage <= 0) { s.WeaponMinDamage = UnarmedMinDamage; s.WeaponMaxDamage = UnarmedMaxDamage; }
         if (s.WeaponAttackSpeed <= 0) s.WeaponAttackSpeed = UnarmedAttackSpeed;
         if (s.WeaponRange <= 0) s.WeaponRange = UnarmedRange;
+
+        // Physical subtype by weapon category (unarmed and maces/staffs strike Blunt;
+        // future categories map here: swords -> Slash, spears -> Thrust).
+        s.PhysicalSubtype = s.WeaponCategory switch
+        {
+            _ => Skills.DamageKind.Blunt,
+        };
         return s;
     }
 }

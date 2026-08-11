@@ -27,13 +27,29 @@ public enum SkillArchetype
     AreaBurst,     // damages enemies in a radius around the aimed point (range-limited)
 }
 
+/// <summary>
+/// All damage types. Physical damage is split into Thrust, Blunt and Slash (mitigated by
+/// armor); the six elemental types are each mitigated by their own resistance; Arcane is
+/// unresisted.
+/// </summary>
 public enum DamageKind
 {
-    Physical,
+    Thrust,
+    Blunt,
+    Slash,
     Fire,
     Cold,
     Lightning,
+    Acid,
+    Dark,
+    Light,
     Arcane,
+}
+
+public static class DamageKinds
+{
+    public static bool IsPhysical(DamageKind kind) =>
+        kind is DamageKind.Thrust or DamageKind.Blunt or DamageKind.Slash;
 }
 
 /// <summary>A skill type, loaded from Data/Skills/*.json. Learned skills reference this by Id.</summary>
@@ -44,7 +60,7 @@ public class SkillDefinition
     public string Description { get; set; }
     public List<string> Tags { get; set; } = new();
     public SkillArchetype Archetype { get; set; }
-    public DamageKind DamageKind { get; set; } = DamageKind.Physical;
+    public DamageKind DamageKind { get; set; } = DamageKind.Blunt;
 
     /// <summary>True: damage comes from equipped weapon phys damage. False: uses BaseDamage.</summary>
     public bool UsesWeaponDamage { get; set; }

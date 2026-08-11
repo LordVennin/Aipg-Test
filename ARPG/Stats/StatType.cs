@@ -17,6 +17,9 @@ public enum StatType
     FireResistance,
     ColdResistance,
     LightningResistance,
+    AcidResistance,
+    DarkResistance,
+    LightResistance,
 
     // Percent-increased character stats
     MovementSpeed,
@@ -31,6 +34,14 @@ public enum StatType
     BaseAttackSpeed,     // attacks per second
     WeaponRange,         // tiles
     AddedPhysicalDamage, // flat added to both min and max (local to weapon)
+
+    // Flat added elemental damage on attacks (rolls on weapons)
+    AddedFireDamage,
+    AddedColdDamage,
+    AddedLightningDamage,
+    AddedAcidDamage,
+    AddedDarkDamage,
+    AddedLightDamage,
 
     // Item-local meta stat: raises the item's own modifier capacity ("Expanded" prefix)
     ModifierLimit,

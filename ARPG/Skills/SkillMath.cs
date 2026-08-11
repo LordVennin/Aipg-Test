@@ -3,11 +3,22 @@ using ARPG.Stats;
 
 namespace ARPG.Skills;
 
+/// <summary>One typed portion of a hit (e.g. "+3-5 Fire" from a Searing weapon roll).</summary>
+public struct DamageComponent
+{
+    public DamageKind Kind;
+    public float Min;
+    public float Max;
+}
+
 /// <summary>Fully resolved runtime numbers for one use/display of a skill.</summary>
 public struct EffectiveSkillStats
 {
     public float MinDamage;
     public float MaxDamage;
+    /// <summary>Added elemental damage on attacks (empty for spells). Each component is
+    /// mitigated by its own resistance when it hits a player.</summary>
+    public List<DamageComponent> Added;
     public float Cooldown;        // seconds between uses (already includes attack/cast speed)
     public float Range;
     public float Radius;
@@ -88,6 +99,22 @@ public static class SkillMath
             float mult = def.WeaponDamageMultiplier + def.WeaponDamageMultiplierPerLevel * (level - 1);
             s.MinDamage = playerStats.WeaponMinDamage * mult;
             s.MaxDamage = playerStats.WeaponMaxDamage * mult;
+            // Attacks deal the weapon's physical subtype (Blunt for maces) and carry any
+            // "Added X Damage" rolls as separately-typed components.
+            s.DamageKind = playerStats.PhysicalSubtype;
+            var added = new List<DamageComponent>();
+            void AddComp(DamageKind kind, float value)
+            {
+                if (value > 0)
+                    added.Add(new DamageComponent { Kind = kind, Min = value * 0.8f, Max = value * 1.2f });
+            }
+            AddComp(DamageKind.Fire, playerStats.AddedFire);
+            AddComp(DamageKind.Cold, playerStats.AddedCold);
+            AddComp(DamageKind.Lightning, playerStats.AddedLightning);
+            AddComp(DamageKind.Acid, playerStats.AddedAcid);
+            AddComp(DamageKind.Dark, playerStats.AddedDark);
+            AddComp(DamageKind.Light, playerStats.AddedLight);
+            if (added.Count > 0) s.Added = added;
         }
         else
         {
@@ -116,7 +143,7 @@ public static class SkillMath
         }
 
         // Apply attached Skill Scrolls.
-        float speedMult = 1f, cooldownMult = 1f;
+        float speedMult = 1f, cooldownMult = 1f, componentMult = 1f;
         foreach (var scroll in scrolls)
         {
             foreach (var fx in scroll.Effects)
@@ -126,6 +153,7 @@ public static class SkillMath
                     case ScrollStat.DamageMultiplier:
                         s.MinDamage = s.MinDamage * fx.Mult + fx.Add;
                         s.MaxDamage = s.MaxDamage * fx.Mult + fx.Add;
+                        componentMult *= fx.Mult;
                         break;
                     case ScrollStat.AddedProjectiles:
                         s.ProjectileCount += (int)fx.Add;
@@ -151,6 +179,15 @@ public static class SkillMath
                 }
             }
         }
+
+        if (s.Added != null && MathF.Abs(componentMult - 1f) > 0.001f)
+            for (int i = 0; i < s.Added.Count; i++)
+                s.Added[i] = new DamageComponent
+                {
+                    Kind = s.Added[i].Kind,
+                    Min = s.Added[i].Min * componentMult,
+                    Max = s.Added[i].Max * componentMult,
+                };
 
         s.Cooldown = MathF.Max(0.1f, useTime / MathF.Max(0.1f, speedMult) * cooldownMult);
         return s;
