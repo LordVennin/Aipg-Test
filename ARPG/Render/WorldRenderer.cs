@@ -171,21 +171,33 @@ public class WorldRenderer
                 if (screenDir.LengthSquared() < 0.001f) screenDir = new Vector2(1, 0);
                 screenDir.Normalize();
                 var weaponBase = p.WeaponBaseId != null ? _data.Items.GetValueOrDefault(p.WeaponBaseId) : null;
+                var offHandBase = p.OffHandBaseId != null ? _data.Items.GetValueOrDefault(p.OffHandBaseId) : null;
                 var weaponTex = SpriteGen.GetWeaponSprite(weaponBase);
+                var offHandTex = SpriteGen.GetWeaponSprite(offHandBase);
                 bool weaponBehind = screenDir.Y < -0.1f;
+                // With both hands full, items shift apart perpendicular to the aim — one in
+                // each hand — instead of overlapping at the center.
+                var perp = new Vector2(-screenDir.Y, screenDir.X);
+                bool bothHands = weaponTex != null && offHandTex != null;
 
-                void DrawWeapon()
+                void DrawHeld(Texture2D tex, float side)
                 {
-                    var hand = screen + screenDir * 18f + new Vector2(0, -12);
+                    var hand = screen + screenDir * 16f + perp * (side * 14f) + new Vector2(0, -12);
                     var tint = weaponBehind ? Color.White * 0.55f : Color.White;
-                    batch.Draw(weaponTex, hand, null, tint, -MathF.PI / 2f,
-                        new Vector2(weaponTex.Width * 0.4f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
+                    batch.Draw(tex, hand, null, tint, -MathF.PI / 2f,
+                        new Vector2(tex.Width * 0.4f, tex.Height / 2f), 2f, SpriteEffects.None, 0f);
                 }
 
-                if (weaponTex != null && weaponBehind) DrawWeapon();
+                void DrawHands()
+                {
+                    if (weaponTex != null) DrawHeld(weaponTex, bothHands ? 1f : 0f);
+                    if (offHandTex != null) DrawHeld(offHandTex, bothHands ? -1f : 0f);
+                }
+
+                if (weaponBehind) DrawHands();
                 DrawUnitToken(batch, screen, 34f, color);
-                if (weaponTex != null && !weaponBehind) DrawWeapon();
-                if (weaponTex == null)
+                if (!weaponBehind) DrawHands();
+                if (weaponTex == null && offHandTex == null)
                 {
                     var tip = screen + screenDir * 22f;
                     batch.Draw(TextureGen.Circle32, new Rectangle((int)tip.X - 3, (int)tip.Y - 3 - 14, 6, 6), Color.White);
@@ -286,10 +298,12 @@ public class WorldRenderer
                 var screen = camera.WorldToScreen(fn.Position);
                 screen.Y -= 42 + 34 * t; // rise as it ages
                 float alpha = 1f - t * t;
-                var color = (fn.TargetIsPlayer
-                    ? new Color(255, 80, 80)
-                    : DamageKindColor((Skills.DamageKind)fn.Kind)) * alpha;
-                string text = $"{MathF.Max(1, MathF.Round(fn.Amount)):0}";
+                var color = (fn.Blocked
+                    ? new Color(180, 200, 230)
+                    : fn.TargetIsPlayer
+                        ? new Color(255, 80, 80)
+                        : DamageKindColor((Skills.DamageKind)fn.Kind)) * alpha;
+                string text = fn.Blocked ? "Blocked" : $"{MathF.Max(1, MathF.Round(fn.Amount)):0}";
                 var size = dmgFont.MeasureString(text);
                 sb.DrawString(dmgFont, text, new Vector2(screen.X - size.X / 2, screen.Y), color);
             }

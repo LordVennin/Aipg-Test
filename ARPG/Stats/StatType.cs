@@ -51,6 +51,11 @@ public enum StatType
     AddedDarkSpellDamage,
     AddedLightSpellDamage,
 
+    // Blocking (shields grant base BlockChance; a successful block avoids ALL damage from
+    // one hit, then blocking goes on cooldown — base 2s, sped up by BlockCooldownRecovery)
+    BlockChance,           // flat percent chance
+    BlockCooldownRecovery, // % faster block cooldown recovery
+
     // Item-local meta stat: raises the item's own modifier capacity ("Expanded" prefix)
     ModifierLimit,
 

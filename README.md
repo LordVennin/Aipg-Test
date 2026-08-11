@@ -1,8 +1,9 @@
 # Scrollbound — Isometric Multiplayer ARPG Prototype
 
 A playable isometric action-RPG prototype written **in plain C# with MonoGame** (no game
-engine/editor): WASD movement, rebindable controls, real-time combat with dodge and
-knockback, host-authoritative direct-IP multiplayer, grid inventory, equipment, randomized
+engine/editor): WASD movement, rebindable controls, real-time combat with dodge, blocking
+(shields) and knockback, host-authoritative direct-IP multiplayer, grid inventory, equipment
+with one/two-handed weapon rules, randomized
 prefix/suffix loot with **per-item rolled prefix/suffix slot caps**, gold drops with
 modifier-based item values, **Enchanting Scrolls** (stackable PoE-orb-style crafting
 currency — right-click a scroll, then click an item to apply it), learnable skills
@@ -45,9 +46,9 @@ dotnet run -- --nettest   # headless automated multiplayer self-test (no window 
 ```
 
 `--nettest` starts a real server plus **two** real clients over loopback UDP and asserts
-36 synchronization checks (join, movement, combat, enemy death, host loot generation,
-identical modifiers on both peers, exclusive pickup, equipping, scroll attachment,
-disconnect resilience). Exit code 0 = all passed.
+100+ synchronization checks (join, movement, combat, enemy death, host loot generation,
+identical modifiers on both peers, exclusive pickup, equipping, hand rules, blocking,
+scroll attachment, enchant crafting, disconnect resilience). Exit code 0 = all passed.
 
 ## 4. Hosting a game
 
@@ -99,6 +100,18 @@ modifiers can scale them). The cooldown and invulnerability are enforced
 server-side; the dash movement is client-predicted for responsiveness. Damage is
 shown via a networked damage-event system: the server broadcasts every damage
 application and clients render floating combat numbers from those events.
+
+**Weapons & shields**: every weapon is one- or two-handed (data-driven `TwoHanded`
+flag — maces are one-handed, staffs two-handed). Shields are one-handed and fit
+**either** hand, so mace + shield, shield + shield, or a lone two-hander are all
+valid; equipping a two-handed weapon auto-unequips the off-hand to the bag, and the
+off-hand refuses items while a two-hander is held. Held weapons AND shields orbit
+the character toward the aim — with both hands full they spread apart like they're
+actually held in each hand. **Blocking**: shields grant Block Chance (a % chance to
+fully avoid one hit, capped at 75%); after a block it recovers for 2 seconds (base),
+shortened by Block Cooldown Recovery modifiers. Blocks are rolled server-side and
+show as a floating "Blocked" message. Shield Bash (a learnable skill) requires a
+shield equipped in either hand and knocks back + stuns its target.
 
 ## 7. Source directory map
 

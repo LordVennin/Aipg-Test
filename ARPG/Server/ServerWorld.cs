@@ -28,7 +28,7 @@ public interface IServerEvents
     void MessageFor(ServerPlayer p, string text);
     void PlayerDodged(ServerPlayer p, Vector2 direction, float distance, float duration);
     /// <summary>A damage application, for floating combat numbers on all clients.</summary>
-    void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position);
+    void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false);
 }
 
 /// <summary>
@@ -388,6 +388,11 @@ public partial class ServerWorld
                 return;
             }
         }
+        if (def.RequiresShield && !p.Stats.HasShield)
+        {
+            _events.MessageFor(p, $"{def.Name} requires a shield equipped.");
+            return;
+        }
 
         // Cooldown check (small tolerance for network jitter).
         if (p.SkillReadyAt.TryGetValue(skillId, out float readyAt) && Time < readyAt - 0.05f)
@@ -679,6 +684,17 @@ public partial class ServerWorld
     {
         if (!p.Alive) return;
         if (Time < p.InvulnerableUntil) return; // dodge i-frames (server-authoritative)
+
+        // Block: a %-chance to avoid the entire hit (shields grant the chance), then
+        // blocking recovers for BlockCooldown seconds before it can trigger again.
+        if (p.Stats.BlockChance > 0 && Time >= p.NextBlockReadyAt &&
+            _rng.NextDouble() * 100 < p.Stats.BlockChance)
+        {
+            p.NextBlockReadyAt = Time + p.Stats.BlockCooldown;
+            _events.DamageDealt(true, p.Id, 0, DamageKind.Blunt, p.Position, blocked: true);
+            return;
+        }
+
         var (damage, kind) = MitigateForPlayer(p, components);
 
         damage = MathF.Max(0.5f, damage);

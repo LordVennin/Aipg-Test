@@ -34,6 +34,9 @@ public class ServerPlayer
     public float NextDodgeAt;
     public float InvulnerableUntil;
 
+    /// <summary>Blocking goes on cooldown after each successful block (server-authoritative).</summary>
+    public float NextBlockReadyAt;
+
     /// <summary>Last health value broadcast to clients (throttles regen sync spam).</summary>
     public float LastSyncedHealth;
 

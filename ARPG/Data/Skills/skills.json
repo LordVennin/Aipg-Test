@@ -49,6 +49,23 @@
     "StunDuration": 0.9
   },
   {
+    "Id": "shield_bash",
+    "Name": "Shield Bash",
+    "Description": "Slam your shield into an enemy, knocking it back and briefly stunning it. Requires a shield equipped.",
+    "Tags": ["Attack", "Melee", "Physical", "Shield"],
+    "Archetype": "MeleeSingle",
+    "DamageKind": "Blunt",
+    "UsesWeaponDamage": true,
+    "WeaponDamageMultiplier": 0.9,
+    "WeaponDamageMultiplierPerLevel": 0.07,
+    "RequiresShield": true,
+    "Cooldown": 0.7,
+    "Range": 1.4,
+    "Radius": 1.0,
+    "Knockback": 1.6,
+    "StunDuration": 0.7
+  },
+  {
     "Id": "fire_bolt",
     "Name": "Fire Bolt",
     "Description": "Launch a searing bolt of flame toward the cursor.",

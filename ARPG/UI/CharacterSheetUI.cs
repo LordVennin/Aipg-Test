@@ -1,6 +1,7 @@
 using FontStashSharp;
 using ARPG.Core;
 using ARPG.Data;
+using ARPG.Items;
 using ARPG.Net;
 using ARPG.Render;
 using ARPG.Skills;
@@ -74,6 +75,9 @@ public class CharacterSheetUI
         StatLine("Maximum Health", $"{me?.Health ?? 0:0} / {stats.MaxHealth:0}");
         StatLine("Life Regeneration", stats.LifeRegeneration > 0 ? $"+{stats.LifeRegeneration:0.#}/s" : "—");
         StatLine("Armor", $"{stats.Armor:0}  ({stats.PhysicalReduction:P0} physical reduction)");
+        StatLine("Block Chance", stats.BlockChance > 0
+            ? $"{stats.BlockChance:0}%  (recovers in {stats.BlockCooldown:0.0}s)"
+            : "—");
         StatLine("Movement Speed", $"{stats.MovementSpeed:0.0} tiles/s");
         y += 4;
 
@@ -110,7 +114,8 @@ public class CharacterSheetUI
             var dps = SkillMath.DpsBreakdown(skillStats);
             float totalDps = dps.Values.Sum();
 
-            bool weaponOk = !def.RequiredWeapon.HasValue || stats.WeaponCategory == def.RequiredWeapon;
+            bool weaponOk = (!def.RequiredWeapon.HasValue || stats.WeaponCategory == def.RequiredWeapon)
+                            && (!def.RequiresShield || stats.HasShield);
             SkillMenuUI.DrawSkillIcon(sb, new Rectangle(x, y, 20, 20), def);
             sb.DrawString(font, $"{def.Name}  (Lv {learned.Level})", new Vector2(x + 26, y + 1),
                 weaponOk ? value : new Color(140, 135, 125));
@@ -132,7 +137,11 @@ public class CharacterSheetUI
             sb.DrawString(small, $"{1f / MathF.Max(0.05f, skillStats.Cooldown):0.0}/s", new Vector2(_panelRect.Right - 60, y), label);
             if (!weaponOk)
             {
-                string req = $"requires {def.RequiredWeapon}";
+                var reqs = new List<string>();
+                if (def.RequiredWeapon.HasValue && stats.WeaponCategory != def.RequiredWeapon)
+                    reqs.Add(def.RequiredWeapon.ToString());
+                if (def.RequiresShield && !stats.HasShield) reqs.Add("Shield");
+                string req = $"requires {string.Join(" + ", reqs)}";
                 sb.DrawString(small, req, new Vector2(bx + 6, y), new Color(220, 150, 120));
             }
             y += 22;

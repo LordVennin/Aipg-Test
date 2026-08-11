@@ -1,3316 +1,3347 @@
 [
-  {
-    "Id": "healthy",
-    "Name": "Healthy I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 8,
-    "MaximumValue": 14,
-    "Weight": 100,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t2",
-    "Name": "Healthy II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 17,
-    "MaximumValue": 25,
-    "Weight": 94,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t3",
-    "Name": "Healthy III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 25,
-    "MaximumValue": 36,
-    "Weight": 88,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t4",
-    "Name": "Healthy IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 34,
-    "MaximumValue": 48,
-    "Weight": 82,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t5",
-    "Name": "Healthy V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 42,
-    "MaximumValue": 59,
-    "Weight": 76,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t6",
-    "Name": "Healthy VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 51,
-    "MaximumValue": 70,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t7",
-    "Name": "Healthy VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 59,
-    "MaximumValue": 81,
-    "Weight": 64,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t8",
-    "Name": "Healthy VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 68,
-    "MaximumValue": 93,
-    "Weight": 58,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t9",
-    "Name": "Healthy IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 76,
-    "MaximumValue": 104,
-    "Weight": 52,
-    "IsPercent": false
-  },
-  {
-    "Id": "healthy_t10",
-    "Name": "Healthy X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "health_prefix",
-    "StatAffected": "MaxHealth",
-    "MinimumValue": 85,
-    "MaximumValue": 115,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "brutal",
-    "Name": "Brutal I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 5,
-    "MaximumValue": 9,
-    "Weight": 90,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t2",
-    "Name": "Brutal II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 14,
-    "Weight": 85,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t3",
-    "Name": "Brutal III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 13,
-    "MaximumValue": 19,
-    "Weight": 79,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t4",
-    "Name": "Brutal IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 17,
-    "MaximumValue": 24,
-    "Weight": 74,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t5",
-    "Name": "Brutal V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 21,
-    "MaximumValue": 29,
-    "Weight": 68,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t6",
-    "Name": "Brutal VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 26,
-    "MaximumValue": 35,
-    "Weight": 63,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t7",
-    "Name": "Brutal VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 30,
-    "MaximumValue": 40,
-    "Weight": 58,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t8",
-    "Name": "Brutal VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 34,
-    "MaximumValue": 45,
-    "Weight": 52,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t9",
-    "Name": "Brutal IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 38,
-    "MaximumValue": 50,
-    "Weight": 47,
-    "IsPercent": true
-  },
-  {
-    "Id": "brutal_t10",
-    "Name": "Brutal X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "phys_damage",
-    "StatAffected": "PhysicalDamage",
-    "MinimumValue": 42,
-    "MaximumValue": 55,
-    "Weight": 41,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane",
-    "Name": "Arcane I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 5,
-    "MaximumValue": 9,
-    "Weight": 90,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t2",
-    "Name": "Arcane II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 14,
-    "Weight": 85,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t3",
-    "Name": "Arcane III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 13,
-    "MaximumValue": 19,
-    "Weight": 79,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t4",
-    "Name": "Arcane IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 17,
-    "MaximumValue": 24,
-    "Weight": 74,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t5",
-    "Name": "Arcane V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 21,
-    "MaximumValue": 29,
-    "Weight": 68,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t6",
-    "Name": "Arcane VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 26,
-    "MaximumValue": 35,
-    "Weight": 63,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t7",
-    "Name": "Arcane VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 30,
-    "MaximumValue": 40,
-    "Weight": 58,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t8",
-    "Name": "Arcane VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 34,
-    "MaximumValue": 45,
-    "Weight": 52,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t9",
-    "Name": "Arcane IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 38,
-    "MaximumValue": 50,
-    "Weight": 47,
-    "IsPercent": true
-  },
-  {
-    "Id": "arcane_t10",
-    "Name": "Arcane X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Staff",
-      "Helmet",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "spell_damage",
-    "StatAffected": "SpellDamage",
-    "MinimumValue": 42,
-    "MaximumValue": 55,
-    "Weight": 41,
-    "IsPercent": true
-  },
-  {
-    "Id": "armored",
-    "Name": "Armored I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 10,
-    "MaximumValue": 20,
-    "Weight": 100,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t2",
-    "Name": "Armored II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 21,
-    "MaximumValue": 34,
-    "Weight": 94,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t3",
-    "Name": "Armored III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 32,
-    "MaximumValue": 49,
-    "Weight": 88,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t4",
-    "Name": "Armored IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 43,
-    "MaximumValue": 63,
-    "Weight": 82,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t5",
-    "Name": "Armored V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 54,
-    "MaximumValue": 78,
-    "Weight": 76,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t6",
-    "Name": "Armored VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 66,
-    "MaximumValue": 92,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t7",
-    "Name": "Armored VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 77,
-    "MaximumValue": 107,
-    "Weight": 64,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t8",
-    "Name": "Armored VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 88,
-    "MaximumValue": 121,
-    "Weight": 58,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t9",
-    "Name": "Armored IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 99,
-    "MaximumValue": 136,
-    "Weight": 52,
-    "IsPercent": false
-  },
-  {
-    "Id": "armored_t10",
-    "Name": "Armored X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt"
-    ],
-    "ModifierGroup": "armor_prefix",
-    "StatAffected": "Armor",
-    "MinimumValue": 110,
-    "MaximumValue": 150,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "swift",
-    "Name": "Swift I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 3,
-    "MaximumValue": 5,
-    "Weight": 80,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t2",
-    "Name": "Swift II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 5,
-    "MaximumValue": 8,
-    "Weight": 75,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t3",
-    "Name": "Swift III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 7,
-    "MaximumValue": 10,
-    "Weight": 70,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t4",
-    "Name": "Swift IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 9,
-    "MaximumValue": 13,
-    "Weight": 66,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t5",
-    "Name": "Swift V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 11,
-    "MaximumValue": 15,
-    "Weight": 61,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t6",
-    "Name": "Swift VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 14,
-    "MaximumValue": 18,
-    "Weight": 56,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t7",
-    "Name": "Swift VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 16,
-    "MaximumValue": 20,
-    "Weight": 51,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t8",
-    "Name": "Swift VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 18,
-    "MaximumValue": 23,
-    "Weight": 46,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t9",
-    "Name": "Swift IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 20,
-    "MaximumValue": 25,
-    "Weight": 42,
-    "IsPercent": true
-  },
-  {
-    "Id": "swift_t10",
-    "Name": "Swift X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Boots",
-      "Amulet"
-    ],
-    "ModifierGroup": "move_speed",
-    "StatAffected": "MovementSpeed",
-    "MinimumValue": 22,
-    "MaximumValue": 28,
-    "Weight": 37,
-    "IsPercent": true
-  },
-  {
-    "Id": "mending",
-    "Name": "Mending I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 1,
-    "MaximumValue": 2,
-    "Weight": 80,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t2",
-    "Name": "Mending II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 2,
-    "MaximumValue": 4,
-    "Weight": 75,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t3",
-    "Name": "Mending III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 4,
-    "MaximumValue": 6,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t4",
-    "Name": "Mending IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 5,
-    "MaximumValue": 7,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t5",
-    "Name": "Mending V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 7,
-    "MaximumValue": 9,
-    "Weight": 61,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t6",
-    "Name": "Mending VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 8,
-    "MaximumValue": 11,
-    "Weight": 56,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t7",
-    "Name": "Mending VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 10,
-    "MaximumValue": 13,
-    "Weight": 51,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t8",
-    "Name": "Mending VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 11,
-    "MaximumValue": 14,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t9",
-    "Name": "Mending IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 13,
-    "MaximumValue": 16,
-    "Weight": 42,
-    "IsPercent": false
-  },
-  {
-    "Id": "mending_t10",
-    "Name": "Mending X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "life_regen",
-    "StatAffected": "LifeRegeneration",
-    "MinimumValue": 14,
-    "MaximumValue": 18,
-    "Weight": 37,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged",
-    "Name": "Jagged I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 3,
-    "Weight": 80,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t2",
-    "Name": "Jagged II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 3,
-    "MaximumValue": 6,
-    "Weight": 75,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t3",
-    "Name": "Jagged III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 6,
-    "MaximumValue": 9,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t4",
-    "Name": "Jagged IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 8,
-    "MaximumValue": 12,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t5",
-    "Name": "Jagged V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 10,
-    "MaximumValue": 15,
-    "Weight": 61,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t6",
-    "Name": "Jagged VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 13,
-    "MaximumValue": 18,
-    "Weight": 56,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t7",
-    "Name": "Jagged VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 15,
-    "MaximumValue": 21,
-    "Weight": 51,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t8",
-    "Name": "Jagged VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 17,
-    "MaximumValue": 24,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t9",
-    "Name": "Jagged IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 20,
-    "MaximumValue": 27,
-    "Weight": 42,
-    "IsPercent": false
-  },
-  {
-    "Id": "jagged_t10",
-    "Name": "Jagged X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_phys",
-    "StatAffected": "AddedPhysicalDamage",
-    "MinimumValue": 22,
-    "MaximumValue": 30,
-    "Weight": 37,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing",
-    "Name": "Searing I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 3,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t2",
-    "Name": "Searing II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 4,
-    "MaximumValue": 6,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t3",
-    "Name": "Searing III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 6,
-    "MaximumValue": 9,
-    "Weight": 62,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t4",
-    "Name": "Searing IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 13,
-    "Weight": 57,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t5",
-    "Name": "Searing V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 11,
-    "MaximumValue": 16,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t6",
-    "Name": "Searing VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t7",
-    "Name": "Searing VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 45,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t8",
-    "Name": "Searing VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 19,
-    "MaximumValue": 26,
-    "Weight": 41,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t9",
-    "Name": "Searing IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 21,
-    "MaximumValue": 29,
-    "Weight": 36,
-    "IsPercent": false
-  },
-  {
-    "Id": "searing_t10",
-    "Name": "Searing X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_fire",
-    "StatAffected": "AddedFireDamage",
-    "MinimumValue": 24,
-    "MaximumValue": 32,
-    "Weight": 32,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing",
-    "Name": "Freezing I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 3,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t2",
-    "Name": "Freezing II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 4,
-    "MaximumValue": 6,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t3",
-    "Name": "Freezing III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 6,
-    "MaximumValue": 9,
-    "Weight": 62,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t4",
-    "Name": "Freezing IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 13,
-    "Weight": 57,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t5",
-    "Name": "Freezing V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 11,
-    "MaximumValue": 16,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t6",
-    "Name": "Freezing VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t7",
-    "Name": "Freezing VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 45,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t8",
-    "Name": "Freezing VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 19,
-    "MaximumValue": 26,
-    "Weight": 41,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t9",
-    "Name": "Freezing IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 21,
-    "MaximumValue": 29,
-    "Weight": 36,
-    "IsPercent": false
-  },
-  {
-    "Id": "freezing_t10",
-    "Name": "Freezing X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_cold",
-    "StatAffected": "AddedColdDamage",
-    "MinimumValue": 24,
-    "MaximumValue": 32,
-    "Weight": 32,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged",
-    "Name": "Charged I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 3,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t2",
-    "Name": "Charged II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 4,
-    "MaximumValue": 6,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t3",
-    "Name": "Charged III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 6,
-    "MaximumValue": 9,
-    "Weight": 62,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t4",
-    "Name": "Charged IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 13,
-    "Weight": 57,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t5",
-    "Name": "Charged V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 11,
-    "MaximumValue": 16,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t6",
-    "Name": "Charged VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t7",
-    "Name": "Charged VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 45,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t8",
-    "Name": "Charged VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 19,
-    "MaximumValue": 26,
-    "Weight": 41,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t9",
-    "Name": "Charged IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 21,
-    "MaximumValue": 29,
-    "Weight": 36,
-    "IsPercent": false
-  },
-  {
-    "Id": "charged_t10",
-    "Name": "Charged X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_lightning",
-    "StatAffected": "AddedLightningDamage",
-    "MinimumValue": 24,
-    "MaximumValue": 32,
-    "Weight": 32,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous",
-    "Name": "Venomous I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 3,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t2",
-    "Name": "Venomous II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 4,
-    "MaximumValue": 6,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t3",
-    "Name": "Venomous III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 6,
-    "MaximumValue": 9,
-    "Weight": 62,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t4",
-    "Name": "Venomous IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 13,
-    "Weight": 57,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t5",
-    "Name": "Venomous V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 11,
-    "MaximumValue": 16,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t6",
-    "Name": "Venomous VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t7",
-    "Name": "Venomous VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 45,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t8",
-    "Name": "Venomous VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 19,
-    "MaximumValue": 26,
-    "Weight": 41,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t9",
-    "Name": "Venomous IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 21,
-    "MaximumValue": 29,
-    "Weight": 36,
-    "IsPercent": false
-  },
-  {
-    "Id": "venomous_t10",
-    "Name": "Venomous X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_acid",
-    "StatAffected": "AddedAcidDamage",
-    "MinimumValue": 24,
-    "MaximumValue": 32,
-    "Weight": 32,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral",
-    "Name": "Umbral I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 3,
-    "Weight": 60,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t2",
-    "Name": "Umbral II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 4,
-    "MaximumValue": 6,
-    "Weight": 56,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t3",
-    "Name": "Umbral III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 6,
-    "MaximumValue": 9,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t4",
-    "Name": "Umbral IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 13,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t5",
-    "Name": "Umbral V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 11,
-    "MaximumValue": 16,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t6",
-    "Name": "Umbral VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 42,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t7",
-    "Name": "Umbral VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 38,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t8",
-    "Name": "Umbral VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 19,
-    "MaximumValue": 26,
-    "Weight": 35,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t9",
-    "Name": "Umbral IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 21,
-    "MaximumValue": 29,
-    "Weight": 31,
-    "IsPercent": false
-  },
-  {
-    "Id": "umbral_t10",
-    "Name": "Umbral X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_dark",
-    "StatAffected": "AddedDarkDamage",
-    "MinimumValue": 24,
-    "MaximumValue": 32,
-    "Weight": 28,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant",
-    "Name": "Radiant I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 3,
-    "Weight": 60,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t2",
-    "Name": "Radiant II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 4,
-    "MaximumValue": 6,
-    "Weight": 56,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t3",
-    "Name": "Radiant III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 6,
-    "MaximumValue": 9,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t4",
-    "Name": "Radiant IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 13,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t5",
-    "Name": "Radiant V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 11,
-    "MaximumValue": 16,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t6",
-    "Name": "Radiant VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 42,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t7",
-    "Name": "Radiant VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 38,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t8",
-    "Name": "Radiant VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 19,
-    "MaximumValue": 26,
-    "Weight": 35,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t9",
-    "Name": "Radiant IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 21,
-    "MaximumValue": 29,
-    "Weight": 31,
-    "IsPercent": false
-  },
-  {
-    "Id": "radiant_t10",
-    "Name": "Radiant X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Mace"
-    ],
-    "ModifierGroup": "added_light",
-    "StatAffected": "AddedLightDamage",
-    "MinimumValue": 24,
-    "MaximumValue": 32,
-    "Weight": 28,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing",
-    "Name": "Blazing I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 2,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t2",
-    "Name": "Blazing II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 3,
-    "MaximumValue": 4,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t3",
-    "Name": "Blazing III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 5,
-    "MaximumValue": 7,
-    "Weight": 62,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t4",
-    "Name": "Blazing IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 7,
-    "MaximumValue": 9,
-    "Weight": 57,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t5",
-    "Name": "Blazing V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 12,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t6",
-    "Name": "Blazing VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 10,
-    "MaximumValue": 14,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t7",
-    "Name": "Blazing VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 12,
-    "MaximumValue": 17,
-    "Weight": 45,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t8",
-    "Name": "Blazing VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 41,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t9",
-    "Name": "Blazing IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 36,
-    "IsPercent": false
-  },
-  {
-    "Id": "blazing_t10",
-    "Name": "Blazing X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_fire",
-    "StatAffected": "AddedFireSpellDamage",
-    "MinimumValue": 18,
-    "MaximumValue": 24,
-    "Weight": 32,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling",
-    "Name": "Chilling I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 2,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t2",
-    "Name": "Chilling II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 3,
-    "MaximumValue": 4,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t3",
-    "Name": "Chilling III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 5,
-    "MaximumValue": 7,
-    "Weight": 62,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t4",
-    "Name": "Chilling IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 7,
-    "MaximumValue": 9,
-    "Weight": 57,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t5",
-    "Name": "Chilling V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 12,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t6",
-    "Name": "Chilling VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 10,
-    "MaximumValue": 14,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t7",
-    "Name": "Chilling VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 12,
-    "MaximumValue": 17,
-    "Weight": 45,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t8",
-    "Name": "Chilling VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 41,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t9",
-    "Name": "Chilling IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 36,
-    "IsPercent": false
-  },
-  {
-    "Id": "chilling_t10",
-    "Name": "Chilling X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_cold",
-    "StatAffected": "AddedColdSpellDamage",
-    "MinimumValue": 18,
-    "MaximumValue": 24,
-    "Weight": 32,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking",
-    "Name": "Sparking I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 2,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t2",
-    "Name": "Sparking II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 3,
-    "MaximumValue": 4,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t3",
-    "Name": "Sparking III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 5,
-    "MaximumValue": 7,
-    "Weight": 62,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t4",
-    "Name": "Sparking IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 7,
-    "MaximumValue": 9,
-    "Weight": 57,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t5",
-    "Name": "Sparking V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 12,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t6",
-    "Name": "Sparking VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 10,
-    "MaximumValue": 14,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t7",
-    "Name": "Sparking VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 12,
-    "MaximumValue": 17,
-    "Weight": 45,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t8",
-    "Name": "Sparking VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 41,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t9",
-    "Name": "Sparking IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 36,
-    "IsPercent": false
-  },
-  {
-    "Id": "sparking_t10",
-    "Name": "Sparking X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_lightning",
-    "StatAffected": "AddedLightningSpellDamage",
-    "MinimumValue": 18,
-    "MaximumValue": 24,
-    "Weight": 32,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive",
-    "Name": "Corrosive I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 2,
-    "Weight": 70,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t2",
-    "Name": "Corrosive II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 3,
-    "MaximumValue": 4,
-    "Weight": 66,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t3",
-    "Name": "Corrosive III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 5,
-    "MaximumValue": 7,
-    "Weight": 62,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t4",
-    "Name": "Corrosive IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 7,
-    "MaximumValue": 9,
-    "Weight": 57,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t5",
-    "Name": "Corrosive V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 12,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t6",
-    "Name": "Corrosive VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 10,
-    "MaximumValue": 14,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t7",
-    "Name": "Corrosive VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 12,
-    "MaximumValue": 17,
-    "Weight": 45,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t8",
-    "Name": "Corrosive VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 41,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t9",
-    "Name": "Corrosive IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 36,
-    "IsPercent": false
-  },
-  {
-    "Id": "corrosive_t10",
-    "Name": "Corrosive X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_acid",
-    "StatAffected": "AddedAcidSpellDamage",
-    "MinimumValue": 18,
-    "MaximumValue": 24,
-    "Weight": 32,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed",
-    "Name": "Shadowed I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 2,
-    "Weight": 60,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t2",
-    "Name": "Shadowed II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 3,
-    "MaximumValue": 4,
-    "Weight": 56,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t3",
-    "Name": "Shadowed III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 5,
-    "MaximumValue": 7,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t4",
-    "Name": "Shadowed IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 7,
-    "MaximumValue": 9,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t5",
-    "Name": "Shadowed V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 12,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t6",
-    "Name": "Shadowed VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 10,
-    "MaximumValue": 14,
-    "Weight": 42,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t7",
-    "Name": "Shadowed VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 12,
-    "MaximumValue": 17,
-    "Weight": 38,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t8",
-    "Name": "Shadowed VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 35,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t9",
-    "Name": "Shadowed IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 31,
-    "IsPercent": false
-  },
-  {
-    "Id": "shadowed_t10",
-    "Name": "Shadowed X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_dark",
-    "StatAffected": "AddedDarkSpellDamage",
-    "MinimumValue": 18,
-    "MaximumValue": 24,
-    "Weight": 28,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous",
-    "Name": "Luminous I",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 1,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 1,
-    "MaximumValue": 2,
-    "Weight": 60,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t2",
-    "Name": "Luminous II",
-    "AffixType": "Prefix",
-    "Tier": 2,
-    "MinimumItemLevel": 2,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 3,
-    "MaximumValue": 4,
-    "Weight": 56,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t3",
-    "Name": "Luminous III",
-    "AffixType": "Prefix",
-    "Tier": 3,
-    "MinimumItemLevel": 4,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 5,
-    "MaximumValue": 7,
-    "Weight": 53,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t4",
-    "Name": "Luminous IV",
-    "AffixType": "Prefix",
-    "Tier": 4,
-    "MinimumItemLevel": 6,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 7,
-    "MaximumValue": 9,
-    "Weight": 49,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t5",
-    "Name": "Luminous V",
-    "AffixType": "Prefix",
-    "Tier": 5,
-    "MinimumItemLevel": 8,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 9,
-    "MaximumValue": 12,
-    "Weight": 46,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t6",
-    "Name": "Luminous VI",
-    "AffixType": "Prefix",
-    "Tier": 6,
-    "MinimumItemLevel": 10,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 10,
-    "MaximumValue": 14,
-    "Weight": 42,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t7",
-    "Name": "Luminous VII",
-    "AffixType": "Prefix",
-    "Tier": 7,
-    "MinimumItemLevel": 12,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 12,
-    "MaximumValue": 17,
-    "Weight": 38,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t8",
-    "Name": "Luminous VIII",
-    "AffixType": "Prefix",
-    "Tier": 8,
-    "MinimumItemLevel": 14,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 14,
-    "MaximumValue": 19,
-    "Weight": 35,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t9",
-    "Name": "Luminous IX",
-    "AffixType": "Prefix",
-    "Tier": 9,
-    "MinimumItemLevel": 16,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 16,
-    "MaximumValue": 22,
-    "Weight": 31,
-    "IsPercent": false
-  },
-  {
-    "Id": "luminous_t10",
-    "Name": "Luminous X",
-    "AffixType": "Prefix",
-    "Tier": 10,
-    "MinimumItemLevel": 18,
-    "CompatibleItemCategories": [
-      "Staff"
-    ],
-    "ModifierGroup": "added_spell_light",
-    "StatAffected": "AddedLightSpellDamage",
-    "MinimumValue": 18,
-    "MaximumValue": 24,
-    "Weight": 28,
-    "IsPercent": false
-  },
-  {
-    "Id": "expanded",
-    "Name": "Expanded",
-    "AffixType": "Prefix",
-    "Tier": 1,
-    "MinimumItemLevel": 3,
-    "CompatibleItemCategories": [
-      "Mace",
-      "Staff",
-      "Helmet",
-      "BodyArmor",
-      "Gloves",
-      "Boots",
-      "Belt",
-      "Amulet",
-      "Ring"
-    ],
-    "ModifierGroup": "modifier_limit",
-    "StatAffected": "ModifierLimit",
-    "MinimumValue": 1,
-    "MaximumValue": 2,
-    "Weight": 12,
-    "IsPercent": false
-  }
+ {
+  "Id": "healthy",
+  "Name": "Healthy I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 8,
+  "MaximumValue": 14,
+  "Weight": 100,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t2",
+  "Name": "Healthy II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 17,
+  "MaximumValue": 25,
+  "Weight": 94,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t3",
+  "Name": "Healthy III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 25,
+  "MaximumValue": 36,
+  "Weight": 88,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t4",
+  "Name": "Healthy IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 34,
+  "MaximumValue": 48,
+  "Weight": 82,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t5",
+  "Name": "Healthy V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 42,
+  "MaximumValue": 59,
+  "Weight": 76,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t6",
+  "Name": "Healthy VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 51,
+  "MaximumValue": 70,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t7",
+  "Name": "Healthy VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 59,
+  "MaximumValue": 81,
+  "Weight": 64,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t8",
+  "Name": "Healthy VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 68,
+  "MaximumValue": 93,
+  "Weight": 58,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t9",
+  "Name": "Healthy IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 76,
+  "MaximumValue": 104,
+  "Weight": 52,
+  "IsPercent": false
+ },
+ {
+  "Id": "healthy_t10",
+  "Name": "Healthy X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "health_prefix",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 85,
+  "MaximumValue": 115,
+  "Weight": 46,
+  "IsPercent": false
+ },
+ {
+  "Id": "brutal",
+  "Name": "Brutal I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 9,
+  "Weight": 90,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t2",
+  "Name": "Brutal II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 14,
+  "Weight": 85,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t3",
+  "Name": "Brutal III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 13,
+  "MaximumValue": 19,
+  "Weight": 79,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t4",
+  "Name": "Brutal IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 17,
+  "MaximumValue": 24,
+  "Weight": 74,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t5",
+  "Name": "Brutal V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 68,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t6",
+  "Name": "Brutal VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 26,
+  "MaximumValue": 35,
+  "Weight": 63,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t7",
+  "Name": "Brutal VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 30,
+  "MaximumValue": 40,
+  "Weight": 58,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t8",
+  "Name": "Brutal VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 34,
+  "MaximumValue": 45,
+  "Weight": 52,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t9",
+  "Name": "Brutal IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 38,
+  "MaximumValue": 50,
+  "Weight": 47,
+  "IsPercent": true
+ },
+ {
+  "Id": "brutal_t10",
+  "Name": "Brutal X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "phys_damage",
+  "StatAffected": "PhysicalDamage",
+  "MinimumValue": 42,
+  "MaximumValue": 55,
+  "Weight": 41,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane",
+  "Name": "Arcane I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 9,
+  "Weight": 90,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t2",
+  "Name": "Arcane II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 14,
+  "Weight": 85,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t3",
+  "Name": "Arcane III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 13,
+  "MaximumValue": 19,
+  "Weight": 79,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t4",
+  "Name": "Arcane IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 17,
+  "MaximumValue": 24,
+  "Weight": 74,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t5",
+  "Name": "Arcane V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 68,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t6",
+  "Name": "Arcane VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 26,
+  "MaximumValue": 35,
+  "Weight": 63,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t7",
+  "Name": "Arcane VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 30,
+  "MaximumValue": 40,
+  "Weight": 58,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t8",
+  "Name": "Arcane VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 34,
+  "MaximumValue": 45,
+  "Weight": 52,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t9",
+  "Name": "Arcane IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 38,
+  "MaximumValue": 50,
+  "Weight": 47,
+  "IsPercent": true
+ },
+ {
+  "Id": "arcane_t10",
+  "Name": "Arcane X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Staff",
+   "Helmet",
+   "Amulet",
+   "Ring"
+  ],
+  "ModifierGroup": "spell_damage",
+  "StatAffected": "SpellDamage",
+  "MinimumValue": 42,
+  "MaximumValue": 55,
+  "Weight": 41,
+  "IsPercent": true
+ },
+ {
+  "Id": "armored",
+  "Name": "Armored I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 10,
+  "MaximumValue": 20,
+  "Weight": 100,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t2",
+  "Name": "Armored II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 21,
+  "MaximumValue": 34,
+  "Weight": 94,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t3",
+  "Name": "Armored III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 32,
+  "MaximumValue": 49,
+  "Weight": 88,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t4",
+  "Name": "Armored IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 43,
+  "MaximumValue": 63,
+  "Weight": 82,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t5",
+  "Name": "Armored V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 54,
+  "MaximumValue": 78,
+  "Weight": 76,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t6",
+  "Name": "Armored VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 66,
+  "MaximumValue": 92,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t7",
+  "Name": "Armored VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 77,
+  "MaximumValue": 107,
+  "Weight": 64,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t8",
+  "Name": "Armored VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 88,
+  "MaximumValue": 121,
+  "Weight": 58,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t9",
+  "Name": "Armored IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 99,
+  "MaximumValue": 136,
+  "Weight": 52,
+  "IsPercent": false
+ },
+ {
+  "Id": "armored_t10",
+  "Name": "Armored X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Shield"
+  ],
+  "ModifierGroup": "armor_prefix",
+  "StatAffected": "Armor",
+  "MinimumValue": 110,
+  "MaximumValue": 150,
+  "Weight": 46,
+  "IsPercent": false
+ },
+ {
+  "Id": "swift",
+  "Name": "Swift I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 3,
+  "MaximumValue": 5,
+  "Weight": 80,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t2",
+  "Name": "Swift II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 5,
+  "MaximumValue": 8,
+  "Weight": 75,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t3",
+  "Name": "Swift III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 7,
+  "MaximumValue": 10,
+  "Weight": 70,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t4",
+  "Name": "Swift IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 9,
+  "MaximumValue": 13,
+  "Weight": 66,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t5",
+  "Name": "Swift V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 11,
+  "MaximumValue": 15,
+  "Weight": 61,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t6",
+  "Name": "Swift VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 14,
+  "MaximumValue": 18,
+  "Weight": 56,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t7",
+  "Name": "Swift VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 16,
+  "MaximumValue": 20,
+  "Weight": 51,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t8",
+  "Name": "Swift VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 18,
+  "MaximumValue": 23,
+  "Weight": 46,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t9",
+  "Name": "Swift IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 20,
+  "MaximumValue": 25,
+  "Weight": 42,
+  "IsPercent": true
+ },
+ {
+  "Id": "swift_t10",
+  "Name": "Swift X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Boots",
+   "Amulet"
+  ],
+  "ModifierGroup": "move_speed",
+  "StatAffected": "MovementSpeed",
+  "MinimumValue": 22,
+  "MaximumValue": 28,
+  "Weight": 37,
+  "IsPercent": true
+ },
+ {
+  "Id": "mending",
+  "Name": "Mending I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 80,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t2",
+  "Name": "Mending II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 2,
+  "MaximumValue": 4,
+  "Weight": 75,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t3",
+  "Name": "Mending III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t4",
+  "Name": "Mending IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t5",
+  "Name": "Mending V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 61,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t6",
+  "Name": "Mending VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 8,
+  "MaximumValue": 11,
+  "Weight": 56,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t7",
+  "Name": "Mending VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 10,
+  "MaximumValue": 13,
+  "Weight": 51,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t8",
+  "Name": "Mending VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 11,
+  "MaximumValue": 14,
+  "Weight": 46,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t9",
+  "Name": "Mending IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 13,
+  "MaximumValue": 16,
+  "Weight": 42,
+  "IsPercent": false
+ },
+ {
+  "Id": "mending_t10",
+  "Name": "Mending X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "life_regen",
+  "StatAffected": "LifeRegeneration",
+  "MinimumValue": 14,
+  "MaximumValue": 18,
+  "Weight": 37,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged",
+  "Name": "Jagged I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 3,
+  "Weight": 80,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t2",
+  "Name": "Jagged II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 3,
+  "MaximumValue": 6,
+  "Weight": 75,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t3",
+  "Name": "Jagged III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t4",
+  "Name": "Jagged IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 8,
+  "MaximumValue": 12,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t5",
+  "Name": "Jagged V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 15,
+  "Weight": 61,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t6",
+  "Name": "Jagged VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 13,
+  "MaximumValue": 18,
+  "Weight": 56,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t7",
+  "Name": "Jagged VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 15,
+  "MaximumValue": 21,
+  "Weight": 51,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t8",
+  "Name": "Jagged VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 17,
+  "MaximumValue": 24,
+  "Weight": 46,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t9",
+  "Name": "Jagged IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 20,
+  "MaximumValue": 27,
+  "Weight": 42,
+  "IsPercent": false
+ },
+ {
+  "Id": "jagged_t10",
+  "Name": "Jagged X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_phys",
+  "StatAffected": "AddedPhysicalDamage",
+  "MinimumValue": 22,
+  "MaximumValue": 30,
+  "Weight": 37,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing",
+  "Name": "Searing I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 3,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t2",
+  "Name": "Searing II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t3",
+  "Name": "Searing III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t4",
+  "Name": "Searing IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 13,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t5",
+  "Name": "Searing V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 11,
+  "MaximumValue": 16,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t6",
+  "Name": "Searing VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t7",
+  "Name": "Searing VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t8",
+  "Name": "Searing VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 19,
+  "MaximumValue": 26,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t9",
+  "Name": "Searing IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "searing_t10",
+  "Name": "Searing X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_fire",
+  "StatAffected": "AddedFireDamage",
+  "MinimumValue": 24,
+  "MaximumValue": 32,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing",
+  "Name": "Freezing I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 3,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t2",
+  "Name": "Freezing II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t3",
+  "Name": "Freezing III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t4",
+  "Name": "Freezing IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 13,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t5",
+  "Name": "Freezing V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 11,
+  "MaximumValue": 16,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t6",
+  "Name": "Freezing VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t7",
+  "Name": "Freezing VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t8",
+  "Name": "Freezing VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 19,
+  "MaximumValue": 26,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t9",
+  "Name": "Freezing IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "freezing_t10",
+  "Name": "Freezing X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_cold",
+  "StatAffected": "AddedColdDamage",
+  "MinimumValue": 24,
+  "MaximumValue": 32,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged",
+  "Name": "Charged I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 3,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t2",
+  "Name": "Charged II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t3",
+  "Name": "Charged III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t4",
+  "Name": "Charged IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 13,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t5",
+  "Name": "Charged V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 11,
+  "MaximumValue": 16,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t6",
+  "Name": "Charged VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t7",
+  "Name": "Charged VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t8",
+  "Name": "Charged VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 19,
+  "MaximumValue": 26,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t9",
+  "Name": "Charged IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "charged_t10",
+  "Name": "Charged X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_lightning",
+  "StatAffected": "AddedLightningDamage",
+  "MinimumValue": 24,
+  "MaximumValue": 32,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous",
+  "Name": "Venomous I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 3,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t2",
+  "Name": "Venomous II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t3",
+  "Name": "Venomous III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t4",
+  "Name": "Venomous IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 13,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t5",
+  "Name": "Venomous V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 11,
+  "MaximumValue": 16,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t6",
+  "Name": "Venomous VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t7",
+  "Name": "Venomous VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t8",
+  "Name": "Venomous VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 19,
+  "MaximumValue": 26,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t9",
+  "Name": "Venomous IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "venomous_t10",
+  "Name": "Venomous X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_acid",
+  "StatAffected": "AddedAcidDamage",
+  "MinimumValue": 24,
+  "MaximumValue": 32,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral",
+  "Name": "Umbral I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 3,
+  "Weight": 60,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t2",
+  "Name": "Umbral II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 56,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t3",
+  "Name": "Umbral III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t4",
+  "Name": "Umbral IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 13,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t5",
+  "Name": "Umbral V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 11,
+  "MaximumValue": 16,
+  "Weight": 46,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t6",
+  "Name": "Umbral VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 42,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t7",
+  "Name": "Umbral VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 38,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t8",
+  "Name": "Umbral VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 19,
+  "MaximumValue": 26,
+  "Weight": 35,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t9",
+  "Name": "Umbral IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 31,
+  "IsPercent": false
+ },
+ {
+  "Id": "umbral_t10",
+  "Name": "Umbral X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_dark",
+  "StatAffected": "AddedDarkDamage",
+  "MinimumValue": 24,
+  "MaximumValue": 32,
+  "Weight": 28,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant",
+  "Name": "Radiant I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 3,
+  "Weight": 60,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t2",
+  "Name": "Radiant II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 56,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t3",
+  "Name": "Radiant III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t4",
+  "Name": "Radiant IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 13,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t5",
+  "Name": "Radiant V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 11,
+  "MaximumValue": 16,
+  "Weight": 46,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t6",
+  "Name": "Radiant VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 42,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t7",
+  "Name": "Radiant VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 38,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t8",
+  "Name": "Radiant VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 19,
+  "MaximumValue": 26,
+  "Weight": 35,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t9",
+  "Name": "Radiant IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 21,
+  "MaximumValue": 29,
+  "Weight": 31,
+  "IsPercent": false
+ },
+ {
+  "Id": "radiant_t10",
+  "Name": "Radiant X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "added_light",
+  "StatAffected": "AddedLightDamage",
+  "MinimumValue": 24,
+  "MaximumValue": 32,
+  "Weight": 28,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing",
+  "Name": "Blazing I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t2",
+  "Name": "Blazing II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 3,
+  "MaximumValue": 4,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t3",
+  "Name": "Blazing III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t4",
+  "Name": "Blazing IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t5",
+  "Name": "Blazing V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 12,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t6",
+  "Name": "Blazing VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 14,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t7",
+  "Name": "Blazing VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 12,
+  "MaximumValue": 17,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t8",
+  "Name": "Blazing VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t9",
+  "Name": "Blazing IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "blazing_t10",
+  "Name": "Blazing X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_fire",
+  "StatAffected": "AddedFireSpellDamage",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling",
+  "Name": "Chilling I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t2",
+  "Name": "Chilling II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 3,
+  "MaximumValue": 4,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t3",
+  "Name": "Chilling III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t4",
+  "Name": "Chilling IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t5",
+  "Name": "Chilling V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 12,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t6",
+  "Name": "Chilling VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 14,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t7",
+  "Name": "Chilling VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 12,
+  "MaximumValue": 17,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t8",
+  "Name": "Chilling VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t9",
+  "Name": "Chilling IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "chilling_t10",
+  "Name": "Chilling X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_cold",
+  "StatAffected": "AddedColdSpellDamage",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking",
+  "Name": "Sparking I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t2",
+  "Name": "Sparking II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 3,
+  "MaximumValue": 4,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t3",
+  "Name": "Sparking III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t4",
+  "Name": "Sparking IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t5",
+  "Name": "Sparking V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 12,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t6",
+  "Name": "Sparking VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 14,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t7",
+  "Name": "Sparking VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 12,
+  "MaximumValue": 17,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t8",
+  "Name": "Sparking VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t9",
+  "Name": "Sparking IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "sparking_t10",
+  "Name": "Sparking X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_lightning",
+  "StatAffected": "AddedLightningSpellDamage",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive",
+  "Name": "Corrosive I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t2",
+  "Name": "Corrosive II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 3,
+  "MaximumValue": 4,
+  "Weight": 66,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t3",
+  "Name": "Corrosive III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 62,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t4",
+  "Name": "Corrosive IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 57,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t5",
+  "Name": "Corrosive V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 12,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t6",
+  "Name": "Corrosive VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 14,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t7",
+  "Name": "Corrosive VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 12,
+  "MaximumValue": 17,
+  "Weight": 45,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t8",
+  "Name": "Corrosive VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 41,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t9",
+  "Name": "Corrosive IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 36,
+  "IsPercent": false
+ },
+ {
+  "Id": "corrosive_t10",
+  "Name": "Corrosive X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_acid",
+  "StatAffected": "AddedAcidSpellDamage",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 32,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed",
+  "Name": "Shadowed I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 60,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t2",
+  "Name": "Shadowed II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 3,
+  "MaximumValue": 4,
+  "Weight": 56,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t3",
+  "Name": "Shadowed III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t4",
+  "Name": "Shadowed IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t5",
+  "Name": "Shadowed V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 12,
+  "Weight": 46,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t6",
+  "Name": "Shadowed VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 14,
+  "Weight": 42,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t7",
+  "Name": "Shadowed VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 12,
+  "MaximumValue": 17,
+  "Weight": 38,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t8",
+  "Name": "Shadowed VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 35,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t9",
+  "Name": "Shadowed IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 31,
+  "IsPercent": false
+ },
+ {
+  "Id": "shadowed_t10",
+  "Name": "Shadowed X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_dark",
+  "StatAffected": "AddedDarkSpellDamage",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 28,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous",
+  "Name": "Luminous I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 60,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t2",
+  "Name": "Luminous II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 3,
+  "MaximumValue": 4,
+  "Weight": 56,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t3",
+  "Name": "Luminous III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 53,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t4",
+  "Name": "Luminous IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 49,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t5",
+  "Name": "Luminous V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 9,
+  "MaximumValue": 12,
+  "Weight": 46,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t6",
+  "Name": "Luminous VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 14,
+  "Weight": 42,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t7",
+  "Name": "Luminous VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 12,
+  "MaximumValue": 17,
+  "Weight": 38,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t8",
+  "Name": "Luminous VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 35,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t9",
+  "Name": "Luminous IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 22,
+  "Weight": 31,
+  "IsPercent": false
+ },
+ {
+  "Id": "luminous_t10",
+  "Name": "Luminous X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Staff"
+  ],
+  "ModifierGroup": "added_spell_light",
+  "StatAffected": "AddedLightSpellDamage",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 28,
+  "IsPercent": false
+ },
+ {
+  "Id": "expanded",
+  "Name": "Expanded",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 3,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff",
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt",
+   "Amulet",
+   "Ring",
+   "Shield"
+  ],
+  "ModifierGroup": "modifier_limit",
+  "StatAffected": "ModifierLimit",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 12,
+  "IsPercent": false
+ }
 ]

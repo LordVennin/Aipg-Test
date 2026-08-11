@@ -396,6 +396,7 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.PlayerAppearance);
         w.Put(p.Id);
         w.Put(p.Character.MainHand?.BaseItemId ?? "");
+        w.Put(p.Character.OffHand?.BaseItemId ?? "");
         return w;
     }
 
@@ -418,7 +419,7 @@ public class GameServer : IServerEvents
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
-    public void DamageDealt(bool targetIsPlayer, int targetId, float amount, Skills.DamageKind kind, Vector2 position)
+    public void DamageDealt(bool targetIsPlayer, int targetId, float amount, Skills.DamageKind kind, Vector2 position, bool blocked = false)
     {
         var w = Packets.Make(PacketType.DamageEvent);
         w.Put(targetIsPlayer);
@@ -426,6 +427,7 @@ public class GameServer : IServerEvents
         w.Put(amount);
         w.Put((byte)kind);
         w.PutVec2(position);
+        w.Put(blocked);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

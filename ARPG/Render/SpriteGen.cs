@@ -38,7 +38,7 @@ public static class SpriteGen
     /// </summary>
     public static Texture2D GetWeaponSprite(Items.ItemBase itemBase)
     {
-        if (itemBase == null || _device == null || !itemBase.IsWeapon) return null;
+        if (itemBase == null || _device == null || !itemBase.IsHandheld) return null;
         string key = "weapon:" + itemBase.Id;
         if (_cache.TryGetValue(key, out var cached)) return cached[0];
 
@@ -47,6 +47,7 @@ public static class SpriteGen
         var tex = itemBase.Category switch
         {
             Items.ItemCategory.Staff => DrawStaff(accent),
+            Items.ItemCategory.Shield => DrawShield(accent, tall: itemBase.InventoryHeight >= 3),
             _ => DrawMace(accent, big: itemBase.InventoryWidth >= 2),
         };
         _cache[key] = new[] { tex };
@@ -182,6 +183,57 @@ public static class SpriteGen
         Set(ox + 1, oy + 1, orbLight);   // sparkle highlight
         Set(ox + 3, oy + 4, orbDark);
         Set(ox + 4, oy + 4, orbDark);
+
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>
+    /// Held shield, drawn in the same right-pointing strip space as weapons (the renderer's
+    /// -90° rotation stands it upright): a rimmed face with a raised metal boss and studs.
+    /// Round buckler for small shields, elongated kite shape for tall ones.
+    /// </summary>
+    private static Texture2D DrawShield(Color face, bool tall)
+    {
+        const int w = 22, h = 14;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+
+        var faceDark = Shade(face, 0.65f);
+        var faceLight = Shade(face, 1.3f);
+        var rim = new Color(70, 66, 74);
+        var boss = new Color(190, 190, 200);
+        var bossDark = Shade(boss, 0.6f);
+
+        // Shield silhouette as an ellipse; kite shields taper toward the bottom point
+        // (-x in strip space, which becomes downward once rotated upright).
+        float cx = tall ? 11.5f : 10.5f, cy = 6.5f;
+        float rx = tall ? 9.0f : 6.0f, ry = 5.2f;
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float dx = (x - cx) / rx, dy = (y - cy) / ry;
+                // Taper: shrink the half-height on the -x side for the kite point.
+                if (tall && x < cx) dy /= MathF.Max(0.25f, 1f - (cx - x) / (rx * 1.4f));
+                float d = dx * dx + dy * dy;
+                if (d > 1f) continue;
+                Set(x, y, d > 0.72f ? rim : face);
+            }
+
+        // Face shading: light along the top edge, dark along the bottom.
+        for (int x = 0; x < w; x++)
+            for (int y = 0; y < h; y++)
+            {
+                if (px[y * w + x] != face) continue;
+                if (y < cy - ry * 0.45f) Set(x, y, faceLight);
+                else if (y > cy + ry * 0.45f) Set(x, y, faceDark);
+            }
+
+        // Central boss + rivets.
+        int bx = (int)cx, by = (int)cy;
+        Set(bx, by, boss); Set(bx + 1, by, boss); Set(bx, by + 1, bossDark); Set(bx + 1, by + 1, bossDark);
+        Set(bx - 1, by, bossDark); Set(bx, by - 1, boss);
+        Set(bx + (tall ? 5 : 3), by, bossDark);
+        Set(bx - (tall ? 5 : 3), by, bossDark);
 
         return BakeStrip(px, w, h);
     }

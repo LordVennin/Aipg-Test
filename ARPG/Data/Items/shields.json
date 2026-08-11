@@ -1,0 +1,54 @@
+[
+  {
+    "Id": "wooden_buckler",
+    "Name": "Wooden Buckler",
+    "Category": "Shield",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 110,
+    "BaseGoldValue": 10,
+    "Description": "A light round shield of banded planks.",
+    "BaseStats": {
+      "Armor": 6,
+      "BlockChance": 12
+    },
+    "SpriteColor": "8B6A3F"
+  },
+  {
+    "Id": "iron_kite_shield",
+    "Name": "Iron Kite Shield",
+    "Category": "Shield",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 4,
+    "BaseModifierLimit": 6,
+    "DropWeight": 80,
+    "BaseGoldValue": 16,
+    "Description": "A tapered iron-faced shield that covers the whole flank.",
+    "BaseStats": {
+      "Armor": 14,
+      "BlockChance": 15
+    },
+    "SpriteColor": "9AA0A8"
+  },
+  {
+    "Id": "steel_tower_shield",
+    "Name": "Steel Tower Shield",
+    "Category": "Shield",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 8,
+    "BaseModifierLimit": 7,
+    "DropWeight": 45,
+    "BaseGoldValue": 24,
+    "Description": "A wall of steel. Slow to ready, hard to get around.",
+    "BaseStats": {
+      "Armor": 26,
+      "BlockChance": 18,
+      "BlockCooldownRecovery": 10
+    },
+    "SpriteColor": "6E747E"
+  }
+]

@@ -71,7 +71,8 @@
       "BaseAttackSpeed": 1.1,
       "WeaponRange": 1.6
     },
-    "SpriteColor": "7FBF5F"
+    "SpriteColor": "7FBF5F",
+    "TwoHanded": true
   },
   {
     "Id": "mystic_staff",
@@ -91,7 +92,8 @@
       "BaseAttackSpeed": 1.1,
       "WeaponRange": 1.6
     },
-    "SpriteColor": "5F8FEF"
+    "SpriteColor": "5F8FEF",
+    "TwoHanded": true
   },
   {
     "Id": "arcane_staff",
@@ -111,6 +113,7 @@
       "BaseAttackSpeed": 1.0,
       "WeaponRange": 1.6
     },
-    "SpriteColor": "B06FEF"
+    "SpriteColor": "B06FEF",
+    "TwoHanded": true
   }
 ]

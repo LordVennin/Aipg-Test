@@ -178,8 +178,14 @@ public static class HeadlessNetTest
         int invA = clientA.World.MyCharacter.Inventory.Items.Count;
         int invB = clientB.World.MyCharacter.Inventory.Items.Count;
         int gainedA = 0, gainedB = 0;
-        for (int attempt = 0; attempt < 5 && gainedA + gainedB == 0; attempt++)
+        for (int attempt = 0; attempt < 8 && gainedA + gainedB == 0; attempt++)
         {
+            // Roaming zombies can kill the players; heal doesn't revive, so ride out the
+            // respawn cycle until both are alive before racing for the pickup.
+            for (int wait = 0; wait < 20 && !(clientA.World.Me.Alive && clientB.World.Me.Alive); wait++)
+                Pump(0.5f);
+            clientA.SendDebugCommand("kill_nearby");
+            clientB.SendDebugCommand("kill_nearby");
             clientA.SendDebugCommand("heal");
             clientB.SendDebugCommand("heal");
             clientA.World.Me.Position = dropPos;
@@ -320,6 +326,9 @@ public static class HeadlessNetTest
             bool goldGained = false;
             for (int attempt = 0; attempt < 6 && !goldGained; attempt++)
             {
+                // heal doesn't revive: if A is dead, ride out the respawn cycle first.
+                for (int wait = 0; wait < 20 && !clientA.World.Me.Alive; wait++)
+                    Pump(0.5f);
                 clientA.SendDebugCommand("kill_nearby"); // roaming zombies can kill A mid-pickup
                 clientA.SendDebugCommand("heal");
                 clientA.World.Me.Position = goldDrop.Position;
@@ -414,23 +423,29 @@ public static class HeadlessNetTest
                   $"one scroll charge consumed (stack {scrollAfter?.StackCount})");
         }
 
-        // Ground Slam stun.
+        // Ground Slam stun (retry loop: A may be dead or the spawned grunt already killed).
         clientA.RequestLearnSkill("ground_slam");
         Pump(0.3f);
-        clientA.SendDebugCommand("spawn_enemy", "grunt");
-        Pump(0.3f);
         var stunPlayer = server.World.Players[clientA.World.MyPlayerId];
-        clientA.RequestUseSkill("ground_slam", stunPlayer.Position);
-        Pump(0.2f);
-        var stunned = server.World.Enemies.Values.FirstOrDefault(e => !e.Dead && e.StunnedUntil > server.World.Time);
-        Check(stunned != null || server.World.Enemies.Values.All(e => e.Dead ||
-              Vector2.Distance(e.Position, stunPlayer.Position) > 3f),
-              "ground slam stunned nearby enemies");
+        bool stunConfirmed = false;
+        for (int attempt = 0; attempt < 5 && !stunConfirmed; attempt++)
+        {
+            for (int wait = 0; wait < 20 && !clientA.World.Me.Alive; wait++)
+                Pump(0.5f);
+            clientA.SendDebugCommand("heal");
+            clientA.SendDebugCommand("spawn_enemy", "grunt");
+            Pump(0.3f);
+            clientA.RequestUseSkill("ground_slam", stunPlayer.Position);
+            Pump(0.25f);
+            stunConfirmed = server.World.Enemies.Values.Any(e => !e.Dead && e.StunnedUntil > server.World.Time);
+            if (!stunConfirmed) Pump(0.7f); // ride out the skill cooldown before retrying
+        }
+        Check(stunConfirmed, "ground slam stunned nearby enemies");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 281, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
-        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 28,
-              "every family has a tier X (10 tiers x 28 tiered families)");
+        Check(data.Modifiers.Count == 301, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 30,
+              "every family has a tier X (10 tiers x 30 tiered families)");
 
         // Added-damage split: attack adds are melee-weapon-only, spell adds caster-weapon-only.
         Check(data.Modifiers["searing"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Mace }),
@@ -587,6 +602,115 @@ public static class HeadlessNetTest
             if (spit != null) spitKind = spit.DamageKind;
         }
         Check(spitKind == Skills.DamageKind.Acid, $"spitter projectiles are Acid-typed ({spitKind})");
+
+        Console.WriteLine("\n-- Shields, handedness, blocking --");
+        var shieldBases = data.Items.Values.Where(b => b.Category == Items.ItemCategory.Shield).ToList();
+        Check(shieldBases.Count >= 3, $"shield bases loaded ({shieldBases.Count})");
+        Check(data.Items.Values.Where(b => b.Category == Items.ItemCategory.Staff).All(b => b.TwoHanded),
+              "all staffs are two-handed");
+        Check(data.Items.Values.Where(b => b.Category == Items.ItemCategory.Mace).All(b => !b.TwoHanded),
+              "all maces are one-handed");
+
+        // Client A still wields the rare mace from the equipment test; add a shield off-hand.
+        int aId = clientA.World.MyPlayerId;
+        clientA.SendDebugCommand("give_shield");
+        Pump(0.5f);
+        var shieldPlaced = clientA.World.MyCharacter.Inventory.Items
+            .FirstOrDefault(pl => pl.Item.GetBase(data).Category == Items.ItemCategory.Shield);
+        Check(shieldPlaced != null, "debug shield arrived in inventory");
+        clientA.RequestMoveItem(ItemLocation.AtGrid(shieldPlaced.X, shieldPlaced.Y),
+                                ItemLocation.AtEquip(Items.EquipSlot.OffHand));
+        Pump(0.4f);
+        var offHandItem = clientA.World.MyCharacter.Equipment.GetValueOrDefault(Items.EquipSlot.OffHand);
+        Check(offHandItem != null && offHandItem.InstanceId == shieldPlaced.Item.InstanceId,
+              "shield equipped in the off-hand next to a one-handed mace");
+        var aServerStats = server.World.Players[aId].Stats;
+        Check(aServerStats.HasShield && aServerStats.BlockChance > 0,
+              $"block chance computed from the shield ({aServerStats.BlockChance:0}% per {aServerStats.BlockCooldown:0.0}s)");
+        Check(Math.Abs(clientA.World.MyStats.BlockChance - aServerStats.BlockChance) < 0.01f,
+              "client computes the same block chance");
+        var aAppearance = clientB.World.Players[aId];
+        Check(aAppearance.OffHandBaseId == offHandItem?.BaseItemId,
+              $"client B sees A's off-hand shield ({aAppearance.OffHandBaseId})");
+
+        // Shield Bash: rejected without a shield (no cooldown set), accepted with one.
+        int bId = clientB.World.MyPlayerId;
+        clientA.RequestLearnSkill("shield_bash");
+        clientB.RequestLearnSkill("shield_bash");
+        Pump(0.4f);
+        clientB.RequestUseSkill("shield_bash", clientB.World.Me.Position + new Vector2(1, 0));
+        Pump(0.4f);
+        Check(!server.World.Players[bId].SkillReadyAt.ContainsKey("shield_bash"),
+              "Shield Bash rejected without a shield (no cooldown consumed)");
+        clientA.RequestUseSkill("shield_bash", clientA.World.Me.Position + new Vector2(1, 0));
+        Pump(0.4f);
+        Check(server.World.Players[aId].SkillReadyAt.ContainsKey("shield_bash"),
+              "Shield Bash accepted with a shield equipped");
+
+        // Shields are one-handed and fit EITHER hand: a second shield goes into the main hand.
+        clientA.SendDebugCommand("give_shield");
+        Pump(0.5f);
+        var secondShield = clientA.World.MyCharacter.Inventory.Items.FirstOrDefault(pl =>
+            pl.Item.GetBase(data).Category == Items.ItemCategory.Shield &&
+            pl.Item.InstanceId != offHandItem.InstanceId);
+        Check(secondShield != null, "second debug shield arrived in inventory");
+        clientA.RequestMoveItem(ItemLocation.AtGrid(secondShield.X, secondShield.Y),
+                                ItemLocation.AtEquip(Items.EquipSlot.MainHand));
+        Pump(0.4f);
+        var charAfterDual = clientA.World.MyCharacter;
+        Check(charAfterDual.MainHand?.GetBase(data).Category == Items.ItemCategory.Shield &&
+              charAfterDual.OffHand?.GetBase(data).Category == Items.ItemCategory.Shield,
+              "a shield can be equipped in BOTH hands at once");
+
+        // Blocking end-to-end: crank A's off-hand shield to the block cap on the server,
+        // park B far away so the spitter targets A, and wait for a Blocked event.
+        var aServer = server.World.Players[aId];
+        aServer.Character.Equipment[Items.EquipSlot.OffHand].Modifiers.Add(
+            new Items.ItemModifierRoll { ModifierId = "of_blocking_t10", Value = 500 });
+        aServer.RecomputeStats(server.World.Data);
+        Check(aServer.Stats.BlockChance >= 74.9f,
+              $"block chance is capped ({aServer.Stats.BlockChance:0}%)");
+        clientB.World.Me.Position = aServer.Position + new Vector2(15, 0);
+        Pump(0.4f);
+        int blockedBefore = clientA.World.BlockedEventsSeen;
+        clientA.SendDebugCommand("spawn_enemy", "spitter");
+        bool blockedSeen = false;
+        for (int i = 0; i < 2400 && !blockedSeen; i++)
+        {
+            server.Update(1f / 60f);
+            clientA.Update(1f / 60f);
+            clientB.Update(1f / 60f);
+            Thread.Sleep(1);
+            if (i % 240 == 239) clientA.SendDebugCommand("heal");
+            blockedSeen = clientA.World.BlockedEventsSeen > blockedBefore;
+        }
+        Check(blockedSeen, "a hit was fully blocked and the Blocked event replicated to the client");
+        clientA.SendDebugCommand("kill_nearby");
+        clientA.SendDebugCommand("heal");
+        Pump(0.4f);
+
+        // Two-handed rules: equipping a staff frees BOTH hands first — the main-hand shield
+        // swaps back to the bag and the off-hand shield is auto-unequipped.
+        clientA.SendDebugCommand("give_staff");
+        Pump(0.5f);
+        var staffPlaced = clientA.World.MyCharacter.Inventory.Items
+            .FirstOrDefault(pl => pl.Item.GetBase(data).Category == Items.ItemCategory.Staff);
+        Check(staffPlaced != null, "debug staff arrived in inventory");
+        clientA.RequestMoveItem(ItemLocation.AtGrid(staffPlaced.X, staffPlaced.Y),
+                                ItemLocation.AtEquip(Items.EquipSlot.MainHand));
+        Pump(0.4f);
+        var charAfterStaff = clientA.World.MyCharacter;
+        Check(charAfterStaff.MainHand?.InstanceId == staffPlaced.Item.InstanceId &&
+              charAfterStaff.OffHand == null &&
+              charAfterStaff.Inventory.FindByInstance(offHandItem.InstanceId) != null,
+              "equipping a two-handed staff auto-unequips the off-hand shield to the bag");
+
+        var shieldInBag = charAfterStaff.Inventory.FindByInstance(offHandItem.InstanceId);
+        clientA.RequestMoveItem(ItemLocation.AtGrid(shieldInBag.X, shieldInBag.Y),
+                                ItemLocation.AtEquip(Items.EquipSlot.OffHand));
+        Pump(0.4f);
+        Check(clientA.World.MyCharacter.OffHand == null,
+              "off-hand refuses a shield while a two-handed staff is equipped");
 
         Console.WriteLine("\n-- Fire bolt projectile --");
         Pump(4.0f); // ride out a possible death/respawn cycle from roaming enemies
