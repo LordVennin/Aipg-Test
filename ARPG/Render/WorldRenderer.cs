@@ -151,10 +151,11 @@ public class WorldRenderer
                 var weaponTex = SpriteGen.GetWeaponSprite(weaponBase);
                 if (weaponTex != null)
                 {
-                    float angle = MathF.Atan2(screenDir.Y, screenDir.X);
-                    var hand = screen + screenDir * 12f + new Vector2(0, -16);
-                    batch.Draw(weaponTex, hand, null, Color.White, angle,
-                        new Vector2(2, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
+                    // Held upright, orbiting the body toward the aim (like the old facing dot).
+                    // Origin sits at ~40% along the shaft so the weapon centers on the hand.
+                    var hand = screen + screenDir * 18f + new Vector2(0, -12);
+                    batch.Draw(weaponTex, hand, null, Color.White, -MathF.PI / 2f,
+                        new Vector2(weaponTex.Width * 0.4f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
                 }
                 else
                 {
