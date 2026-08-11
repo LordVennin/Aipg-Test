@@ -24,7 +24,12 @@ public class GameMain : Game
     public InputManager Input { get; } = new();
     public GameSettings Settings { get; private set; }
     public GameData Data { get; private set; }
-    public Point ScreenSize => new(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
+    /// <summary>ACTUAL backbuffer size. In borderless fullscreen the display may refuse the
+    /// preferred resolution, so layout must follow what the device really allocated —
+    /// otherwise menus lay out for a resolution that doesn't exist and end up off screen.</summary>
+    public Point ScreenSize => GraphicsDevice != null
+        ? new(GraphicsDevice.PresentationParameters.BackBufferWidth, GraphicsDevice.PresentationParameters.BackBufferHeight)
+        : new(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
     /// <summary>Screen size in UI (virtual) space — what menus/HUD lay out against.</summary>
     public Point UiScreenSize => new((int)(ScreenSize.X / UIScale.Value), (int)(ScreenSize.Y / UIScale.Value));
 

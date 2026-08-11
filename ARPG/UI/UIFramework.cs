@@ -225,3 +225,28 @@ public static class CloseButton
         sb.DrawString(font, "X", new Vector2(r.Center.X - size.X / 2, r.Center.Y - size.Y / 2), new Color(225, 215, 200));
     }
 }
+
+/// <summary>Text helpers shared by UI panels.</summary>
+public static class TextUtil
+{
+    /// <summary>Word-wrap text so each line fits within maxPixels for the given font.</summary>
+    public static IEnumerable<string> WrapToWidth(string text, FontStashSharp.SpriteFontBase font, float maxPixels)
+    {
+        if (string.IsNullOrEmpty(text)) yield break;
+        string line = "";
+        foreach (var word in text.Split(' '))
+        {
+            string candidate = line.Length == 0 ? word : line + " " + word;
+            if (line.Length > 0 && font.MeasureString(candidate).X > maxPixels)
+            {
+                yield return line;
+                line = word;
+            }
+            else
+            {
+                line = candidate;
+            }
+        }
+        if (line.Length > 0) yield return line;
+    }
+}

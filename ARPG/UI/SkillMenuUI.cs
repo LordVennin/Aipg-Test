@@ -165,8 +165,14 @@ public class SkillMenuUI
         sb.DrawString(FontManager.GetBold(18), selDef.Name, new Vector2(x, y), WorldRenderer.RarityColor(ItemRarity.Rare));
         sb.DrawString(small, $"Tags: {string.Join(", ", selDef.Tags)}", new Vector2(x + 200, y + 4), new Color(170, 150, 200));
         y += 26;
-        sb.DrawString(small, selDef.Description ?? "", new Vector2(x, y), new Color(170, 165, 150));
-        y += 20;
+        // Wrap the description to the panel width — long texts (e.g. Shield Bash) must
+        // not run past the panel edge.
+        foreach (var descLine in TextUtil.WrapToWidth(selDef.Description ?? "", small, _panelRect.Width - 30))
+        {
+            sb.DrawString(small, descLine, new Vector2(x, y), new Color(170, 165, 150));
+            y += 17;
+        }
+        y += 3;
 
         // XP bar
         float xpNeed = SkillMath.XpToNextLevel(sel.Level);
@@ -186,6 +192,7 @@ public class SkillMenuUI
                            (stats.Radius > 0 ? $"   Radius {stats.Radius:0.0}" : "") +
                            (selDef.Archetype == SkillArchetype.Projectile ? $"   Projectiles {stats.ProjectileCount}" : "") +
                            (stats.ManaCost > 0 ? $"   Mana {stats.ManaCost:0}" : "") +
+                           $"   Crit {stats.CritChance:0}%" +
                            (stats.IgniteChance > 0 ? $"   Ignite {stats.IgniteChance:P0}" : "") +
                            (selDef.StunDuration > 0
                                ? $"   Stun {selDef.StunDuration:0.0}s" +

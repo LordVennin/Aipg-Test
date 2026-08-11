@@ -1,8 +1,8 @@
 [
   {
     "Id": "basic_strike",
-    "Name": "Basic Strike",
-    "Description": "A quick single-target swipe with your mace that knocks the enemy back.",
+    "Name": "Mace Strike",
+    "Description": "A quick single-target swing with your mace that knocks the enemy back.",
     "Tags": [
       "Attack",
       "Melee",
@@ -22,8 +22,8 @@
   },
   {
     "Id": "mace_strike",
-    "Name": "Mace Strike",
-    "Description": "A heavy blow with your mace, striking enemies near the aimed point.",
+    "Name": "Heavy Strike",
+    "Description": "A heavy overhead blow, striking all enemies near the aimed point.",
     "Tags": [
       "Attack",
       "Melee",
@@ -38,7 +38,7 @@
     "RequiredWeapon": "Mace",
     "Cooldown": 0.35,
     "Range": 1.5,
-    "Radius": 1.0,
+    "Radius": 1.25,
     "RadiusPerLevel": 0.03,
     "ManaCost": 4
   },
@@ -69,7 +69,7 @@
   {
     "Id": "shield_bash",
     "Name": "Shield Bash",
-    "Description": "Slam your shield into an enemy, knocking it back with a high chance to momentarily stun it. Heavier shields hit harder: gains damage from your shield's armor. Requires a shield equipped.",
+    "Description": "Lunge forward and slam your shield into an enemy, knocking it far back with a high chance to momentarily stun it. Heavier shields hit harder: +1 damage per 10 shield armor. Requires a shield equipped.",
     "Tags": [
       "Attack",
       "Melee",
@@ -82,14 +82,15 @@
     "WeaponDamageMultiplier": 0.9,
     "WeaponDamageMultiplierPerLevel": 0.07,
     "RequiresShield": true,
-    "ShieldArmorScaling": 0.6,
+    "ShieldArmorScaling": 0.1,
     "Cooldown": 0.7,
     "Range": 1.4,
     "Radius": 1.0,
-    "Knockback": 1.6,
+    "Knockback": 2.5,
     "StunDuration": 0.5,
     "StunChance": 0.8,
-    "ManaCost": 6
+    "ManaCost": 6,
+    "LungeDistance": 1.1
   },
   {
     "Id": "fire_bolt",

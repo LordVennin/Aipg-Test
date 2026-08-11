@@ -144,6 +144,16 @@ public partial class ServerWorld
                 continue;
             }
 
+            // Gold is picked up automatically by walking over it.
+            foreach (var drop in Drops.Values.ToList())
+            {
+                if (!drop.IsGold || Vector2.Distance(drop.Position, p.Position) > 1.1f) continue;
+                p.Character.Gold += drop.GoldAmount;
+                Drops.Remove(drop.DropId);
+                _events.WorldItemRemoved(drop, p.Id);
+                _events.CharacterChanged(p);
+            }
+
             // Life regeneration (from the LifeRegeneration stat, e.g. the Mending prefix)
             // and level-based mana regeneration. Changes are broadcast in whole-point
             // steps to avoid packet spam.
@@ -352,7 +362,9 @@ public partial class ServerWorld
                     if (e.Dead) continue;
                     if (Vector2.Distance(pr.Position, e.Position) <= e.Def.Radius + 0.25f)
                     {
-                        var (dmg, hitKind) = MitigateForEnemy(e, RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added));
+                        var comps = RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
+                        ApplyCritRoll(comps, pr.CritChance, pr.CritDamage);
+                        var (dmg, hitKind) = MitigateForEnemy(e, comps);
                         bool ignite = pr.IgniteChance > 0 && _rng.NextDouble() < pr.IgniteChance;
                         HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind, ignite);
                         RemoveProjectile(pr, pr.Position);
@@ -429,6 +441,11 @@ public partial class ServerWorld
 
         p.SkillReadyAt[skillId] = Time + stats.Cooldown;
 
+        // Lunge skills (Shield Bash) shove the caster forward client-side; cover the
+        // collision with brief server-side invulnerability so it can't hurt them.
+        if (def.LungeDistance > 0)
+            p.InvulnerableUntil = MathF.Max(p.InvulnerableUntil, Time + 0.35f);
+
         // The effect point is computed ONCE here and broadcast; hit detection below and
         // client visuals both use this exact point.
         Vector2 effectPoint = target;
@@ -502,6 +519,8 @@ public partial class ServerWorld
                         MaxDamage = stats.MaxDamage,
                         DamageKind = stats.DamageKind,
                         IgniteChance = stats.IgniteChance,
+                        CritChance = stats.CritChance,
+                        CritDamage = stats.CritDamage,
                         Added = stats.Added,
                     };
                     Projectiles[pr.Id] = pr;
@@ -572,10 +591,25 @@ public partial class ServerWorld
         return list;
     }
 
-    /// <summary>A full skill hit against one enemy: roll components, then apply the enemy's
-    /// per-type resistances/weaknesses (negative resistance = extra damage).</summary>
-    private (float total, DamageKind dominant) RollSkillHit(ServerEnemy target, in EffectiveSkillStats stats) =>
-        MitigateForEnemy(target, RollComponentList(stats.MinDamage, stats.MaxDamage, stats.DamageKind, stats.Added));
+    /// <summary>A full skill hit against one enemy: roll components, roll the critical
+    /// strike, then apply the enemy's per-type resistances/weaknesses (negative
+    /// resistance = extra damage).</summary>
+    private (float total, DamageKind dominant) RollSkillHit(ServerEnemy target, in EffectiveSkillStats stats)
+    {
+        var comps = RollComponentList(stats.MinDamage, stats.MaxDamage, stats.DamageKind, stats.Added);
+        ApplyCritRoll(comps, stats.CritChance, stats.CritDamage);
+        return MitigateForEnemy(target, comps);
+    }
+
+    /// <summary>Roll a critical strike: on success every component of the hit is multiplied
+    /// by the crit damage multiplier (percent; 150 = 1.5x).</summary>
+    private void ApplyCritRoll(List<(DamageKind kind, float amount)> comps, float chance, float damagePct)
+    {
+        if (chance <= 0 || _rng.NextDouble() * 100 >= chance) return;
+        float mult = MathF.Max(1f, damagePct / 100f);
+        for (int i = 0; i < comps.Count; i++)
+            comps[i] = (comps[i].kind, comps[i].amount * mult);
+    }
 
     private (float total, DamageKind dominant) MitigateForEnemy(ServerEnemy e,
         List<(DamageKind kind, float amount)> components)

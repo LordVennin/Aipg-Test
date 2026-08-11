@@ -56,6 +56,8 @@ public class ItemModifier
             StatType.SpellDamage => "Spell Damage",
             StatType.AttackSpeed => "Attack Speed",
             StatType.CastSpeed => "Cast Speed",
+            StatType.CriticalChance => "Critical Hit Chance",
+            StatType.CriticalDamage => "Critical Hit Damage",
             StatType.Armor => "Armor",
             StatType.FireResistance => "Fire Resistance",
             StatType.ColdResistance => "Cold Resistance",

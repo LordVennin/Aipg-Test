@@ -100,6 +100,11 @@ public class SkillDefinition
     /// heavier shields hit harder). 0 for skills that don't scale with shields.</summary>
     public float ShieldArmorScaling { get; set; }
 
+    /// <summary>Tiles the caster dashes toward the aim on use (Shield Bash's forward scoot).
+    /// The dash is client-predicted like normal movement; the server grants brief
+    /// invulnerability so ramming into an enemy doesn't hurt.</summary>
+    public float LungeDistance { get; set; }
+
     /// <summary>"Attack" skills scale with attack speed; "Spell" with cast speed.</summary>
     public bool IsAttack => Tags.Contains(SkillTags.Attack);
 

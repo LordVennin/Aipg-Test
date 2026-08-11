@@ -18,12 +18,21 @@ public class MainMenuScreen : IScreen
     private readonly GameMain _game;
     private readonly Panel _panel = new() { Background = Color.Transparent, Border = Color.Transparent };
     private readonly string _message;
+    private Point _builtSize;
 
     public MainMenuScreen(GameMain game, string message = null)
     {
         _game = game;
         _message = message;
+        Build();
+    }
+
+    private void Build()
+    {
+        var game = _game;
         var size = game.UiScreenSize;
+        _builtSize = size;
+        _panel.Children.Clear();
         int cx = size.X / 2 - 130, y = size.Y / 2 - 130, w = 260, h = 44, gap = 12;
         _panel.Children.Add(new Button("Single Player", new Rectangle(cx, y, w, h), game.StartSinglePlayer));
         _panel.Children.Add(new Button("Host Game", new Rectangle(cx, y + (h + gap), w, h), () => game.SwitchScreen(new HostScreen(game))));
@@ -32,7 +41,11 @@ public class MainMenuScreen : IScreen
         _panel.Children.Add(new Button("Quit", new Rectangle(cx, y + 4 * (h + gap), w, h), game.ExitGame));
     }
 
-    public void Update(float dt) => _panel.Update(_game.Input);
+    public void Update(float dt)
+    {
+        if (_game.UiScreenSize != _builtSize) Build(); // resolution changed under us
+        _panel.Update(_game.Input);
+    }
 
     public void Draw(SpriteBatch sb)
     {
@@ -371,14 +384,28 @@ public class OptionsPanel
 public class OptionsScreen : IScreen
 {
     private readonly GameMain _game;
-    private readonly OptionsPanel _options;
+    private OptionsPanel _options;
+    private Point _builtSize;
 
     public OptionsScreen(GameMain game)
     {
         _game = game;
-        _options = new OptionsPanel(game, () => game.SwitchScreen(new MainMenuScreen(game)));
+        Build();
     }
 
-    public void Update(float dt) => _options.Update(_game.Input);
+    private void Build()
+    {
+        _builtSize = _game.UiScreenSize;
+        _options = new OptionsPanel(_game, () => _game.SwitchScreen(new MainMenuScreen(_game)));
+    }
+
+    public void Update(float dt)
+    {
+        // Changing resolution/fullscreen from this very panel moves the layout basis —
+        // rebuild so the buttons stay on screen.
+        if (_game.UiScreenSize != _builtSize) Build();
+        _options.Update(_game.Input);
+    }
+
     public void Draw(SpriteBatch sb) => _options.Draw(sb);
 }

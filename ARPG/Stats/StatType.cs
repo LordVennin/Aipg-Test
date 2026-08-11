@@ -31,6 +31,11 @@ public enum StatType
     AttackSpeed,
     CastSpeed,
 
+    // Critical hits (weapon suffixes): flat added crit chance %, and % added on top of
+    // the base 150% critical damage multiplier
+    CriticalChance,
+    CriticalDamage,
+
     // Weapon-local stats
     MinPhysicalDamage,
     MaxPhysicalDamage,

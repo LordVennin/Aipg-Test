@@ -7,7 +7,6 @@
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -27,7 +26,6 @@
   "MinimumItemLevel": 2,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -47,7 +45,6 @@
   "MinimumItemLevel": 4,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -67,7 +64,6 @@
   "MinimumItemLevel": 6,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -87,7 +83,6 @@
   "MinimumItemLevel": 8,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -107,7 +102,6 @@
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -127,7 +121,6 @@
   "MinimumItemLevel": 12,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -147,7 +140,6 @@
   "MinimumItemLevel": 14,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -167,7 +159,6 @@
   "MinimumItemLevel": 16,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -187,7 +178,6 @@
   "MinimumItemLevel": 18,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff",
    "Gloves",
    "Amulet",
    "Ring"
@@ -596,8 +586,6 @@
   "Tier": 1,
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -621,8 +609,6 @@
   "Tier": 2,
   "MinimumItemLevel": 2,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -646,8 +632,6 @@
   "Tier": 3,
   "MinimumItemLevel": 4,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -671,8 +655,6 @@
   "Tier": 4,
   "MinimumItemLevel": 6,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -696,8 +678,6 @@
   "Tier": 5,
   "MinimumItemLevel": 8,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -721,8 +701,6 @@
   "Tier": 6,
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -746,8 +724,6 @@
   "Tier": 7,
   "MinimumItemLevel": 12,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -771,8 +747,6 @@
   "Tier": 8,
   "MinimumItemLevel": 14,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -796,8 +770,6 @@
   "Tier": 9,
   "MinimumItemLevel": 16,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -821,8 +793,6 @@
   "Tier": 10,
   "MinimumItemLevel": 18,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -846,8 +816,6 @@
   "Tier": 1,
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -871,8 +839,6 @@
   "Tier": 2,
   "MinimumItemLevel": 2,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -896,8 +862,6 @@
   "Tier": 3,
   "MinimumItemLevel": 4,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -921,8 +885,6 @@
   "Tier": 4,
   "MinimumItemLevel": 6,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -946,8 +908,6 @@
   "Tier": 5,
   "MinimumItemLevel": 8,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -971,8 +931,6 @@
   "Tier": 6,
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -996,8 +954,6 @@
   "Tier": 7,
   "MinimumItemLevel": 12,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1021,8 +977,6 @@
   "Tier": 8,
   "MinimumItemLevel": 14,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1046,8 +1000,6 @@
   "Tier": 9,
   "MinimumItemLevel": 16,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1071,8 +1023,6 @@
   "Tier": 10,
   "MinimumItemLevel": 18,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1096,8 +1046,6 @@
   "Tier": 1,
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1121,8 +1069,6 @@
   "Tier": 2,
   "MinimumItemLevel": 2,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1146,8 +1092,6 @@
   "Tier": 3,
   "MinimumItemLevel": 4,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1171,8 +1115,6 @@
   "Tier": 4,
   "MinimumItemLevel": 6,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1196,8 +1138,6 @@
   "Tier": 5,
   "MinimumItemLevel": 8,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1221,8 +1161,6 @@
   "Tier": 6,
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1246,8 +1184,6 @@
   "Tier": 7,
   "MinimumItemLevel": 12,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1271,8 +1207,6 @@
   "Tier": 8,
   "MinimumItemLevel": 14,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1296,8 +1230,6 @@
   "Tier": 9,
   "MinimumItemLevel": 16,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1321,8 +1253,6 @@
   "Tier": 10,
   "MinimumItemLevel": 18,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1346,8 +1276,6 @@
   "Tier": 1,
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1371,8 +1299,6 @@
   "Tier": 2,
   "MinimumItemLevel": 2,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1396,8 +1322,6 @@
   "Tier": 3,
   "MinimumItemLevel": 4,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1421,8 +1345,6 @@
   "Tier": 4,
   "MinimumItemLevel": 6,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1446,8 +1368,6 @@
   "Tier": 5,
   "MinimumItemLevel": 8,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1471,8 +1391,6 @@
   "Tier": 6,
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1496,8 +1414,6 @@
   "Tier": 7,
   "MinimumItemLevel": 12,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1521,8 +1437,6 @@
   "Tier": 8,
   "MinimumItemLevel": 14,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1546,8 +1460,6 @@
   "Tier": 9,
   "MinimumItemLevel": 16,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1571,8 +1483,6 @@
   "Tier": 10,
   "MinimumItemLevel": 18,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1596,8 +1506,6 @@
   "Tier": 1,
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1621,8 +1529,6 @@
   "Tier": 2,
   "MinimumItemLevel": 2,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1646,8 +1552,6 @@
   "Tier": 3,
   "MinimumItemLevel": 4,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1671,8 +1575,6 @@
   "Tier": 4,
   "MinimumItemLevel": 6,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1696,8 +1598,6 @@
   "Tier": 5,
   "MinimumItemLevel": 8,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1721,8 +1621,6 @@
   "Tier": 6,
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1746,8 +1644,6 @@
   "Tier": 7,
   "MinimumItemLevel": 12,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1771,8 +1667,6 @@
   "Tier": 8,
   "MinimumItemLevel": 14,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1796,8 +1690,6 @@
   "Tier": 9,
   "MinimumItemLevel": 16,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1821,8 +1713,6 @@
   "Tier": 10,
   "MinimumItemLevel": 18,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1846,8 +1736,6 @@
   "Tier": 1,
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1871,8 +1759,6 @@
   "Tier": 2,
   "MinimumItemLevel": 2,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1896,8 +1782,6 @@
   "Tier": 3,
   "MinimumItemLevel": 4,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1921,8 +1805,6 @@
   "Tier": 4,
   "MinimumItemLevel": 6,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1946,8 +1828,6 @@
   "Tier": 5,
   "MinimumItemLevel": 8,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1971,8 +1851,6 @@
   "Tier": 6,
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -1996,8 +1874,6 @@
   "Tier": 7,
   "MinimumItemLevel": 12,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2021,8 +1897,6 @@
   "Tier": 8,
   "MinimumItemLevel": 14,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2046,8 +1920,6 @@
   "Tier": 9,
   "MinimumItemLevel": 16,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2071,8 +1943,6 @@
   "Tier": 10,
   "MinimumItemLevel": 18,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2416,8 +2286,6 @@
   "Tier": 1,
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2441,8 +2309,6 @@
   "Tier": 2,
   "MinimumItemLevel": 2,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2466,8 +2332,6 @@
   "Tier": 3,
   "MinimumItemLevel": 4,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2491,8 +2355,6 @@
   "Tier": 4,
   "MinimumItemLevel": 6,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2516,8 +2378,6 @@
   "Tier": 5,
   "MinimumItemLevel": 8,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2541,8 +2401,6 @@
   "Tier": 6,
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2566,8 +2424,6 @@
   "Tier": 7,
   "MinimumItemLevel": 12,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2591,8 +2447,6 @@
   "Tier": 8,
   "MinimumItemLevel": 14,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2616,8 +2470,6 @@
   "Tier": 9,
   "MinimumItemLevel": 16,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2641,8 +2493,6 @@
   "Tier": 10,
   "MinimumItemLevel": 18,
   "CompatibleItemCategories": [
-   "Mace",
-   "Staff",
    "Helmet",
    "BodyArmor",
    "Gloves",
@@ -2906,6 +2756,346 @@
   "StatAffected": "ManaRegeneration",
   "MinimumValue": 42,
   "MaximumValue": 53,
+  "Weight": 41,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision",
+  "Name": "of Precision I",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 2,
+  "MaximumValue": 3,
+  "Weight": 90,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t2",
+  "Name": "of Precision II",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 3,
+  "MaximumValue": 4,
+  "Weight": 85,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t3",
+  "Name": "of Precision III",
+  "AffixType": "Suffix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 4,
+  "MaximumValue": 5,
+  "Weight": 79,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t4",
+  "Name": "of Precision IV",
+  "AffixType": "Suffix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 4,
+  "MaximumValue": 6,
+  "Weight": 74,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t5",
+  "Name": "of Precision V",
+  "AffixType": "Suffix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 5,
+  "MaximumValue": 7,
+  "Weight": 68,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t6",
+  "Name": "of Precision VI",
+  "AffixType": "Suffix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 6,
+  "MaximumValue": 8,
+  "Weight": 63,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t7",
+  "Name": "of Precision VII",
+  "AffixType": "Suffix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 7,
+  "MaximumValue": 9,
+  "Weight": 57,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t8",
+  "Name": "of Precision VIII",
+  "AffixType": "Suffix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 7,
+  "MaximumValue": 10,
+  "Weight": 52,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t9",
+  "Name": "of Precision IX",
+  "AffixType": "Suffix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 8,
+  "MaximumValue": 11,
+  "Weight": 46,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_precision_t10",
+  "Name": "of Precision X",
+  "AffixType": "Suffix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_chance",
+  "StatAffected": "CriticalChance",
+  "MinimumValue": 9,
+  "MaximumValue": 12,
+  "Weight": 41,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity",
+  "Name": "of Ferocity I",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 10,
+  "MaximumValue": 14,
+  "Weight": 90,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t2",
+  "Name": "of Ferocity II",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 2,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 14,
+  "MaximumValue": 19,
+  "Weight": 85,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t3",
+  "Name": "of Ferocity III",
+  "AffixType": "Suffix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 79,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t4",
+  "Name": "of Ferocity IV",
+  "AffixType": "Suffix",
+  "Tier": 4,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 22,
+  "MaximumValue": 29,
+  "Weight": 74,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t5",
+  "Name": "of Ferocity V",
+  "AffixType": "Suffix",
+  "Tier": 5,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 26,
+  "MaximumValue": 34,
+  "Weight": 68,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t6",
+  "Name": "of Ferocity VI",
+  "AffixType": "Suffix",
+  "Tier": 6,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 29,
+  "MaximumValue": 40,
+  "Weight": 63,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t7",
+  "Name": "of Ferocity VII",
+  "AffixType": "Suffix",
+  "Tier": 7,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 33,
+  "MaximumValue": 45,
+  "Weight": 57,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t8",
+  "Name": "of Ferocity VIII",
+  "AffixType": "Suffix",
+  "Tier": 8,
+  "MinimumItemLevel": 14,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 37,
+  "MaximumValue": 50,
+  "Weight": 52,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t9",
+  "Name": "of Ferocity IX",
+  "AffixType": "Suffix",
+  "Tier": 9,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 41,
+  "MaximumValue": 55,
+  "Weight": 46,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_ferocity_t10",
+  "Name": "of Ferocity X",
+  "AffixType": "Suffix",
+  "Tier": 10,
+  "MinimumItemLevel": 18,
+  "CompatibleItemCategories": [
+   "Mace",
+   "Staff"
+  ],
+  "ModifierGroup": "crit_damage",
+  "StatAffected": "CriticalDamage",
+  "MinimumValue": 45,
+  "MaximumValue": 60,
   "Weight": 41,
   "IsPercent": true
  }

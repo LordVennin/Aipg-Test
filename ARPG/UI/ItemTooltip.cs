@@ -92,10 +92,19 @@ public static class ItemTooltip
             baseLines.Add(new Line($"Attack Speed: {aps:0.0#}", white));
         if (bs.TryGetValue(StatType.WeaponRange, out float range))
             baseLines.Add(new Line($"Weapon Range: {range:0.0}", white));
+
+        // Armor is shown pre-calculated: base + all +Armor modifiers rolled on the item,
+        // so players never have to sum it themselves (mirrors the weapon damage line).
+        float armorFromMods = item.Modifiers.Sum(roll =>
+            data.Modifiers.GetValueOrDefault(roll.ModifierId)?.StatAffected == StatType.Armor ? roll.Value : 0f);
+        float totalArmor = bs.GetValueOrDefault(StatType.Armor) + armorFromMods;
+        if (totalArmor > 0)
+            baseLines.Add(new Line($"Armor: {totalArmor:0}", white));
+
         foreach (var (stat, value) in bs)
         {
             if (stat is StatType.MinPhysicalDamage or StatType.MaxPhysicalDamage
-                or StatType.BaseAttackSpeed or StatType.WeaponRange) continue;
+                or StatType.BaseAttackSpeed or StatType.WeaponRange or StatType.Armor) continue;
             baseLines.Add(new Line(DescribeBaseStat(stat, value), white));
         }
         if (baseLines.Count > 0)

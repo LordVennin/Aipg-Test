@@ -127,7 +127,13 @@ public class LootGenerator
             AffixType affix = prefixOpen && suffixOpen
                 ? (_rng.Next(2) == 0 ? AffixType.Prefix : AffixType.Suffix)
                 : (prefixOpen ? AffixType.Prefix : AffixType.Suffix);
-            if (!TryRollAffix(item, itemBase, affix)) break;
+            if (!TryRollAffix(item, itemBase, affix))
+            {
+                // One side ran out of compatible modifier groups — fall back to the
+                // other side before giving up entirely.
+                var other = affix == AffixType.Prefix ? AffixType.Suffix : AffixType.Prefix;
+                if (!item.CanAddAffix(_data, other) || !TryRollAffix(item, itemBase, other)) break;
+            }
         }
     }
 
