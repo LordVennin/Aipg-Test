@@ -76,6 +76,24 @@ public static class SkillMath
         return caster + dir * dist;
     }
 
+    /// <summary>
+    /// Damage-per-second by damage type for a computed skill: average of each typed
+    /// component times uses per second (1/cooldown). Used by the character sheet.
+    /// </summary>
+    public static Dictionary<DamageKind, float> DpsBreakdown(in EffectiveSkillStats stats)
+    {
+        float perSecond = 1f / MathF.Max(0.05f, stats.Cooldown);
+        var result = new Dictionary<DamageKind, float>
+        {
+            [stats.DamageKind] = (stats.MinDamage + stats.MaxDamage) * 0.5f * perSecond,
+        };
+        if (stats.Added != null)
+            foreach (var comp in stats.Added)
+                result[comp.Kind] = result.GetValueOrDefault(comp.Kind) +
+                                    (comp.Min + comp.Max) * 0.5f * perSecond;
+        return result;
+    }
+
     public static EffectiveSkillStats Compute(
         GameData data,
         SkillDefinition def,

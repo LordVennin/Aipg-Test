@@ -148,8 +148,9 @@ public static class HeadlessNetTest
         Check(clientB.World.DodgeEventsSeen >= 1, "client B saw client A's dodge event");
 
         // Force many drops to guarantee loot: kill everything nearby repeatedly.
+        // Gold piles have Item == null, so keep going until an actual item drops.
         int dropsBefore = clientA.World.Drops.Count;
-        for (int round = 0; round < 6 && server.World.Drops.Count == 0; round++)
+        for (int round = 0; round < 10 && !server.World.Drops.Values.Any(d => d.Item != null); round++)
         {
             clientA.SendDebugCommand("spawn_enemy", "grunt");
             Pump(0.2f);
@@ -164,7 +165,7 @@ public static class HeadlessNetTest
         Check(clientB.World.Drops.Count == server.World.Drops.Count, "client B sees all drops");
 
         // Same drop must have identical serialized modifiers on both clients.
-        var dropId = server.World.Drops.Keys.First();
+        var dropId = server.World.Drops.First(kv => kv.Value.Item != null).Key;
         var dropA = clientA.World.Drops[dropId];
         var dropB = clientB.World.Drops[dropId];
         Check(Json.SaveCompact(dropA.Item) == Json.SaveCompact(dropB.Item),
@@ -174,16 +175,22 @@ public static class HeadlessNetTest
         Console.WriteLine("\n-- Exclusive pickup --");
         // Both clients race to pick up the same item; exactly one may win.
         var dropPos = server.World.Drops[dropId].Position;
-        clientA.World.Me.Position = dropPos;
-        clientB.World.Me.Position = dropPos;
-        Pump(0.4f); // let the fresh client positions reach the server before requesting pickup
         int invA = clientA.World.MyCharacter.Inventory.Items.Count;
         int invB = clientB.World.MyCharacter.Inventory.Items.Count;
-        clientA.RequestPickup(dropId);
-        clientB.RequestPickup(dropId);
-        Pump(0.6f);
-        int gainedA = clientA.World.MyCharacter.Inventory.Items.Count - invA;
-        int gainedB = clientB.World.MyCharacter.Inventory.Items.Count - invB;
+        int gainedA = 0, gainedB = 0;
+        for (int attempt = 0; attempt < 5 && gainedA + gainedB == 0; attempt++)
+        {
+            clientA.SendDebugCommand("heal");
+            clientB.SendDebugCommand("heal");
+            clientA.World.Me.Position = dropPos;
+            clientB.World.Me.Position = dropPos;
+            Pump(0.4f); // let the fresh client positions reach the server before requesting pickup
+            clientA.RequestPickup(dropId);
+            clientB.RequestPickup(dropId);
+            Pump(0.6f);
+            gainedA = clientA.World.MyCharacter.Inventory.Items.Count - invA;
+            gainedB = clientB.World.MyCharacter.Inventory.Items.Count - invB;
+        }
         Check(gainedA + gainedB == 1, $"exactly one client got the item (A +{gainedA}, B +{gainedB})");
         Check(!clientA.World.Drops.ContainsKey(dropId) && !clientB.World.Drops.ContainsKey(dropId),
               "picked-up item disappeared for both clients");
@@ -310,10 +317,11 @@ public static class HeadlessNetTest
             Check(clientB.World.Drops.TryGetValue(goldDrop.DropId, out var goldOnB) && goldOnB.IsGold &&
                   goldOnB.GoldAmount == goldDrop.GoldAmount,
                   $"gold drop synchronized to client B ({goldDrop.GoldAmount} gold)");
-            clientA.SendDebugCommand("heal");
             bool goldGained = false;
             for (int attempt = 0; attempt < 6 && !goldGained; attempt++)
             {
+                clientA.SendDebugCommand("kill_nearby"); // roaming zombies can kill A mid-pickup
+                clientA.SendDebugCommand("heal");
                 clientA.World.Me.Position = goldDrop.Position;
                 Pump(0.4f);
                 clientA.RequestPickup(goldDrop.DropId);
@@ -341,8 +349,8 @@ public static class HeadlessNetTest
               $"basic strike knocked the enemy back ({kbBefore:0.00} -> {kbAfter:0.00} tiles)");
 
         Console.WriteLine("\n-- Enchanting Scrolls, slot caps, stacking, stun --");
-        Check(data.Items.Values.Count(b => b.Category == Items.ItemCategory.EnchantScroll) == 11,
-              "all 11 Enchanting Scroll types loaded");
+        Check(data.Items.Values.Count(b => b.Category == Items.ItemCategory.EnchantScroll) == 12,
+              "all 12 Enchanting Scroll types loaded");
 
         // Slot cap distribution: totals within 3..8, 5 the most common.
         var slotGen = new Items.LootGenerator(data, new Random(7));
@@ -494,6 +502,34 @@ public static class HeadlessNetTest
         Check(resStats.AcidResistance == 15 && resStats.DarkResistance == 8,
               $"acid/dark/light resistances compute ({resStats.AcidResistance}% acid, {resStats.DarkResistance}% dark)");
 
+        Console.WriteLine("\n-- Gilding scroll and DPS breakdown --");
+        Check(data.Items.ContainsKey("es_gilding") &&
+              data.Items["es_gilding"].EnchantType == Items.EnchantType.GildUpgrade,
+              "Scroll of Gilding loaded (12 enchanting scroll types)");
+        var gildItem = new Items.ItemInstance
+        {
+            BaseItemId = "iron_mace", ItemLevel = 8, Rarity = Items.ItemRarity.Normal,
+            MaxPrefixes = 3, MaxSuffixes = 3,
+        };
+        var gildRng = new Random(21);
+        var gildLoot = new Items.LootGenerator(data, gildRng);
+        Items.EnchantSystem.Apply(data, gildRng, gildLoot, Items.EnchantType.Awaken, gildItem, out _);
+        Check(gildItem.Rarity == Items.ItemRarity.Magic, "test item awakened to blue");
+        int modsBeforeGild = gildItem.Modifiers.Count;
+        Check(Items.EnchantSystem.Apply(data, gildRng, gildLoot, Items.EnchantType.GildUpgrade, gildItem, out _) &&
+              gildItem.Rarity == Items.ItemRarity.Rare && gildItem.Modifiers.Count == modsBeforeGild + 1,
+              $"Gilding turned blue item gold and added a modifier ({modsBeforeGild} -> {gildItem.Modifiers.Count})");
+        Check(Items.EnchantSystem.Apply(data, gildRng, gildLoot, Items.EnchantType.AddRandomRare, gildItem, out _),
+              "gilded item accepts gold-tier scrolls afterward");
+        Check(!Items.EnchantSystem.Apply(data, gildRng, gildLoot, Items.EnchantType.GildUpgrade, gildItem, out string gildErr),
+              $"Gilding rejects already-gold items ('{gildErr}')");
+
+        var breakdown = Skills.SkillMath.DpsBreakdown(strikeStats); // Searing mace basic strike
+        Check(breakdown.GetValueOrDefault(Skills.DamageKind.Blunt) > 0 &&
+              breakdown.GetValueOrDefault(Skills.DamageKind.Fire) > 0,
+              $"DPS breakdown splits by type (Blunt {breakdown.GetValueOrDefault(Skills.DamageKind.Blunt):0.0}, " +
+              $"Fire {breakdown.GetValueOrDefault(Skills.DamageKind.Fire):0.0})");
+
         Console.WriteLine("\n-- Enemy combat profiles (typed damage + resistances) --");
         var gruntDef = data.Enemies["grunt"];
         var spitterDef = data.Enemies["spitter"];
@@ -554,11 +590,15 @@ public static class HeadlessNetTest
 
         Console.WriteLine("\n-- Fire bolt projectile --");
         Pump(4.0f); // ride out a possible death/respawn cycle from roaming enemies
+        clientB.SendDebugCommand("kill_nearby"); // the spitter (and friends) can kill B mid-cast otherwise
         clientB.SendDebugCommand("heal");
         Pump(0.3f);
         bool projectileSeen = false;
-        for (int attempt = 0; attempt < 4 && !projectileSeen; attempt++)
+        for (int attempt = 0; attempt < 6 && !projectileSeen; attempt++)
         {
+            clientB.SendDebugCommand("kill_nearby");
+            clientB.SendDebugCommand("heal");
+            Pump(0.2f);
             clientB.RequestUseSkill("fire_bolt", clientB.World.Me.Position + new Vector2(3, 0));
             for (int i = 0; i < 60 && !projectileSeen; i++)
             {

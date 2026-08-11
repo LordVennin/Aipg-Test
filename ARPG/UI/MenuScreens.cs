@@ -255,6 +255,7 @@ public class OptionsPanel
         InputAction.Skill4 => "Skill 4",
         InputAction.Inventory => "Inventory",
         InputAction.SkillMenu => "Skill Menu",
+        InputAction.CharacterSheet => "Character Sheet",
         InputAction.Dodge => "Dodge",
         InputAction.Interact => "Interact / Pickup",
         InputAction.Pause => "Pause",

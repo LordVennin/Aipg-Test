@@ -9,6 +9,7 @@ public enum EnchantType
     Awaken,          // white item: add 1 random prefix/suffix, item becomes Magic (blue)
     AddPrefixMagic,  // blue item: add a prefix (blue items cap at 2 total modifiers)
     AddSuffixMagic,  // blue item: add a suffix
+    GildUpgrade,     // blue item: upgrade to gold (rare) and add a random modifier
     AddRandomRare,   // gold item: add a random modifier
     AddPrefixRare,   // gold item: add a prefix
     AddSuffixRare,   // gold item: add a suffix
@@ -65,6 +66,15 @@ public static class EnchantSystem
                     return Fail(out error, $"Blue items can hold at most {MagicModifierCap} modifiers.");
                 var affix = type == EnchantType.AddPrefixMagic ? AffixType.Prefix : AffixType.Suffix;
                 return TryAddAffix(data, rng, loot, target, affix, out error);
+            }
+
+            case EnchantType.GildUpgrade:
+            {
+                if (target.Rarity != ItemRarity.Magic)
+                    return Fail(out error, "Requires a blue (magic) item.");
+                target.Rarity = ItemRarity.Rare; // gilded: gold from here on, slots are the only cap
+                TryAddAffix(data, rng, loot, target, RandomOpenAffix(data, rng, target), out _); // best effort
+                return true;
             }
 
             case EnchantType.AddRandomRare:

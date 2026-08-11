@@ -27,6 +27,7 @@ public class PlayScreen : IScreen
     private readonly HudUI _hud;
     private readonly InventoryUI _inventory;
     private readonly SkillMenuUI _skillMenu;
+    private readonly CharacterSheetUI _characterSheet;
     private readonly DebugUI _debug;
     private readonly DragState _drag = new();
 
@@ -55,6 +56,7 @@ public class PlayScreen : IScreen
         _hud = new HudUI(game.Data, client);
         _inventory = new InventoryUI(game.Data, client, _drag);
         _skillMenu = new SkillMenuUI(game.Data, client, _drag);
+        _characterSheet = new CharacterSheetUI(game.Data, client);
         _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
@@ -121,6 +123,7 @@ public class PlayScreen : IScreen
         _camera.ScreenHeight = screen.Y;
         _inventory.Layout(screen);
         _skillMenu.Layout(screen);
+        _characterSheet.Layout(screen);
 
         if (_client.Status != ClientStatus.InGame)
         {
@@ -162,8 +165,11 @@ public class PlayScreen : IScreen
         }
         if (input.WasActionPressed(InputAction.Pause))
         {
-            if (_inventory.Open || _skillMenu.Open || _debug.Open)
-                _inventory.Open = _skillMenu.Open = _debug.Open = false;
+            if (_inventory.Open || _skillMenu.Open || _debug.Open || _characterSheet.Open)
+            {
+                _inventory.Open = _skillMenu.Open = _debug.Open = _characterSheet.Open = false;
+                _inventory.CancelEnchantMode();
+            }
             else
                 _paused = true;
         }
@@ -171,18 +177,21 @@ public class PlayScreen : IScreen
         // --- panel toggles ---
         if (input.WasActionPressed(InputAction.Inventory)) _inventory.Open = !_inventory.Open;
         if (input.WasActionPressed(InputAction.SkillMenu)) _skillMenu.Open = !_skillMenu.Open;
+        if (input.WasActionPressed(InputAction.CharacterSheet)) _characterSheet.Open = !_characterSheet.Open;
         if (input.WasActionPressed(InputAction.DebugMenu)) _debug.Open = !_debug.Open;
 
         // --- UI updates first: they claim the mouse before world input runs ---
         _debug.Update(input);
         _skillMenu.Update(input);
+        _characterSheet.Update(input);
         _inventory.Update(input);
 
         // --- finish drags ---
         if (_drag.Active && input.MouseLeftReleased)
         {
             var mouse = input.MousePosition;
-            bool handled = _skillMenu.TryDropAt(mouse) || _inventory.TryDropAt(mouse) || _debug.Contains(mouse);
+            bool handled = _skillMenu.TryDropAt(mouse) || _inventory.TryDropAt(mouse) ||
+                           _debug.Contains(mouse) || _characterSheet.Contains(mouse);
             if (!handled)
                 _client.RequestDropItem(_drag.Item.InstanceId); // released over the world: drop it
             _drag.Clear();
@@ -301,6 +310,7 @@ public class PlayScreen : IScreen
         _renderer.Draw(sb, _camera, _client.World);
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
         _skillMenu.Draw(sb, _game.Input);
+        _characterSheet.Draw(sb);
         _inventory.Draw(sb, _game.Input);
         _debug.Draw(sb);
 

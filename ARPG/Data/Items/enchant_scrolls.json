@@ -39,6 +39,19 @@
     "Description": "Use on a blue item: adds a suffix modifier (blue items hold at most 2 modifiers)."
   },
   {
+    "Id": "es_gilding",
+    "Name": "Scroll of Gilding",
+    "Category": "EnchantScroll",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "MaxStack": 20,
+    "BaseModifierLimit": 0,
+    "DropWeight": 45,
+    "EnchantType": "GildUpgrade",
+    "SpriteColor": "D89020",
+    "Description": "Use on a blue item: upgrades it to gold and adds a random modifier."
+  },
+  {
     "Id": "es_exaltation",
     "Name": "Scroll of Exaltation",
     "Category": "EnchantScroll",

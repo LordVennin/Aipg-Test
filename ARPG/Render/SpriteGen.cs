@@ -349,6 +349,15 @@ public static class SpriteGen
         for (int i = 0; i < tier; i++)
             Rect(3 + i * 3, 1, 2, 2, accent);
 
+        // Gilding: an upgrade scroll — a blue notch turning into a gold notch, with an arrow.
+        if (type == Items.EnchantType.GildUpgrade)
+        {
+            Rect(3, 1, 2, 2, new Color(95, 143, 239));    // blue (magic)
+            Set(6, 2, accent); Set(7, 2, accent);          // arrow shaft
+            Set(8, 1, accent); Set(8, 3, accent);          // arrow head
+            Rect(9, 1, 2, 2, new Color(232, 190, 70));     // gold (rare)
+        }
+
         // Remover types: a dark cut across the parchment.
         if (type is Items.EnchantType.RemoveRandom or Items.EnchantType.Reforge
             or Items.EnchantType.ReforgePrefix or Items.EnchantType.ReforgeSuffix)
