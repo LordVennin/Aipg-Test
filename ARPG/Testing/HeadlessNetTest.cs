@@ -310,11 +310,17 @@ public static class HeadlessNetTest
             Check(clientB.World.Drops.TryGetValue(goldDrop.DropId, out var goldOnB) && goldOnB.IsGold &&
                   goldOnB.GoldAmount == goldDrop.GoldAmount,
                   $"gold drop synchronized to client B ({goldDrop.GoldAmount} gold)");
-            clientA.World.Me.Position = goldDrop.Position;
-            Pump(0.4f);
-            clientA.RequestPickup(goldDrop.DropId);
-            Pump(0.5f);
-            Check(clientA.World.MyCharacter.Gold > goldBefore,
+            clientA.SendDebugCommand("heal");
+            bool goldGained = false;
+            for (int attempt = 0; attempt < 6 && !goldGained; attempt++)
+            {
+                clientA.World.Me.Position = goldDrop.Position;
+                Pump(0.4f);
+                clientA.RequestPickup(goldDrop.DropId);
+                Pump(0.4f);
+                goldGained = clientA.World.MyCharacter.Gold > goldBefore;
+            }
+            Check(goldGained,
                   $"gold pickup increased character gold ({goldBefore} -> {clientA.World.MyCharacter.Gold})");
         }
 
@@ -487,6 +493,64 @@ public static class HeadlessNetTest
         var resStats = Stats.StatCalculator.Compute(data, resChar);
         Check(resStats.AcidResistance == 15 && resStats.DarkResistance == 8,
               $"acid/dark/light resistances compute ({resStats.AcidResistance}% acid, {resStats.DarkResistance}% dark)");
+
+        Console.WriteLine("\n-- Enemy combat profiles (typed damage + resistances) --");
+        var gruntDef = data.Enemies["grunt"];
+        var spitterDef = data.Enemies["spitter"];
+        Check(gruntDef.DamageTypes.GetValueOrDefault(Skills.DamageKind.Blunt) > 0 &&
+              gruntDef.DamageTypes.GetValueOrDefault(Skills.DamageKind.Acid) > 0,
+              "melee zombie deals Blunt + Acid damage (data-driven)");
+        Check(spitterDef.DamageTypes.Count == 1 &&
+              spitterDef.DamageTypes.ContainsKey(Skills.DamageKind.Acid),
+              "ranged zombie deals pure Acid damage");
+        Check(gruntDef.Resistances.Count == 10 && gruntDef.Resistances.Values.All(v => v == 0) &&
+              spitterDef.Resistances.Count == 10 && spitterDef.Resistances.Values.All(v => v == 0),
+              "zombies expose all 10 resistance knobs, currently 0");
+
+        // Functional resistance check: at 100% fire resist, fire bolts deal nothing;
+        // back at 0 they hurt — proving per-type enemy mitigation works end to end.
+        clientA.World.Me.Position = server.World.Map.PlayerSpawn;
+        Pump(0.4f);
+        clientA.SendDebugCommand("kill_nearby");
+        Pump(0.4f);
+        clientA.SendDebugCommand("spawn_enemy", "grunt");
+        Pump(0.3f);
+        var resistTarget = server.World.Enemies.Values.Where(e => !e.Dead)
+            .OrderBy(e => Vector2.Distance(e.Position, server.World.Players[clientA.World.MyPlayerId].Position))
+            .First();
+        gruntDef.Resistances[Skills.DamageKind.Fire] = 100;
+        float immuneHp = resistTarget.Health;
+        for (int i = 0; i < 3 && !resistTarget.Dead; i++)
+        {
+            clientA.RequestUseSkill("fire_bolt", resistTarget.Position);
+            Pump(0.8f);
+        }
+        bool immuneHeld = !resistTarget.Dead && Math.Abs(resistTarget.Health - immuneHp) < 0.01f;
+        Check(immuneHeld, $"100% fire resistance nullified fire bolts ({immuneHp:0} -> {resistTarget.Health:0})");
+        gruntDef.Resistances[Skills.DamageKind.Fire] = 0;
+        float vulnerableHp = resistTarget.Health;
+        bool damaged = false;
+        for (int i = 0; i < 6 && !damaged; i++)
+        {
+            clientA.RequestUseSkill("fire_bolt", resistTarget.Position);
+            Pump(0.8f);
+            damaged = resistTarget.Dead || resistTarget.Health < vulnerableHp - 0.01f;
+        }
+        Check(damaged, "at 0% resistance the same fire bolts deal damage (hits confirmed)");
+
+        // The spitter's projectile carries its Acid damage type.
+        clientA.SendDebugCommand("spawn_enemy", "spitter");
+        Skills.DamageKind? spitKind = null;
+        for (int i = 0; i < 300 && spitKind == null; i++)
+        {
+            server.Update(1f / 60f);
+            clientA.Update(1f / 60f);
+            clientB.Update(1f / 60f);
+            Thread.Sleep(2);
+            var spit = server.World.Projectiles.Values.FirstOrDefault(pr => !pr.FromPlayer);
+            if (spit != null) spitKind = spit.DamageKind;
+        }
+        Check(spitKind == Skills.DamageKind.Acid, $"spitter projectiles are Acid-typed ({spitKind})");
 
         Console.WriteLine("\n-- Fire bolt projectile --");
         Pump(4.0f); // ride out a possible death/respawn cycle from roaming enemies

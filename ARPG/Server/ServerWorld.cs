@@ -259,7 +259,7 @@ public partial class ServerWorld
                         if (e.Def.Ranged)
                             SpawnEnemyProjectile(e, target);
                         else
-                            DamagePlayer(target, e.Def.Damage, DamageKind.Blunt);
+                            DamagePlayerTyped(target, RollEnemyDamage(e.Def));
                     }
                     break;
             }
@@ -291,6 +291,13 @@ public partial class ServerWorld
     private void SpawnEnemyProjectile(ServerEnemy e, ServerPlayer target)
     {
         var dir = (target.Position - e.Position).NormalizedOrZero();
+        var damageTypes = e.Def.DamageTypes is { Count: > 0 }
+            ? e.Def.DamageTypes
+            : new Dictionary<DamageKind, float> { [DamageKind.Fire] = e.Def.Damage };
+        var primary = damageTypes.First();
+        var extra = damageTypes.Skip(1)
+            .Select(kv => new DamageComponent { Kind = kv.Key, Min = kv.Value * 0.8f, Max = kv.Value * 1.2f })
+            .ToList();
         var pr = new ServerProjectile
         {
             Id = _nextProjectileId++,
@@ -300,9 +307,10 @@ public partial class ServerWorld
             Direction = dir,
             Speed = e.Def.ProjectileSpeed,
             MaxRange = e.Def.AttackRange + 3f,
-            MinDamage = e.Def.Damage,
-            MaxDamage = e.Def.Damage,
-            DamageKind = DamageKind.Fire,
+            MinDamage = primary.Value * 0.8f,
+            MaxDamage = primary.Value * 1.2f,
+            DamageKind = primary.Key,
+            Added = extra.Count > 0 ? extra : null,
         };
         Projectiles[pr.Id] = pr;
         _events.ProjectileSpawned(pr);
@@ -330,7 +338,7 @@ public partial class ServerWorld
                     if (e.Dead) continue;
                     if (Vector2.Distance(pr.Position, e.Position) <= e.Def.Radius + 0.25f)
                     {
-                        var (dmg, hitKind) = RollDamageSet(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
+                        var (dmg, hitKind) = MitigateForEnemy(e, RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added));
                         bool ignite = pr.IgniteChance > 0 && _rng.NextDouble() < pr.IgniteChance;
                         HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind, ignite);
                         RemoveProjectile(pr, pr.Position);
@@ -346,7 +354,7 @@ public partial class ServerWorld
                     if (Time < p.InvulnerableUntil) continue; // dodging players are passed through
                     if (Vector2.Distance(pr.Position, p.Position) <= ServerPlayer.Radius + 0.25f)
                     {
-                        DamagePlayer(p, Roll(pr.MinDamage, pr.MaxDamage), pr.DamageKind);
+                        DamagePlayerTyped(p, RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added));
                         RemoveProjectile(pr, pr.Position);
                         break;
                     }
@@ -400,7 +408,7 @@ public partial class ServerWorld
                 // direction, never behind, clamped to weapon/skill range.
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
                 foreach (var e in EnemiesNear(effectPoint, stats.Radius))
-                    { var (dmg, kind) = RollSkillDamage(stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
+                    { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
                 break;
             }
             case SkillArchetype.MeleeSingle:
@@ -413,7 +421,7 @@ public partial class ServerWorld
                     .FirstOrDefault();
                 if (victim != null)
                 {
-                    var (vDmg, vKind) = RollSkillDamage(stats);
+                    var (vDmg, vKind) = RollSkillHit(victim, stats);
                     HitEnemy(victim, vDmg, playerId, skillId, vKind, RollIgnite(stats));
                     if (!victim.Dead && def.Knockback > 0)
                     {
@@ -429,7 +437,7 @@ public partial class ServerWorld
                 effectPoint = p.Position;
                 foreach (var e in EnemiesNear(p.Position, stats.Radius))
                 {
-                    { var (dmg, kind) = RollSkillDamage(stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
+                    { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
                     if (!e.Dead && def.StunDuration > 0)
                         e.StunnedUntil = Time + def.StunDuration;
                 }
@@ -470,7 +478,7 @@ public partial class ServerWorld
             {
                 effectPoint = ClampToRange(p.Position, target, stats.Range);
                 foreach (var e in EnemiesNear(effectPoint, stats.Radius))
-                    { var (dmg, kind) = RollSkillDamage(stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
+                    { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
                 break;
             }
         }
@@ -515,30 +523,66 @@ public partial class ServerWorld
     /// <summary>Roll a full skill hit: main damage plus any typed added components.
     /// Returns the total and the dominant damage kind (largest component) for the
     /// damage event / floating number.</summary>
-    private (float total, DamageKind kind) RollSkillDamage(in EffectiveSkillStats stats) =>
-        RollDamageSet(stats.MinDamage, stats.MaxDamage, stats.DamageKind, stats.Added);
-
-    private (float total, DamageKind kind) RollDamageSet(float min, float max, DamageKind mainKind,
-        List<DamageComponent> added)
+    /// <summary>Roll every typed portion of a hit into (kind, amount) components.</summary>
+    private List<(DamageKind kind, float amount)> RollComponentList(float min, float max,
+        DamageKind mainKind, List<DamageComponent> added)
     {
-        float main = Roll(min, max);
-        float total = main;
-        var dominant = mainKind;
-        float dominantAmount = main;
+        var list = new List<(DamageKind, float)> { (mainKind, Roll(min, max)) };
         if (added != null)
-        {
             foreach (var comp in added)
-            {
-                float dmg = Roll(comp.Min, comp.Max);
-                total += dmg;
-                if (dmg > dominantAmount)
-                {
-                    dominantAmount = dmg;
-                    dominant = comp.Kind;
-                }
-            }
+                list.Add((comp.Kind, Roll(comp.Min, comp.Max)));
+        return list;
+    }
+
+    /// <summary>A full skill hit against one enemy: roll components, then apply the enemy's
+    /// per-type resistances/weaknesses (negative resistance = extra damage).</summary>
+    private (float total, DamageKind dominant) RollSkillHit(ServerEnemy target, in EffectiveSkillStats stats) =>
+        MitigateForEnemy(target, RollComponentList(stats.MinDamage, stats.MaxDamage, stats.DamageKind, stats.Added));
+
+    private (float total, DamageKind dominant) MitigateForEnemy(ServerEnemy e,
+        List<(DamageKind kind, float amount)> components)
+    {
+        float total = 0, dominantAmount = -1;
+        var dominant = DamageKind.Blunt;
+        foreach (var (kind, amount) in components)
+        {
+            float resist = Math.Clamp(e.Def.Resistances?.GetValueOrDefault(kind) ?? 0f, -300f, 100f);
+            float dmg = amount * (1f - resist / 100f);
+            total += dmg;
+            if (dmg > dominantAmount) { dominantAmount = dmg; dominant = kind; }
         }
         return (total, dominant);
+    }
+
+    private (float total, DamageKind dominant) MitigateForPlayer(ServerPlayer p,
+        List<(DamageKind kind, float amount)> components)
+    {
+        float total = 0, dominantAmount = -1;
+        var dominant = DamageKind.Blunt;
+        foreach (var (kind, amount) in components)
+        {
+            float dmg = amount;
+            if (DamageKinds.IsPhysical(kind))
+                dmg *= 1f - p.Stats.PhysicalReduction;   // armor covers thrust/blunt/slash
+            else
+                dmg *= 1f - p.Stats.ResistanceFor(kind) / 100f;
+            total += dmg;
+            if (dmg > dominantAmount) { dominantAmount = dmg; dominant = kind; }
+        }
+        return (total, dominant);
+    }
+
+    /// <summary>Roll an enemy's typed attack damage from its definition (legacy single
+    /// Damage value falls back to Blunt for melee, Fire for ranged).</summary>
+    private List<(DamageKind kind, float amount)> RollEnemyDamage(EnemyDefinition def)
+    {
+        var list = new List<(DamageKind, float)>();
+        if (def.DamageTypes is { Count: > 0 })
+            foreach (var (kind, avg) in def.DamageTypes)
+                list.Add((kind, Roll(avg * 0.8f, avg * 1.2f)));
+        else
+            list.Add((def.Ranged ? DamageKind.Fire : DamageKind.Blunt, def.Damage));
+        return list;
     }
 
     private void HitEnemy(ServerEnemy e, float damage, int byPlayer, string skillId, DamageKind kind, bool ignite)
@@ -631,15 +675,11 @@ public partial class ServerWorld
         return true;
     }
 
-    private void DamagePlayer(ServerPlayer p, float rawDamage, DamageKind kind)
+    private void DamagePlayerTyped(ServerPlayer p, List<(DamageKind kind, float amount)> components)
     {
         if (!p.Alive) return;
         if (Time < p.InvulnerableUntil) return; // dodge i-frames (server-authoritative)
-        float damage = rawDamage;
-        if (DamageKinds.IsPhysical(kind))
-            damage *= 1f - p.Stats.PhysicalReduction;
-        else
-            damage *= 1f - p.Stats.ResistanceFor(kind) / 100f;
+        var (damage, kind) = MitigateForPlayer(p, components);
 
         damage = MathF.Max(0.5f, damage);
         p.Health -= damage;
