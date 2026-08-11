@@ -9,7 +9,13 @@
     "BaseModifierLimit": 6,
     "DropWeight": 120,
     "Description": "A crude but dependable club.",
-    "BaseStats": { "MinPhysicalDamage": 4, "MaxPhysicalDamage": 7, "BaseAttackSpeed": 1.3, "WeaponRange": 1.5 }
+    "BaseStats": {
+      "MinPhysicalDamage": 4,
+      "MaxPhysicalDamage": 7,
+      "BaseAttackSpeed": 1.3,
+      "WeaponRange": 1.5
+    },
+    "SpriteColor": "8B6A3F"
   },
   {
     "Id": "iron_mace",
@@ -21,7 +27,13 @@
     "BaseModifierLimit": 6,
     "DropWeight": 90,
     "Description": "Solid iron on a hardwood haft.",
-    "BaseStats": { "MinPhysicalDamage": 9, "MaxPhysicalDamage": 14, "BaseAttackSpeed": 1.2, "WeaponRange": 1.6 }
+    "BaseStats": {
+      "MinPhysicalDamage": 9,
+      "MaxPhysicalDamage": 14,
+      "BaseAttackSpeed": 1.2,
+      "WeaponRange": 1.6
+    },
+    "SpriteColor": "9AA0A8"
   },
   {
     "Id": "heavy_war_mace",
@@ -33,7 +45,13 @@
     "BaseModifierLimit": 7,
     "DropWeight": 50,
     "Description": "A brutal two-fisted head-crusher.",
-    "BaseStats": { "MinPhysicalDamage": 16, "MaxPhysicalDamage": 26, "BaseAttackSpeed": 1.0, "WeaponRange": 1.7 }
+    "BaseStats": {
+      "MinPhysicalDamage": 16,
+      "MaxPhysicalDamage": 26,
+      "BaseAttackSpeed": 1.0,
+      "WeaponRange": 1.7
+    },
+    "SpriteColor": "6E747E"
   },
   {
     "Id": "oak_staff",
@@ -45,7 +63,15 @@
     "BaseModifierLimit": 6,
     "DropWeight": 110,
     "Description": "A plain oak focus for novice casters.",
-    "BaseStats": { "SpellDamage": 20, "CastSpeed": 5, "MinPhysicalDamage": 3, "MaxPhysicalDamage": 5, "BaseAttackSpeed": 1.1, "WeaponRange": 1.6 }
+    "BaseStats": {
+      "SpellDamage": 20,
+      "CastSpeed": 5,
+      "MinPhysicalDamage": 3,
+      "MaxPhysicalDamage": 5,
+      "BaseAttackSpeed": 1.1,
+      "WeaponRange": 1.6
+    },
+    "SpriteColor": "7FBF5F"
   },
   {
     "Id": "mystic_staff",
@@ -57,7 +83,15 @@
     "BaseModifierLimit": 6,
     "DropWeight": 80,
     "Description": "Carved runes hum along its length.",
-    "BaseStats": { "SpellDamage": 35, "CastSpeed": 8, "MinPhysicalDamage": 4, "MaxPhysicalDamage": 7, "BaseAttackSpeed": 1.1, "WeaponRange": 1.6 }
+    "BaseStats": {
+      "SpellDamage": 35,
+      "CastSpeed": 8,
+      "MinPhysicalDamage": 4,
+      "MaxPhysicalDamage": 7,
+      "BaseAttackSpeed": 1.1,
+      "WeaponRange": 1.6
+    },
+    "SpriteColor": "5F8FEF"
   },
   {
     "Id": "arcane_staff",
@@ -69,6 +103,14 @@
     "BaseModifierLimit": 8,
     "DropWeight": 45,
     "Description": "Raw power crackles at its tip.",
-    "BaseStats": { "SpellDamage": 50, "CastSpeed": 12, "MinPhysicalDamage": 5, "MaxPhysicalDamage": 9, "BaseAttackSpeed": 1.0, "WeaponRange": 1.6 }
+    "BaseStats": {
+      "SpellDamage": 50,
+      "CastSpeed": 12,
+      "MinPhysicalDamage": 5,
+      "MaxPhysicalDamage": 9,
+      "BaseAttackSpeed": 1.0,
+      "WeaponRange": 1.6
+    },
+    "SpriteColor": "B06FEF"
   }
 ]

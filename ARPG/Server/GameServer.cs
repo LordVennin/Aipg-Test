@@ -196,6 +196,12 @@ public class GameServer : IServerEvents
 
         // Announce to everyone else.
         BroadcastExcept(peer, PlayerJoinedPacket(player), DeliveryMethod.ReliableOrdered);
+
+        // Held-weapon appearances: existing players' to the newcomer, the newcomer's to all.
+        foreach (var other in World.Players.Values)
+            if (other.Id != playerId)
+                peer.Send(AppearancePacket(other), DeliveryMethod.ReliableOrdered);
+        Broadcast(AppearancePacket(player), DeliveryMethod.ReliableOrdered);
         Console.WriteLine($"[Server] {player.Name} joined as player {playerId}");
     }
 
@@ -376,6 +382,16 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.CharacterState);
         w.Put(Json.SaveCompact(p.Character));
         SendTo(p.Id, w, DeliveryMethod.ReliableOrdered);
+        // Equipment may have changed what the player is visibly holding.
+        Broadcast(AppearancePacket(p), DeliveryMethod.ReliableOrdered);
+    }
+
+    private NetDataWriter AppearancePacket(ServerPlayer p)
+    {
+        var w = Packets.Make(PacketType.PlayerAppearance);
+        w.Put(p.Id);
+        w.Put(p.Character.MainHand?.BaseItemId ?? "");
+        return w;
     }
 
     public void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint)

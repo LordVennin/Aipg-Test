@@ -63,6 +63,10 @@ public class ItemBase
     /// <summary>Only for Category == SkillScroll: which scroll definition this item carries.</summary>
     public string ScrollId { get; set; }
 
+    /// <summary>Accent color (RRGGBB hex) for the procedural held-weapon sprite
+    /// (mace head metal / staff orb). Falls back to a per-category default.</summary>
+    public string SpriteColor { get; set; }
+
     public string Description { get; set; }
 
     public bool IsWeapon => Category is ItemCategory.Mace or ItemCategory.Staff;

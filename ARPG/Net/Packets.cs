@@ -44,6 +44,9 @@ public enum PacketType : byte
     ServerMessage,
     DodgeEvent,
     DamageEvent,
+    /// <summary>Visual equipment state of a player (currently: main-hand weapon base id),
+    /// so all clients can render what each player is holding.</summary>
+    PlayerAppearance,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

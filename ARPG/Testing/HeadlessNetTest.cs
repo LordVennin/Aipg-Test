@@ -210,6 +210,9 @@ public static class HeadlessNetTest
                   serverStats.WeaponCategory == Items.ItemCategory.Mace,
                   $"server and client compute identical stats from the equipped mace " +
                   $"(dmg {serverStats.WeaponMinDamage:0.#}-{serverStats.WeaponMaxDamage:0.#})");
+            var aSeenByBAppearance = clientB.World.Players[clientA.World.MyPlayerId];
+            Check(aSeenByBAppearance.WeaponBaseId == equipped?.BaseItemId,
+                  $"client B sees client A's held weapon ({aSeenByBAppearance.WeaponBaseId})");
         }
 
         Console.WriteLine("\n-- Skills, levels, scroll slots, scrolls --");
