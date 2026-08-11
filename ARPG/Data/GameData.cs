@@ -12,7 +12,18 @@ public class EnemyDefinition
     public int Level { get; set; } = 1;
     public float MaxHealth { get; set; } = 30;
     public float MoveSpeed { get; set; } = 2.5f;
+
+    /// <summary>Legacy single damage value — used only when DamageTypes is empty
+    /// (melee falls back to Blunt, ranged to Fire).</summary>
     public float Damage { get; set; } = 5;
+
+    /// <summary>Typed attack damage: kind -> average amount per hit (rolled ±20%).
+    /// An attack can mix types, e.g. a zombie's raking blow dealing Blunt + Acid.</summary>
+    public Dictionary<DamageKind, float> DamageTypes { get; set; } = new();
+
+    /// <summary>Percent resistance per damage type (negative values are weaknesses:
+    /// -50 means taking 150% of that type). Missing entries count as 0.</summary>
+    public Dictionary<DamageKind, float> Resistances { get; set; } = new();
     public float AttackRange { get; set; } = 1.2f;
     public float AttackCooldown { get; set; } = 1.5f;
     public float AggroRange { get; set; } = 8f;

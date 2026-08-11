@@ -6,6 +6,12 @@
     "MaxHealth": 35,
     "MoveSpeed": 2.6,
     "Damage": 6,
+    "DamageTypes": { "Blunt": 4, "Acid": 3 },
+    "Resistances": {
+      "Thrust": 0, "Blunt": 0, "Slash": 0,
+      "Fire": 0, "Cold": 0, "Lightning": 0,
+      "Acid": 0, "Dark": 0, "Light": 0, "Arcane": 0
+    },
     "AttackRange": 1.2,
     "AttackCooldown": 1.4,
     "AggroRange": 8,
@@ -18,11 +24,17 @@
   },
   {
     "Id": "spitter",
-    "Name": "Ember Spitter",
+    "Name": "Grave Spitter",
     "Level": 2,
     "MaxHealth": 24,
     "MoveSpeed": 2.2,
     "Damage": 8,
+    "DamageTypes": { "Acid": 8 },
+    "Resistances": {
+      "Thrust": 0, "Blunt": 0, "Slash": 0,
+      "Fire": 0, "Cold": 0, "Lightning": 0,
+      "Acid": 0, "Dark": 0, "Light": 0, "Arcane": 0
+    },
     "AttackRange": 6,
     "AttackCooldown": 2.2,
     "AggroRange": 9,
