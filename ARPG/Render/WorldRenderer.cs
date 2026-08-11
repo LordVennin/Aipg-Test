@@ -177,8 +177,12 @@ public class WorldRenderer
                 var offHandTex = SpriteGen.GetWeaponSprite(offHandBase);
                 bool weaponBehind = screenDir.Y < -0.1f;
                 // With both hands full, items shift apart perpendicular to the aim — one in
-                // each hand — instead of overlapping at the center.
+                // each hand — instead of overlapping at the center. The perpendicular is
+                // normalized to point down-screen so the main-hand weapon always takes the
+                // NEAR (lower) hand and the off-hand shield the FAR one; without this, aiming
+                // left mirrors the offsets and the shield ends up in front of the weapon.
                 var perp = new Vector2(-screenDir.Y, screenDir.X);
+                if (perp.Y < -0.001f || (MathF.Abs(perp.Y) <= 0.001f && perp.X < 0)) perp = -perp;
                 bool bothHands = weaponTex != null && offHandTex != null;
 
                 void DrawHeld(Texture2D tex, float side)
