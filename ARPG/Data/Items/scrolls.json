@@ -1,0 +1,46 @@
+[
+  {
+    "Id": "scroll_multishot",
+    "Name": "Multishot Scroll",
+    "Category": "SkillScroll",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "BaseModifierLimit": 0,
+    "DropWeight": 100,
+    "ScrollId": "multishot",
+    "Description": "Attach to a Projectile skill via the Skill Menu."
+  },
+  {
+    "Id": "scroll_greater_impact",
+    "Name": "Greater Impact Scroll",
+    "Category": "SkillScroll",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "BaseModifierLimit": 0,
+    "DropWeight": 100,
+    "ScrollId": "greater_impact",
+    "Description": "Attach to an Area skill via the Skill Menu."
+  },
+  {
+    "Id": "scroll_burning",
+    "Name": "Burning Scroll",
+    "Category": "SkillScroll",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "BaseModifierLimit": 0,
+    "DropWeight": 100,
+    "ScrollId": "burning",
+    "Description": "Attach to a Fire skill via the Skill Menu."
+  },
+  {
+    "Id": "scroll_rapid_casting",
+    "Name": "Rapid Casting Scroll",
+    "Category": "SkillScroll",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "BaseModifierLimit": 0,
+    "DropWeight": 100,
+    "ScrollId": "rapid_casting",
+    "Description": "Attach to a Spell via the Skill Menu."
+  }
+]

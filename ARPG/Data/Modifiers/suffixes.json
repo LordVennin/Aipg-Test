@@ -1,0 +1,80 @@
+[
+  {
+    "Id": "of_haste",
+    "Name": "of Haste",
+    "AffixType": "Suffix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Mace", "Staff", "Gloves", "Ring", "Amulet"],
+    "ModifierGroup": "attack_speed",
+    "StatAffected": "AttackSpeed",
+    "MinimumValue": 6,
+    "MaximumValue": 15,
+    "Weight": 90,
+    "IsPercent": true
+  },
+  {
+    "Id": "of_casting",
+    "Name": "of Casting",
+    "AffixType": "Suffix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Staff", "Helmet", "Ring", "Amulet"],
+    "ModifierGroup": "cast_speed",
+    "StatAffected": "CastSpeed",
+    "MinimumValue": 6,
+    "MaximumValue": 15,
+    "Weight": 90,
+    "IsPercent": true
+  },
+  {
+    "Id": "of_fire_resistance",
+    "Name": "of Fire Resistance",
+    "AffixType": "Suffix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Mace", "Staff", "Helmet", "BodyArmor", "Gloves", "Boots", "Belt", "Amulet", "Ring"],
+    "ModifierGroup": "fire_res",
+    "StatAffected": "FireResistance",
+    "MinimumValue": 10,
+    "MaximumValue": 30,
+    "Weight": 100,
+    "IsPercent": true
+  },
+  {
+    "Id": "of_cold_resistance",
+    "Name": "of Cold Resistance",
+    "AffixType": "Suffix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Mace", "Staff", "Helmet", "BodyArmor", "Gloves", "Boots", "Belt", "Amulet", "Ring"],
+    "ModifierGroup": "cold_res",
+    "StatAffected": "ColdResistance",
+    "MinimumValue": 10,
+    "MaximumValue": 30,
+    "Weight": 100,
+    "IsPercent": true
+  },
+  {
+    "Id": "of_lightning_resistance",
+    "Name": "of Lightning Resistance",
+    "AffixType": "Suffix",
+    "MinimumItemLevel": 1,
+    "CompatibleItemCategories": ["Mace", "Staff", "Helmet", "BodyArmor", "Gloves", "Boots", "Belt", "Amulet", "Ring"],
+    "ModifierGroup": "lightning_res",
+    "StatAffected": "LightningResistance",
+    "MinimumValue": 10,
+    "MaximumValue": 30,
+    "Weight": 100,
+    "IsPercent": true
+  },
+  {
+    "Id": "of_vigor",
+    "Name": "of Vigor",
+    "AffixType": "Suffix",
+    "MinimumItemLevel": 2,
+    "CompatibleItemCategories": ["Belt", "BodyArmor", "Amulet", "Ring"],
+    "ModifierGroup": "health_suffix",
+    "StatAffected": "MaxHealth",
+    "MinimumValue": 8,
+    "MaximumValue": 18,
+    "Weight": 70,
+    "IsPercent": false
+  }
+]

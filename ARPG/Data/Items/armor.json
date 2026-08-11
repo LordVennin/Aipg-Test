@@ -1,0 +1,90 @@
+[
+  {
+    "Id": "leather_hood",
+    "Name": "Leather Hood",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": { "Armor": 15 }
+  },
+  {
+    "Id": "padded_vest",
+    "Name": "Padded Vest",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": { "Armor": 30 }
+  },
+  {
+    "Id": "worn_gloves",
+    "Name": "Worn Gloves",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": { "Armor": 10 }
+  },
+  {
+    "Id": "sturdy_boots",
+    "Name": "Sturdy Boots",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": { "Armor": 10 }
+  },
+  {
+    "Id": "rope_belt",
+    "Name": "Rope Belt",
+    "Category": "Belt",
+    "InventoryWidth": 2,
+    "InventoryHeight": 1,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": { "Armor": 5 }
+  },
+  {
+    "Id": "bone_amulet",
+    "Name": "Bone Amulet",
+    "Category": "Amulet",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": { "MaxHealth": 10 }
+  },
+  {
+    "Id": "copper_ring",
+    "Name": "Copper Ring",
+    "Category": "Ring",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 80,
+    "BaseStats": { "FireResistance": 5 }
+  },
+  {
+    "Id": "silver_ring",
+    "Name": "Silver Ring",
+    "Category": "Ring",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "RequiredLevel": 3,
+    "BaseModifierLimit": 6,
+    "DropWeight": 60,
+    "BaseStats": { "ColdResistance": 5 }
+  }
+]

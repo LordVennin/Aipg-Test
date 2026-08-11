@@ -1,0 +1,261 @@
+using FontStashSharp;
+using ARPG.Core;
+using ARPG.Render;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+
+namespace ARPG.UI;
+
+public interface IScreen
+{
+    void Update(float dt);
+    void Draw(SpriteBatch sb);
+}
+
+/// <summary>Main menu: Single Player / Host Game / Join Game / Options / Quit.</summary>
+public class MainMenuScreen : IScreen
+{
+    private readonly GameMain _game;
+    private readonly Panel _panel = new() { Background = Color.Transparent, Border = Color.Transparent };
+    private readonly string _message;
+
+    public MainMenuScreen(GameMain game, string message = null)
+    {
+        _game = game;
+        _message = message;
+        var size = game.ScreenSize;
+        int cx = size.X / 2 - 130, y = size.Y / 2 - 130, w = 260, h = 44, gap = 12;
+        _panel.Children.Add(new Button("Single Player", new Rectangle(cx, y, w, h), game.StartSinglePlayer));
+        _panel.Children.Add(new Button("Host Game", new Rectangle(cx, y + (h + gap), w, h), () => game.SwitchScreen(new HostScreen(game))));
+        _panel.Children.Add(new Button("Join Game", new Rectangle(cx, y + 2 * (h + gap), w, h), () => game.SwitchScreen(new JoinScreen(game))));
+        _panel.Children.Add(new Button("Options", new Rectangle(cx, y + 3 * (h + gap), w, h), () => game.SwitchScreen(new OptionsScreen(game))));
+        _panel.Children.Add(new Button("Quit", new Rectangle(cx, y + 4 * (h + gap), w, h), game.ExitGame));
+    }
+
+    public void Update(float dt) => _panel.Update(_game.Input);
+
+    public void Draw(SpriteBatch sb)
+    {
+        var size = _game.ScreenSize;
+        var title = "SCROLLBOUND";
+        var subtitle = "an isometric multiplayer ARPG prototype";
+        var titleFont = FontManager.GetBold(52);
+        var tSize = titleFont.MeasureString(title);
+        sb.DrawString(titleFont, title, new Vector2(size.X / 2f - tSize.X / 2, 90), new Color(230, 210, 150));
+        var subFont = FontManager.Get(17);
+        var sSize = subFont.MeasureString(subtitle);
+        sb.DrawString(subFont, subtitle, new Vector2(size.X / 2f - sSize.X / 2, 150), new Color(150, 145, 130));
+
+        if (!string.IsNullOrEmpty(_message))
+        {
+            var mSize = subFont.MeasureString(_message);
+            sb.DrawString(subFont, _message, new Vector2(size.X / 2f - mSize.X / 2, 195), new Color(255, 120, 110));
+        }
+        _panel.Draw(sb);
+
+        var hint = $"Playing as '{_game.Settings.PlayerName}' — change name in Host/Join screens";
+        var hSize = subFont.MeasureString(hint);
+        sb.DrawString(subFont, hint, new Vector2(size.X / 2f - hSize.X / 2, size.Y - 60), new Color(120, 118, 108));
+    }
+}
+
+/// <summary>Host setup: player name + port, listens on 0.0.0.0 (LAN/ZeroTier/Meshnet friendly).</summary>
+public class HostScreen : IScreen
+{
+    private readonly GameMain _game;
+    private readonly Panel _panel;
+    private readonly TextInput _name, _port;
+    private readonly Label _error;
+
+    public HostScreen(GameMain game)
+    {
+        _game = game;
+        var size = game.ScreenSize;
+        int cx = size.X / 2 - 170;
+        int y = size.Y / 2 - 140;
+        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 340) };
+        _panel.Children.Add(new Label("Host Game", cx, y - 40, 26, bold: true));
+        _panel.Children.Add(new Label("Player Name", cx, y + 8, 15));
+        _name = new TextInput(new Rectangle(cx, y + 30, 340, 36), game.Settings.PlayerName);
+        _panel.Children.Add(_name);
+        _panel.Children.Add(new Label($"Port (default {GameNetConfig.DefaultPort})", cx, y + 78, 15));
+        _port = new TextInput(new Rectangle(cx, y + 100, 340, 36), game.Settings.LastPort.ToString()) { NumericOnly = true, MaxLength = 5 };
+        _panel.Children.Add(_port);
+        _error = new Label("", cx, y + 148, 15) { Color = new Color(255, 120, 110) };
+        _panel.Children.Add(_error);
+        _panel.Children.Add(new Button("Start Hosting", new Rectangle(cx, y + 180, 340, 42), StartHosting));
+        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 232, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
+    }
+
+    private void StartHosting()
+    {
+        if (!int.TryParse(_port.Text, out int port) || port < 1 || port > 65535)
+        {
+            _error.Text = "Invalid port.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_name.Text))
+        {
+            _error.Text = "Enter a player name.";
+            return;
+        }
+        _game.Settings.PlayerName = _name.Text.Trim();
+        _game.Settings.LastPort = port;
+        _game.Settings.Save();
+        string error = _game.StartHost(port);
+        if (error != null) _error.Text = error;
+    }
+
+    public void Update(float dt) => _panel.Update(_game.Input);
+    public void Draw(SpriteBatch sb) => _panel.Draw(sb);
+}
+
+/// <summary>Join setup: player name + direct host IP + port.</summary>
+public class JoinScreen : IScreen
+{
+    private readonly GameMain _game;
+    private readonly Panel _panel;
+    private readonly TextInput _name, _ip, _port;
+    private readonly Label _error;
+
+    public JoinScreen(GameMain game)
+    {
+        _game = game;
+        var size = game.ScreenSize;
+        int cx = size.X / 2 - 170;
+        int y = size.Y / 2 - 170;
+        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 420) };
+        _panel.Children.Add(new Label("Join Game", cx, y - 40, 26, bold: true));
+        _panel.Children.Add(new Label("Player Name", cx, y + 8, 15));
+        _name = new TextInput(new Rectangle(cx, y + 30, 340, 36), game.Settings.PlayerName);
+        _panel.Children.Add(_name);
+        _panel.Children.Add(new Label("Host IP (e.g. 192.168.1.50 or a ZeroTier/Meshnet IP)", cx, y + 78, 15));
+        _ip = new TextInput(new Rectangle(cx, y + 100, 340, 36), game.Settings.LastJoinIp) { MaxLength = 45 };
+        _panel.Children.Add(_ip);
+        _panel.Children.Add(new Label("Port", cx, y + 148, 15));
+        _port = new TextInput(new Rectangle(cx, y + 170, 340, 36), game.Settings.LastPort.ToString()) { NumericOnly = true, MaxLength = 5 };
+        _panel.Children.Add(_port);
+        _error = new Label("", cx, y + 218, 15) { Color = new Color(255, 120, 110) };
+        _panel.Children.Add(_error);
+        _panel.Children.Add(new Button("Connect", new Rectangle(cx, y + 250, 340, 42), Connect));
+        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 302, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
+    }
+
+    private void Connect()
+    {
+        if (!int.TryParse(_port.Text, out int port) || port < 1 || port > 65535)
+        {
+            _error.Text = "Invalid port.";
+            return;
+        }
+        string ip = _ip.Text.Trim();
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            _error.Text = "Enter a host IP address.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_name.Text))
+        {
+            _error.Text = "Enter a player name.";
+            return;
+        }
+        _game.Settings.PlayerName = _name.Text.Trim();
+        _game.Settings.LastJoinIp = ip;
+        _game.Settings.LastPort = port;
+        _game.Settings.Save();
+        string error = _game.StartJoin(ip, port);
+        if (error != null) _error.Text = error;
+    }
+
+    public void Update(float dt) => _panel.Update(_game.Input);
+    public void Draw(SpriteBatch sb) => _panel.Draw(sb);
+}
+
+/// <summary>Options: rebind every input action; bindings persist to Saves/settings.json.</summary>
+public class OptionsScreen : IScreen
+{
+    private readonly GameMain _game;
+    private readonly Panel _panel;
+    private InputAction? _rebinding;
+    private readonly Dictionary<InputAction, Button> _bindButtons = new();
+
+    public OptionsScreen(GameMain game)
+    {
+        _game = game;
+        var size = game.ScreenSize;
+        var actions = Enum.GetValues<InputAction>();
+        int rows = actions.Length;
+        int panelH = rows * 34 + 150;
+        int cx = size.X / 2 - 240;
+        int y = Math.Max(20, size.Y / 2 - panelH / 2);
+        _panel = new Panel { Bounds = new Rectangle(cx - 20, y - 10, 520, panelH) };
+        _panel.Children.Add(new Label("Options — Controls", cx, y, 24, bold: true));
+        _panel.Children.Add(new Label("Click a binding, then press the new key or mouse button.", cx, y + 34, 14));
+
+        int rowY = y + 64;
+        foreach (var action in actions)
+        {
+            var a = action;
+            _panel.Children.Add(new Label(ActionName(a), cx, rowY + 6, 16));
+            var btn = new Button(game.Input.Bindings[a].Display(), new Rectangle(cx + 260, rowY, 200, 28),
+                () => _rebinding = a) { FontSize = 15 };
+            _bindButtons[a] = btn;
+            _panel.Children.Add(btn);
+            rowY += 34;
+        }
+        _panel.Children.Add(new Button("Reset Defaults", new Rectangle(cx, rowY + 10, 200, 36), () =>
+        {
+            game.Input.ApplyBindings(null);
+            RefreshLabels();
+        }));
+        _panel.Children.Add(new Button("Save & Back", new Rectangle(cx + 260, rowY + 10, 200, 36), () =>
+        {
+            game.Settings.Bindings = game.Input.ExportBindings();
+            game.Settings.Save();
+            game.SwitchScreen(new MainMenuScreen(game));
+        }));
+    }
+
+    public static string ActionName(InputAction a) => a switch
+    {
+        InputAction.MoveUp => "Move Up (North)",
+        InputAction.MoveDown => "Move Down (South)",
+        InputAction.MoveLeft => "Move Left (West)",
+        InputAction.MoveRight => "Move Right (East)",
+        InputAction.PrimaryAttack => "Primary Attack",
+        InputAction.Skill1 => "Skill 1",
+        InputAction.Skill2 => "Skill 2",
+        InputAction.Skill3 => "Skill 3",
+        InputAction.Skill4 => "Skill 4",
+        InputAction.Inventory => "Inventory",
+        InputAction.SkillMenu => "Skill Menu",
+        InputAction.Interact => "Interact / Pickup",
+        InputAction.Pause => "Pause",
+        InputAction.DebugMenu => "Debug Menu",
+        _ => a.ToString(),
+    };
+
+    private void RefreshLabels()
+    {
+        foreach (var (action, btn) in _bindButtons)
+            btn.Text = _game.Input.Bindings[action].Display();
+    }
+
+    public void Update(float dt)
+    {
+        if (_rebinding.HasValue)
+        {
+            _bindButtons[_rebinding.Value].Text = "press a key...";
+            if (_game.Input.TryCaptureBinding(out var binding))
+            {
+                _game.Input.Bindings[_rebinding.Value] = binding;
+                _rebinding = null;
+                RefreshLabels();
+            }
+            return; // swallow other UI input while capturing
+        }
+        _panel.Update(_game.Input);
+    }
+
+    public void Draw(SpriteBatch sb) => _panel.Draw(sb);
+}

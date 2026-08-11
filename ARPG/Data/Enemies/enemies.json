@@ -1,0 +1,35 @@
+[
+  {
+    "Id": "grunt",
+    "Name": "Gravebound Grunt",
+    "Level": 1,
+    "MaxHealth": 35,
+    "MoveSpeed": 2.6,
+    "Damage": 6,
+    "AttackRange": 1.2,
+    "AttackCooldown": 1.4,
+    "AggroRange": 8,
+    "Ranged": false,
+    "Radius": 0.38,
+    "XpReward": 18,
+    "LootTableId": "default",
+    "Color": "C04040"
+  },
+  {
+    "Id": "spitter",
+    "Name": "Ember Spitter",
+    "Level": 2,
+    "MaxHealth": 24,
+    "MoveSpeed": 2.2,
+    "Damage": 8,
+    "AttackRange": 6,
+    "AttackCooldown": 2.2,
+    "AggroRange": 9,
+    "Ranged": true,
+    "ProjectileSpeed": 7,
+    "Radius": 0.36,
+    "XpReward": 26,
+    "LootTableId": "default",
+    "Color": "50B050"
+  }
+]

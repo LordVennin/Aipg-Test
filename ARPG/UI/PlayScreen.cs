@@ -1,0 +1,307 @@
+using FontStashSharp;
+using ARPG.Core;
+using ARPG.Net;
+using ARPG.Persistence;
+using ARPG.Render;
+using ARPG.Server;
+using ARPG.Skills;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using NumVec2 = System.Numerics.Vector2;
+
+namespace ARPG.UI;
+
+/// <summary>
+/// The in-game screen. Owns the GameClient (and the GameServer when hosting/single player),
+/// translates input actions into client requests, and composes the world renderer, HUD,
+/// inventory, skill menu and debug UI.
+/// </summary>
+public class PlayScreen : IScreen
+{
+    private readonly GameMain _game;
+    private readonly GameServer _server;   // null when joining someone else's game
+    private readonly GameClient _client;
+
+    private readonly IsoCamera _camera = new();
+    private readonly WorldRenderer _renderer;
+    private readonly HudUI _hud;
+    private readonly InventoryUI _inventory;
+    private readonly SkillMenuUI _skillMenu;
+    private readonly DebugUI _debug;
+    private readonly DragState _drag = new();
+
+    private bool _paused;
+    private Panel _pausePanel;
+    private string _pendingDisconnect;
+    private float _clientTime;
+    /// <summary>Client-side cooldown estimates per skill (server still validates).</summary>
+    private readonly Dictionary<string, float> _cooldownEnds = new();
+    private float _fpsTimer;
+    private int _fpsCounter;
+    private float _autosaveTimer;
+
+    public PlayScreen(GameMain game, GameServer server, GameClient client)
+    {
+        _game = game;
+        _server = server;
+        _client = client;
+        _renderer = new WorldRenderer(game.Data);
+        _hud = new HudUI(game.Data, client);
+        _inventory = new InventoryUI(game.Data, client, _drag);
+        _skillMenu = new SkillMenuUI(game.Data, client, _drag);
+        _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
+
+        _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
+        _client.ServerMessageReceived += msg => _hud.AddMessage(msg);
+        BuildPauseMenu();
+    }
+
+    private void BuildPauseMenu()
+    {
+        var size = _game.ScreenSize;
+        int cx = size.X / 2 - 120, cy = size.Y / 2 - 70;
+        _pausePanel = new Panel { Bounds = new Rectangle(cx - 20, cy - 20, 280, 190) };
+        _pausePanel.Children.Add(new Label("Paused", cx, cy - 8, 22, bold: true));
+        _pausePanel.Children.Add(new Button("Resume", new Rectangle(cx, cy + 30, 240, 40), () => _paused = false));
+        _pausePanel.Children.Add(new Button("Save & Exit to Menu", new Rectangle(cx, cy + 80, 240, 40), LeaveToMenu));
+    }
+
+    private void LeaveToMenu()
+    {
+        SaveLocalCharacter();
+        _client.Disconnect();
+        _server?.Stop();
+        _game.Settings.Save();
+        _game.SwitchScreen(new MainMenuScreen(_game));
+    }
+
+    public void SaveLocalCharacter()
+    {
+        if (_client.World.MyCharacter != null)
+            SaveManager.SaveCharacter(_client.World.MyCharacter);
+    }
+
+    public void Shutdown()
+    {
+        SaveLocalCharacter();
+        _client.Disconnect();
+        _server?.Stop();
+    }
+
+    public void Update(float dt)
+    {
+        _clientTime += dt;
+        _fpsCounter++;
+        _fpsTimer += dt;
+        if (_fpsTimer >= 0.5f) { _debug.Fps = (int)(_fpsCounter / _fpsTimer); _fpsCounter = 0; _fpsTimer = 0; }
+
+        _server?.Update(dt);
+        _client.Update(dt);
+        _hud.Update(dt);
+
+        if (_pendingDisconnect != null)
+        {
+            SaveLocalCharacter();
+            _server?.Stop();
+            _game.SwitchScreen(new MainMenuScreen(_game, _pendingDisconnect));
+            return;
+        }
+
+        var input = _game.Input;
+        var screen = _game.ScreenSize;
+        _camera.ScreenWidth = screen.X;
+        _camera.ScreenHeight = screen.Y;
+        _inventory.Layout(screen);
+        _skillMenu.Layout(screen);
+
+        if (_client.Status != ClientStatus.InGame)
+        {
+            if (input.WasActionPressed(InputAction.Pause))
+            {
+                _client.Disconnect();
+                _server?.Stop();
+                _game.SwitchScreen(new MainMenuScreen(_game));
+            }
+            return;
+        }
+
+        var me = _client.World.Me;
+        var character = _client.World.MyCharacter;
+        if (me == null || character == null) return;
+
+        // Periodic local safety save.
+        _autosaveTimer += dt;
+        if (_autosaveTimer > 30f)
+        {
+            _autosaveTimer = 0;
+            SaveLocalCharacter();
+        }
+
+        // --- pause overlay ---
+        if (input.WasActionPressed(InputAction.Pause))
+        {
+            if (_inventory.Open || _skillMenu.Open || _debug.Open)
+            {
+                _inventory.Open = _skillMenu.Open = _debug.Open = false;
+            }
+            else
+            {
+                _paused = !_paused;
+            }
+        }
+        if (_paused)
+        {
+            _pausePanel.Update(input);
+            return;
+        }
+
+        // --- panel toggles ---
+        if (input.WasActionPressed(InputAction.Inventory)) _inventory.Open = !_inventory.Open;
+        if (input.WasActionPressed(InputAction.SkillMenu)) _skillMenu.Open = !_skillMenu.Open;
+        if (input.WasActionPressed(InputAction.DebugMenu)) _debug.Open = !_debug.Open;
+
+        // --- UI updates first: they claim the mouse before world input runs ---
+        _debug.Update(input);
+        _skillMenu.Update(input);
+        _inventory.Update(input);
+
+        // --- finish drags ---
+        if (_drag.Active && input.MouseLeftReleased)
+        {
+            var mouse = input.MousePosition;
+            bool handled = _skillMenu.TryDropAt(mouse) || _inventory.TryDropAt(mouse) || _debug.Contains(mouse);
+            if (!handled)
+                _client.RequestDropItem(_drag.Item.InstanceId); // released over the world: drop it
+            _drag.Clear();
+        }
+
+        bool mouseFree = !input.MouseCapturedByUI && !_drag.Active;
+
+        // --- movement (WASD in screen space, converted to isometric world space) ---
+        if (me.Alive)
+        {
+            var screenDir = NumVec2.Zero;
+            if (input.IsActionDown(InputAction.MoveUp)) screenDir.Y -= 1;
+            if (input.IsActionDown(InputAction.MoveDown)) screenDir.Y += 1;
+            if (input.IsActionDown(InputAction.MoveLeft)) screenDir.X -= 1;
+            if (input.IsActionDown(InputAction.MoveRight)) screenDir.X += 1;
+            var worldDir = IsoCamera.ScreenDirToWorldDir(screenDir); // normalized: diagonals aren't faster
+            if (worldDir != NumVec2.Zero)
+            {
+                float speed = _client.World.MyStats.MovementSpeed; // stat-driven, equipment can modify it
+                me.Position = _client.World.Map.MoveWithCollision(me.Position, worldDir * speed * dt, 0.3f);
+            }
+
+            var mouseWorld = _camera.ScreenToWorld(input.MousePosition);
+            var facing = mouseWorld - me.Position;
+            if (facing.LengthSquared() > 0.001f)
+                me.Facing = NumVec2.Normalize(facing);
+
+            // --- skills ---
+            TryUseHotbarSkill(0, input.IsActionDown(InputAction.PrimaryAttack) && mouseFree, mouseWorld);
+            TryUseHotbarSkill(1, input.IsActionDown(InputAction.Skill1), mouseWorld);
+            TryUseHotbarSkill(2, input.IsActionDown(InputAction.Skill2), mouseWorld);
+            TryUseHotbarSkill(3, input.IsActionDown(InputAction.Skill3), mouseWorld);
+            TryUseHotbarSkill(4, input.IsActionDown(InputAction.Skill4), mouseWorld);
+
+            // --- pickup ---
+            if (input.WasActionPressed(InputAction.Interact))
+            {
+                var drop = _client.World.NearestDrop(me.Position, 1.8f);
+                if (drop != null) _client.RequestPickup(drop.DropId);
+            }
+            if (mouseFree && input.MouseLeftPressed)
+            {
+                foreach (var (rect, dropId) in _renderer.DropLabelRects)
+                {
+                    if (rect.Contains(input.MousePosition))
+                    {
+                        _client.RequestPickup(dropId);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Camera follows the player.
+        _camera.Center = NumVec2.Lerp(_camera.Center, me.Position, Math.Clamp(dt * 8f, 0, 1));
+    }
+
+    private void TryUseHotbarSkill(int slot, bool pressed, NumVec2 target)
+    {
+        if (!pressed) return;
+        var character = _client.World.MyCharacter;
+        string skillId = slot < character.Hotbar.Length ? character.Hotbar[slot] : null;
+        if (skillId == null) return;
+        if (_cooldownEnds.TryGetValue(skillId, out float readyAt) && _clientTime < readyAt) return;
+
+        var learned = character.GetSkill(skillId);
+        var def = _game.Data.Skills.GetValueOrDefault(skillId);
+        if (learned == null || def == null) return;
+        var stats = SkillMath.Compute(_game.Data, def, learned.Level, learned.ScrollDefinitions(_game.Data), _client.World.MyStats);
+        _cooldownEnds[skillId] = _clientTime + stats.Cooldown;
+        _client.RequestUseSkill(skillId, target);
+    }
+
+    public void Draw(SpriteBatch sb)
+    {
+        var screen = _game.ScreenSize;
+
+        if (_client.Status != ClientStatus.InGame)
+        {
+            string text = _client.Status switch
+            {
+                ClientStatus.Connecting => "Connecting to host...",
+                ClientStatus.Joining => "Joining game...",
+                _ => "Disconnected.",
+            };
+            var font = FontManager.GetBold(24);
+            var size = font.MeasureString(text);
+            sb.DrawString(font, text, new Vector2(screen.X / 2f - size.X / 2, screen.Y / 2f - 40), Color.White);
+            var hintFont = FontManager.Get(15);
+            var hint = "Press Escape to cancel";
+            var hSize = hintFont.MeasureString(hint);
+            sb.DrawString(hintFont, hint, new Vector2(screen.X / 2f - hSize.X / 2, screen.Y / 2f + 4), new Color(160, 155, 140));
+            return;
+        }
+
+        _renderer.Draw(sb, _camera, _client.World);
+        _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
+        _skillMenu.Draw(sb, _game.Input);
+        _inventory.Draw(sb, _game.Input);
+        _debug.Draw(sb);
+
+        // Drag ghost + tooltips on top.
+        var input = _game.Input;
+        if (_drag.Active)
+        {
+            var b = _drag.Item.GetBase(_game.Data);
+            var rect = new Rectangle(input.MousePosition.X - b.InventoryWidth * InventoryUI.Cell / 2,
+                input.MousePosition.Y - b.InventoryHeight * InventoryUI.Cell / 2,
+                b.InventoryWidth * InventoryUI.Cell, b.InventoryHeight * InventoryUI.Cell);
+            _inventory.DrawItemBox(sb, rect, _drag.Item);
+        }
+        else
+        {
+            var hovered = _inventory.HoveredItem ?? _skillMenu.HoveredScrollItem;
+            if (hovered != null)
+                ItemTooltip.Draw(sb, _game.Data, hovered, input.MousePosition, screen);
+        }
+
+        var me = _client.World.Me;
+        if (me != null && !me.Alive)
+        {
+            sb.Draw(TextureGen.Pixel, new Rectangle(0, 0, screen.X, screen.Y), new Color(60, 0, 0, 90));
+            var font = FontManager.GetBold(30);
+            var text = "You died — respawning...";
+            var size = font.MeasureString(text);
+            sb.DrawString(font, text, new Vector2(screen.X / 2f - size.X / 2, screen.Y / 2f - 60), new Color(255, 120, 100));
+        }
+
+        if (_paused)
+        {
+            sb.Draw(TextureGen.Pixel, new Rectangle(0, 0, screen.X, screen.Y), new Color(0, 0, 0, 120));
+            _pausePanel.Draw(sb);
+        }
+    }
+}

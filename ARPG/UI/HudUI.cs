@@ -1,0 +1,213 @@
+using FontStashSharp;
+using ARPG.Core;
+using ARPG.Data;
+using ARPG.Net;
+using ARPG.Render;
+using ARPG.Skills;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+
+namespace ARPG.UI;
+
+/// <summary>In-game HUD: health orb, hotbar with cooldowns, XP bar, server messages.</summary>
+public class HudUI
+{
+    private readonly GameData _data;
+    private readonly GameClient _client;
+    private readonly List<(string text, float timeLeft)> _messages = new();
+
+    public HudUI(GameData data, GameClient client)
+    {
+        _data = data;
+        _client = client;
+    }
+
+    public void AddMessage(string text) => _messages.Insert(0, (text, 4f));
+
+    public void Update(float dt)
+    {
+        for (int i = _messages.Count - 1; i >= 0; i--)
+        {
+            var (text, t) = _messages[i];
+            t -= dt;
+            if (t <= 0) _messages.RemoveAt(i);
+            else _messages[i] = (text, t);
+        }
+    }
+
+    public void Draw(SpriteBatch sb, Point screen, InputManager input, IReadOnlyDictionary<string, float> cooldownEnds, float clientTime)
+    {
+        var me = _client.World.Me;
+        var character = _client.World.MyCharacter;
+        if (me == null || character == null) return;
+
+        // --- health orb (bottom left) ---
+        int orbSize = 96;
+        var orbRect = new Rectangle(18, screen.Y - orbSize - 18, orbSize, orbSize);
+        sb.Draw(TextureGen.Circle32, orbRect, new Color(40, 14, 14));
+        float frac = me.MaxHealth > 0 ? Math.Clamp(me.Health / me.MaxHealth, 0f, 1f) : 0f;
+        if (frac > 0)
+        {
+            int srcY = (int)(32 * (1 - frac));
+            var src = new Rectangle(0, srcY, 32, 32 - srcY);
+            var dst = new Rectangle(orbRect.X, orbRect.Y + (int)(orbSize * (1 - frac)), orbSize, (int)(orbSize * frac));
+            sb.Draw(TextureGen.Circle32, dst, src, new Color(190, 40, 40));
+        }
+        var font = FontManager.GetBold(15);
+        string hpText = $"{me.Health:0}/{me.MaxHealth:0}";
+        var hpSize = font.MeasureString(hpText);
+        sb.DrawString(font, hpText, new Vector2(orbRect.Center.X - hpSize.X / 2, orbRect.Center.Y - hpSize.Y / 2), Color.White);
+
+        // Character level + name above the orb
+        var nameFont = FontManager.Get(14);
+        sb.DrawString(nameFont, $"{character.Name}  ·  Level {character.Level}", new Vector2(20, orbRect.Y - 22), new Color(220, 210, 180));
+
+        // --- hotbar (bottom center) ---
+        int slotSize = 54, gap = 8;
+        int totalW = character.Hotbar.Length * slotSize + (character.Hotbar.Length - 1) * gap;
+        int hbX = screen.X / 2 - totalW / 2;
+        int hbY = screen.Y - slotSize - 16;
+        for (int i = 0; i < character.Hotbar.Length; i++)
+        {
+            var rect = new Rectangle(hbX + i * (slotSize + gap), hbY, slotSize, slotSize);
+            sb.Draw(TextureGen.Pixel, rect, new Color(20, 20, 28, 230));
+            string skillId = character.Hotbar[i];
+            var def = skillId != null ? _data.Skills.GetValueOrDefault(skillId) : null;
+            if (def != null)
+            {
+                SkillMenuUI.DrawSkillIcon(sb, new Rectangle(rect.X + 6, rect.Y + 4, slotSize - 12, slotSize - 12), def);
+                var abbrevFont = FontManager.GetBold(13);
+                string abbrev = string.Concat(def.Name.Split(' ').Select(w => w[0]));
+                var aSize = abbrevFont.MeasureString(abbrev);
+                sb.DrawString(abbrevFont, abbrev, new Vector2(rect.Center.X - aSize.X / 2, rect.Center.Y - aSize.Y / 2 - 2), Color.Black);
+
+                // Cooldown overlay
+                if (skillId != null && cooldownEnds.TryGetValue(skillId, out float readyAt) && readyAt > clientTime)
+                {
+                    var learned = character.GetSkill(skillId);
+                    var stats = SkillMath.Compute(_data, def, learned?.Level ?? 1,
+                        learned?.ScrollDefinitions(_data) ?? Enumerable.Empty<ScrollDefinition>(), _client.World.MyStats);
+                    float cdFrac = Math.Clamp((readyAt - clientTime) / MathF.Max(0.05f, stats.Cooldown), 0f, 1f);
+                    int h = (int)(slotSize * cdFrac);
+                    sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Bottom - h, slotSize, h), new Color(0, 0, 0, 160));
+                }
+            }
+            var outline = new Color(95, 88, 62);
+            sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Y, rect.Width, 2), outline);
+            sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Bottom - 2, rect.Width, 2), outline);
+            sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Y, 2, rect.Height), outline);
+            sb.Draw(TextureGen.Pixel, new Rectangle(rect.Right - 2, rect.Y, 2, rect.Height), outline);
+
+            string key = i switch
+            {
+                0 => input.Bindings[InputAction.PrimaryAttack].Display(),
+                1 => input.Bindings[InputAction.Skill1].Display(),
+                2 => input.Bindings[InputAction.Skill2].Display(),
+                3 => input.Bindings[InputAction.Skill3].Display(),
+                _ => input.Bindings[InputAction.Skill4].Display(),
+            };
+            sb.DrawString(FontManager.Get(11), key, new Vector2(rect.X + 4, rect.Y + 2), new Color(220, 220, 220));
+        }
+
+        // --- character XP bar (bottom edge) ---
+        float xpFrac = Math.Clamp(character.Experience / character.XpToNextLevel(), 0f, 1f);
+        sb.Draw(TextureGen.Pixel, new Rectangle(0, screen.Y - 5, screen.X, 5), new Color(25, 25, 30));
+        sb.Draw(TextureGen.Pixel, new Rectangle(0, screen.Y - 5, (int)(screen.X * xpFrac), 5), new Color(190, 160, 70));
+
+        // --- messages ---
+        var msgFont = FontManager.Get(15);
+        int my = hbY - 34;
+        foreach (var (text, timeLeft) in _messages.Take(4))
+        {
+            var size = msgFont.MeasureString(text);
+            var alpha = (byte)Math.Clamp(timeLeft * 255, 0, 255);
+            sb.DrawString(msgFont, text, new Vector2(screen.X / 2f - size.X / 2, my), new Color((byte)255, (byte)190, (byte)150, alpha));
+            my -= 22;
+        }
+
+        // --- key hints (top center) ---
+        var hintFont = FontManager.Get(12);
+        string hints = $"{input.Bindings[InputAction.Inventory].Display()} Inventory · " +
+                       $"{input.Bindings[InputAction.SkillMenu].Display()} Skills · " +
+                       $"{input.Bindings[InputAction.Interact].Display()} Pickup · " +
+                       $"{input.Bindings[InputAction.DebugMenu].Display()} Debug · " +
+                       $"{input.Bindings[InputAction.Pause].Display()} Menu";
+        var hintSize = hintFont.MeasureString(hints);
+        sb.DrawString(hintFont, hints, new Vector2(screen.X / 2f - hintSize.X / 2, 8), new Color(140, 136, 124));
+    }
+}
+
+/// <summary>F1 debug menu: developer commands (executed server-side) plus live diagnostics.</summary>
+public class DebugUI
+{
+    public bool Open;
+    private readonly GameClient _client;
+    private readonly Panel _panel;
+    public int Fps;
+    public bool IsHost;
+    public int HostPort;
+
+    public DebugUI(GameClient client)
+    {
+        _client = client;
+        _panel = new Panel { Bounds = new Rectangle(8, 30, 250, 560), Background = new Color(16, 16, 22, 235) };
+        var commands = new (string label, string cmd, string arg)[]
+        {
+            ("Spawn Enemy", "spawn_enemy", ""),
+            ("Give Random Mace", "give_mace", ""),
+            ("Give Random Staff", "give_staff", ""),
+            ("Give Random Rare", "give_rare", ""),
+            ("Give 10-Modifier Item", "give_10mod", ""),
+            ("Give Skill Scroll", "give_scroll", ""),
+            ("Grant Skill XP", "skill_xp", ""),
+            ("Grant Character XP", "char_xp", ""),
+            ("Kill Nearby Enemies", "kill_nearby", ""),
+            ("Full Heal", "heal", ""),
+        };
+        int y = _panel.Bounds.Y + 34;
+        foreach (var (label, cmd, arg) in commands)
+        {
+            _panel.Children.Add(new Button(label, new Rectangle(_panel.Bounds.X + 10, y, 230, 28),
+                () => _client.SendDebugCommand(cmd, arg)) { FontSize = 14 });
+            y += 33;
+        }
+    }
+
+    public bool Contains(Point p) => Open && _panel.Bounds.Contains(p);
+
+    public void Update(InputManager input)
+    {
+        if (!Open) return;
+        _panel.Update(input);
+    }
+
+    public void Draw(SpriteBatch sb)
+    {
+        if (!Open) return;
+        _panel.Draw(sb);
+        sb.DrawString(FontManager.GetBold(15), "Debug (F1)", new Vector2(_panel.Bounds.X + 10, _panel.Bounds.Y + 8), new Color(255, 200, 120));
+
+        var font = FontManager.Get(13);
+        var world = _client.World;
+        var me = world.Me;
+        var lines = new List<string>
+        {
+            $"FPS: {Fps}",
+            $"Mode: {(IsHost ? $"Host (0.0.0.0:{HostPort})" : "Remote client")}",
+            $"Status: {_client.Status}   Ping: {_client.PingMs} ms",
+            $"Players: {world.Players.Count} [{string.Join(", ", world.Players.Values.Select(p => $"{p.Id}:{p.Name}"))}]",
+            $"Enemies: {world.Enemies.Count}   Projectiles: {world.Projectiles.Count}",
+            $"Drops: {world.Drops.Count}",
+            me != null ? $"Pos: {me.Position.X:0.0}, {me.Position.Y:0.0}" : "Pos: -",
+            $"Move speed: {world.MyStats.MovementSpeed:0.0}   Armor: {world.MyStats.Armor:0}",
+            $"Weapon: {world.MyStats.WeaponMinDamage:0}-{world.MyStats.WeaponMaxDamage:0} @ {world.MyStats.WeaponAttackSpeed:0.0#}aps",
+            $"Res F/C/L: {world.MyStats.FireResistance:0}/{world.MyStats.ColdResistance:0}/{world.MyStats.LightningResistance:0}",
+        };
+        int ly = _panel.Bounds.Y + 34 + 10 * 33 + 6;
+        foreach (var line in lines)
+        {
+            sb.DrawString(font, line, new Vector2(_panel.Bounds.X + 10, ly), new Color(190, 200, 190));
+            ly += 17;
+        }
+    }
+}
