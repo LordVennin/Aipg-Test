@@ -300,6 +300,11 @@ public class GameServer : IServerEvents
             w.Put(e.Id);
             w.PutVec2(e.Position);
             w.Put((byte)e.State);
+            // Debuff bitmask so clients can render per-debuff indicators.
+            byte debuffs = 0;
+            if (World.Time < e.StunnedUntil) debuffs |= EnemyDebuffs.Stunned;
+            if (e.BurnTimeLeft > 0) debuffs |= EnemyDebuffs.Burning;
+            w.Put(debuffs);
         }
         Broadcast(w, DeliveryMethod.Unreliable);
     }

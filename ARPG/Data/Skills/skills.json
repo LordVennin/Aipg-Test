@@ -51,7 +51,7 @@
   {
     "Id": "shield_bash",
     "Name": "Shield Bash",
-    "Description": "Slam your shield into an enemy, knocking it back and briefly stunning it. Requires a shield equipped.",
+    "Description": "Slam your shield into an enemy, knocking it back with a high chance to momentarily stun it. Heavier shields hit harder: gains damage from your shield's armor. Requires a shield equipped.",
     "Tags": ["Attack", "Melee", "Physical", "Shield"],
     "Archetype": "MeleeSingle",
     "DamageKind": "Blunt",
@@ -59,11 +59,13 @@
     "WeaponDamageMultiplier": 0.9,
     "WeaponDamageMultiplierPerLevel": 0.07,
     "RequiresShield": true,
+    "ShieldArmorScaling": 0.6,
     "Cooldown": 0.7,
     "Range": 1.4,
     "Radius": 1.0,
     "Knockback": 1.6,
-    "StunDuration": 0.7
+    "StunDuration": 0.5,
+    "StunChance": 0.8
   },
   {
     "Id": "fire_bolt",

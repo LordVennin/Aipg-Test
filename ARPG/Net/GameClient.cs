@@ -333,7 +333,9 @@ public class GameClient
                     int id = r.GetInt();
                     var pos = r.GetVec2();
                     byte state = r.GetByte();
-                    if (World.Enemies.TryGetValue(id, out var e)) { e.NetTarget = pos; e.State = state; }
+                    byte debuffs = r.GetByte();
+                    if (World.Enemies.TryGetValue(id, out var e))
+                    { e.NetTarget = pos; e.State = state; e.DebuffFlags = debuffs; }
                 }
                 break;
             }

@@ -434,6 +434,8 @@ public partial class ServerWorld
                         if (push == Vector2.Zero) push = p.Facing;
                         victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback, victim.Def.Radius);
                     }
+                    if (!victim.Dead && RollStun(def))
+                        victim.StunnedUntil = Time + def.StunDuration;
                 }
                 break;
             }
@@ -443,7 +445,7 @@ public partial class ServerWorld
                 foreach (var e in EnemiesNear(p.Position, stats.Radius))
                 {
                     { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
-                    if (!e.Dead && def.StunDuration > 0)
+                    if (!e.Dead && RollStun(def))
                         e.StunnedUntil = Time + def.StunDuration;
                 }
                 break;
@@ -506,6 +508,9 @@ public partial class ServerWorld
 
     private bool RollIgnite(in EffectiveSkillStats stats) =>
         stats.IgniteChance > 0 && _rng.NextDouble() < stats.IgniteChance;
+
+    private bool RollStun(SkillDefinition def) =>
+        def.StunDuration > 0 && _rng.NextDouble() < def.StunChance;
 
     private static Vector2 ClampToRange(Vector2 from, Vector2 target, float range)
     {

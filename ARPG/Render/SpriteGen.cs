@@ -54,6 +54,53 @@ public static class SpriteGen
         return tex;
     }
 
+    /// <summary>
+    /// Tiny (9x9) debuff indicator icons drawn above enemy heads — one per debuff flag.
+    /// "stun": golden dizzy-star; "burn": orange flame. Cached by kind.
+    /// </summary>
+    public static Texture2D GetDebuffIcon(string kind)
+    {
+        if (_device == null) return null;
+        string key = "debuff:" + kind;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+
+        const int s = 9;
+        var px = new Color[s * s];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < s && y >= 0 && y < s) px[y * s + x] = c; }
+
+        if (kind == "stun")
+        {
+            // 4-pointed golden star with a bright core.
+            var gold = new Color(255, 210, 70);
+            var goldDark = new Color(200, 150, 30);
+            Set(4, 0, goldDark); Set(4, 8, goldDark); Set(0, 4, goldDark); Set(8, 4, goldDark);
+            for (int i = 1; i < 8; i++) { Set(4, i, gold); Set(i, 4, gold); }
+            Set(2, 2, goldDark); Set(6, 2, goldDark); Set(2, 6, goldDark); Set(6, 6, goldDark);
+            Set(4, 4, Color.White);
+            Set(3, 4, new Color(255, 240, 170)); Set(5, 4, new Color(255, 240, 170));
+        }
+        else // burn
+        {
+            var flame = new Color(240, 120, 30);
+            var flameDark = new Color(190, 70, 20);
+            var core = new Color(255, 220, 90);
+            // Teardrop flame: wide base, wavering tip.
+            Set(4, 0, flameDark);
+            Set(4, 1, flame); Set(3, 2, flame); Set(5, 2, flameDark);
+            for (int y = 3; y <= 7; y++)
+            {
+                int half = y <= 5 ? (y - 1) / 2 : 5 - (y - 5);
+                for (int x = 4 - half; x <= 4 + half; x++) Set(x, y, flame);
+            }
+            Set(2, 4, flameDark); Set(6, 5, flameDark);
+            Set(4, 5, core); Set(4, 6, core); Set(3, 6, core);
+        }
+
+        var tex = BakeStrip(px, s, s);
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
     // ------------------------------------------------------------------ pixel canvas
 
     private const int W = 26, H = 36;

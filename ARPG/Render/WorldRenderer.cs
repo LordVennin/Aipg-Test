@@ -151,6 +151,7 @@ public class WorldRenderer
                     batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
                         new Color(200, 50, 50));
                 }
+                DrawDebuffIcons(batch, e.DebuffFlags, (int)screen.X, barY - 16);
             }));
         }
 
@@ -190,8 +191,9 @@ public class WorldRenderer
 
                 void DrawHands()
                 {
-                    if (weaponTex != null) DrawHeld(weaponTex, bothHands ? 1f : 0f);
+                    // Off-hand (shield) always renders BELOW the main-hand weapon.
                     if (offHandTex != null) DrawHeld(offHandTex, bothHands ? -1f : 0f);
+                    if (weaponTex != null) DrawHeld(weaponTex, bothHands ? 1f : 0f);
                 }
 
                 if (weaponBehind) DrawHands();
@@ -307,6 +309,27 @@ public class WorldRenderer
                 var size = dmgFont.MeasureString(text);
                 sb.DrawString(dmgFont, text, new Vector2(screen.X - size.X / 2, screen.Y), color);
             }
+        }
+    }
+
+    /// <summary>Row of tiny per-debuff icons centered above an enemy's head — one icon
+    /// per active flag in Server.EnemyDebuffs order.</summary>
+    private static void DrawDebuffIcons(SpriteBatch sb, byte flags, int centerX, int y)
+    {
+        if (flags == 0) return;
+        var kinds = new string[2];
+        int count = 0;
+        if ((flags & Server.EnemyDebuffs.Stunned) != 0) kinds[count++] = "stun";
+        if ((flags & Server.EnemyDebuffs.Burning) != 0) kinds[count++] = "burn";
+
+        const int iconSize = 13, gap = 2;
+        int totalW = count * iconSize + (count - 1) * gap;
+        int x = centerX - totalW / 2;
+        for (int i = 0; i < count; i++)
+        {
+            var tex = SpriteGen.GetDebuffIcon(kinds[i]);
+            if (tex != null)
+                sb.Draw(tex, new Rectangle(x + i * (iconSize + gap), y, iconSize, iconSize), Color.White);
         }
     }
 
