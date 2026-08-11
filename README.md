@@ -5,13 +5,15 @@ engine/editor): WASD movement, rebindable controls, real-time combat with dodge 
 knockback, host-authoritative direct-IP multiplayer, grid inventory, equipment, randomized
 prefix/suffix loot with **per-item rolled prefix/suffix slot caps**, gold drops with
 modifier-based item values, **Enchanting Scrolls** (stackable PoE-orb-style crafting
-currency applied by dragging onto items), learnable skills with levels, Skill Scrolls,
+currency — right-click a scroll, then click an item to apply it), learnable skills
+with levels, Skill Scrolls, a character sheet with per-damage-type DPS,
 procedural pixel-art sprites, data-driven JSON content and local JSON saves.
 
 Crafting rules: white items have no modifiers, blue (magic) items hold at most 2, gold
 (rare) items are limited only by the item's own rolled slots (3-8 total, 5 typical,
-8 extremely rare). The Scroll of Sealing adds +1 slot to each side and permanently
-Seals the item against further crafting.
+8 extremely rare). The **Scroll of Gilding** upgrades a blue (magic) item to gold
+(rare) and adds one random modifier. The Scroll of Sealing adds +1 slot to each side
+and permanently Seals the item against further crafting.
 
 All artwork is generated at runtime (colored shapes) — this is intentionally a systems
 prototype, not a visual showcase.
@@ -81,6 +83,7 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Dodge (dash with i-frames) | `Space` (direction = movement keys, else facing) |
 | Inventory | `I` |
 | Skill Menu | `K` |
+| Character Sheet (defenses, resistances, skill DPS by damage type) | `C` |
 | Interact / pick up nearest item | `F` (or click an item's ground label) |
 | Debug menu | `F1` |
 | Pause / close panels / menu | `Escape` |

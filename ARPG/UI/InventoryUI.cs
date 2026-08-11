@@ -39,6 +39,11 @@ public class InventoryUI
     /// <summary>Item under the mouse this frame (for the tooltip), grid or equipment.</summary>
     public ItemInstance HoveredItem { get; private set; }
 
+    /// <summary>Armed Enchanting Scroll (right-clicked); the next left-click applies it.</summary>
+    private Guid? _pendingScrollId;
+    public bool EnchantModeActive => _pendingScrollId != null;
+    public void CancelEnchantMode() => _pendingScrollId = null;
+
     public InventoryUI(GameData data, GameClient client, DragState drag)
     {
         _data = data;
@@ -89,8 +94,37 @@ public class InventoryUI
                 HoveredItem = character.Equipment.GetValueOrDefault(hoveredSlot.Value);
         }
 
+        // --- enchant apply mode: right-click armed a scroll; left-click applies it ---
+        if (_pendingScrollId.HasValue)
+        {
+            if (character.Inventory.FindByInstance(_pendingScrollId.Value) == null)
+            {
+                _pendingScrollId = null; // scroll consumed/moved elsewhere
+            }
+            else if (input.MouseRightPressed || input.WasKeyPressed(Microsoft.Xna.Framework.Input.Keys.Escape))
+            {
+                _pendingScrollId = null;
+                input.MouseCapturedByUI = true;
+                return;
+            }
+            else if (input.MouseLeftPressed)
+            {
+                input.MouseCapturedByUI = true; // this click belongs to the enchant flow
+                ItemInstance target = hoveredPlaced?.Item;
+                if (target == null && hoveredSlot.HasValue)
+                    target = character.Equipment.GetValueOrDefault(hoveredSlot.Value);
+                if (target != null && target.InstanceId != _pendingScrollId.Value &&
+                    target.GetBase(_data).Category != ItemCategory.EnchantScroll)
+                {
+                    _client.RequestApplyEnchant(_pendingScrollId.Value, target.InstanceId);
+                }
+                _pendingScrollId = null; // one application per arm; clicking elsewhere cancels
+                return;
+            }
+        }
+
         // --- start drag ---
-        if (!_drag.Active && input.MouseLeftPressed && _panelRect.Contains(mouse))
+        if (!_drag.Active && !_pendingScrollId.HasValue && input.MouseLeftPressed && _panelRect.Contains(mouse))
         {
             if (hoveredPlaced != null)
             {
@@ -104,10 +138,14 @@ public class InventoryUI
             }
         }
 
-        // --- quick actions (right click): equip from grid / unequip to grid ---
+        // --- quick actions (right click): arm an Enchanting Scroll / equip / unequip ---
         if (!_drag.Active && input.MouseRightPressed)
         {
-            if (hoveredPlaced != null)
+            if (hoveredPlaced != null && hoveredPlaced.Item.GetBase(_data).Category == ItemCategory.EnchantScroll)
+            {
+                _pendingScrollId = hoveredPlaced.Item.InstanceId;
+            }
+            else if (hoveredPlaced != null)
             {
                 var slots = ItemBase.CompatibleSlots(hoveredPlaced.Item.GetBase(_data).Category);
                 if (slots.Count > 0)
@@ -130,25 +168,6 @@ public class InventoryUI
     {
         if (!Open || !_drag.Active || !_panelRect.Contains(mouse)) return false;
         var character = _client.World.MyCharacter;
-
-        // Enchanting Scroll dropped ONTO another item = apply it (PoE-orb style crafting).
-        bool dragIsEnchant = _drag.Item.GetBase(_data).Category == ItemCategory.EnchantScroll;
-        if (dragIsEnchant)
-        {
-            ItemInstance target = null;
-            var overGrid = HitGridItem(character, mouse);
-            if (overGrid != null && overGrid.Item.InstanceId != _drag.Item.InstanceId &&
-                overGrid.Item.BaseItemId != _drag.Item.BaseItemId)
-                target = overGrid.Item;
-            var overSlot = HitEquipSlot(mouse);
-            if (target == null && overSlot.HasValue)
-                target = character.Equipment.GetValueOrDefault(overSlot.Value);
-            if (target != null)
-            {
-                _client.RequestApplyEnchant(_drag.Item.InstanceId, target.InstanceId);
-                return true;
-            }
-        }
 
         var slot = HitEquipSlot(mouse);
         if (slot.HasValue)
@@ -254,8 +273,23 @@ public class InventoryUI
         }
 
         var hint = FontManager.Get(12);
-        sb.DrawString(hint, "drag to move/equip · right-click quick equip · drag an Enchanting Scroll onto an item",
+        sb.DrawString(hint, "drag to move/equip · right-click quick equip · right-click a Scroll, then click an item",
             new Vector2(_panelRect.X + 12, _panelRect.Bottom - 22), new Color(120, 116, 104));
+
+        // Armed Enchanting Scroll follows the cursor.
+        if (_pendingScrollId.HasValue)
+        {
+            var pending = character.Inventory.FindByInstance(_pendingScrollId.Value);
+            if (pending != null)
+            {
+                var tex = SpriteGen.GetEnchantScrollSprite(pending.Item.GetBase(_data));
+                var mouse = input.MousePosition;
+                if (tex != null)
+                    sb.Draw(tex, new Rectangle(mouse.X + 10, mouse.Y + 6, 28, 28), Color.White);
+                sb.DrawString(FontManager.Get(13), "click an item to enchant · right-click to cancel",
+                    new Vector2(mouse.X + 14, mouse.Y + 36), new Color(230, 200, 255));
+            }
+        }
     }
 
     public void DrawItemBox(SpriteBatch sb, Rectangle rect, ItemInstance item)

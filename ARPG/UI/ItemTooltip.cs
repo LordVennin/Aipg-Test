@@ -129,7 +129,7 @@ public static class ItemTooltip
             foreach (var descLine in WrapText(itemBase.Description ?? "", 44))
                 lines.Add(new Line(descLine, new Color(190, 175, 220)));
             lines.Add(new Line($"Stack: {item.StackCount}/{itemBase.MaxStack}", gray));
-            lines.Add(new Line("Drag onto an item to use.", gray));
+            lines.Add(new Line("Right-click, then click an item to use.", gray));
         }
         else
         {
