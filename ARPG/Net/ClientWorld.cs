@@ -18,6 +18,8 @@ public class ClientPlayer
     public float MaxHealth;
     public bool Alive = true;
     public bool IsLocal;
+    /// <summary>Counts down while this player is dodge-dashing (visual flair + i-frame hint).</summary>
+    public float DodgeTimeLeft;
 }
 
 public class ClientEnemy
@@ -51,6 +53,17 @@ public class ClientDrop
     public ItemInstance Item;
 }
 
+/// <summary>A floating combat number spawned from a server DamageEvent.</summary>
+public class FloatingNumber
+{
+    public Vector2 Position;
+    public float Amount;
+    public byte Kind;          // (Skills.DamageKind)
+    public bool TargetIsPlayer;
+    public float Age;
+    public const float Lifetime = 0.9f;
+}
+
 /// <summary>A transient visual effect (skill flash, projectile impact).</summary>
 public class ClientEffect
 {
@@ -75,6 +88,9 @@ public class ClientWorld
     public readonly Dictionary<int, ClientProjectile> Projectiles = new();
     public readonly Dictionary<Guid, ClientDrop> Drops = new();
     public readonly List<ClientEffect> Effects = new();
+    public readonly List<FloatingNumber> FloatingNumbers = new();
+    /// <summary>Diagnostic counter: dodge events received (used by the headless net test).</summary>
+    public int DodgeEventsSeen;
 
     /// <summary>Authoritative character state for the local player (from CharacterState packets).</summary>
     public CharacterData MyCharacter;
@@ -113,6 +129,16 @@ public class ClientWorld
         {
             Effects[i].TimeLeft -= dt;
             if (Effects[i].TimeLeft <= 0) Effects.RemoveAt(i);
+        }
+
+        foreach (var p in Players.Values)
+            if (p.DodgeTimeLeft > 0)
+                p.DodgeTimeLeft -= dt;
+
+        for (int i = FloatingNumbers.Count - 1; i >= 0; i--)
+        {
+            FloatingNumbers[i].Age += dt;
+            if (FloatingNumbers[i].Age >= FloatingNumber.Lifetime) FloatingNumbers.RemoveAt(i);
         }
     }
 

@@ -24,6 +24,16 @@ public class EnemyDefinition
     public string Color { get; set; } = "C04040"; // placeholder art tint (RRGGBB hex)
 }
 
+/// <summary>Base dodge tuning, loaded from Data/Config/dodge.json. Final values are these
+/// bases scaled by the character's Dodge* stats (equipment/modifiers can change them).</summary>
+public class DodgeConfig
+{
+    public float Distance { get; set; } = 3.0f;
+    public float Duration { get; set; } = 0.25f;
+    public float Cooldown { get; set; } = 2.0f;
+    public float InvulnerabilityDuration { get; set; } = 0.3f;
+}
+
 /// <summary>Loot table, loaded from Data/LootTables/*.json.</summary>
 public class LootTable
 {
@@ -55,6 +65,8 @@ public class GameData
     /// <summary>Skill level reached -> total scroll slots unlocked (Data/Config/scroll_slots.json).</summary>
     public Dictionary<int, int> ScrollSlotProgression { get; private set; } = new();
 
+    public DodgeConfig Dodge { get; private set; } = new();
+
     public static GameData LoadFromDirectory(string dataDir)
     {
         var data = new GameData();
@@ -77,6 +89,13 @@ public class GameData
         {
             var raw = Json.LoadFile<Dictionary<string, int>>(slotsPath);
             data.ScrollSlotProgression = raw.ToDictionary(kv => int.Parse(kv.Key), kv => kv.Value);
+        }
+
+        string dodgePath = Path.Combine(dataDir, "Config", "dodge.json");
+        if (File.Exists(dodgePath))
+        {
+            try { data.Dodge = Json.LoadFile<DodgeConfig>(dodgePath) ?? new DodgeConfig(); }
+            catch (Exception e) { Console.WriteLine($"[Data] Failed to load dodge.json: {e.Message}"); }
         }
 
         Console.WriteLine($"[Data] Loaded {data.Items.Count} items, {data.Modifiers.Count} modifiers, " +

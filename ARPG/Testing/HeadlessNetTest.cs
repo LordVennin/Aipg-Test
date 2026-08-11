@@ -109,12 +109,43 @@ public static class HeadlessNetTest
         int targetId = serverEnemy.Id;
         Check(clientB.World.Enemies.ContainsKey(targetId), "client B sees the debug-spawned enemy");
 
+        // Move A within melee reach: mace strike is caster-relative, projected in front of
+        // the player along the aim direction and clamped to weapon range.
+        var meAOnServer = server.World.Players[clientA.World.MyPlayerId];
+        clientA.World.Me.Position = serverEnemy.Position + new Vector2(-1.0f, 0);
+        Pump(0.3f); // let the position reach the server
+
         float hpBefore = serverEnemy.Health;
         clientA.RequestUseSkill("mace_strike", serverEnemy.Position);
         Pump(0.4f);
         Check(serverEnemy.Health < hpBefore, $"mace strike damaged enemy ({hpBefore:0} -> {serverEnemy.Health:0})");
         Check(clientB.World.Enemies.TryGetValue(targetId, out var enemyOnB) &&
               Math.Abs(enemyOnB.Health - serverEnemy.Health) < 0.01f, "enemy damage synchronized to client B");
+        Check(clientA.World.FloatingNumbers.Count > 0 || clientB.World.FloatingNumbers.Count > 0,
+              "damage event produced floating numbers on clients");
+
+        // A strike aimed far BEHIND max range must not hit (impact point clamps to range).
+        float hpBefore2 = serverEnemy.Health;
+        clientA.RequestUseSkill("mace_strike",
+            clientA.World.Me.Position - new Vector2(10f, 0)); // aimed the opposite direction
+        Pump(0.4f);
+        Check(Math.Abs(serverEnemy.Health - hpBefore2) < 0.01f,
+              "melee strike aimed away from the enemy does not hit it (caster-relative aim)");
+
+        Console.WriteLine("\n-- Dodge (server-authoritative cooldown + i-frames) --");
+        var dodgerServer = server.World.Players[clientA.World.MyPlayerId];
+        clientA.RequestDodge(new Vector2(1, 0));
+        Pump(0.3f);
+        Check(dodgerServer.InvulnerableUntil > server.World.Time - 0.5f &&
+              dodgerServer.InvulnerableUntil <= server.World.Time + 1f,
+              "server granted dodge i-frames");
+        float nextDodgeAt = dodgerServer.NextDodgeAt;
+        Check(nextDodgeAt > server.World.Time, "server started the dodge cooldown");
+        clientA.RequestDodge(new Vector2(0, 1)); // immediately again: must be rejected
+        Pump(0.3f);
+        Check(Math.Abs(dodgerServer.NextDodgeAt - nextDodgeAt) < 0.001f,
+              "second dodge during cooldown was rejected by the server");
+        Check(clientB.World.DodgeEventsSeen >= 1, "client B saw client A's dodge event");
 
         // Force many drops to guarantee loot: kill everything nearby repeatedly.
         int dropsBefore = clientA.World.Drops.Count;
@@ -168,13 +199,17 @@ public static class HeadlessNetTest
         Check(mace != null, "debug mace arrived in inventory");
         if (mace != null)
         {
-            float dmgBefore = server.World.Players[clientA.World.MyPlayerId].Stats.WeaponMaxDamage;
             clientA.RequestMoveItem(ItemLocation.AtGrid(mace.X, mace.Y), ItemLocation.AtEquip(Items.EquipSlot.MainHand));
             Pump(0.4f);
             var equipped = clientA.World.MyCharacter.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand);
             Check(equipped != null && equipped.InstanceId == mace.Item.InstanceId, "mace equipped via move request");
-            float dmgAfter = server.World.Players[clientA.World.MyPlayerId].Stats.WeaponMaxDamage;
-            Check(dmgAfter > dmgBefore, $"equipment changed server-side stats ({dmgBefore:0.#} -> {dmgAfter:0.#})");
+            var serverStats = server.World.Players[clientA.World.MyPlayerId].Stats;
+            var clientStats = clientA.World.MyStats;
+            Check(Math.Abs(serverStats.WeaponMaxDamage - clientStats.WeaponMaxDamage) < 0.01f &&
+                  Math.Abs(serverStats.MaxHealth - clientStats.MaxHealth) < 0.01f &&
+                  serverStats.WeaponCategory == Items.ItemCategory.Mace,
+                  $"server and client compute identical stats from the equipped mace " +
+                  $"(dmg {serverStats.WeaponMinDamage:0.#}-{serverStats.WeaponMaxDamage:0.#})");
         }
 
         Console.WriteLine("\n-- Skills, levels, scroll slots, scrolls --");

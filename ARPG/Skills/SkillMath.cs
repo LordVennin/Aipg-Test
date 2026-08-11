@@ -47,6 +47,24 @@ public static class SkillMath
     public static int MaxScrollSlots(GameData data) =>
         data.ScrollSlotProgression.Count == 0 ? 0 : data.ScrollSlotProgression.Values.Max();
 
+    /// <summary>
+    /// The impact point of a caster-relative melee strike: always projected along the aim
+    /// direction FROM THE CASTER, clamped into [minReach, range]. The server computes this
+    /// point for hit detection and broadcasts it, so client visuals use the exact same point.
+    /// </summary>
+    public static System.Numerics.Vector2 MeleeImpactPoint(
+        System.Numerics.Vector2 caster, System.Numerics.Vector2 aim,
+        System.Numerics.Vector2 facing, float range)
+    {
+        var toAim = aim - caster;
+        float len = toAim.Length();
+        var dir = len > 0.001f ? toAim / len : facing;
+        if (dir.LengthSquared() < 0.001f) dir = new System.Numerics.Vector2(1, 0);
+        float minReach = MathF.Min(0.6f, range);
+        float dist = Math.Clamp(len, minReach, range);
+        return caster + dir * dist;
+    }
+
     public static EffectiveSkillStats Compute(
         GameData data,
         SkillDefinition def,

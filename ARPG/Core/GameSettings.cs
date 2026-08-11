@@ -8,6 +8,8 @@ public class GameSettings
     public string PlayerName { get; set; } = "Exile";
     public string LastJoinIp { get; set; } = "127.0.0.1";
     public int LastPort { get; set; } = GameNetConfig.DefaultPort;
+    public bool ShowDamageNumbers { get; set; } = true;
+    public bool ShowEnemyHealthBars { get; set; } = true;
     public Dictionary<string, string> Bindings { get; set; } = new();
 
     public static string SaveDirectory =>

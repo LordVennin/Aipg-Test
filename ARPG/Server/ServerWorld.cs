@@ -22,8 +22,13 @@ public interface IServerEvents
     void WorldItemSpawned(WorldItem item);
     void WorldItemRemoved(WorldItem item, int pickedUpByPlayerId);
     void CharacterChanged(ServerPlayer p);
-    void SkillUsed(ServerPlayer p, string skillId, Vector2 target);
+    /// <summary>effectPoint is the server-computed impact/effect location — clients must
+    /// render the effect at exactly this point (no client-side recomputation).</summary>
+    void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint);
     void MessageFor(ServerPlayer p, string text);
+    void PlayerDodged(ServerPlayer p, Vector2 direction, float distance, float duration);
+    /// <summary>A damage application, for floating combat numbers on all clients.</summary>
+    void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position);
 }
 
 /// <summary>
@@ -174,12 +179,23 @@ public partial class ServerWorld
         {
             if (e.Dead) { Enemies.Remove(e.Id); continue; }
 
-            // Burning (ignite) damage over time.
+            // Burning (ignite) damage over time. Per-frame ticks are applied silently and
+            // batched into one damage event / health update every half second.
             if (e.BurnTimeLeft > 0)
             {
                 e.BurnTimeLeft -= dt;
-                DamageEnemy(e, e.BurnDps * dt, e.LastHitByPlayer, e.LastHitSkillId, silentBelow: 1f);
+                float tick = e.BurnDps * dt;
+                e.BurnAccum += tick;
+                e.BurnEmitTimer += dt;
+                DamageEnemy(e, tick, e.LastHitByPlayer, e.LastHitSkillId, DamageKind.Fire, emitEvents: false);
                 if (e.Dead) continue;
+                if (e.BurnEmitTimer >= 0.5f && e.BurnAccum >= 1f)
+                {
+                    _events.DamageDealt(false, e.Id, e.BurnAccum, DamageKind.Fire, e.Position);
+                    _events.EnemyHealthChanged(e);
+                    e.BurnAccum = 0;
+                    e.BurnEmitTimer = 0;
+                }
             }
 
             var target = NearestAlivePlayer(e.Position, out float dist);
@@ -294,7 +310,7 @@ public partial class ServerWorld
                     {
                         float dmg = Roll(pr.MinDamage, pr.MaxDamage);
                         bool ignite = pr.IgniteChance > 0 && _rng.NextDouble() < pr.IgniteChance;
-                        HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, ignite);
+                        HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, pr.DamageKind, ignite);
                         RemoveProjectile(pr, pr.Position);
                         break;
                     }
@@ -305,6 +321,7 @@ public partial class ServerWorld
                 foreach (var p in Players.Values)
                 {
                     if (!p.Alive) continue;
+                    if (Time < p.InvulnerableUntil) continue; // dodging players are passed through
                     if (Vector2.Distance(pr.Position, p.Position) <= ServerPlayer.Radius + 0.25f)
                     {
                         DamagePlayer(p, Roll(pr.MinDamage, pr.MaxDamage), pr.DamageKind);
@@ -348,21 +365,27 @@ public partial class ServerWorld
 
         var stats = SkillMath.Compute(Data, def, learned.Level, learned.ScrollDefinitions(Data), p.Stats);
         p.SkillReadyAt[skillId] = Time + stats.Cooldown;
-        _events.SkillUsed(p, skillId, target);
+
+        // The effect point is computed ONCE here and broadcast; hit detection below and
+        // client visuals both use this exact point.
+        Vector2 effectPoint = target;
 
         switch (def.Archetype)
         {
             case SkillArchetype.MeleeStrike:
             {
-                var point = ClampToRange(p.Position, target, stats.Range);
-                foreach (var e in EnemiesNear(point, stats.Radius))
-                    HitEnemy(e, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, RollIgnite(stats));
+                // Caster-relative: always projected in front of the player along the aim
+                // direction, never behind, clamped to weapon/skill range.
+                effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
+                foreach (var e in EnemiesNear(effectPoint, stats.Radius))
+                    HitEnemy(e, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, stats.DamageKind, RollIgnite(stats));
                 break;
             }
             case SkillArchetype.MeleeArea:
             {
+                effectPoint = p.Position;
                 foreach (var e in EnemiesNear(p.Position, stats.Radius))
-                    HitEnemy(e, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, RollIgnite(stats));
+                    HitEnemy(e, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, stats.DamageKind, RollIgnite(stats));
                 break;
             }
             case SkillArchetype.Projectile:
@@ -397,12 +420,27 @@ public partial class ServerWorld
             }
             case SkillArchetype.AreaBurst:
             {
-                var point = ClampToRange(p.Position, target, stats.Range);
-                foreach (var e in EnemiesNear(point, stats.Radius))
-                    HitEnemy(e, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, RollIgnite(stats));
+                effectPoint = ClampToRange(p.Position, target, stats.Range);
+                foreach (var e in EnemiesNear(effectPoint, stats.Radius))
+                    HitEnemy(e, Roll(stats.MinDamage, stats.MaxDamage), playerId, skillId, stats.DamageKind, RollIgnite(stats));
                 break;
             }
         }
+
+        _events.SkillUsed(p, skillId, effectPoint);
+    }
+
+    /// <summary>Server-authoritative dodge: validates the cooldown and applies i-frames.
+    /// Movement itself is client-predicted (like normal movement) for responsiveness.</summary>
+    public void RequestDodge(int playerId, Vector2 direction)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        if (Time < p.NextDodgeAt - 0.05f) return; // still on cooldown — reject silently
+        var dir = direction.NormalizedOrZero();
+        if (dir == Vector2.Zero) dir = p.Facing;
+        p.NextDodgeAt = Time + p.Stats.DodgeCooldown;
+        p.InvulnerableUntil = Time + p.Stats.DodgeInvulnerability;
+        _events.PlayerDodged(p, dir, p.Stats.DodgeDistance, p.Stats.DodgeDuration);
     }
 
     private bool RollIgnite(in EffectiveSkillStats stats) =>
@@ -426,17 +464,18 @@ public partial class ServerWorld
 
     private float Roll(float min, float max) => min + (float)_rng.NextDouble() * (max - min);
 
-    private void HitEnemy(ServerEnemy e, float damage, int byPlayer, string skillId, bool ignite)
+    private void HitEnemy(ServerEnemy e, float damage, int byPlayer, string skillId, DamageKind kind, bool ignite)
     {
         if (ignite)
         {
             e.BurnDps = MathF.Max(e.BurnDps, damage * 0.4f / 3f);
             e.BurnTimeLeft = 3f;
         }
-        DamageEnemy(e, damage, byPlayer, skillId);
+        DamageEnemy(e, damage, byPlayer, skillId, kind);
     }
 
-    private void DamageEnemy(ServerEnemy e, float damage, int byPlayer, string skillId, float silentBelow = 0f)
+    private void DamageEnemy(ServerEnemy e, float damage, int byPlayer, string skillId,
+        DamageKind kind = DamageKind.Physical, bool emitEvents = true)
     {
         if (e.Dead || damage <= 0) return;
         e.Health -= damage;
@@ -446,12 +485,14 @@ public partial class ServerWorld
         {
             e.Health = 0;
             e.State = EnemyState.Dead;
+            if (emitEvents) _events.DamageDealt(false, e.Id, damage, kind, e.Position);
             _events.EnemyDied(e);
             OnEnemyKilled(e);
         }
-        else if (damage >= silentBelow)
+        else if (emitEvents)
         {
             e.State = e.State == EnemyState.Idle ? EnemyState.Chase : e.State;
+            _events.DamageDealt(false, e.Id, damage, kind, e.Position);
             _events.EnemyHealthChanged(e);
         }
     }
@@ -507,13 +548,16 @@ public partial class ServerWorld
     private void DamagePlayer(ServerPlayer p, float rawDamage, DamageKind kind)
     {
         if (!p.Alive) return;
+        if (Time < p.InvulnerableUntil) return; // dodge i-frames (server-authoritative)
         float damage = rawDamage;
         if (kind == DamageKind.Physical)
             damage *= 1f - p.Stats.PhysicalReduction;
         else
             damage *= 1f - p.Stats.ResistanceFor(kind) / 100f;
 
-        p.Health -= MathF.Max(0.5f, damage);
+        damage = MathF.Max(0.5f, damage);
+        p.Health -= damage;
+        _events.DamageDealt(true, p.Id, damage, kind, p.Position);
         if (p.Health <= 0)
         {
             p.Health = 0;
