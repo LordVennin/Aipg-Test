@@ -3,9 +3,15 @@
 A playable isometric action-RPG prototype written **in plain C# with MonoGame** (no game
 engine/editor): WASD movement, rebindable controls, real-time combat with dodge and
 knockback, host-authoritative direct-IP multiplayer, grid inventory, equipment, randomized
-prefix/suffix loot with **per-item modifier limits**, gold drops with modifier-based item
-values, learnable skills with levels, Skill Scrolls, procedural pixel-art sprites,
-data-driven JSON content and local JSON saves.
+prefix/suffix loot with **per-item rolled prefix/suffix slot caps**, gold drops with
+modifier-based item values, **Enchanting Scrolls** (stackable PoE-orb-style crafting
+currency applied by dragging onto items), learnable skills with levels, Skill Scrolls,
+procedural pixel-art sprites, data-driven JSON content and local JSON saves.
+
+Crafting rules: white items have no modifiers, blue (magic) items hold at most 2, gold
+(rare) items are limited only by the item's own rolled slots (3-8 total, 5 typical,
+8 extremely rare). The Scroll of Sealing adds +1 slot to each side and permanently
+Seals the item against further crafting.
 
 All artwork is generated at runtime (colored shapes) — this is intentionally a systems
 prototype, not a visual showcase.
@@ -198,6 +204,9 @@ learned skills with levels/XP/attached scrolls, and hotbar assignments included.
   `Effects` over `ScrollStat` values), plus a 1x1 `SkillScroll`-category item in
   `Data/Items/scrolls.json` whose `ScrollId` points at it. Tag-based compatibility means
   it automatically works with every current and future skill carrying that tag.
+- **New Enchanting Scroll**: add an entry to `Data/Items/enchant_scrolls.json` with an
+  `EnchantType` (see `Items/EnchantSystem.cs`), `MaxStack`, `DropWeight` and `SpriteColor`.
+  A genuinely new crafting behavior is one new case in `EnchantSystem.Apply`.
 - **Skill Scroll slot progression**: edit `Data/Config/scroll_slots.json`
   (`"skill level reached": total slots` — currently 2→1, 4→2, 6→3, 8→4).
 - **Changing an item's Modifier Limit**: set `BaseModifierLimit` on the base (whole item

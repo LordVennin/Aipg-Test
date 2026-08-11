@@ -88,6 +88,21 @@ public class InventoryGrid
 
     public bool TryAdd(GameData data, ItemInstance item)
     {
+        // Stackable items merge into existing stacks of the same base first.
+        var itemBase = item.GetBase(data);
+        if (itemBase.MaxStack > 1)
+        {
+            foreach (var placed in Items)
+            {
+                if (placed.Item.BaseItemId != item.BaseItemId) continue;
+                int space = itemBase.MaxStack - placed.Item.StackCount;
+                if (space <= 0) continue;
+                int moved = Math.Min(space, item.StackCount);
+                placed.Item.StackCount += moved;
+                item.StackCount -= moved;
+                if (item.StackCount <= 0) return true;
+            }
+        }
         if (!TryFindFreeSlot(data, item, out int x, out int y)) return false;
         Items.Add(new PlacedItem { Item = item, X = x, Y = y });
         return true;

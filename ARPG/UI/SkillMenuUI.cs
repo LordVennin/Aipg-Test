@@ -179,7 +179,9 @@ public class SkillMenuUI
         string statLine2 = $"Range {stats.Range:0.0}" +
                            (stats.Radius > 0 ? $"   Radius {stats.Radius:0.0}" : "") +
                            (selDef.Archetype == SkillArchetype.Projectile ? $"   Projectiles {stats.ProjectileCount}" : "") +
-                           (stats.IgniteChance > 0 ? $"   Ignite {stats.IgniteChance:P0}" : "");
+                           (stats.IgniteChance > 0 ? $"   Ignite {stats.IgniteChance:P0}" : "") +
+                           (selDef.StunDuration > 0 ? $"   Stun {selDef.StunDuration:0.0}s" : "") +
+                           (selDef.Knockback > 0 ? $"   Knockback {selDef.Knockback:0.0}" : "");
         sb.DrawString(font, statLine1, new Vector2(x, y), new Color(235, 225, 200));
         y += 20;
         sb.DrawString(font, statLine2, new Vector2(x, y), new Color(235, 225, 200));

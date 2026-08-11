@@ -198,6 +198,14 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestApplyEnchant(Guid scrollInstanceId, Guid targetInstanceId)
+    {
+        var w = Packets.Make(PacketType.ApplyEnchantRequest);
+        w.PutGuid(scrollInstanceId);
+        w.PutGuid(targetInstanceId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestDodge(Vector2 direction)
     {
         var w = Packets.Make(PacketType.DodgeRequest);

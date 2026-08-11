@@ -34,7 +34,7 @@
   {
     "Id": "ground_slam",
     "Name": "Ground Slam",
-    "Description": "Slam the ground, damaging all enemies around you.",
+    "Description": "Slam the ground, damaging and briefly stunning all enemies around you.",
     "Tags": ["Attack", "Melee", "Area", "Physical", "Mace"],
     "Archetype": "MeleeArea",
     "DamageKind": "Physical",
@@ -45,7 +45,8 @@
     "Cooldown": 0.8,
     "Range": 0,
     "Radius": 2.2,
-    "RadiusPerLevel": 0.12
+    "RadiusPerLevel": 0.12,
+    "StunDuration": 0.9
   },
   {
     "Id": "fire_bolt",

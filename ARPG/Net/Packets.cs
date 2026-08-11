@@ -21,6 +21,7 @@ public enum PacketType : byte
     AssignHotbarRequest,
     DebugCommand,
     DodgeRequest,
+    ApplyEnchantRequest,
 
     // Server -> Client
     JoinAccept,

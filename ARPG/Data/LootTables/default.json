@@ -2,6 +2,7 @@
   "Id": "default",
   "DropChance": 0.45,
   "ScrollDropChance": 0.1,
+  "EnchantScrollDropChance": 0.14,
   "GoldDropChance": 0.45,
   "GoldMin": 4,
   "GoldMax": 14,

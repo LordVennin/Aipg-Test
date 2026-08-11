@@ -124,9 +124,24 @@ public static class ItemTooltip
             lines.Add(new Line($"Requires skill tag: {scrollDef.RequiredTag}", new Color(200, 160, 255)));
             lines.Add(new Line(scrollDef.Description ?? "", gray));
         }
+        else if (itemBase.Category == ItemCategory.EnchantScroll)
+        {
+            foreach (var descLine in WrapText(itemBase.Description ?? "", 44))
+                lines.Add(new Line(descLine, new Color(190, 175, 220)));
+            lines.Add(new Line($"Stack: {item.StackCount}/{itemBase.MaxStack}", gray));
+            lines.Add(new Line("Drag onto an item to use.", gray));
+        }
         else
         {
+            item.EnsureSlotData();
+            int bonus = item.ModifierLimitBonus(data);
+            string flex = bonus > 0 ? $"  (+{bonus} flexible)" : "";
+            lines.Add(new Line(
+                $"Prefixes: {item.CountAffixes(data, AffixType.Prefix)}/{item.MaxPrefixes} · " +
+                $"Suffixes: {item.CountAffixes(data, AffixType.Suffix)}/{item.MaxSuffixes}{flex}", gray));
             lines.Add(new Line($"Modifiers: {item.Modifiers.Count} / {item.CurrentModifierLimit(data)} (item limit)", gray));
+            if (item.Locked)
+                lines.Add(new Line("SEALED — cannot be modified", new Color(230, 110, 200)));
         }
         if (itemBase.RequiredLevel > 1)
             lines.Add(new Line($"Required Level: {itemBase.RequiredLevel}", gray));
@@ -134,6 +149,22 @@ public static class ItemTooltip
         if (itemBase.Category != ItemCategory.SkillScroll)
             lines.Add(new Line($"Value: {item.GoldValue(data)} gold", new Color(240, 200, 90)));
         return lines;
+    }
+
+    private static IEnumerable<string> WrapText(string text, int maxChars)
+    {
+        var words = text.Split(' ');
+        var line = "";
+        foreach (var word in words)
+        {
+            if (line.Length + word.Length + 1 > maxChars && line.Length > 0)
+            {
+                yield return line;
+                line = "";
+            }
+            line = line.Length == 0 ? word : line + " " + word;
+        }
+        if (line.Length > 0) yield return line;
     }
 
     private static string CategoryName(ItemCategory c) => c switch
