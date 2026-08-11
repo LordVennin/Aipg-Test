@@ -36,6 +36,9 @@ public class ClientEnemy
     public float Health;
     public float MaxHealth;
     public byte State;
+    /// <summary>Active debuff bitmask from enemy snapshots (Server.EnemyDebuffs flags),
+    /// rendered as tiny per-debuff icons above the enemy's head.</summary>
+    public byte DebuffFlags;
     /// <summary>Which way the sprite should face on screen (updated from movement).</summary>
     public bool FacingLeft;
 }
@@ -134,7 +137,29 @@ public class ClientWorld
             // Screen-space horizontal direction in isometric projection: (dx - dy).
             var delta = e.NetTarget - e.Position;
             float screenDx = delta.X - delta.Y;
-            if (MathF.Abs(screenDx) > 0.02f) e.FacingLeft = screenDx < 0;
+            if (MathF.Abs(screenDx) > 0.02f)
+            {
+                e.FacingLeft = screenDx < 0;
+            }
+            else if (e.State == (byte)Server.EnemyState.Attack)
+            {
+                // Standing still while attacking (ranged spitters): face the nearest
+                // player — the same target the server's AI picks.
+                ClientPlayer nearest = null;
+                float best = float.MaxValue;
+                foreach (var p in Players.Values)
+                {
+                    if (!p.Alive) continue;
+                    float d = Vector2.DistanceSquared(p.Position, e.Position);
+                    if (d < best) { best = d; nearest = p; }
+                }
+                if (nearest != null)
+                {
+                    var toPlayer = nearest.Position - e.Position;
+                    float faceDx = toPlayer.X - toPlayer.Y;
+                    if (MathF.Abs(faceDx) > 0.02f) e.FacingLeft = faceDx < 0;
+                }
+            }
             e.Position = Vector2.Lerp(e.Position, e.NetTarget, Math.Clamp(dt * 10f, 0f, 1f));
         }
 

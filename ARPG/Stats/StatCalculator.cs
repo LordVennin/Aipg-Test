@@ -26,6 +26,8 @@ public struct ComputedStats
     public float BlockChance;            // percent chance to fully avoid one hit
     public float BlockCooldown;          // seconds between successful blocks
     public bool HasShield;               // a shield is equipped in either hand
+    /// <summary>Total Armor on equipped shields only (fuels Shield Bash damage scaling).</summary>
+    public float ShieldArmor;
 
     // Dodge (base values from Data/Config/dodge.json, scaled by Dodge* stats)
     public float DodgeDistance;          // tiles
@@ -101,12 +103,17 @@ public static class StatCalculator
         var total = new StatCollection();
         ItemInstance weapon = null;
         bool hasShield = false;
+        float shieldArmor = 0f;
         foreach (var (slot, item) in character.Equipment)
         {
             if (item == null) continue;
             total.AddAll(item.TotalStats(data));
             if (slot == EquipSlot.MainHand) weapon = item;
-            if (item.GetBase(data)?.Category == ItemCategory.Shield) hasShield = true;
+            if (item.GetBase(data)?.Category == ItemCategory.Shield)
+            {
+                hasShield = true;
+                shieldArmor += item.TotalStats(data).Get(StatType.Armor);
+            }
         }
 
         // 2) Temporary effects (buffs/debuffs) merge into the same pool.
@@ -145,6 +152,7 @@ public static class StatCalculator
         // Blocking: chance comes entirely from gear (shields and their modifiers); a block
         // avoids one hit completely, then waits out a cooldown that recovery stats shorten.
         s.HasShield = hasShield;
+        s.ShieldArmor = shieldArmor;
         s.BlockChance = MathF.Min(ComputedStats.BlockChanceCap, total.Get(StatType.BlockChance));
         s.BlockCooldown = MathF.Max(0.25f, BaseBlockCooldown / (1f + total.Get(StatType.BlockCooldownRecovery) / 100f));
 

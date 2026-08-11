@@ -90,6 +90,13 @@ public class SkillDefinition
     /// <summary>Seconds hit enemies are stunned (no movement, no attacks).</summary>
     public float StunDuration { get; set; }
 
+    /// <summary>Chance (0..1) that a hit actually applies StunDuration. Defaults to always.</summary>
+    public float StunChance { get; set; } = 1f;
+
+    /// <summary>Flat damage added per point of Armor on equipped SHIELDS (Shield Bash:
+    /// heavier shields hit harder). 0 for skills that don't scale with shields.</summary>
+    public float ShieldArmorScaling { get; set; }
+
     /// <summary>"Attack" skills scale with attack speed; "Spell" with cast speed.</summary>
     public bool IsAttack => Tags.Contains(SkillTags.Attack);
 

@@ -15,6 +15,14 @@ public enum EnemyState : byte
     Dead,
 }
 
+/// <summary>Bitmask of enemy debuffs replicated in enemy snapshots. Each flag gets its
+/// own tiny indicator icon above the enemy's head; new debuffs claim the next bit.</summary>
+public static class EnemyDebuffs
+{
+    public const byte Stunned = 1 << 0;
+    public const byte Burning = 1 << 1;
+}
+
 /// <summary>Authoritative player state held by the server (host).</summary>
 public class ServerPlayer
 {

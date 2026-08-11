@@ -442,6 +442,16 @@ public static class HeadlessNetTest
         }
         Check(stunConfirmed, "ground slam stunned nearby enemies");
 
+        // The stun replicates to clients as a debuff flag (rendered as a tiny icon).
+        bool stunFlagSeen = false;
+        for (int i = 0; i < 30 && !stunFlagSeen; i++)
+        {
+            Pump(0.05f);
+            stunFlagSeen = clientA.World.Enemies.Values.Any(en =>
+                (en.DebuffFlags & Server.EnemyDebuffs.Stunned) != 0);
+        }
+        Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
+
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
         Check(data.Modifiers.Count == 301, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
         Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 30,
@@ -661,6 +671,19 @@ public static class HeadlessNetTest
         Check(charAfterDual.MainHand?.GetBase(data).Category == Items.ItemCategory.Shield &&
               charAfterDual.OffHand?.GetBase(data).Category == Items.ItemCategory.Shield,
               "a shield can be equipped in BOTH hands at once");
+
+        // Shield Bash scales with shield armor: same weapon, +ShieldArmor -> more damage.
+        var bashDef = data.Skills["shield_bash"];
+        Check(bashDef.ShieldArmorScaling > 0 && bashDef.StunChance is > 0.5f and < 1f,
+              $"Shield Bash has armor scaling ({bashDef.ShieldArmorScaling}) and a high stun chance ({bashDef.StunChance:P0})");
+        var bareStats = new Stats.ComputedStats { WeaponMinDamage = 10, WeaponMaxDamage = 10, WeaponAttackSpeed = 1f };
+        var shieldedStats = bareStats;
+        shieldedStats.ShieldArmor = 20;
+        var bashBare = Skills.SkillMath.Compute(data, bashDef, 1, Array.Empty<Skills.ScrollDefinition>(), bareStats);
+        var bashShielded = Skills.SkillMath.Compute(data, bashDef, 1, Array.Empty<Skills.ScrollDefinition>(), shieldedStats);
+        float armorBonus = bashShielded.MinDamage - bashBare.MinDamage;
+        Check(Math.Abs(armorBonus - 20 * bashDef.ShieldArmorScaling) < 0.01f,
+              $"Shield Bash gains flat damage from shield armor (+{armorBonus:0.#} from 20 armor)");
 
         // Blocking end-to-end: crank A's off-hand shield to the block cap on the server,
         // park B far away so the spitter targets A, and wait for a Blocked event.

@@ -111,7 +111,11 @@ actually held in each hand. **Blocking**: shields grant Block Chance (a % chance
 fully avoid one hit, capped at 75%); after a block it recovers for 2 seconds (base),
 shortened by Block Cooldown Recovery modifiers. Blocks are rolled server-side and
 show as a floating "Blocked" message. Shield Bash (a learnable skill) requires a
-shield equipped in either hand and knocks back + stuns its target.
+shield equipped in either hand, knocks its target back with a high chance (80%) to
+momentarily stun it, and gains flat damage from your equipped shields' armor —
+heavier shields hit harder. The off-hand item always renders beneath the main-hand
+weapon. Enemy debuffs (stun, burning) replicate as snapshot flags and render as
+tiny per-debuff icons above the enemy's head.
 
 ## 7. Source directory map
 

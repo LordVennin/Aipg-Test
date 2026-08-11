@@ -166,6 +166,15 @@ public static class SkillMath
             if (added.Count > 0) s.Added = added;
         }
 
+        // Shield-scaling skills (Shield Bash) add flat damage from equipped shields' armor,
+        // so heavier shields hit harder. Applied before global % scaling.
+        if (def.ShieldArmorScaling > 0 && playerStats.ShieldArmor > 0)
+        {
+            float bonus = playerStats.ShieldArmor * def.ShieldArmorScaling;
+            s.MinDamage += bonus;
+            s.MaxDamage += bonus;
+        }
+
         // Global damage scaling from character stats.
         float damageInc = def.IsAttack ? playerStats.PhysicalDamageIncrease : playerStats.SpellDamageIncrease;
         s.MinDamage *= 1f + damageInc / 100f;
