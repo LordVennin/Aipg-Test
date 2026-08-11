@@ -260,8 +260,9 @@ public class OptionsPanel
                 RefreshLabels();
             }) { FontSize = 15 };
         display.Children.Add(_resolutionButton);
-        display.Children.Add(new Label("Fullscreen is borderless (uses the desktop display).", cx, contentY + 44, 14));
-        display.Children.Add(new Label("Menus and HUD scale automatically with the resolution.", cx, contentY + 66, 14));
+        display.Children.Add(new Label("Fullscreen is borderless at the DESKTOP resolution;", cx, contentY + 44, 14));
+        display.Children.Add(new Label("the resolution setting applies to windowed mode.", cx, contentY + 66, 14));
+        display.Children.Add(new Label("Menus and HUD scale automatically with the resolution.", cx, contentY + 88, 14));
 
         // --- Gameplay tab ---
         var gameplay = new Panel { Bounds = Rectangle.Empty, Background = Color.Transparent, Border = Color.Transparent };

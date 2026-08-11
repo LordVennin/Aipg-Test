@@ -134,8 +134,16 @@ replicate as snapshot flags and render as tiny per-debuff icons above the enemy'
 head.
 
 **Skills**: *Mace Strike* (fast single-target swing with knockback, free), *Heavy
-Strike* (area blow at the aimed point), Ground Slam, Shield Bash, Fire Bolt and
-Arcane Burst. Melee strikes animate the actual held weapon sweeping an arc.
+Strike* (area blow at the aimed point), Ground Slam, Shield Bash, Fire Bolt,
+Arcane Burst, *Ice Spike* (a cold projectile with its own crystalline shard
+sprite) and *Chain Lightning* (an instant bolt that strikes the enemy nearest the
+aim and leaps between nearby targets — the exact chain path is broadcast so every
+client draws the same jagged, flickering bolt; Multishot scrolls add extra jumps).
+Melee strikes animate the actual held weapon sweeping an arc. Enemies softly
+collide with each other, so packs spread out instead of stacking into one sprite.
+In borderless fullscreen the game always renders at the desktop resolution (the
+resolution setting applies to windowed mode), which keeps menus centered and the
+mouse in sync.
 **Critical hits**: every hit has a base 5% chance to crit for 150% damage;
 *of Precision* (crit chance) and *of Ferocity* (crit damage) suffixes roll on
 weapons only. Attack Speed suffixes roll on melee weapons, Cast Speed suffixes on

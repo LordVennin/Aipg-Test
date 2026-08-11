@@ -54,6 +54,50 @@ public static class SpriteGen
         return tex;
     }
 
+    /// <summary>Named projectile sprites (SkillDefinition.ProjectileSprite), drawn pointing
+    /// RIGHT; the renderer rotates them along the flight direction. Cached per name.</summary>
+    public static Texture2D GetProjectileSprite(string key)
+    {
+        if (_device == null || string.IsNullOrEmpty(key)) return null;
+        string cacheKey = "proj:" + key;
+        if (_cache.TryGetValue(cacheKey, out var cached)) return cached[0];
+        var tex = key switch
+        {
+            "IceSpike" => DrawIceSpike(),
+            _ => null,
+        };
+        if (tex == null) return null;
+        _cache[cacheKey] = new[] { tex };
+        return tex;
+    }
+
+    /// <summary>A jagged crystalline shard: icy blue body, bright core, trailing crystals.</summary>
+    private static Texture2D DrawIceSpike()
+    {
+        const int w = 18, h = 9;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+
+        var ice = new Color(140, 200, 245);
+        var iceDark = new Color(80, 140, 215);
+        var core = new Color(235, 250, 255);
+
+        // Main shard: thick at the back (left), tapering to a point at the tip (right).
+        for (int x = 2; x <= 16; x++)
+        {
+            int hw = x <= 8 ? 2 : x <= 12 ? 1 : 0; // half-width shrinks toward the tip
+            for (int y = 4 - hw; y <= 4 + hw; y++)
+                Set(x, y, y == 4 ? (x >= 12 ? core : ice) : (y < 4 ? ice : iceDark));
+        }
+        Set(16, 4, core); // gleaming tip
+        // Small trailing crystals above/below the back end.
+        Set(3, 1, iceDark); Set(4, 1, ice); Set(4, 2, ice);
+        Set(5, 7, iceDark); Set(6, 7, ice);
+        Set(1, 4, iceDark);
+
+        return BakeStrip(px, w, h);
+    }
+
     /// <summary>
     /// Tiny (9x9) debuff indicator icons drawn above enemy heads — one per debuff flag.
     /// "stun": golden dizzy-star; "burn": orange flame. Cached by kind.

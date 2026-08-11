@@ -25,6 +25,9 @@ public interface IServerEvents
     /// <summary>effectPoint is the server-computed impact/effect location — clients must
     /// render the effect at exactly this point (no client-side recomputation).</summary>
     void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint);
+    /// <summary>A chain-lightning path (caster, then each victim in hit order) so clients
+    /// can draw the bolt between the exact chain points.</summary>
+    void ChainEffect(string skillId, List<Vector2> points);
     void MessageFor(ServerPlayer p, string text);
     void PlayerDodged(ServerPlayer p, Vector2 direction, float distance, float duration);
     /// <summary>A damage application, for floating combat numbers on all clients.</summary>
@@ -217,8 +220,36 @@ public partial class ServerWorld
         return e;
     }
 
+    /// <summary>Soft enemy-vs-enemy collision: overlapping enemies push each other apart so
+    /// packs spread out instead of stacking into one sprite. Runs after AI movement.</summary>
+    private void SeparateEnemies(float dt)
+    {
+        var list = Enemies.Values.Where(e => !e.Dead).ToList();
+        for (int i = 0; i < list.Count; i++)
+        {
+            for (int j = i + 1; j < list.Count; j++)
+            {
+                var a = list[i];
+                var b = list[j];
+                float minDist = (a.Def.Radius + b.Def.Radius) * 0.9f;
+                var delta = b.Position - a.Position;
+                float distSq = delta.LengthSquared();
+                if (distSq >= minDist * minDist) continue;
+                // Perfectly stacked enemies get a deterministic split direction.
+                var dir = distSq > 0.0001f
+                    ? delta / MathF.Sqrt(distSq)
+                    : new Vector2(MathF.Cos(a.Id * 2.4f), MathF.Sin(a.Id * 2.4f));
+                float overlap = minDist - MathF.Sqrt(distSq);
+                var push = dir * MathF.Min(overlap * 0.5f, 3f * dt); // gentle, framerate-safe
+                a.Position = Map.MoveWithCollision(a.Position, -push, a.Def.Radius);
+                b.Position = Map.MoveWithCollision(b.Position, push, b.Def.Radius);
+            }
+        }
+    }
+
     private void TickEnemies(float dt)
     {
+        SeparateEnemies(dt);
         foreach (var e in Enemies.Values.ToList())
         {
             if (e.Dead) { Enemies.Remove(e.Id); continue; }
@@ -533,6 +564,40 @@ public partial class ServerWorld
                 effectPoint = ClampToRange(p.Position, target, stats.Range);
                 foreach (var e in EnemiesNear(effectPoint, stats.Radius))
                     { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
+                break;
+            }
+            case SkillArchetype.ChainLightning:
+            {
+                // Instant-hit chain: strike the enemy nearest the aim, then leap to the
+                // closest unhit enemy within Radius, up to ProjectileCount total hits
+                // (Multishot scrolls therefore add extra jumps). The full chain path is
+                // broadcast so clients render the bolt between the exact victims.
+                effectPoint = ClampToRange(p.Position, target, stats.Range);
+                var chainPoints = new List<Vector2> { p.Position };
+                var hitIds = new HashSet<int>();
+                var current = Enemies.Values
+                    .Where(e => !e.Dead && Vector2.Distance(e.Position, effectPoint) <= 2.2f)
+                    .OrderBy(e => Vector2.Distance(e.Position, effectPoint))
+                    .FirstOrDefault();
+                int maxHits = Math.Max(1, stats.ProjectileCount);
+                while (current != null && hitIds.Count < maxHits)
+                {
+                    hitIds.Add(current.Id);
+                    chainPoints.Add(current.Position);
+                    var (dmg, kind) = RollSkillHit(current, stats);
+                    HitEnemy(current, dmg, playerId, skillId, kind, RollIgnite(stats));
+                    var from = current.Position;
+                    current = Enemies.Values
+                        .Where(e => !e.Dead && !hitIds.Contains(e.Id) &&
+                                    Vector2.Distance(e.Position, from) <= stats.Radius)
+                        .OrderBy(e => Vector2.Distance(e.Position, from))
+                        .FirstOrDefault();
+                }
+                if (chainPoints.Count > 1)
+                {
+                    effectPoint = chainPoints[^1];
+                    _events.ChainEffect(skillId, chainPoints);
+                }
                 break;
             }
         }

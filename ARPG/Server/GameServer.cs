@@ -459,6 +459,15 @@ public class GameServer : IServerEvents
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void ChainEffect(string skillId, List<Vector2> points)
+    {
+        var w = Packets.Make(PacketType.ChainEffect);
+        w.Put(skillId);
+        w.Put((byte)points.Count);
+        foreach (var pt in points) w.PutVec2(pt);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void MessageFor(ServerPlayer p, string text)
     {
         var w = Packets.Make(PacketType.ServerMessage);

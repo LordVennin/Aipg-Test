@@ -92,8 +92,20 @@ public class GameMain : Game
     public void ApplyDisplaySettings()
     {
         _applyingDisplayChange = true;
-        _graphics.PreferredBackBufferWidth = Math.Max(640, Settings.ResolutionWidth);
-        _graphics.PreferredBackBufferHeight = Math.Max(480, Settings.ResolutionHeight);
+        if (Settings.Fullscreen)
+        {
+            // Borderless fullscreen ALWAYS uses the desktop resolution: a backbuffer that
+            // differs from the display gets stretched by SDL, which desyncs the mouse and
+            // off-centers menus. The chosen resolution applies to windowed mode only.
+            var display = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+            _graphics.PreferredBackBufferWidth = display.Width;
+            _graphics.PreferredBackBufferHeight = display.Height;
+        }
+        else
+        {
+            _graphics.PreferredBackBufferWidth = Math.Max(640, Settings.ResolutionWidth);
+            _graphics.PreferredBackBufferHeight = Math.Max(480, Settings.ResolutionHeight);
+        }
         _graphics.HardwareModeSwitch = false; // borderless fullscreen — no display mode change
         _graphics.IsFullScreen = Settings.Fullscreen;
         _graphics.ApplyChanges();

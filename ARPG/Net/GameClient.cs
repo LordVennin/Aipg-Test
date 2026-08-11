@@ -298,6 +298,23 @@ public class GameClient
                 break;
             }
 
+            case PacketType.ChainEffect:
+            {
+                r.GetString(); // skillId (unused for now — one chain visual)
+                int pointCount = r.GetByte();
+                var points = new List<System.Numerics.Vector2>(pointCount);
+                for (int i = 0; i < pointCount; i++) points.Add(r.GetVec2());
+                World.Effects.Add(new ClientEffect
+                {
+                    Kind = "chain",
+                    Points = points,
+                    Position = points.Count > 0 ? points[0] : default,
+                    TimeLeft = 0.45f,
+                    Duration = 0.45f,
+                });
+                break;
+            }
+
             case PacketType.PlayerPings:
             {
                 int count = r.GetInt();

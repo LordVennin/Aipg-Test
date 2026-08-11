@@ -249,9 +249,23 @@ public class WorldRenderer
         foreach (var pr in world.Projectiles.Values)
         {
             var screen = camera.WorldToScreen(pr.Position);
-            var color = pr.FromPlayer ? new Color(255, 150, 50) : new Color(140, 255, 90);
-            _sorted.Add((pr.Position.X + pr.Position.Y, batch =>
-                batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 6, (int)screen.Y - 6 - 14, 12, 12), color)));
+            var projDef = pr.SkillId != null ? _data.Skills.GetValueOrDefault(pr.SkillId) : null;
+            var projSprite = SpriteGen.GetProjectileSprite(projDef?.ProjectileSprite);
+            if (projSprite != null)
+            {
+                // Named sprite (e.g. the ice spike shard), rotated along the flight path.
+                var isoDir = new Vector2(pr.Direction.X - pr.Direction.Y, (pr.Direction.X + pr.Direction.Y) * 0.5f);
+                float ang = MathF.Atan2(isoDir.Y, isoDir.X);
+                _sorted.Add((pr.Position.X + pr.Position.Y, batch =>
+                    batch.Draw(projSprite, new Vector2(screen.X, screen.Y - 14), null, Color.White, ang,
+                        new Vector2(projSprite.Width / 2f, projSprite.Height / 2f), 2f, SpriteEffects.None, 0f)));
+            }
+            else
+            {
+                var color = pr.FromPlayer ? new Color(255, 150, 50) : new Color(140, 255, 90);
+                _sorted.Add((pr.Position.X + pr.Position.Y, batch =>
+                    batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 6, (int)screen.Y - 6 - 14, 12, 12), color)));
+            }
         }
 
         foreach (var fx in world.Effects)
@@ -282,6 +296,48 @@ public class WorldRenderer
                         batch.Draw(TextureGen.Circle32,
                             new Rectangle((int)(p.X - size / 2f), (int)(p.Y - size / 2f), size, size),
                             Color.White * fade);
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "chain" && fx.Points is { Count: > 1 })
+            {
+                // Chain lightning: jagged flickering bolts between the exact chain points
+                // (caster -> victim -> victim...). Re-jittered every few frames so it crackles.
+                float fade = 1f - t;
+                var boltColor = DamageKindColor(Skills.DamageKind.Lightning) * fade;
+                var coreColor = Color.White * (fade * 0.85f);
+                int flickerSeed = (int)(Environment.TickCount64 / 45);
+                var pts = fx.Points;
+                _sorted.Add((fx.Position.X + fx.Position.Y + 1.2f, batch =>
+                {
+                    for (int seg = 0; seg < pts.Count - 1; seg++)
+                    {
+                        var a = camera.WorldToScreen(pts[seg]);
+                        var b = camera.WorldToScreen(pts[seg + 1]);
+                        a.Y -= 16;
+                        b.Y -= 16;
+                        var rng = new Random(flickerSeed * 131 + seg * 17);
+                        const int subdivisions = 4;
+                        var prev = a;
+                        for (int i = 1; i <= subdivisions; i++)
+                        {
+                            var along = Vector2.Lerp(a, b, i / (float)subdivisions);
+                            if (i < subdivisions)
+                            {
+                                var dir = b - a;
+                                var perp = new Vector2(-dir.Y, dir.X);
+                                if (perp.LengthSquared() > 0.001f) perp.Normalize();
+                                along += perp * (float)(rng.NextDouble() - 0.5) * 14f;
+                            }
+                            DrawScreenLine(batch, prev, along, boltColor, 3);
+                            DrawScreenLine(batch, prev, along, coreColor, 1);
+                            prev = along;
+                        }
+                        // Impact spark at each victim.
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)b.X - 5, (int)b.Y - 5, 10, 10), coreColor);
                     }
                 }));
                 continue;
@@ -361,6 +417,17 @@ public class WorldRenderer
             if (tex != null)
                 sb.Draw(tex, new Rectangle(x + i * (iconSize + gap), y, iconSize, iconSize), Color.White);
         }
+    }
+
+    /// <summary>A screen-space line segment drawn with the 1x1 pixel texture.</summary>
+    private static void DrawScreenLine(SpriteBatch sb, Vector2 a, Vector2 b, Color color, int thickness)
+    {
+        var d = b - a;
+        float len = d.Length();
+        if (len < 0.5f) return;
+        float ang = MathF.Atan2(d.Y, d.X);
+        sb.Draw(TextureGen.Pixel, a, null, color, ang, new Vector2(0, 0.5f),
+            new Vector2(len, thickness), SpriteEffects.None, 0f);
     }
 
     private static void DrawUnitToken(SpriteBatch sb, Vector2 feet, float size, Color color)
