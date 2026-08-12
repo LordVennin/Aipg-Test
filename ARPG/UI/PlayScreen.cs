@@ -111,7 +111,8 @@ public class PlayScreen : IScreen
         _fpsTimer += dt;
         if (_fpsTimer >= 0.5f) { _debug.Fps = (int)(_fpsCounter / _fpsTimer); _fpsCounter = 0; _fpsTimer = 0; }
 
-        _server?.Update(dt);
+        // The server (when hosting) runs on its OWN thread with a fixed timestep — the
+        // render thread only drives the client, which talks to it over loopback UDP.
         _client.Update(dt);
         _hud.Update(dt);
 

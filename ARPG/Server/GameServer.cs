@@ -30,6 +30,15 @@ public class GameServer : IServerEvents
     private int _nextPlayerId = 1;
     private float _playerStateTimer, _enemyStateTimer, _pingTimer;
 
+    // Dedicated simulation thread (see StartLoop). ALL server state — ServerWorld, the
+    // peer maps, LiteNetLib polling — is touched exclusively from that thread once it
+    // starts; everything else talks to the server through the network path.
+    private Thread _thread;
+    private volatile bool _running;
+
+    /// <summary>Fixed simulation rate of the dedicated server thread.</summary>
+    public const float TickRate = 60f;
+
     public GameServer(GameData data, int mapSeed)
     {
         Data = data;
@@ -70,13 +79,60 @@ public class GameServer : IServerEvents
         return ok;
     }
 
+    /// <summary>
+    /// Run the simulation on its own dedicated thread with a stable fixed timestep,
+    /// decoupled from the render loop: frame hitches on the host no longer stall the
+    /// world, and remote players tick at a steady rate regardless of the host's FPS.
+    /// The hosting player's own client keeps talking to it over loopback UDP like any
+    /// remote client. Call after Start(). Idempotent.
+    /// </summary>
+    public void StartLoop()
+    {
+        if (_thread != null) return;
+        _running = true;
+        _thread = new Thread(RunLoop) { IsBackground = true, Name = "Scrollbound Server" };
+        _thread.Start();
+    }
+
+    /// <summary>Fixed-timestep loop (accumulator pattern): late wakeups run catch-up ticks
+    /// of exactly 1/TickRate each, capped so a long stall can't spiral.</summary>
+    private void RunLoop()
+    {
+        const double step = 1.0 / TickRate;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        double previous = clock.Elapsed.TotalSeconds;
+        double accumulator = 0;
+        while (_running)
+        {
+            double now = clock.Elapsed.TotalSeconds;
+            accumulator += now - previous;
+            previous = now;
+            if (accumulator > 0.25) accumulator = 0.25; // stall guard
+            while (accumulator >= step && _running)
+            {
+                Update((float)step);
+                accumulator -= step;
+            }
+            Thread.Sleep(1);
+        }
+    }
+
+    /// <summary>Stops the simulation thread (if any), then the network. Safe to call from
+    /// the game thread and safe to call more than once.</summary>
     public void Stop()
     {
+        _running = false;
+        if (_thread != null && _thread != Thread.CurrentThread)
+            _thread.Join(1000);
+        _thread = null;
         _net.Stop();
         _peerToPlayer.Clear();
         _playerToPeer.Clear();
     }
 
+    /// <summary>One simulation step: network in, world tick, snapshots out. Public so the
+    /// headless test harness (and a future standalone dedicated-server executable) can
+    /// drive the loop itself instead of using StartLoop's thread.</summary>
     public void Update(float dt)
     {
         _net.PollEvents();
