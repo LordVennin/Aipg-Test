@@ -305,6 +305,14 @@ public class GameClient
                 break;
             }
 
+            case PacketType.EnemySlam:
+            {
+                var at = r.GetVec2();
+                float radius = r.GetFloat();
+                float height = r.GetFloat();
+                World.AddEffect(at, radius, 0.45f, "slam", height);
+                break;
+            }
             case PacketType.ChainEffect:
             {
                 r.GetString(); // skillId (unused for now — one chain visual)
@@ -366,6 +374,7 @@ public class GameClient
                 e.Height = e.NetTargetHeight = r.GetFloat();
                 e.Health = r.GetFloat();
                 e.MaxHealth = r.GetFloat();
+                e.EliteFlags = r.GetByte();
                 e.Def = _data.Enemies.GetValueOrDefault(e.TypeId);
                 World.Enemies[e.Id] = e;
                 break;

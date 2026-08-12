@@ -1,0 +1,24 @@
+{
+  "Id": "boss",
+  "DropChance": 1.0,
+  "ScrollDropChance": 1.0,
+  "EnchantScrollDropChance": 1.0,
+  "GoldDropChance": 1.0,
+  "GoldMin": 40,
+  "GoldMax": 90,
+  "RarityWeightNormal": 0,
+  "RarityWeightMagic": 30,
+  "RarityWeightRare": 70,
+  "CategoryWeights": {
+    "Mace": 120,
+    "Staff": 120,
+    "Helmet": 90,
+    "BodyArmor": 90,
+    "Gloves": 90,
+    "Boots": 90,
+    "Belt": 80,
+    "Amulet": 60,
+    "Ring": 80,
+    "Shield": 90
+  }
+}

@@ -341,7 +341,8 @@ public class GameServer : IServerEvents
         w.PutVec2(e.Position);
         w.Put(e.Height);
         w.Put(e.Health);
-        w.Put(e.Def.MaxHealth);
+        w.Put(e.MaxHealth);
+        w.Put((byte)e.Affixes);
         return w;
     }
 
@@ -396,6 +397,15 @@ public class GameServer : IServerEvents
     // ------------------------------------------------------------------ IServerEvents
 
     public void EnemySpawned(ServerEnemy e) => Broadcast(EnemySpawnPacket(e), DeliveryMethod.ReliableOrdered);
+
+    public void EnemySlammed(ServerEnemy e, float radius)
+    {
+        var w = Packets.Make(PacketType.EnemySlam);
+        w.PutVec2(e.Position);
+        w.Put(radius);
+        w.Put(e.Height);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
 
     public void EnemyHealthChanged(ServerEnemy e)
     {

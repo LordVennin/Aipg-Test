@@ -31,6 +31,10 @@ public class EnemyDefinition
     public float ProjectileSpeed { get; set; } = 8f;
     public float Radius { get; set; } = 0.4f;    // collision/visual size in tiles
     public float XpReward { get; set; } = 20;
+    /// <summary>Ground-slam AoE attack (bosses): radius in tiles, 0 = no slam.</summary>
+    public float SlamRadius { get; set; }
+    public float SlamDamage { get; set; } = 14;
+    public float SlamCooldown { get; set; } = 6f;
     public string LootTableId { get; set; } = "default";
     public string Color { get; set; } = "C04040"; // art tint (RRGGBB hex)
     /// <summary>Procedural sprite style: "Zombie", "Ghoul", or empty for a plain token.</summary>

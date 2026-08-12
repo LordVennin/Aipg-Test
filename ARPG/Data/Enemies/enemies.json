@@ -6,11 +6,21 @@
     "MaxHealth": 35,
     "MoveSpeed": 2.6,
     "Damage": 6,
-    "DamageTypes": { "Blunt": 4, "Acid": 3 },
+    "DamageTypes": {
+      "Blunt": 4,
+      "Acid": 3
+    },
     "Resistances": {
-      "Thrust": 0, "Blunt": 0, "Slash": 0,
-      "Fire": 0, "Cold": 0, "Lightning": 0,
-      "Acid": 0, "Dark": 0, "Light": 0, "Arcane": 0
+      "Thrust": 0,
+      "Blunt": 0,
+      "Slash": 0,
+      "Fire": 0,
+      "Cold": 0,
+      "Lightning": 0,
+      "Acid": 0,
+      "Dark": 0,
+      "Light": 0,
+      "Arcane": 0
     },
     "AttackRange": 1.2,
     "AttackCooldown": 1.4,
@@ -29,11 +39,20 @@
     "MaxHealth": 24,
     "MoveSpeed": 2.2,
     "Damage": 8,
-    "DamageTypes": { "Acid": 8 },
+    "DamageTypes": {
+      "Acid": 8
+    },
     "Resistances": {
-      "Thrust": 0, "Blunt": 0, "Slash": 0,
-      "Fire": 0, "Cold": 0, "Lightning": 0,
-      "Acid": 0, "Dark": 0, "Light": 0, "Arcane": 0
+      "Thrust": 0,
+      "Blunt": 0,
+      "Slash": 0,
+      "Fire": 0,
+      "Cold": 0,
+      "Lightning": 0,
+      "Acid": 0,
+      "Dark": 0,
+      "Light": 0,
+      "Arcane": 0
     },
     "AttackRange": 6,
     "AttackCooldown": 2.2,
@@ -45,5 +64,41 @@
     "LootTableId": "default",
     "Color": "50B050",
     "SpriteStyle": "Ghoul"
+  },
+  {
+    "Id": "gravelord",
+    "Name": "The Gravelord",
+    "Level": 4,
+    "MaxHealth": 380,
+    "MoveSpeed": 2.1,
+    "Damage": 12,
+    "DamageTypes": {
+      "Blunt": 9,
+      "Dark": 5
+    },
+    "Resistances": {
+      "Thrust": 10,
+      "Blunt": 10,
+      "Slash": 10,
+      "Fire": 0,
+      "Cold": 0,
+      "Lightning": 0,
+      "Acid": 20,
+      "Dark": 60,
+      "Light": -25,
+      "Arcane": 0
+    },
+    "AttackRange": 1.5,
+    "AttackCooldown": 1.6,
+    "AggroRange": 9,
+    "Ranged": false,
+    "Radius": 0.55,
+    "XpReward": 260,
+    "SlamRadius": 2.4,
+    "SlamDamage": 16,
+    "SlamCooldown": 5.5,
+    "LootTableId": "boss",
+    "Color": "8050B8",
+    "SpriteStyle": "Zombie"
   }
 ]

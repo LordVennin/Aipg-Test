@@ -32,6 +32,8 @@ public interface IServerEvents
     void PlayerDodged(ServerPlayer p, Vector2 direction, float distance, float duration);
     /// <summary>A damage application, for floating combat numbers on all clients.</summary>
     void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false);
+    /// <summary>A boss ground-slam burst, for the AoE visual on all clients.</summary>
+    void EnemySlammed(ServerEnemy e, float radius);
 }
 
 /// <summary>
@@ -49,6 +51,7 @@ public partial class ServerWorld
     public readonly Dictionary<int, ServerProjectile> Projectiles = new();
     public readonly Dictionary<Guid, WorldItem> Drops = new();
     public readonly List<EnemySpawner> Spawners = new();
+    public readonly List<PackSpawner> Packs = new();
 
     private readonly IServerEvents _events;
     private readonly Random _rng;
@@ -68,14 +71,62 @@ public partial class ServerWorld
         _rng = new Random();
         Loot = new LootGenerator(data, _rng);
 
-        // One spawner per map spawn point, alternating enemy types.
-        var types = data.Enemies.Keys.OrderBy(k => k).ToList();
-        for (int i = 0; i < Map.EnemySpawns.Count; i++)
+        // A few roaming spawners on the open ground for ambient danger...
+        var types = new[] { "grunt", "spitter" };
+        for (int i = 0; i < Math.Min(4, Map.EnemySpawns.Count); i++)
             Spawners.Add(new EnemySpawner
             {
                 Position = Map.EnemySpawns[i],
-                EnemyTypeId = types.Count > 0 ? types[i % types.Count] : null,
+                EnemyTypeId = types[i % types.Length],
             });
+
+        // ...plus the AUTHORED encounters of the graveyard slice, placed on the
+        // deterministic demo terrain: packs guard the lower path and the upper ruins,
+        // overlook spitters hold the plateau edges, and the Gravelord waits in the
+        // wide arena on the south plateau. Packs share aggro and respawn as groups.
+        Packs.Add(new PackSpawner // lower-path picket, east corridor
+        {
+            Position = new Vector2(14.2f, 17.5f),
+            Entries = new[] { ("grunt", 3) },
+        });
+        Packs.Add(new PackSpawner // under-bridge ambush
+        {
+            Position = new Vector2(10.6f, 18.2f),
+            Entries = new[] { ("grunt", 2), ("spitter", 1) },
+        });
+        Packs.Add(new PackSpawner // upper ruins, north court
+        {
+            Position = new Vector2(11.5f, 9.5f),
+            Entries = new[] { ("grunt", 3) },
+            LeaderAffixes = EliteAffix.Brutish,
+        });
+        Packs.Add(new PackSpawner // upper ruins, west hall
+        {
+            Position = new Vector2(8.2f, 12.5f),
+            Entries = new[] { ("spitter", 1), ("grunt", 2) },
+            LeaderAffixes = EliteAffix.Swift,
+        });
+        Packs.Add(new PackSpawner // overlook: spitters on plateau A's south rim
+        {
+            Position = new Vector2(12.2f, 15.3f),
+            Entries = new[] { ("spitter", 2) },
+            ScatterRadius = 0.9f,
+        });
+        Packs.Add(new PackSpawner // crown overlook, warded sentinel
+        {
+            Position = new Vector2(7.5f, 7.5f),
+            Entries = new[] { ("spitter", 1) },
+            LeaderAffixes = EliteAffix.Warded,
+            ScatterRadius = 0.4f,
+        });
+        Packs.Add(new PackSpawner // miniboss arena on plateau B
+        {
+            Position = new Vector2(10.5f, 25.0f),
+            Entries = new[] { ("gravelord", 1), ("grunt", 2) },
+            LeaderAffixes = EliteAffix.Boss,
+            ScatterRadius = 1.8f,
+            RespawnDelay = 90f,
+        });
     }
 
     // ------------------------------------------------------------------ players
@@ -197,7 +248,37 @@ public partial class ServerWorld
 
     private void TickSpawners()
     {
-        int alive = Enemies.Values.Count(e => !e.Dead);
+        // Authored packs: spawn the whole group when empty (immediately on world start,
+        // after RespawnDelay once wiped). Members scatter around the anchor on walkable
+        // ground; the first member spawned carries the pack's elite affixes.
+        for (int pi = 0; pi < Packs.Count; pi++)
+        {
+            var pack = Packs[pi];
+            pack.AliveIds.RemoveAll(id => !Enemies.TryGetValue(id, out var m) || m.Dead);
+            if (pack.AliveIds.Count > 0) continue;
+            if (pack.RespawnAt <= 0)
+            {
+                pack.RespawnAt = Time <= 0.1f ? Time : Time + pack.RespawnDelay;
+            }
+            if (Time < pack.RespawnAt) continue;
+            pack.RespawnAt = 0;
+            bool leaderPlaced = false;
+            foreach (var (typeId, count) in pack.Entries)
+                for (int i = 0; i < count; i++)
+                {
+                    var offset = new Vector2(
+                        (float)(_rng.NextDouble() * 2 - 1) * pack.ScatterRadius,
+                        (float)(_rng.NextDouble() * 2 - 1) * pack.ScatterRadius);
+                    var pos = pack.Position + offset;
+                    if (Map.CircleHitsWall(pos, 0.4f)) pos = pack.Position;
+                    var affixes = leaderPlaced ? EliteAffix.None : pack.LeaderAffixes;
+                    leaderPlaced = true;
+                    var member = SpawnEnemy(typeId, pos, affixes, pi);
+                    pack.AliveIds.Add(member.Id);
+                }
+        }
+
+        int alive = Enemies.Values.Count(e => !e.Dead && e.PackId < 0);
         foreach (var spawner in Spawners)
         {
             if (spawner.EnemyTypeId == null) continue;
@@ -218,7 +299,7 @@ public partial class ServerWorld
         }
     }
 
-    public ServerEnemy SpawnEnemy(string typeId, Vector2 pos)
+    public ServerEnemy SpawnEnemy(string typeId, Vector2 pos, EliteAffix affixes = EliteAffix.None, int packId = -1)
     {
         var def = Data.Enemies.GetValueOrDefault(typeId) ?? Data.Enemies.Values.First();
         var e = new ServerEnemy
@@ -226,8 +307,30 @@ public partial class ServerWorld
             Id = _nextEnemyId++,
             Def = def,
             Position = pos,
-            Health = def.MaxHealth,
+            MaxHealth = def.MaxHealth,
+            Affixes = affixes,
+            PackId = packId,
         };
+        if (affixes.HasFlag(EliteAffix.Brutish))
+        {
+            e.MaxHealth *= 2.5f;
+            e.DamageScale *= 1.5f;
+            e.XpScale *= 3f;
+        }
+        if (affixes.HasFlag(EliteAffix.Swift))
+        {
+            e.SpeedScale *= 1.35f;
+            e.CooldownScale *= 0.7f;
+            e.MaxHealth *= 1.4f;
+            e.XpScale *= 2.5f;
+        }
+        if (affixes.HasFlag(EliteAffix.Warded))
+        {
+            e.BonusResist = 40f;
+            e.MaxHealth *= 1.8f;
+            e.XpScale *= 2.5f;
+        }
+        e.Health = e.MaxHealth;
         e.Height = Map.GroundHeightAt(pos);
         Enemies[e.Id] = e;
         _events.EnemySpawned(e);
@@ -304,6 +407,7 @@ public partial class ServerWorld
                     {
                         e.State = EnemyState.Chase;
                         e.TargetPlayerId = target.Id;
+                        AlertPack(e, target);
                     }
                     break;
 
@@ -330,13 +434,33 @@ public partial class ServerWorld
                         e.State = target == null ? EnemyState.Idle : EnemyState.Chase;
                         break;
                     }
+                    // Boss ground slam: an AoE burst around the boss on its own timer,
+                    // hitting every same-surface player in the radius with knockback.
+                    if (e.Def.SlamRadius > 0 && Time >= e.SlamReadyAt && dist <= e.Def.SlamRadius * 0.85f)
+                    {
+                        e.SlamReadyAt = Time + e.Def.SlamCooldown;
+                        _events.EnemySlammed(e, e.Def.SlamRadius);
+                        foreach (var victim in Players.Values)
+                        {
+                            if (!victim.Alive || Time < victim.InvulnerableUntil) continue;
+                            if (MathF.Abs(victim.Height - e.Height) > 0.75f) continue;
+                            if (Vector2.Distance(victim.Position, e.Position) > e.Def.SlamRadius) continue;
+                            DamagePlayerTyped(victim, new List<(DamageKind, float)>
+                                { (DamageKind.Blunt, e.Def.SlamDamage * e.DamageScale) });
+                            var away = (victim.Position - e.Position).NormalizedOrZero();
+                            float kh = victim.Height;
+                            victim.Position = Map.MoveWithCollision(victim.Position, away * 1.6f, ServerPlayer.Radius, ref kh);
+                            victim.Height = kh;
+                        }
+                        break;
+                    }
                     if (Time >= e.AttackReadyAt)
                     {
-                        e.AttackReadyAt = Time + e.Def.AttackCooldown;
+                        e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
                         if (e.Def.Ranged)
                             SpawnEnemyProjectile(e, target);
                         else
-                            DamagePlayerTyped(target, RollEnemyDamage(e.Def));
+                            DamagePlayerTyped(target, RollEnemyDamage(e));
                     }
                     break;
             }
@@ -346,8 +470,22 @@ public partial class ServerWorld
     private void MoveEnemyToward(ServerEnemy e, Vector2 target, float dt)
     {
         var dir = (target - e.Position).NormalizedOrZero();
-        var delta = dir * e.Def.MoveSpeed * dt;
+        var delta = dir * e.Def.MoveSpeed * e.SpeedScale * dt;
         e.Position = Map.MoveWithCollision(e.Position, delta, e.Def.Radius, ref e.Height);
+    }
+
+    /// <summary>Shared pack aggro: when one member spots a player, the whole pack
+    /// joins the fight (that's what makes an authored pack feel like one encounter).</summary>
+    private void AlertPack(ServerEnemy source, ServerPlayer target)
+    {
+        if (source.PackId < 0) return;
+        foreach (var other in Enemies.Values)
+        {
+            if (other.PackId != source.PackId || other.Dead || other.Id == source.Id) continue;
+            if (other.State != EnemyState.Idle) continue;
+            other.State = EnemyState.Chase;
+            other.TargetPlayerId = target.Id;
+        }
     }
 
     // ------------------------------------------------------------------ pathfinding
@@ -518,8 +656,8 @@ public partial class ServerWorld
             Direction = dir,
             Speed = e.Def.ProjectileSpeed,
             MaxRange = e.Def.AttackRange + 3f,
-            MinDamage = primary.Value * 0.8f,
-            MaxDamage = primary.Value * 1.2f,
+            MinDamage = primary.Value * 0.8f * e.DamageScale,
+            MaxDamage = primary.Value * 1.2f * e.DamageScale,
             DamageKind = primary.Key,
             Added = extra.Count > 0 ? extra : null,
         };
@@ -667,7 +805,8 @@ public partial class ServerWorld
                         victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback, victim.Def.Radius, ref victim.Height);
                     }
                     if (!victim.Dead && RollStun(def))
-                        victim.StunnedUntil = Time + def.StunDuration;
+                        victim.StunnedUntil = Time + def.StunDuration *
+                            (victim.Affixes.HasFlag(EliteAffix.Boss) ? 0.3f : 1f);
                 }
                 break;
             }
@@ -678,7 +817,8 @@ public partial class ServerWorld
                 {
                     { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
                     if (!e.Dead && RollStun(def))
-                        e.StunnedUntil = Time + def.StunDuration;
+                        e.StunnedUntil = Time + def.StunDuration *
+                            (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.3f : 1f);
                 }
                 break;
             }
@@ -845,7 +985,7 @@ public partial class ServerWorld
         var dominant = DamageKind.Blunt;
         foreach (var (kind, amount) in components)
         {
-            float resist = Math.Clamp(e.Def.Resistances?.GetValueOrDefault(kind) ?? 0f, -300f, 100f);
+            float resist = Math.Clamp((e.Def.Resistances?.GetValueOrDefault(kind) ?? 0f) + e.BonusResist, -300f, 100f);
             float dmg = amount * (1f - resist / 100f);
             total += dmg;
             if (dmg > dominantAmount) { dominantAmount = dmg; dominant = kind; }
@@ -873,14 +1013,15 @@ public partial class ServerWorld
 
     /// <summary>Roll an enemy's typed attack damage from its definition (legacy single
     /// Damage value falls back to Blunt for melee, Fire for ranged).</summary>
-    private List<(DamageKind kind, float amount)> RollEnemyDamage(EnemyDefinition def)
+    private List<(DamageKind kind, float amount)> RollEnemyDamage(ServerEnemy e)
     {
+        var def = e.Def;
         var list = new List<(DamageKind, float)>();
         if (def.DamageTypes is { Count: > 0 })
             foreach (var (kind, avg) in def.DamageTypes)
-                list.Add((kind, Roll(avg * 0.8f, avg * 1.2f)));
+                list.Add((kind, Roll(avg * 0.8f, avg * 1.2f) * e.DamageScale));
         else
-            list.Add((def.Ranged ? DamageKind.Fire : DamageKind.Blunt, def.Damage));
+            list.Add((def.Ranged ? DamageKind.Fire : DamageKind.Blunt, def.Damage * e.DamageScale));
         return list;
     }
 
@@ -922,15 +1063,19 @@ public partial class ServerWorld
     {
         if (Players.TryGetValue(e.LastHitByPlayer, out var killer))
         {
-            bool changed = GrantCharacterXp(killer, e.Def.XpReward);
+            bool changed = GrantCharacterXp(killer, e.Def.XpReward * e.XpScale);
             var skill = e.LastHitSkillId != null ? killer.Character.GetSkill(e.LastHitSkillId) : null;
             if (skill != null)
-                changed |= GrantSkillXp(killer, skill, e.Def.XpReward);
+                changed |= GrantSkillXp(killer, skill, e.Def.XpReward * e.XpScale);
             if (changed) _events.CharacterChanged(killer);
         }
 
-        foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Def.Level))
-            SpawnDrop(item, e.Position, e.Height);
+        // Elites roll the loot table twice; the boss's own table already guarantees
+        // an item + both scroll types per roll, so its double roll is the reward burst.
+        int lootRolls = e.Affixes == EliteAffix.None ? 1 : 2;
+        for (int roll = 0; roll < lootRolls; roll++)
+            foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Def.Level))
+                SpawnDrop(item, e.Position, e.Height);
 
         // Gold drop, scaled by enemy level.
         var table = Data.GetLootTable(e.Def.LootTableId);
