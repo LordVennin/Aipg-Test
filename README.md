@@ -63,6 +63,16 @@ scroll attachment, enchant crafting, disconnect resilience). Exit code 0 = all p
 on a loopback OS-assigned port and connects to it, so single player and multiplayer share
 one authoritative simulation path.
 
+The server simulation runs on its **own dedicated thread** with a fixed 60 Hz timestep
+(accumulator pattern with a stall guard), fully decoupled from the render loop — a frame
+hitch on the host never stalls the world for remote players. The render thread never
+touches server state directly; the hosting player's client talks to it over loopback UDP
+like any remote client. `GameServer.Update` stays public so the headless test drives the
+loop deterministically, and a standalone dedicated-server executable could reuse the same
+class with its own loop. UI text is rasterized at its final on-screen pixel size (the
+font atlas re-rasterizes whenever the UI scale changes), so menu/HUD text stays sharp at
+1080p, 1440p, 4K and fractional scales.
+
 ## 5. Joining through direct IP
 
 1. Launch → **Join Game**.

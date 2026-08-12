@@ -440,9 +440,12 @@ public static class HeadlessNetTest
         var bScroll = bChar.Inventory.Items.FirstOrDefault(pl => pl.Item.BaseItemId == "es_awakening");
         var bStaff = bChar.Inventory.Items.FirstOrDefault(pl =>
             pl.Item.BaseItemId == "oak_staff" && pl.Item.Rarity == Items.ItemRarity.Normal);
-        Check(bScroll != null && bScroll.Item.StackCount == 3, $"scroll stack arrived (x{bScroll?.Item.StackCount})");
+        // B may already own an es_awakening (e.g. won one in the pickup race), in which
+        // case the debug stack MERGES — assert relative counts, not absolutes.
+        Check(bScroll != null && bScroll.Item.StackCount >= 3, $"scroll stack arrived (x{bScroll?.Item.StackCount})");
         if (bScroll != null && bStaff != null)
         {
+            int stackBefore = bScroll.Item.StackCount;
             clientB.RequestApplyEnchant(bScroll.Item.InstanceId, bStaff.Item.InstanceId);
             Pump(0.5f);
             bChar = clientB.World.MyCharacter;
@@ -450,8 +453,8 @@ public static class HeadlessNetTest
             var scrollAfter = bChar.Inventory.FindByInstance(bScroll.Item.InstanceId)?.Item;
             Check(staffAfter != null && staffAfter.Rarity == Items.ItemRarity.Magic && staffAfter.Modifiers.Count == 1,
                   $"networked Awakening turned the staff blue with 1 modifier");
-            Check(scrollAfter != null && scrollAfter.StackCount == 2,
-                  $"one scroll charge consumed (stack {scrollAfter?.StackCount})");
+            Check(scrollAfter != null && scrollAfter.StackCount == stackBefore - 1,
+                  $"one scroll charge consumed (stack {stackBefore} -> {scrollAfter?.StackCount})");
         }
 
         // Ground Slam stun (retry loop: A may be dead or the spawned grunt already killed).
@@ -987,6 +990,33 @@ public static class HeadlessNetTest
         server.Update(1 / 60f); // one more tick to prove the host survives
         clientA.Disconnect();
         server.Stop();
+
+        // ------------------------------------------------------------------ threaded host
+        // The game runs the server on a dedicated fixed-timestep thread (StartLoop);
+        // this suite drives Update() manually above for determinism. Prove the threaded
+        // mode works end to end: a client joins and the world advances with NOBODY on
+        // this thread ever pumping the server.
+        Console.WriteLine("\n-- Dedicated server thread --");
+        var threadedServer = new GameServer(data, 424242);
+        Check(threadedServer.Start(0), "threaded server listening on a loopback port");
+        threadedServer.StartLoop();
+        var threadedClient = new GameClient(data, "Threader", null);
+        threadedClient.Connect("127.0.0.1", threadedServer.LocalPort, out _);
+        bool threadedJoin = false;
+        for (int i = 0; i < 600 && !threadedJoin; i++)
+        {
+            threadedClient.Update(1f / 60f);
+            Thread.Sleep(5);
+            threadedJoin = threadedClient.Status == ClientStatus.InGame;
+        }
+        Check(threadedJoin, "client joined a server running on its own thread (no manual pumping)");
+        float timeBefore = threadedServer.World.Time;
+        Thread.Sleep(400);
+        Check(threadedServer.World.Time > timeBefore + 0.2f,
+              $"simulation advances on the server thread ({timeBefore:0.00}s -> {threadedServer.World.Time:0.00}s)");
+        threadedClient.Disconnect();
+        threadedServer.Stop();
+        Check(true, "threaded server stopped cleanly (thread joined)");
 
         Console.WriteLine($"\n=== {_checks - Failures.Count}/{_checks} checks passed ===");
         if (Failures.Count > 0)

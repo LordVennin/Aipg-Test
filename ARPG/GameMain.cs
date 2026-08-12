@@ -125,6 +125,7 @@ public class GameMain : Game
             SwitchScreen(new MainMenuScreen(this, "Could not start the local server."));
             return;
         }
+        server.StartLoop(); // simulation runs on its own thread, decoupled from rendering
         StartClientSession(server, "127.0.0.1", server.LocalPort);
     }
 
@@ -134,6 +135,7 @@ public class GameMain : Game
         var server = new GameServer(Data, SeedRng.Next());
         if (!server.Start(port))
             return $"Could not listen on port {port} (already in use?).";
+        server.StartLoop(); // simulation runs on its own thread, decoupled from rendering
         StartClientSession(server, "127.0.0.1", port);
         return null;
     }
