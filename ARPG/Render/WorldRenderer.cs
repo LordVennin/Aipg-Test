@@ -54,6 +54,46 @@ public class WorldRenderer
         // --- ONE painter's list so tall geometry occludes what stands behind/under it ---
         _sorted.Clear();
 
+        // Entities/effects UNDERNEATH a bridge deck sort a full unit lower, so every
+        // tile of the deck above draws over them (heads no longer poke through the
+        // deck plane); entities ON the deck are unaffected (their height ~ the deck's).
+        float UnderDeckBias(NumVec2 pos, float h)
+        {
+            int b = map.BridgeLevel((int)MathF.Floor(pos.X), (int)MathF.Floor(pos.Y));
+            return b > 0 && h < b - 0.5f ? -1f : 0f;
+        }
+
+        // Occlusion reveal: terrain that would draw OVER the local player fades out
+        // near them (per-tile alpha with distance falloff — reads as a soft circle),
+        // so your own character stays visible behind walls and under bridge decks.
+        ClientPlayer localPlayer = null;
+        foreach (var pp in world.Players.Values)
+            if (pp.IsLocal && pp.Alive) { localPlayer = pp; break; }
+        Vector2 revealPoint = default;
+        float localDepth = float.MaxValue;
+        if (localPlayer != null)
+        {
+            var ls = camera.WorldToScreen(localPlayer.Position, localPlayer.Height);
+            revealPoint = new Vector2(ls.X, ls.Y - 14); // body center, not feet
+            localDepth = localPlayer.Position.X + localPlayer.Position.Y +
+                         localPlayer.Height * 1.0f + 0.1f +
+                         UnderDeckBias(localPlayer.Position, localPlayer.Height);
+        }
+
+        float OccluderFade(float depth, Rectangle spriteRect)
+        {
+            const float Radius = 96f;
+            if (localPlayer == null || depth <= localDepth) return 1f;
+            // Only geometry that rises ABOVE the body center can hide the character —
+            // low front terrain (a one-level ledge by your feet) keeps full opacity.
+            if (spriteRect.Top > revealPoint.Y) return 1f;
+            float cx = Math.Clamp(revealPoint.X, spriteRect.Left, spriteRect.Right);
+            float cy = Math.Clamp(revealPoint.Y, spriteRect.Top, spriteRect.Bottom);
+            float dist = Vector2.Distance(new Vector2(cx, cy), revealPoint);
+            if (dist >= Radius) return 1f;
+            return MathHelper.Lerp(0.35f, 1f, dist / Radius);
+        }
+
         // Depth key convention: walkable TOPS sort low (tile x + y + level*0.6) so
         // entities draw above their floor; occluders (prism side faces, bridge decks)
         // sort like an occupant of their tile (x + y + 1 + ...). Entities use their
@@ -87,14 +127,20 @@ public class WorldRenderer
                 {
                     int top = ground + wall;
                     int topPx = top * hpx;
-                    var faceTint = new Color(140, 133, 173);
-                    _sorted.Add((x + y + 1 + top * 0.001f, batch =>
+                    float faceDepth = x + y + 1 + top * 0.001f;
+                    float faceFade = OccluderFade(faceDepth,
+                        new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16));
+                    var faceTint = new Color(140, 133, 173) * faceFade;
+                    _sorted.Add((faceDepth, batch =>
                         batch.Draw(TextureGen.GetPrismFaces(top),
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx), faceTint)));
-                    _sorted.Add((x + y + top * 0.6f, batch =>
+                    float topDepth = x + y + top * 0.6f;
+                    var topTint = new Color(84, 80, 104) * OccluderFade(topDepth,
+                        new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
+                    _sorted.Add((topDepth, batch =>
                         batch.Draw(TextureGen.DiamondSolid,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
-                            new Color(84, 80, 104))));
+                            topTint)));
                     continue;
                 }
 
@@ -104,16 +150,23 @@ public class WorldRenderer
                     // included), anchored at the tile's (x, y) corner at the LOW level.
                     var sprite = TextureGen.GetRampSprite(ramp, map.RampIsStairs(x, y));
                     var corner = camera.WorldToScreen(new NumVec2(x, y), ground);
-                    var rampTint = new Color(150, 160, 130);
-                    _sorted.Add((x + y + (ground + 0.5f) * 0.6f, batch =>
+                    float rampDepth = x + y + (ground + 0.5f) * 0.6f;
+                    var rampTint = new Color(150, 160, 130) * OccluderFade(rampDepth,
+                        new Rectangle((int)corner.X - 32, (int)corner.Y - TextureGen.RampSpriteOffsetY, 64, 96));
+                    _sorted.Add((rampDepth, batch =>
                         batch.Draw(sprite,
                             new Vector2((int)corner.X - 32, (int)corner.Y - TextureGen.RampSpriteOffsetY),
                             rampTint)));
                     if (ground > 0)
-                        _sorted.Add((x + y + 1 + ground * 0.001f, batch =>
+                    {
+                        float rbDepth = x + y + 1 + ground * 0.001f;
+                        var rbTint = new Color(128, 140, 128) * OccluderFade(rbDepth,
+                            new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - ground * hpx, 64, ground * hpx + 16));
+                        _sorted.Add((rbDepth, batch =>
                             batch.Draw(TextureGen.GetPrismFaces(ground),
                                 new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - ground * hpx),
-                                new Color(128, 140, 128))));
+                                rbTint)));
+                    }
                 }
                 else if (ground > 0)
                 {
@@ -123,13 +176,19 @@ public class WorldRenderer
                     var top = ((x + y) & 1) == 0
                         ? new Color(70 + ground * 12, 80 + ground * 10, 68 + ground * 8)
                         : new Color(64 + ground * 12, 74 + ground * 10, 62 + ground * 8);
-                    _sorted.Add((x + y + 1 + ground * 0.001f, batch =>
+                    float efDepth = x + y + 1 + ground * 0.001f;
+                    var efTint = new Color(128, 140, 128) * OccluderFade(efDepth,
+                        new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16));
+                    _sorted.Add((efDepth, batch =>
                         batch.Draw(TextureGen.GetPrismFaces(ground),
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx),
-                            new Color(128, 140, 128))));
-                    _sorted.Add((x + y + ground * 0.6f, batch =>
+                            efTint)));
+                    float etDepth = x + y + ground * 0.6f;
+                    var etTint = top * OccluderFade(etDepth,
+                        new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
+                    _sorted.Add((etDepth, batch =>
                         batch.Draw(TextureGen.DiamondSolid,
-                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), top)));
+                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint)));
                 }
 
                 if (bridge > 0)
@@ -139,25 +198,19 @@ public class WorldRenderer
                     // so entities beneath draw between the two in the depth order.
                     int deckPx = bridge * hpx;
                     float depth = x + y + 1 + bridge * 0.6f;
-                    var deck = ((x + y) & 1) == 0 ? new Color(122, 96, 62) : new Color(112, 88, 58);
+                    float deckFade = OccluderFade(depth,
+                        new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - deckPx, 64, 38));
+                    var deck = (((x + y) & 1) == 0 ? new Color(122, 96, 62) : new Color(112, 88, 58)) * deckFade;
+                    var lip = new Color(70, 54, 36) * deckFade;
                     _sorted.Add((depth, batch =>
                     {
                         batch.Draw(TextureGen.Pixel,
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - deckPx, 64, 6),
-                            new Color(70, 54, 36));
+                            lip);
                         batch.Draw(TextureGen.DiamondSolid, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - deckPx), deck);
                     }));
                 }
             }
-        }
-
-        // Entities/effects UNDERNEATH a bridge deck sort a full unit lower, so every
-        // tile of the deck above draws over them (heads no longer poke through the
-        // deck plane); entities ON the deck are unaffected (their height ~ the deck's).
-        float UnderDeckBias(NumVec2 pos, float h)
-        {
-            int b = map.BridgeLevel((int)MathF.Floor(pos.X), (int)MathF.Floor(pos.Y));
-            return b > 0 && h < b - 0.5f ? -1f : 0f;
         }
 
         foreach (var drop in world.Drops.Values)
