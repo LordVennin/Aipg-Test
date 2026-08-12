@@ -984,8 +984,10 @@ public static class HeadlessNetTest
         var map = clientA.World.Map;
         Check(map.GroundLevel(10, 10) == 1 && map.GroundLevel(7, 7) == 2 && map.GroundLevel(22, 22) == 0,
               "demo terrain has flat ground plus two elevation levels (plateau 1, crown 2)");
-        Check(map.Ramp(16, 10) == World.RampDirection.MinusX && map.Ramp(16, 24) == World.RampDirection.MinusX,
-              "ramps carved on the plateau edges");
+        Check(map.Ramp(15, 10) == World.RampDirection.MinusX && map.Ramp(15, 24) == World.RampDirection.MinusX,
+              "elevation transitions inset into the plateau edges");
+        Check(!map.RampIsStairs(15, 10) && map.RampIsStairs(15, 24),
+              "demo has both transition styles (smooth ramp and stairs)");
         Check(map.WallHeight(20, 7) == 3 && map.WallHeight(24, 7) == 2,
               "tall cliff wall with varying height (3 and 2 levels)");
         Check(map.BridgeLevel(10, 17) == 1 && map.GroundLevel(10, 17) == 0 && !map.IsSolid(10, 17),
@@ -997,7 +999,7 @@ public static class HeadlessNetTest
         var walker = new Vector2(17.5f, 10.5f);
         for (int i = 0; i < 240; i++)
             walker = map.MoveWithCollision(walker, new Vector2(-0.05f, 0), 0.35f, ref walkerH);
-        Check(walker.X < 15.5f && MathF.Abs(walkerH - 1f) < 0.05f,
+        Check(walker.X < 14.5f && MathF.Abs(walkerH - 1f) < 0.05f,
               $"walking up the ramp raises surface height to 1 (x {walker.X:0.0}, h {walkerH:0.00})");
         // Walking straight into the cliff face (no ramp) must be blocked: the level-1
         // plateau edge at x=16, y=13 is a cliff for a height-0 entity.
@@ -1111,6 +1113,33 @@ public static class HeadlessNetTest
                 Vector2.Distance(d.Position, goldSpot) < 0.5f && MathF.Abs(d.Height - 1f) < 0.05f);
         }
         Check(elevatedDrop, "drops replicate to clients with their surface elevation");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+
+        Console.WriteLine("\n-- Pathfinding across elevation --");
+        // A ground enemy must keep aggro on a plateau player and PATH up the ramp to
+        // reach them (the old same-surface targeting de-aggroed the moment you climbed).
+        clientB.World.Me.Position = new Vector2(13.5f, 10.5f); // plateau A, level 1
+        clientB.World.Me.Height = 1f;
+        Pump(0.4f);
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.3f);
+        var chaser = server.World.SpawnEnemy("grunt", new Vector2(17.5f, 10.5f)); // floor, past the ramp
+        chaser.Health = 500f;
+        Check(chaser.Height < 0.05f, "chaser spawned on the ground floor");
+        bool aggroed = false, climbed = false;
+        for (int i = 0; i < 40 && !climbed; i++)
+        {
+            Pump(0.25f);
+            aggroed |= chaser.TargetPlayerId == bId;
+            climbed = !chaser.Dead && chaser.Height > 0.9f;
+        }
+        Check(aggroed, "enemy aggros a player on a different elevation (path exists)");
+        Check(climbed, $"enemy pathed up the ramp to reach the player (h {chaser.Height:0.00})");
+        chaser.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
         clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
         clientB.World.Me.Height = 0f;
         Pump(0.4f);
