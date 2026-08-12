@@ -385,14 +385,26 @@ public partial class ServerWorld
         return (y * Map.Width + x) * 2 + (onDeck ? 1 : 0);
     }
 
-    /// <summary>Surface height where a node's tile meets the edge toward (dx, dy) —
-    /// ramps make this differ per edge, which is exactly what connects them to both
-    /// their low and high neighbors.</summary>
-    private float NodeEdgeHeight(int x, int y, bool deck, int dx, int dy)
+    /// <summary>Can an entity walk from surface A across the shared edge toward
+    /// (dx, dy) onto surface B? Sampled at three points along the edge — ramp SIDE
+    /// edges vary in height along the edge, and a midpoint-only test would connect
+    /// edges that are only crossable at one spot (enemies then grind on the cliff).</summary>
+    private bool SurfacesConnect(int ax, int ay, bool aDeck, int bx, int by, bool bDeck, int dx, int dy)
     {
-        if (deck) return Map.BridgeLevel(x, y);
-        var edgePoint = new Vector2(x + 0.5f + dx * 0.49f, y + 0.5f + dy * 0.49f);
-        return Map.GroundHeightAt(edgePoint);
+        Span<float> laterals = stackalloc float[] { 0.2f, 0.5f, 0.8f };
+        foreach (float t in laterals)
+        {
+            var pa = dx != 0
+                ? new Vector2(ax + 0.5f + dx * 0.49f, ay + t)
+                : new Vector2(ax + t, ay + 0.5f + dy * 0.49f);
+            var pb = dx != 0
+                ? new Vector2(bx + 0.5f - dx * 0.49f, by + t)
+                : new Vector2(bx + t, by + 0.5f - dy * 0.49f);
+            float ha = aDeck ? Map.BridgeLevel(ax, ay) : Map.GroundHeightAt(pa);
+            float hb = bDeck ? Map.BridgeLevel(bx, by) : Map.GroundHeightAt(pb);
+            if (MathF.Abs(ha - hb) > GameMap.StepTolerance) return false;
+        }
+        return true;
     }
 
     private void RecomputeFlow(ServerPlayer p, FlowField f)
@@ -421,14 +433,12 @@ public partial class ServerWorld
                 int nx = x + dx, ny = y + dy;
                 if (nx < 0 || ny < 0 || nx >= Map.Width || ny >= Map.Height || Map.IsSolid(nx, ny))
                     continue;
-                float exitH = NodeEdgeHeight(x, y, deck, dx, dy);
                 for (int s = 0; s < 2; s++)
                 {
                     if (s == 1 && Map.BridgeLevel(nx, ny) == 0) continue;
                     int nn = (ny * w + nx) * 2 + s;
                     if (f.Dist[nn] != ushort.MaxValue) continue;
-                    float enterH = NodeEdgeHeight(nx, ny, s == 1, -dx, -dy);
-                    if (MathF.Abs(exitH - enterH) > GameMap.StepTolerance) continue;
+                    if (!SurfacesConnect(x, y, deck, nx, ny, s == 1, dx, dy)) continue;
                     f.Dist[nn] = (ushort)(d + 1);
                     f.Next[nn] = node; // one hop closer to the player
                     _flowQueue.Enqueue(nn);

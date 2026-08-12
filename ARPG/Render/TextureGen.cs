@@ -13,6 +13,10 @@ public static class TextureGen
     public static Texture2D Pixel { get; private set; }
     public static Texture2D Circle32 { get; private set; }
     public static Texture2D Diamond { get; private set; }       // Filled isometric tile (64x32)
+    /// <summary>Fully opaque diamond (edge pixels solid, slightly darkened). Elevated
+    /// tops use this — the translucent-edged Diamond shows the void behind cliffs as
+    /// see-through seams between wall tiles.</summary>
+    public static Texture2D DiamondSolid { get; private set; }
     public static Texture2D DiamondOutline { get; private set; }
 
     public const int TileWidth = 64;
@@ -32,6 +36,7 @@ public static class TextureGen
 
         Circle32 = MakeCircle(device, 32);
         Diamond = MakeDiamond(device, TileWidth, TileHeight, filled: true);
+        DiamondSolid = MakeDiamond(device, TileWidth, TileHeight, filled: true, opaqueEdge: true);
         DiamondOutline = MakeDiamond(device, TileWidth, TileHeight, filled: false);
     }
 
@@ -58,7 +63,8 @@ public static class TextureGen
                 bool right = px >= TileWidth / 2;
                 // Vertical drop of the diamond's lower edge at this column
                 // (0 at the side corners, 16 at the bottom corner).
-                float edge = right ? (TileWidth - (px + 0.5f)) / 2f : (px + 0.5f) / 2f;
+                float edge = (right ? (TileWidth - (px + 0.5f)) / 2f : (px + 0.5f) / 2f) - 1f;
+                if (edge < 0) edge = 0;
                 float y = py + 0.5f;
                 if (y < edge || y >= edge + drop) continue;
                 int g = right ? 140 : 96;
@@ -232,7 +238,7 @@ public static class TextureGen
         return tex;
     }
 
-    private static Texture2D MakeDiamond(GraphicsDevice device, int w, int h, bool filled)
+    private static Texture2D MakeDiamond(GraphicsDevice device, int w, int h, bool filled, bool opaqueEdge = false)
     {
         var tex = new Texture2D(device, w, h);
         var data = new Color[w * h];
@@ -246,7 +252,7 @@ public static class TextureGen
                 if (d <= 1f)
                 {
                     bool edge = d >= 0.93f;
-                    c = filled ? (edge ? new Color(255, 255, 255, 160) : Color.White)
+                    c = filled ? (edge ? (opaqueEdge ? new Color(215, 215, 215) : new Color(255, 255, 255, 160)) : Color.White)
                                : (edge ? Color.White : Color.Transparent);
                 }
                 data[y * w + x] = c;

@@ -1009,6 +1009,17 @@ public static class HeadlessNetTest
             cliffWalker = map.MoveWithCollision(cliffWalker, new Vector2(-0.05f, 0), 0.35f, ref cliffH);
         Check(cliffWalker.X > 15.9f && cliffH < 0.05f,
               $"cliff face blocks movement without a ramp (stopped at x {cliffWalker.X:0.0}, h {cliffH:0.00})");
+        // Regression: descending the inset ramp while hugging the flank wall. The
+        // circle legally overlaps the flank near the top (heights match), and as the
+        // height drops the flank turns unreachable — penetration-based movement must
+        // keep the walker sliding out instead of wedging it in place forever.
+        float hugH = 1f;
+        var hugger = new Vector2(14.5f, 10.32f); // plateau, circle grazing flank (15,9)
+        for (int i = 0; i < 120; i++)
+            hugger = map.MoveWithCollision(hugger, new Vector2(0.05f, 0), 0.35f, ref hugH);
+        Check(hugger.X > 16.2f && hugH < 0.05f,
+              $"walker descends the ramp along the flank without getting stuck (x {hugger.X:0.0}, h {hugH:0.00})");
+
         // Projectile LOS: a shot flying at ground height is blocked by the cliff, while
         // the same shot at plateau height clears it.
         Check(map.SegmentBlocked(new Vector2(18, 10.5f), new Vector2(10, 10.5f), 0.5f),
