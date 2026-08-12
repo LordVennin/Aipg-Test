@@ -27,7 +27,7 @@ public interface IServerEvents
     void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint);
     /// <summary>A chain-lightning path (caster, then each victim in hit order) so clients
     /// can draw the bolt between the exact chain points.</summary>
-    void ChainEffect(string skillId, List<Vector2> points);
+    void ChainEffect(string skillId, List<Vector2> points, float height);
     void MessageFor(ServerPlayer p, string text);
     void PlayerDodged(ServerPlayer p, Vector2 direction, float distance, float duration);
     /// <summary>A damage application, for floating combat numbers on all clients.</summary>
@@ -94,6 +94,7 @@ public partial class ServerWorld
             Position = Map.PlayerSpawn,
             Character = character,
         };
+        p.Height = Map.GroundHeightAt(p.Position);
         p.RecomputeStats(Data);
         p.Health = p.Stats.MaxHealth;
         p.Mana = p.Stats.MaxMana;
@@ -107,13 +108,19 @@ public partial class ServerWorld
 
     /// <summary>Movement is client-computed for responsiveness; the server sanity-clamps it.
     /// All important results (damage, loot, items) remain host-authoritative.</summary>
-    public void UpdatePlayerState(int id, Vector2 pos, Vector2 facing)
+    public void UpdatePlayerState(int id, Vector2 pos, Vector2 facing, float height)
     {
         if (!Players.TryGetValue(id, out var p) || !p.Alive) return;
         pos.X = Math.Clamp(pos.X, 0, Map.Width);
         pos.Y = Math.Clamp(pos.Y, 0, Map.Height);
-        if (!Map.CircleHitsWall(pos, ServerPlayer.Radius * 0.7f))
+        // Sanity: accept the client's position/height only if a surface actually exists
+        // there near the claimed height — the SERVER's sampled value becomes canonical.
+        if (Map.SampleHeight(pos, height) is { } surface &&
+            !Map.CircleBlocked(pos, ServerPlayer.Radius * 0.7f, surface))
+        {
             p.Position = pos;
+            p.Height = surface;
+        }
         p.Facing = facing.NormalizedOrZero();
     }
 
@@ -139,6 +146,7 @@ public partial class ServerWorld
                 {
                     p.Alive = true;
                     p.Position = Map.PlayerSpawn;
+                    p.Height = Map.GroundHeightAt(Map.PlayerSpawn);
                     p.Health = p.Stats.MaxHealth;
                     p.Mana = p.Stats.MaxMana;
                     p.LastSyncedHealth = p.Health;
@@ -150,7 +158,8 @@ public partial class ServerWorld
             // Gold is picked up automatically by walking over it.
             foreach (var drop in Drops.Values.ToList())
             {
-                if (!drop.IsGold || Vector2.Distance(drop.Position, p.Position) > 1.1f) continue;
+                if (!drop.IsGold || Vector2.Distance(drop.Position, p.Position) > 1.1f ||
+                    MathF.Abs(drop.Height - p.Height) > 0.75f) continue;
                 p.Character.Gold += drop.GoldAmount;
                 Drops.Remove(drop.DropId);
                 _events.WorldItemRemoved(drop, p.Id);
@@ -215,6 +224,7 @@ public partial class ServerWorld
             Position = pos,
             Health = def.MaxHealth,
         };
+        e.Height = Map.GroundHeightAt(pos);
         Enemies[e.Id] = e;
         _events.EnemySpawned(e);
         return e;
@@ -231,6 +241,7 @@ public partial class ServerWorld
             {
                 var a = list[i];
                 var b = list[j];
+                if (MathF.Abs(a.Height - b.Height) > 0.75f) continue; // different surfaces don't collide
                 float minDist = (a.Def.Radius + b.Def.Radius) * 0.9f;
                 var delta = b.Position - a.Position;
                 float distSq = delta.LengthSquared();
@@ -241,8 +252,8 @@ public partial class ServerWorld
                     : new Vector2(MathF.Cos(a.Id * 2.4f), MathF.Sin(a.Id * 2.4f));
                 float overlap = minDist - MathF.Sqrt(distSq);
                 var push = dir * MathF.Min(overlap * 0.5f, 3f * dt); // gentle, framerate-safe
-                a.Position = Map.MoveWithCollision(a.Position, -push, a.Def.Radius);
-                b.Position = Map.MoveWithCollision(b.Position, push, b.Def.Radius);
+                a.Position = Map.MoveWithCollision(a.Position, -push, a.Def.Radius, ref a.Height);
+                b.Position = Map.MoveWithCollision(b.Position, push, b.Def.Radius, ref b.Height);
             }
         }
     }
@@ -275,7 +286,7 @@ public partial class ServerWorld
 
             if (Time < e.StunnedUntil) continue; // stunned: no movement, no attacks
 
-            var target = NearestAlivePlayer(e.Position, out float dist);
+            var target = NearestAlivePlayer(e.Position, e.Height, out float dist);
             switch (e.State)
             {
                 case EnemyState.Idle:
@@ -294,7 +305,7 @@ public partial class ServerWorld
                         break;
                     }
                     e.TargetPlayerId = target.Id;
-                    if (dist <= e.Def.AttackRange && (!e.Def.Ranged || !Map.SegmentHitsWall(e.Position, target.Position)))
+                    if (dist <= e.Def.AttackRange && (!e.Def.Ranged || !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f)))
                     {
                         e.State = EnemyState.Attack;
                         break;
@@ -325,16 +336,18 @@ public partial class ServerWorld
     {
         var dir = (target - e.Position).NormalizedOrZero();
         var delta = dir * e.Def.MoveSpeed * dt;
-        e.Position = Map.MoveWithCollision(e.Position, delta, e.Def.Radius);
+        e.Position = Map.MoveWithCollision(e.Position, delta, e.Def.Radius, ref e.Height);
     }
 
-    private ServerPlayer NearestAlivePlayer(Vector2 from, out float distance)
+    /// <summary>Nearest living player ON THE SAME SURFACE (height within step reach) —
+    /// entities on a bridge and entities underneath it ignore each other.</summary>
+    private ServerPlayer NearestAlivePlayer(Vector2 from, float height, out float distance)
     {
         ServerPlayer best = null;
         distance = float.MaxValue;
         foreach (var p in Players.Values)
         {
-            if (!p.Alive) continue;
+            if (!p.Alive || MathF.Abs(p.Height - height) > 0.75f) continue;
             float d = Vector2.Distance(from, p.Position);
             if (d < distance) { distance = d; best = p; }
         }
@@ -359,6 +372,7 @@ public partial class ServerWorld
             FromPlayer = false,
             OwnerId = e.Id,
             Position = e.Position,
+            Height = e.Height,
             Direction = dir,
             Speed = e.Def.ProjectileSpeed,
             MaxRange = e.Def.AttackRange + 3f,
@@ -379,7 +393,7 @@ public partial class ServerWorld
             var next = pr.Position + pr.Direction * step;
             pr.Traveled += step;
 
-            if (pr.Traveled >= pr.MaxRange || Map.SegmentHitsWall(pr.Position, next))
+            if (pr.Traveled >= pr.MaxRange || Map.SegmentBlocked(pr.Position, next, pr.Height + 0.5f))
             {
                 RemoveProjectile(pr, next);
                 continue;
@@ -390,7 +404,7 @@ public partial class ServerWorld
             {
                 foreach (var e in Enemies.Values)
                 {
-                    if (e.Dead) continue;
+                    if (e.Dead || MathF.Abs(e.Height - pr.Height) > 0.75f) continue;
                     if (Vector2.Distance(pr.Position, e.Position) <= e.Def.Radius + 0.25f)
                     {
                         var comps = RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
@@ -407,7 +421,7 @@ public partial class ServerWorld
             {
                 foreach (var p in Players.Values)
                 {
-                    if (!p.Alive) continue;
+                    if (!p.Alive || MathF.Abs(p.Height - pr.Height) > 0.75f) continue;
                     if (Time < p.InvulnerableUntil) continue; // dodging players are passed through
                     if (Vector2.Distance(pr.Position, p.Position) <= ServerPlayer.Radius + 0.25f)
                     {
@@ -488,7 +502,7 @@ public partial class ServerWorld
                 // Caster-relative: always projected in front of the player along the aim
                 // direction, never behind, clamped to weapon/skill range.
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
-                foreach (var e in EnemiesNear(effectPoint, stats.Radius))
+                foreach (var e in EnemiesNear(effectPoint, stats.Radius, p.Height))
                     { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
                 break;
             }
@@ -497,7 +511,7 @@ public partial class ServerWorld
                 // Single target: hit only the enemy closest to the impact point, then
                 // knock it back away from the caster (with wall collision).
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
-                var victim = EnemiesNear(effectPoint, stats.Radius)
+                var victim = EnemiesNear(effectPoint, stats.Radius, p.Height)
                     .OrderBy(e => Vector2.Distance(e.Position, effectPoint))
                     .FirstOrDefault();
                 if (victim != null)
@@ -508,7 +522,7 @@ public partial class ServerWorld
                     {
                         var push = (victim.Position - p.Position).NormalizedOrZero();
                         if (push == Vector2.Zero) push = p.Facing;
-                        victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback, victim.Def.Radius);
+                        victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback, victim.Def.Radius, ref victim.Height);
                     }
                     if (!victim.Dead && RollStun(def))
                         victim.StunnedUntil = Time + def.StunDuration;
@@ -518,7 +532,7 @@ public partial class ServerWorld
             case SkillArchetype.MeleeArea:
             {
                 effectPoint = p.Position;
-                foreach (var e in EnemiesNear(p.Position, stats.Radius))
+                foreach (var e in EnemiesNear(p.Position, stats.Radius, p.Height))
                 {
                     { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
                     if (!e.Dead && RollStun(def))
@@ -543,6 +557,7 @@ public partial class ServerWorld
                         OwnerId = playerId,
                         SkillId = skillId,
                         Position = p.Position + dir * 0.4f,
+                        Height = p.Height,
                         Direction = dir,
                         Speed = stats.ProjectileSpeed,
                         MaxRange = stats.Range,
@@ -562,7 +577,7 @@ public partial class ServerWorld
             case SkillArchetype.AreaBurst:
             {
                 effectPoint = ClampToRange(p.Position, target, stats.Range);
-                foreach (var e in EnemiesNear(effectPoint, stats.Radius))
+                foreach (var e in EnemiesNear(effectPoint, stats.Radius, p.Height))
                     { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
                 break;
             }
@@ -576,7 +591,8 @@ public partial class ServerWorld
                 var chainPoints = new List<Vector2> { p.Position };
                 var hitIds = new HashSet<int>();
                 var current = Enemies.Values
-                    .Where(e => !e.Dead && Vector2.Distance(e.Position, effectPoint) <= 2.2f)
+                    .Where(e => !e.Dead && MathF.Abs(e.Height - p.Height) <= 0.75f &&
+                                Vector2.Distance(e.Position, effectPoint) <= 2.2f)
                     .OrderBy(e => Vector2.Distance(e.Position, effectPoint))
                     .FirstOrDefault();
                 int maxHits = Math.Max(1, stats.ProjectileCount);
@@ -589,6 +605,7 @@ public partial class ServerWorld
                     var from = current.Position;
                     current = Enemies.Values
                         .Where(e => !e.Dead && !hitIds.Contains(e.Id) &&
+                                    MathF.Abs(e.Height - p.Height) <= 0.75f &&
                                     Vector2.Distance(e.Position, from) <= stats.Radius)
                         .OrderBy(e => Vector2.Distance(e.Position, from))
                         .FirstOrDefault();
@@ -596,7 +613,7 @@ public partial class ServerWorld
                 if (chainPoints.Count > 1)
                 {
                     effectPoint = chainPoints[^1];
-                    _events.ChainEffect(skillId, chainPoints);
+                    _events.ChainEffect(skillId, chainPoints, p.Height);
                 }
                 break;
             }
@@ -637,8 +654,11 @@ public partial class ServerWorld
         return new Vector2(v.X * c - v.Y * s, v.X * s + v.Y * c);
     }
 
-    private IEnumerable<ServerEnemy> EnemiesNear(Vector2 point, float radius) =>
-        Enemies.Values.Where(e => !e.Dead && Vector2.Distance(e.Position, point) <= radius + e.Def.Radius).ToList();
+    /// <summary>Living enemies within radius of a point ON the given surface height —
+    /// area skills never reach through a bridge deck or across a cliff level.</summary>
+    private IEnumerable<ServerEnemy> EnemiesNear(Vector2 point, float radius, float height) =>
+        Enemies.Values.Where(e => !e.Dead && MathF.Abs(e.Height - height) <= 0.75f &&
+                                  Vector2.Distance(e.Position, point) <= radius + e.Def.Radius).ToList();
 
     private float Roll(float min, float max) => min + (float)_rng.NextDouble() * (max - min);
 
@@ -768,7 +788,7 @@ public partial class ServerWorld
         }
 
         foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Def.Level))
-            SpawnDrop(item, e.Position);
+            SpawnDrop(item, e.Position, e.Height);
 
         // Gold drop, scaled by enemy level.
         var table = Data.GetLootTable(e.Def.LootTableId);
@@ -776,7 +796,7 @@ public partial class ServerWorld
         {
             int amount = _rng.Next(table.GoldMin, table.GoldMax + 1);
             amount = Math.Max(1, (int)(amount * (1f + 0.25f * (e.Def.Level - 1))));
-            SpawnGoldDrop(amount, e.Position);
+            SpawnGoldDrop(amount, e.Position, e.Height);
         }
     }
 
@@ -848,16 +868,16 @@ public partial class ServerWorld
 
     // ------------------------------------------------------------------ drops
 
-    public void SpawnDrop(ItemInstance item, Vector2 pos)
+    public void SpawnDrop(ItemInstance item, Vector2 pos, float height = 0f)
     {
-        var drop = new WorldItem { Position = Jitter(pos), Item = item };
+        var drop = new WorldItem { Position = Jitter(pos), Item = item, Height = height };
         Drops[drop.DropId] = drop;
         _events.WorldItemSpawned(drop);
     }
 
-    public void SpawnGoldDrop(int amount, Vector2 pos)
+    public void SpawnGoldDrop(int amount, Vector2 pos, float height = 0f)
     {
-        var drop = new WorldItem { Position = Jitter(pos), GoldAmount = amount };
+        var drop = new WorldItem { Position = Jitter(pos), GoldAmount = amount, Height = height };
         Drops[drop.DropId] = drop;
         _events.WorldItemSpawned(drop);
     }
@@ -874,7 +894,8 @@ public partial class ServerWorld
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
         if (!Drops.TryGetValue(dropId, out var drop)) return;
-        if (Vector2.Distance(p.Position, drop.Position) > ServerPlayer.PickupRange)
+        if (Vector2.Distance(p.Position, drop.Position) > ServerPlayer.PickupRange ||
+            MathF.Abs(drop.Height - p.Height) > 0.75f)
         {
             _events.MessageFor(p, "Too far away.");
             return;

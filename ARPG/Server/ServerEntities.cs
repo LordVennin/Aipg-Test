@@ -29,6 +29,8 @@ public class ServerPlayer
     public int Id;
     public string Name;
     public Vector2 Position;
+    /// <summary>Surface height in elevation levels (0 = ground floor); see GameMap.</summary>
+    public float Height;
     public Vector2 Facing = new(1, 0);
     public float Health;
     public bool Alive = true;
@@ -69,6 +71,8 @@ public class ServerEnemy
     public int Id;
     public EnemyDefinition Def;
     public Vector2 Position;
+    /// <summary>Surface height in elevation levels (see GameMap).</summary>
+    public float Height;
     public float Health;
     public EnemyState State = EnemyState.Idle;
     public float AttackReadyAt;
@@ -97,6 +101,8 @@ public class ServerProjectile
     public int OwnerId;          // player id or enemy id
     public string SkillId;       // player projectiles: which skill fired it (for credit + display)
     public Vector2 Position;
+    /// <summary>Flight height in elevation levels (inherited from the caster's surface).</summary>
+    public float Height;
     public Vector2 Direction;
     public float Speed;
     public float MaxRange;
@@ -117,6 +123,8 @@ public class WorldItem
 {
     public Guid DropId = Guid.NewGuid();
     public Vector2 Position;
+    /// <summary>Surface height the drop rests on (see GameMap).</summary>
+    public float Height;
     /// <summary>The dropped item, or null when this drop is a gold pile.</summary>
     public ItemInstance Item;
     /// <summary>Gold amount when Item is null.</summary>

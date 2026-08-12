@@ -178,7 +178,7 @@ ARPG/
 │                         (levels, scroll slots, effective skill stats)
 ├── Sim/                  CharacterData — the one structure that is save file,
 │                         join payload and authoritative server state
-├── World/                GameMap: seeded generation + collision (world coordinates)
+├── World/                GameMap: seeded generation, layered terrain + collision
 ├── Server/               Authoritative simulation: ServerWorld (AI, combat, loot,
 │                         pickups), ServerCharacterOps (inventory/equip/scroll moves),
 │                         GameServer (LiteNetLib host + packet translation)
@@ -215,6 +215,32 @@ ARPG/
   one gameplay code path.
 - The map is generated deterministically from a seed the server sends on join, so only
   the seed crosses the wire.
+
+### Layered terrain (elevation, ramps, bridges)
+
+The world is still fundamentally 2D/isometric — no voxels — but every tile column in
+`GameMap` stores four bytes: **GroundLevel** (walkable elevation), **WallHeight**
+(solid obstacle rising above ground; tall cliffs vary per column), **Ramp** (the
+ground surface slopes up one level toward a direction — the only elevation
+transition), and **BridgeLevel** (a second walkable deck above the ground, so one
+entity can cross the bridge while another walks underneath at the same X/Y).
+
+Entities carry one continuous `Height` (in level units) next to their X/Y. Movement
+resolves against the **nearest reachable surface** within a step tolerance
+(`GameMap.SampleHeight`), so walking up a ramp raises the height smoothly and which
+layer an entity occupies simply falls out of its height — there is no explicit layer
+switch anywhere. Combat, AI aggro, AoEs, pickups and knockback all filter targets by
+`|Δheight| ≤ 0.75`, which is what isolates a bridge deck from the passage below.
+Projectile/line-of-sight checks (`SegmentBlocked`) block on walls and on terrain
+rising above the flight height, so cliffs stop ground-level shots while defenders on
+the plateau can fire down. Heights ride along in every movement/spawn/effect packet
+(protocol v8) and the renderer offsets sprites by `24 px * height` with painter's
+depth `x + y + height * 0.6`, which draws bridge decks over the entities beneath.
+
+Generation stays simple: the seeded arena plus a deterministic, seed-independent demo
+carve (`CarveDemoTerrain`) with two plateau levels, a tall cliff wall, ramps and a
+bridge over a walkable corridor — the scaffolding a real generator can later replace
+tile by tile.
 
 ### Loot flow (why items are identical on every peer)
 
@@ -309,7 +335,7 @@ computed stats. All commands execute server-side like any other request.
 - No NAT traversal: internet play requires port forwarding or a virtual LAN
   (ZeroTier/Meshnet/Tailscale — these work out of the box).
 - Skill/character XP curves, enemy stats and drop rates are prototype-tuned, not balanced.
-- One map layout algorithm (seeded arena); no zones/waypoints.
+- One map layout algorithm (seeded arena + fixed terrain demo); no zones/waypoints.
 
 ## 14. Recommended next steps
 
