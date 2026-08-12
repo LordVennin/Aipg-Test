@@ -91,6 +91,8 @@ public class ClientProjectile
     public float Speed;
     public float MaxRange;
     public float Traveled;
+    /// <summary>Height change per tile traveled (overlook shots arc to their target).</summary>
+    public float HeightStep;
 }
 
 public class ClientDrop
@@ -216,6 +218,7 @@ public class ClientWorld
         {
             float step = pr.Speed * dt;
             pr.Position += pr.Direction * step;
+            pr.Height += pr.HeightStep * step;
             pr.Traveled += step;
             if (pr.Traveled > pr.MaxRange + 2f)
                 Projectiles.Remove(pr.Id);

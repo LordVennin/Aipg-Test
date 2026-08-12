@@ -1155,6 +1155,79 @@ public static class HeadlessNetTest
         clientB.World.Me.Height = 0f;
         Pump(0.4f);
 
+        Console.WriteLine("\n-- Overlook combat & targeted casts --");
+        // Line-of-fire geometry: descending shots off a cliff are clear, climbing shots
+        // into a cliff face are blocked, and NOTHING shoots through a bridge deck plane.
+        Check(!map.ShotBlocked(new Vector2(13.5f, 14.5f), 1.5f, new Vector2(13.5f, 17.5f), 0.5f),
+              "descending overlook shot has a clear line of fire");
+        Check(map.ShotBlocked(new Vector2(17.5f, 13.5f), 0.5f, new Vector2(12.5f, 13.5f), 1.5f),
+              "climbing shot into the cliff face is blocked");
+        Check(map.ShotBlocked(new Vector2(10.5f, 21.5f), 0.5f, new Vector2(10.5f, 14.5f), 1.5f) ||
+              map.ShotBlocked(new Vector2(10.5f, 17.5f), 0.5f, new Vector2(10.5f, 17.5f), 1.5f),
+              "shots crossing the bridge deck plane are blocked");
+
+        // A spitter on the plateau rim rains shots on a ground player below.
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = new Vector2(13.5f, 17.5f); // corridor floor, below the rim
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.2f);
+        var rimSpitter = server.World.SpawnEnemy("spitter", new Vector2(13.5f, 14.5f)); // plateau A rim, level 1
+        Check(MathF.Abs(rimSpitter.Height - 1f) < 0.05f, "overlook spitter holds the rim at level 1");
+        var srvB2 = server.World.Players[bId];
+        float hpBeforeRain = srvB2.Stats.MaxHealth;
+        bool rained = false;
+        for (int i = 0; i < 50 && !rained; i++)
+        {
+            srvB2.Health = hpBeforeRain;
+            clientB.World.Me.Position = new Vector2(13.5f, 17.5f);
+            Pump(0.2f);
+            rained = server.World.Projectiles.Values.Any(pr => pr.OwnerId == rimSpitter.Id && pr.HeightStep < -0.01f)
+                     || srvB2.Health < hpBeforeRain - 0.5f;
+        }
+        Check(rained, "overlook spitter fires a descending shot at the player below");
+        bool rainHit = false;
+        for (int i = 0; i < 60 && !rainHit; i++)
+        {
+            clientB.World.Me.Position = new Vector2(13.5f, 17.5f);
+            Pump(0.1f);
+            rainHit = srvB2.Health < hpBeforeRain - 0.5f;
+        }
+        Check(rainHit, $"the descending shot lands on the lower surface ({srvB2.Health:0}/{hpBeforeRain:0})");
+
+        // Targeted cast the other way: B climbs the rim and fire-bolts the grunt below
+        // by target id — the arc carries the bolt down to the enemy's elevation.
+        rimSpitter.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = new Vector2(13.5f, 14.5f); // up on the rim
+        clientB.World.Me.Height = 1f;
+        Pump(0.4f);
+        var lowTarget = server.World.SpawnEnemy("grunt", new Vector2(13.5f, 17.8f));
+        lowTarget.Health = 500f;
+        lowTarget.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        bool bolted = false;
+        for (int attempt = 0; attempt < 8 && !bolted; attempt++)
+        {
+            srvB2.Mana = srvB2.Stats.MaxMana;
+            srvB2.SkillReadyAt.Clear();
+            clientB.RequestUseSkill("fire_bolt", lowTarget.Position, lowTarget.Id);
+            for (int i = 0; i < 25 && !bolted; i++)
+            {
+                Pump(0.05f);
+                bolted = lowTarget.Health < 499.9f;
+            }
+        }
+        Check(bolted, $"hover-targeted cast arcs down and hits the enemy below (hp {lowTarget.Health:0})");
+        lowTarget.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+
         Console.WriteLine("\n-- Authored encounters: packs & elites --");
         Check(server.World.Packs.Count >= 6, $"authored packs registered ({server.World.Packs.Count})");
         // Group respawn: wipe the corridor pack, force its timer, and watch it return

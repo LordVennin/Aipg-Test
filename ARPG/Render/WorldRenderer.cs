@@ -19,6 +19,13 @@ public class WorldRenderer
     /// <summary>Screen rectangles of drop name labels this frame, for click-to-pick-up.</summary>
     public readonly List<(Rectangle rect, Guid dropId)> DropLabelRects = new();
 
+    /// <summary>Screen rectangles of enemy sprites this frame, for hover targeting
+    /// (front-most = last drawn; hit-test in reverse).</summary>
+    public readonly List<(Rectangle rect, int enemyId)> EnemyHitRects = new();
+    /// <summary>Enemy currently under the mouse (set by PlayScreen) — tinted red and
+    /// shown in the top-of-screen target display.</summary>
+    public int HoveredEnemyId = -1;
+
     private const int WallHeight = 24;
 
     /// <summary>Sprite tint marking elite affixes (boss purple, brutish red, swift gold,
@@ -43,6 +50,7 @@ public class WorldRenderer
         var map = world.Map;
         if (map == null) return;
         DropLabelRects.Clear();
+        EnemyHitRects.Clear();
 
         // --- base pass: flat level-0 floor tiles (nothing ever renders beneath them) ---
         var floorA = new Color(58, 66, 58);
@@ -280,16 +288,21 @@ public class WorldRenderer
                     var tex = frames[frame];
                     int scale = e.IsBoss ? 3 : 2; // the boss reads bigger at a glance
                     int w = tex.Width * scale, h = tex.Height * scale;
+                    var spriteRect = new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 6, w, h);
+                    EnemyHitRects.Add((spriteRect, e.Id));
+                    var tint = e.Id == HoveredEnemyId ? new Color(255, 105, 95) : EliteTint(e);
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size / 4), (int)size, (int)(size / 2)),
                         new Color(0, 0, 0, 90)); // shadow
-                    batch.Draw(tex, new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 6, w, h), null,
-                        EliteTint(e), 0f, Vector2.Zero,
+                    batch.Draw(tex, spriteRect, null,
+                        tint, 0f, Vector2.Zero,
                         e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
                     barY = (int)screen.Y - h + 2;
                 }
                 else
                 {
+                    EnemyHitRects.Add((new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size),
+                        (int)size, (int)size), e.Id));
                     DrawUnitToken(batch, screen, size, color);
                     barY = (int)screen.Y - (int)size - 26;
                 }

@@ -251,6 +251,33 @@ surface. Side faces sort as occluders (`x+y+1`) while walkable tops sort low
 (`x+y+level*0.6`), which is what lets tall towers stand behind short ones without
 paint-over glitches while entities still draw above their own floor.
 
+### The graveyard slice (authored encounters)
+
+The map stages a hand-authored 5–10 minute run over the demo terrain: pack
+spawners (groups that share aggro and respawn together) guard the lower path,
+an ambush waits under the bridge, elite-led packs hold the upper ruins, spitters
+overlook the corridor from the plateau rim, and **The Gravelord** — a ground-slam
+miniboss with stun resistance — waits with its guards in the wide arena on the
+south plateau, dropping a guaranteed reward burst (rare-biased loot plus both
+scroll types, twice) from its own loot table. Elite affixes (Brutish/Swift/
+Warded) scale life/damage/speed/resists, multiply XP and loot rolls, tint the
+sprite and prefix the name.
+
+### Overlook combat & hover targeting
+
+Ranged enemies can fire ACROSS elevations when they have line of fire: shots are
+straight lines in (x, y, height) space (`GameMap.ShotBlocked`), so rim spitters
+rain projectiles down into the corridor while shots from below clip the cliff
+lip and die — holding the high ground is a real advantage. Nothing shoots
+through a bridge deck's plane in either direction. Projectiles carry a height
+step and arc to their target's elevation.
+
+Hovering an enemy highlights it red and shows a top-of-screen target display
+(name colored by rank, large health bar). Casts made while hovering are
+TARGETED: the server aims at that enemy's true position and elevation, which is
+how you pick a victim above or below you — the mouse unprojection alone cannot
+know which surface you meant.
+
 ### Enemy pathfinding (flow fields)
 
 Enemy aggro and chasing run on a per-player breadth-first **flow field** over the

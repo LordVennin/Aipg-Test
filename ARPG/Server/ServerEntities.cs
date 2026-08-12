@@ -131,6 +131,9 @@ public class ServerProjectile
     public float Speed;
     public float MaxRange;
     public float Traveled;
+    /// <summary>Height change per tile traveled — a shot arcing down from an overlook
+    /// (or up at one) descends/climbs linearly toward its target's elevation.</summary>
+    public float HeightStep;
     public float MinDamage;
     public float MaxDamage;
     public DamageKind DamageKind;

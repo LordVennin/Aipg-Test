@@ -154,11 +154,12 @@ public class GameClient
         _server?.Send(w, method);
     }
 
-    public void RequestUseSkill(string skillId, Vector2 target)
+    public void RequestUseSkill(string skillId, Vector2 target, int targetEnemyId = -1)
     {
         var w = Packets.Make(PacketType.UseSkill);
         w.Put(skillId);
         w.PutVec2(target);
+        w.Put(targetEnemyId);
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -419,6 +420,7 @@ public class GameClient
                 pr.Direction = r.GetVec2();
                 pr.Speed = r.GetFloat();
                 pr.MaxRange = r.GetFloat();
+                pr.HeightStep = r.GetFloat();
                 World.Projectiles[pr.Id] = pr;
                 break;
             }

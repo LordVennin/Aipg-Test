@@ -419,8 +419,7 @@ public partial class ServerWorld
                         break;
                     }
                     e.TargetPlayerId = target.Id;
-                    if (sameSurface && dist <= e.Def.AttackRange &&
-                        (!e.Def.Ranged || !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f)))
+                    if (dist <= e.Def.AttackRange && CanAttack(e, target, sameSurface))
                     {
                         e.State = EnemyState.Attack;
                         break;
@@ -429,7 +428,7 @@ public partial class ServerWorld
                     break;
 
                 case EnemyState.Attack:
-                    if (target == null || !sameSurface || dist > e.Def.AttackRange * 1.15f)
+                    if (target == null || dist > e.Def.AttackRange * 1.15f || !CanAttack(e, target, sameSurface))
                     {
                         e.State = target == null ? EnemyState.Idle : EnemyState.Chase;
                         break;
@@ -599,7 +598,9 @@ public partial class ServerWorld
     }
 
     /// <summary>The alive player with the shortest PATH to this enemy (in tiles), so
-    /// unreachable players (other surface, walled off) are never chosen.</summary>
+    /// unreachable players (other surface, walled off) are never chosen. Ranged enemies
+    /// also consider straight LINE OF FIRE across elevations — an overlook spitter on
+    /// the rim aggros the player below even though the walking path winds down a ramp.</summary>
     private (ServerPlayer target, float pathDist) FindTarget(ServerEnemy e)
     {
         int node = NodeOf(e.Position, e.Height);
@@ -610,6 +611,13 @@ public partial class ServerWorld
         {
             if (!p.Alive || !_flow.TryGetValue(p.Id, out var f) || f.Dist == null) continue;
             float d = f.Dist[node];
+            if (e.Def.Ranged && d > e.Def.AggroRange)
+            {
+                float euclid = Vector2.Distance(e.Position, p.Position);
+                if (euclid < d && euclid <= e.Def.AggroRange * 1.5f &&
+                    !Map.ShotBlocked(e.Position, e.Height + 0.5f, p.Position, p.Height + 0.5f))
+                    d = euclid;
+            }
             if (d < bestD) { bestD = d; best = p; }
         }
         return (best, bestD);
@@ -636,6 +644,15 @@ public partial class ServerWorld
 
     // ------------------------------------------------------------------ projectiles
 
+    /// <summary>Melee needs the same surface; ranged enemies may also fire ACROSS
+    /// elevations when the (height-interpolated) shot path is clear — that's what makes
+    /// overlook spitters rain acid down from the plateau rim.</summary>
+    private bool CanAttack(ServerEnemy e, ServerPlayer target, bool sameSurface)
+    {
+        if (!e.Def.Ranged) return sameSurface;
+        return !Map.ShotBlocked(e.Position, e.Height + 0.5f, target.Position, target.Height + 0.5f);
+    }
+
     private void SpawnEnemyProjectile(ServerEnemy e, ServerPlayer target)
     {
         var dir = (target.Position - e.Position).NormalizedOrZero();
@@ -656,6 +673,8 @@ public partial class ServerWorld
             Direction = dir,
             Speed = e.Def.ProjectileSpeed,
             MaxRange = e.Def.AttackRange + 3f,
+            HeightStep = (target.Height - e.Height) /
+                         MathF.Max(0.5f, Vector2.Distance(e.Position, target.Position)),
             MinDamage = primary.Value * 0.8f * e.DamageScale,
             MaxDamage = primary.Value * 1.2f * e.DamageScale,
             DamageKind = primary.Key,
@@ -671,14 +690,17 @@ public partial class ServerWorld
         {
             float step = pr.Speed * dt;
             var next = pr.Position + pr.Direction * step;
+            float nextHeight = pr.Height + pr.HeightStep * step;
             pr.Traveled += step;
 
-            if (pr.Traveled >= pr.MaxRange || Map.SegmentBlocked(pr.Position, next, pr.Height + 0.5f))
+            if (pr.Traveled >= pr.MaxRange ||
+                Map.ShotBlocked(pr.Position, pr.Height + 0.5f, next, nextHeight + 0.5f))
             {
                 RemoveProjectile(pr, next);
                 continue;
             }
             pr.Position = next;
+            pr.Height = nextHeight;
 
             if (pr.FromPlayer)
             {
@@ -722,7 +744,7 @@ public partial class ServerWorld
 
     // ------------------------------------------------------------------ combat
 
-    public void UseSkill(int playerId, string skillId, Vector2 target)
+    public void UseSkill(int playerId, string skillId, Vector2 target, int targetEnemyId = -1)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
         var learned = p.Character.GetSkill(skillId);
@@ -750,6 +772,16 @@ public partial class ServerWorld
             return;
 
         var stats = SkillMath.Compute(Data, def, learned.Level, learned.ScrollDefinitions(Data), p.Stats);
+
+        // Hover-targeted cast: aim at the chosen enemy's true position and (for
+        // projectiles) arc the shot to its elevation — that's how you pick a target
+        // below a cliff or up on an overlook instead of firing along your own plane.
+        float targetHeight = p.Height;
+        if (targetEnemyId >= 0 && Enemies.TryGetValue(targetEnemyId, out var aimed) && !aimed.Dead)
+        {
+            target = aimed.Position;
+            targetHeight = aimed.Height;
+        }
 
         // Mana: validated and spent server-side (no cooldown consumed on failure).
         if (stats.ManaCost > 0)
@@ -843,6 +875,9 @@ public partial class ServerWorld
                         Direction = dir,
                         Speed = stats.ProjectileSpeed,
                         MaxRange = stats.Range,
+                        HeightStep = MathF.Abs(targetHeight - p.Height) > 0.05f
+                            ? (targetHeight - p.Height) / MathF.Max(0.5f, Vector2.Distance(p.Position, target))
+                            : 0f,
                         MinDamage = stats.MinDamage,
                         MaxDamage = stats.MaxDamage,
                         DamageKind = stats.DamageKind,
