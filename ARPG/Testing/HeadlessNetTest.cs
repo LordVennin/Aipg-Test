@@ -980,6 +980,141 @@ public static class HeadlessNetTest
         }
         Check(projectileSeen, "fire bolt projectile spawned and replicated to the other client");
 
+        Console.WriteLine("\n-- Layered terrain: demo layout --");
+        var map = clientA.World.Map;
+        Check(map.GroundLevel(10, 10) == 1 && map.GroundLevel(7, 7) == 2 && map.GroundLevel(22, 22) == 0,
+              "demo terrain has flat ground plus two elevation levels (plateau 1, crown 2)");
+        Check(map.Ramp(16, 10) == World.RampDirection.MinusX && map.Ramp(16, 24) == World.RampDirection.MinusX,
+              "ramps carved on the plateau edges");
+        Check(map.WallHeight(20, 7) == 3 && map.WallHeight(24, 7) == 2,
+              "tall cliff wall with varying height (3 and 2 levels)");
+        Check(map.BridgeLevel(10, 17) == 1 && map.GroundLevel(10, 17) == 0 && !map.IsSolid(10, 17),
+              "bridge deck over walkable level-0 ground (two stacked surfaces)");
+
+        Console.WriteLine("\n-- Layered terrain: ramps & cliffs --");
+        // Walk from open ground across the ramp tile onto plateau A: height must rise 0 -> 1.
+        float walkerH = 0f;
+        var walker = new Vector2(17.5f, 10.5f);
+        for (int i = 0; i < 240; i++)
+            walker = map.MoveWithCollision(walker, new Vector2(-0.05f, 0), 0.35f, ref walkerH);
+        Check(walker.X < 15.5f && MathF.Abs(walkerH - 1f) < 0.05f,
+              $"walking up the ramp raises surface height to 1 (x {walker.X:0.0}, h {walkerH:0.00})");
+        // Walking straight into the cliff face (no ramp) must be blocked: the level-1
+        // plateau edge at x=16, y=13 is a cliff for a height-0 entity.
+        float cliffH = 0f;
+        var cliffWalker = new Vector2(17.5f, 13.5f);
+        for (int i = 0; i < 240; i++)
+            cliffWalker = map.MoveWithCollision(cliffWalker, new Vector2(-0.05f, 0), 0.35f, ref cliffH);
+        Check(cliffWalker.X > 15.9f && cliffH < 0.05f,
+              $"cliff face blocks movement without a ramp (stopped at x {cliffWalker.X:0.0}, h {cliffH:0.00})");
+        // Projectile LOS: a shot flying at ground height is blocked by the cliff, while
+        // the same shot at plateau height clears it.
+        Check(map.SegmentBlocked(new Vector2(18, 10.5f), new Vector2(10, 10.5f), 0.5f),
+              "ground-height shot is blocked by the plateau cliff");
+        Check(!map.SegmentBlocked(new Vector2(14, 10.5f), new Vector2(8, 10.5f), 1.5f),
+              "plateau-height shot flies clear across the plateau");
+
+        Console.WriteLine("\n-- Layered terrain: height sync --");
+        // Teleport A onto plateau A at level 1 and verify the elevation replicates.
+        clientA.World.Me.Position = new Vector2(12.5f, 12.5f);
+        clientA.World.Me.Height = 1f;
+        Pump(0.4f);
+        clientA.SendDebugCommand("kill_nearby"); // plateau residents would maul A mid-check
+        clientA.SendDebugCommand("heal");
+        Pump(0.4f);
+        var srvA = server.World.Players[clientA.World.MyPlayerId];
+        Check(MathF.Abs(srvA.Height - 1f) < 0.05f,
+              $"server accepted and sampled the plateau surface (h {srvA.Height:0.00})");
+        var aOnB = clientB.World.Players[clientA.World.MyPlayerId];
+        Check(MathF.Abs(aOnB.NetTargetHeight - 1f) < 0.05f,
+              $"client B sees A's replicated elevation (h {aOnB.NetTargetHeight:0.00})");
+        // A client claiming a plateau position at the WRONG height is rejected (the
+        // server refuses positions with no reachable surface near the claimed height).
+        var posBefore = srvA.Position;
+        clientA.World.Me.Position = new Vector2(8.5f, 12.5f);
+        clientA.World.Me.Height = 0f; // level-1 ground there — no surface within tolerance
+        Pump(0.5f);
+        Check(Vector2.Distance(srvA.Position, posBefore) < 0.05f,
+              "server rejects a position claim with no surface near the claimed height");
+        clientA.World.Me.Position = posBefore;
+        clientA.World.Me.Height = 1f;
+        Pump(0.4f);
+
+        Console.WriteLine("\n-- Layered terrain: bridge & combat isolation --");
+        // Park B ON the bridge deck (level 1) while a grunt stands UNDER it at level 0:
+        // same X/Y column, two different surfaces.
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.3f);
+        clientB.World.Me.Position = new Vector2(10.5f, 17.5f);
+        clientB.World.Me.Height = 1f;
+        Pump(0.5f);
+        var srvB = server.World.Players[bId];
+        Check(MathF.Abs(srvB.Height - 1f) < 0.05f,
+              $"player stands on the bridge deck at level 1 (h {srvB.Height:0.00})");
+        var underEnemy = server.World.SpawnEnemy("grunt", new Vector2(10.5f, 17.5f));
+        underEnemy.Health = 500f;
+        Check(underEnemy.Height < 0.05f,
+              $"enemy under the deck occupies the same X/Y at level 0 (h {underEnemy.Height:0.00})");
+        Pump(1.0f);
+        Check(underEnemy.TargetPlayerId != bId,
+              "under-bridge enemy does not aggro the player on the deck above");
+        // A melee swing from the deck must not hit through the deck floor.
+        srvB.Mana = srvB.Stats.MaxMana;
+        clientB.RequestUseSkill("mace_strike", clientB.World.Me.Position + new Vector2(0.3f, 0));
+        Pump(0.5f);
+        Check(underEnemy.Health >= 499.9f,
+              $"deck player's melee does not hit the enemy underneath (hp {underEnemy.Health:0})");
+        // Same-surface combat still works: hop down beside it and swing again.
+        clientB.World.Me.Position = new Vector2(13.5f, 17.5f); // corridor ground, level 0
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+        clientB.World.Me.Position = underEnemy.Position + new Vector2(-0.9f, 0);
+        Pump(0.4f);
+        srvB.Mana = srvB.Stats.MaxMana;
+        srvB.SkillReadyAt.Remove("mace_strike");
+        clientB.RequestUseSkill("mace_strike", underEnemy.Position);
+        Pump(0.5f);
+        Check(underEnemy.Health < 499.9f,
+              $"same-surface melee still lands (hp {underEnemy.Health:0})");
+        // Drop height replication: kill an enemy up on plateau B and check clients see
+        // its gold/loot resting at level 1.
+        underEnemy.Health = 1f;
+        clientB.World.Me.Position = new Vector2(10.5f, 23.0f); // plateau B, level 1
+        clientB.World.Me.Height = 1f;
+        Pump(0.4f);
+        clientB.SendDebugCommand("kill_nearby"); // clear plateau residents BEFORE the target spawns
+        clientB.SendDebugCommand("heal");
+        Pump(0.3f);
+        // Spawn out of gold-autopickup reach (1.1) but inside melee reach (range + radius).
+        var plateauEnemy = server.World.SpawnEnemy("grunt", new Vector2(10.5f, 25.3f));
+        plateauEnemy.StunnedUntil = server.World.Time + 30f; // hold still for the kill
+        Check(MathF.Abs(plateauEnemy.Height - 1f) < 0.05f, "enemy spawned on plateau B at level 1");
+        bool elevatedDrop = false;
+        for (int hit = 0; hit < 30 && !plateauEnemy.Dead; hit++)
+        {
+            srvB.Mana = srvB.Stats.MaxMana;
+            srvB.SkillReadyAt.Clear();
+            clientB.RequestUseSkill("mace_strike", plateauEnemy.Position);
+            Pump(0.25f);
+        }
+        Check(plateauEnemy.Dead, "plateau enemy killed by same-surface melee");
+        // Drop replication is chance-free when spawned directly: a gold pile on the
+        // plateau must reach clients carrying the level-1 surface height. (Out of B's
+        // 1.1-tile auto-pickup range so it survives long enough to observe.)
+        var goldSpot = new Vector2(8.5f, 26.5f);
+        server.World.SpawnGoldDrop(25, goldSpot, 1f);
+        for (int i = 0; i < 20 && !elevatedDrop; i++)
+        {
+            Pump(0.05f);
+            elevatedDrop = clientA.World.Drops.Values.Any(d =>
+                Vector2.Distance(d.Position, goldSpot) < 0.5f && MathF.Abs(d.Height - 1f) < 0.05f);
+        }
+        Check(elevatedDrop, "drops replicate to clients with their surface elevation");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

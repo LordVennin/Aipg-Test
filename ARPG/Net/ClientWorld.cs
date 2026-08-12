@@ -13,6 +13,9 @@ public class ClientPlayer
     public string Name;
     public Vector2 Position;       // displayed (interpolated) position
     public Vector2 NetTarget;      // latest position from the server
+    /// <summary>Surface height in elevation levels (see GameMap). Local: predicted; remote: replicated.</summary>
+    public float Height;
+    public float NetTargetHeight;
     public Vector2 Facing = new(1, 0);
     public float Health;
     public float MaxHealth;
@@ -42,6 +45,9 @@ public class ClientEnemy
     public EnemyDefinition Def;
     public Vector2 Position;
     public Vector2 NetTarget;
+    /// <summary>Surface height in elevation levels, replicated in snapshots.</summary>
+    public float Height;
+    public float NetTargetHeight;
     public float Health;
     public float MaxHealth;
     public byte State;
@@ -58,6 +64,8 @@ public class ClientProjectile
     public bool FromPlayer;
     public string SkillId;
     public Vector2 Position;
+    /// <summary>Flight height in elevation levels.</summary>
+    public float Height;
     public Vector2 Direction;
     public float Speed;
     public float MaxRange;
@@ -68,6 +76,8 @@ public class ClientDrop
 {
     public Guid DropId;
     public Vector2 Position;
+    /// <summary>Surface height the drop rests on.</summary>
+    public float Height;
     /// <summary>Dropped item, or null for a gold pile.</summary>
     public ItemInstance Item;
     public int GoldAmount;
@@ -79,6 +89,8 @@ public class ClientDrop
 public class FloatingNumber
 {
     public Vector2 Position;
+    /// <summary>Surface height of the damaged entity, for elevation-correct rendering.</summary>
+    public float Height;
     public float Amount;
     public byte Kind;          // (Skills.DamageKind)
     public bool TargetIsPlayer;
@@ -92,6 +104,8 @@ public class FloatingNumber
 public class ClientEffect
 {
     public Vector2 Position;
+    /// <summary>Surface height the effect plays at.</summary>
+    public float Height;
     public float Radius;
     public float TimeLeft;
     public float Duration;
@@ -143,6 +157,7 @@ public class ClientWorld
             if (p.SwingTimeLeft > 0) p.SwingTimeLeft -= dt;
             if (p.IsLocal) continue;
             p.Position = Vector2.Lerp(p.Position, p.NetTarget, Math.Clamp(dt * 12f, 0f, 1f));
+            p.Height = float.Lerp(p.Height, p.NetTargetHeight, Math.Clamp(dt * 12f, 0f, 1f));
         }
         foreach (var e in Enemies.Values)
         {
@@ -173,6 +188,7 @@ public class ClientWorld
                 }
             }
             e.Position = Vector2.Lerp(e.Position, e.NetTarget, Math.Clamp(dt * 10f, 0f, 1f));
+            e.Height = float.Lerp(e.Height, e.NetTargetHeight, Math.Clamp(dt * 10f, 0f, 1f));
         }
 
         foreach (var pr in Projectiles.Values.ToList())
@@ -201,8 +217,8 @@ public class ClientWorld
         }
     }
 
-    public void AddEffect(Vector2 pos, float radius, float duration, string kind) =>
-        Effects.Add(new ClientEffect { Position = pos, Radius = radius, TimeLeft = duration, Duration = duration, Kind = kind });
+    public void AddEffect(Vector2 pos, float radius, float duration, string kind, float height = 0f) =>
+        Effects.Add(new ClientEffect { Position = pos, Radius = radius, TimeLeft = duration, Duration = duration, Kind = kind, Height = height });
 
     public ClientDrop NearestDrop(Vector2 pos, float maxDist)
     {

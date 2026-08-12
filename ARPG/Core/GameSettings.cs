@@ -58,7 +58,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 7; // v7: chain-lightning effect packet
+    public const int ProtocolVersion = 8; // v8: layered terrain — heights in movement/spawn/effect packets
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

@@ -241,25 +241,31 @@ public class PlayScreen : IScreen
                 _client.RequestDodge(_dodgeDir);
             }
 
+            // All predicted movement is height-aware: walking a ramp raises Me.Height,
+            // cliffs and deck edges block, and the height is replicated to the server.
+            float myHeight = me.Height;
             if (_dodgeTimeLeft > 0)
             {
                 _dodgeTimeLeft -= dt;
                 var dodgeStats = _client.World.MyStats;
                 float dodgeSpeed = dodgeStats.DodgeDistance / MathF.Max(0.05f, dodgeStats.DodgeDuration);
-                me.Position = _client.World.Map.MoveWithCollision(me.Position, _dodgeDir * dodgeSpeed * dt, 0.3f);
+                me.Position = _client.World.Map.MoveWithCollision(me.Position, _dodgeDir * dodgeSpeed * dt, 0.3f, ref myHeight);
             }
             else if (_lungeTimeLeft > 0)
             {
                 _lungeTimeLeft -= dt;
-                me.Position = _client.World.Map.MoveWithCollision(me.Position, _lungeDir * _lungeSpeed * dt, 0.3f);
+                me.Position = _client.World.Map.MoveWithCollision(me.Position, _lungeDir * _lungeSpeed * dt, 0.3f, ref myHeight);
             }
             else if (worldDir != NumVec2.Zero)
             {
                 float speed = _client.World.MyStats.MovementSpeed; // stat-driven, equipment can modify it
-                me.Position = _client.World.Map.MoveWithCollision(me.Position, worldDir * speed * dt, 0.3f);
+                me.Position = _client.World.Map.MoveWithCollision(me.Position, worldDir * speed * dt, 0.3f, ref myHeight);
             }
+            me.Height = myHeight;
 
-            var mouseWorld = _camera.ScreenToWorld(input.RawMousePosition);
+            // Aim unprojects onto the plane of MY surface, so overlapping layers
+            // (bridge deck vs the ground below) resolve to the one I stand on.
+            var mouseWorld = _camera.ScreenToWorld(input.RawMousePosition, me.Height);
             var facing = mouseWorld - me.Position;
             if (facing.LengthSquared() > 0.001f)
                 me.Facing = NumVec2.Normalize(facing);
@@ -318,6 +324,7 @@ public class PlayScreen : IScreen
             float dist = def.LungeDistance;
             foreach (var e in _client.World.Enemies.Values)
             {
+                if (MathF.Abs(e.Height - lunger.Height) > 0.75f) continue; // other layers don't body-check
                 var toEnemy = e.Position - lunger.Position;
                 float along = NumVec2.Dot(toEnemy, _lungeDir);
                 if (along > 0.2f && (toEnemy - _lungeDir * along).Length() < 0.6f)

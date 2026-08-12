@@ -192,7 +192,8 @@ public class GameServer : IServerEvents
             {
                 var pos = r.GetVec2();
                 var facing = r.GetVec2();
-                World.UpdatePlayerState(playerId, pos, facing);
+                float height = r.GetFloat();
+                World.UpdatePlayerState(playerId, pos, facing, height);
                 break;
             }
             case PacketType.UseSkill:
@@ -257,6 +258,7 @@ public class GameServer : IServerEvents
         accept.Put(playerId);
         accept.Put(MapSeed);
         accept.PutVec2(player.Position);
+        accept.Put(player.Height);
         accept.Put(player.Health);
         accept.Put(player.Stats.MaxHealth);
         accept.Put(player.Mana);
@@ -324,6 +326,7 @@ public class GameServer : IServerEvents
         w.Put(p.Id);
         w.Put(p.Name);
         w.PutVec2(p.Position);
+        w.Put(p.Height);
         w.Put(p.Health);
         w.Put(p.Stats.MaxHealth);
         w.Put(p.Alive);
@@ -336,6 +339,7 @@ public class GameServer : IServerEvents
         w.Put(e.Id);
         w.Put(e.Def.Id);
         w.PutVec2(e.Position);
+        w.Put(e.Height);
         w.Put(e.Health);
         w.Put(e.Def.MaxHealth);
         return w;
@@ -346,6 +350,7 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.WorldItemSpawn);
         w.PutGuid(item.DropId);
         w.PutVec2(item.Position);
+        w.Put(item.Height);
         w.Put(item.IsGold);
         if (item.IsGold) w.Put(item.GoldAmount);
         else w.Put(Json.SaveCompact(item.Item));
@@ -362,6 +367,7 @@ public class GameServer : IServerEvents
             w.Put(p.Id);
             w.PutVec2(p.Position);
             w.PutVec2(p.Facing);
+            w.Put(p.Height);
         }
         Broadcast(w, DeliveryMethod.Unreliable);
     }
@@ -382,6 +388,7 @@ public class GameServer : IServerEvents
             if (World.Time < e.StunnedUntil) debuffs |= EnemyDebuffs.Stunned;
             if (e.BurnTimeLeft > 0) debuffs |= EnemyDebuffs.Burning;
             w.Put(debuffs);
+            w.Put(e.Height);
         }
         Broadcast(w, DeliveryMethod.Unreliable);
     }
@@ -428,6 +435,7 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.PlayerRespawn);
         w.Put(p.Id);
         w.PutVec2(p.Position);
+        w.Put(p.Height);
         w.Put(p.Health);
         w.Put(p.Stats.MaxHealth);
         w.Put(p.Mana);
@@ -441,6 +449,7 @@ public class GameServer : IServerEvents
         w.Put(p.FromPlayer);
         w.Put(p.SkillId ?? "");
         w.PutVec2(p.Position);
+        w.Put(p.Height);
         w.PutVec2(p.Direction);
         w.Put(p.Speed);
         w.Put(p.MaxRange);
@@ -490,6 +499,7 @@ public class GameServer : IServerEvents
         w.Put(p.Id);
         w.Put(skillId);
         w.PutVec2(effectPoint);
+        w.Put(p.Height);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -515,10 +525,11 @@ public class GameServer : IServerEvents
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
-    public void ChainEffect(string skillId, List<Vector2> points)
+    public void ChainEffect(string skillId, List<Vector2> points, float height)
     {
         var w = Packets.Make(PacketType.ChainEffect);
         w.Put(skillId);
+        w.Put(height);
         w.Put((byte)points.Count);
         foreach (var pt in points) w.PutVec2(pt);
         Broadcast(w, DeliveryMethod.ReliableOrdered);

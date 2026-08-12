@@ -142,6 +142,7 @@ public class GameClient
             var w = Packets.Make(PacketType.PlayerState);
             w.PutVec2(me.Position);
             w.PutVec2(me.Facing);
+            w.Put(me.Height);
             _server.Send(w, DeliveryMethod.Unreliable);
         }
     }
@@ -233,6 +234,7 @@ public class GameClient
                 World.MyPlayerId = r.GetInt();
                 int mapSeed = r.GetInt();
                 var pos = r.GetVec2();
+                float joinHeight = r.GetFloat();
                 float hp = r.GetFloat();
                 float maxHp = r.GetFloat();
                 float mana = r.GetFloat();
@@ -248,6 +250,8 @@ public class GameClient
                     MaxHealth = maxHp,
                     Mana = mana,
                     IsLocal = true,
+                    Height = joinHeight,
+                    NetTargetHeight = joinHeight,
                 };
                 World.RecomputeMyStats(_data);
                 Status = ClientStatus.InGame;
@@ -262,6 +266,7 @@ public class GameClient
             {
                 var p = new ClientPlayer { Id = r.GetInt(), Name = r.GetString() };
                 p.Position = p.NetTarget = r.GetVec2();
+                p.Height = p.NetTargetHeight = r.GetFloat();
                 p.Health = r.GetFloat();
                 p.MaxHealth = r.GetFloat();
                 p.Alive = r.GetBool();
@@ -281,11 +286,13 @@ public class GameClient
                     int id = r.GetInt();
                     var pos = r.GetVec2();
                     var facing = r.GetVec2();
+                    float height = r.GetFloat();
                     if (id == World.MyPlayerId) continue; // local player is predicted locally
                     if (World.Players.TryGetValue(id, out var p))
                     {
                         p.NetTarget = pos;
                         p.Facing = facing;
+                        p.NetTargetHeight = height;
                     }
                 }
                 break;
@@ -301,12 +308,14 @@ public class GameClient
             case PacketType.ChainEffect:
             {
                 r.GetString(); // skillId (unused for now — one chain visual)
+                float chainHeight = r.GetFloat();
                 int pointCount = r.GetByte();
                 var points = new List<System.Numerics.Vector2>(pointCount);
                 for (int i = 0; i < pointCount; i++) points.Add(r.GetVec2());
                 World.Effects.Add(new ClientEffect
                 {
                     Kind = "chain",
+                    Height = chainHeight,
                     Points = points,
                     Position = points.Count > 0 ? points[0] : default,
                     TimeLeft = 0.45f,
@@ -335,12 +344,14 @@ public class GameClient
             {
                 int id = r.GetInt();
                 var pos = r.GetVec2();
+                float respawnHeight = r.GetFloat();
                 float hp = r.GetFloat(), maxHp = r.GetFloat();
                 float respawnMana = r.GetFloat();
                 if (World.Players.TryGetValue(id, out var p))
                 {
                     p.Alive = true;
                     p.Position = p.NetTarget = pos;
+                    p.Height = p.NetTargetHeight = respawnHeight;
                     p.Health = hp;
                     p.MaxHealth = maxHp;
                     p.Mana = respawnMana;
@@ -352,6 +363,7 @@ public class GameClient
             {
                 var e = new ClientEnemy { Id = r.GetInt(), TypeId = r.GetString() };
                 e.Position = e.NetTarget = r.GetVec2();
+                e.Height = e.NetTargetHeight = r.GetFloat();
                 e.Health = r.GetFloat();
                 e.MaxHealth = r.GetFloat();
                 e.Def = _data.Enemies.GetValueOrDefault(e.TypeId);
@@ -367,8 +379,9 @@ public class GameClient
                     var pos = r.GetVec2();
                     byte state = r.GetByte();
                     byte debuffs = r.GetByte();
+                    float height = r.GetFloat();
                     if (World.Enemies.TryGetValue(id, out var e))
-                    { e.NetTarget = pos; e.State = state; e.DebuffFlags = debuffs; }
+                    { e.NetTarget = pos; e.State = state; e.DebuffFlags = debuffs; e.NetTargetHeight = height; }
                 }
                 break;
             }
@@ -383,8 +396,9 @@ public class GameClient
             {
                 int id = r.GetInt();
                 var pos = r.GetVec2();
+                float deathHeight = World.Enemies.TryGetValue(id, out var dying) ? dying.Height : 0f;
                 World.Enemies.Remove(id);
-                World.AddEffect(pos, 0.6f, 0.35f, "hit");
+                World.AddEffect(pos, 0.6f, 0.35f, "hit", deathHeight);
                 break;
             }
 
@@ -392,6 +406,7 @@ public class GameClient
             {
                 var pr = new ClientProjectile { Id = r.GetInt(), FromPlayer = r.GetBool(), SkillId = r.GetString() };
                 pr.Position = r.GetVec2();
+                pr.Height = r.GetFloat();
                 pr.Direction = r.GetVec2();
                 pr.Speed = r.GetFloat();
                 pr.MaxRange = r.GetFloat();
@@ -402,14 +417,16 @@ public class GameClient
             {
                 int id = r.GetInt();
                 var at = r.GetVec2();
+                float impactHeight = World.Projectiles.TryGetValue(id, out var gone) ? gone.Height : 0f;
                 World.Projectiles.Remove(id);
-                World.AddEffect(at, 0.4f, 0.2f, "hit");
+                World.AddEffect(at, 0.4f, 0.2f, "hit", impactHeight);
                 break;
             }
 
             case PacketType.WorldItemSpawn:
             {
                 var drop = new ClientDrop { DropId = r.GetGuid(), Position = r.GetVec2() };
+                drop.Height = r.GetFloat();
                 bool isGold = r.GetBool();
                 if (isGold) drop.GoldAmount = r.GetInt();
                 else drop.Item = Json.Load<ItemInstance>(r.GetString());
@@ -439,6 +456,7 @@ public class GameClient
                 // The server sends the exact computed impact point; visuals render there —
                 // never at a client-side recomputation of the target.
                 var effectPoint = r.GetVec2();
+                float effectHeight = r.GetFloat();
                 var def = _data.Skills.GetValueOrDefault(skillId);
                 if (def != null && World.Players.ContainsKey(playerId))
                 {
@@ -459,14 +477,14 @@ public class GameClient
                     switch (def.Archetype)
                     {
                         case Skills.SkillArchetype.MeleeStrike:
-                            World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius), 0.18f, "melee");
+                            World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius), 0.18f, "melee", effectHeight);
                             break;
                         // MeleeSingle: the weapon swing itself is the visual — no impact circle.
                         case Skills.SkillArchetype.MeleeArea:
-                            World.AddEffect(effectPoint, def.Radius, 0.3f, "slam");
+                            World.AddEffect(effectPoint, def.Radius, 0.3f, "slam", effectHeight);
                             break;
                         case Skills.SkillArchetype.AreaBurst:
-                            World.AddEffect(effectPoint, def.Radius, 0.3f, "burst");
+                            World.AddEffect(effectPoint, def.Radius, 0.3f, "burst", effectHeight);
                             break;
                     }
                 }
@@ -499,9 +517,9 @@ public class GameClient
                 if (fn.Blocked) World.BlockedEventsSeen++;
                 // Anchor to the entity's current client-side position when we know it.
                 if (fn.TargetIsPlayer && World.Players.TryGetValue(targetId, out var tp))
-                    fn.Position = tp.Position;
+                { fn.Position = tp.Position; fn.Height = tp.Height; }
                 else if (!fn.TargetIsPlayer && World.Enemies.TryGetValue(targetId, out var te))
-                    fn.Position = te.Position;
+                { fn.Position = te.Position; fn.Height = te.Height; }
                 World.FloatingNumbers.Add(fn);
                 break;
             }
