@@ -147,20 +147,89 @@ public class GameMap
     /// </summary>
     public Vector2 MoveWithCollision(Vector2 from, Vector2 delta, float radius, ref float height)
     {
+        // Blocking compares PENETRATION into unreachable tiles instead of a hard
+        // overlap test: reachability depends on the mover's height, so traversing a
+        // ramp can flip an overlapped tile between reachable and not mid-walk. A hard
+        // test wedges the mover forever at that threshold. Instead, small penetration
+        // is tolerated (PenSlack) and actively pushed out below, so movers slide off
+        // cliff flanks instead of sticking to them — while walls stay solid (per-step
+        // penetration is capped well under the radius, so nothing tunnels).
+        const float PenSlack = 0.15f;
         var pos = from;
+        float penHere = CirclePenetration(pos, radius, height);
         var tryX = pos + new Vector2(delta.X, 0);
-        if (!CircleBlocked(tryX, radius, height) && SampleHeight(tryX, height) is { } hx)
+        if (SampleHeight(tryX, height) is { } hx &&
+            CirclePenetration(tryX, radius, hx) is { } px && px <= MathF.Max(penHere, PenSlack) + 0.001f)
         {
             pos = tryX;
             height = hx;
+            penHere = px;
         }
         var tryY = pos + new Vector2(0, delta.Y);
-        if (!CircleBlocked(tryY, radius, height) && SampleHeight(tryY, height) is { } hy)
+        if (SampleHeight(tryY, height) is { } hy &&
+            CirclePenetration(tryY, radius, hy) is { } py && py <= MathF.Max(penHere, PenSlack) + 0.001f)
         {
             pos = tryY;
             height = hy;
+            penHere = py;
+        }
+        if (penHere > 0f)
+        {
+            var freed = pos + PushOut(pos, radius, height);
+            if (freed != pos && SampleHeight(freed, height) is { } hf &&
+                CirclePenetration(freed, radius, hf) <= penHere)
+            {
+                pos = freed;
+                height = hf;
+            }
         }
         return pos;
+    }
+
+    /// <summary>Displacement that pushes a penetrating circle back out of unreachable
+    /// tiles (summed per tile, capped).</summary>
+    private Vector2 PushOut(Vector2 center, float radius, float height)
+    {
+        int minX = (int)MathF.Floor(center.X - radius);
+        int maxX = (int)MathF.Floor(center.X + radius);
+        int minY = (int)MathF.Floor(center.Y - radius);
+        int maxY = (int)MathF.Floor(center.Y + radius);
+        var push = Vector2.Zero;
+        for (int y = minY; y <= maxY; y++)
+            for (int x = minX; x <= maxX; x++)
+            {
+                if (TileReachable(x, y, height)) continue;
+                float cx = Math.Clamp(center.X, x, x + 1);
+                float cy = Math.Clamp(center.Y, y, y + 1);
+                var away = center - new Vector2(cx, cy);
+                float dist = away.Length();
+                if (dist <= 0.0001f || dist >= radius) continue;
+                push += away / dist * (radius - dist);
+            }
+        float len = push.Length();
+        return len > 0.25f ? push / len * 0.25f : push;
+    }
+
+    /// <summary>Deepest overlap between the circle and any tile with no reachable
+    /// surface at this height (0 = clear).</summary>
+    private float CirclePenetration(Vector2 center, float radius, float height)
+    {
+        int minX = (int)MathF.Floor(center.X - radius);
+        int maxX = (int)MathF.Floor(center.X + radius);
+        int minY = (int)MathF.Floor(center.Y - radius);
+        int maxY = (int)MathF.Floor(center.Y + radius);
+        float worst = 0f;
+        for (int y = minY; y <= maxY; y++)
+            for (int x = minX; x <= maxX; x++)
+            {
+                if (TileReachable(x, y, height)) continue;
+                float cx = Math.Clamp(center.X, x, x + 1);
+                float cy = Math.Clamp(center.Y, y, y + 1);
+                float dx = center.X - cx, dy = center.Y - cy;
+                float pen = radius - MathF.Sqrt(dx * dx + dy * dy);
+                if (pen > worst) worst = pen;
+            }
+        return worst;
     }
 
     /// <summary>Ground-layer convenience overload (entities that never leave height 0

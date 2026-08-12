@@ -46,7 +46,7 @@ public class WorldRenderer
                 if (screen.X < -80 || screen.X > camera.ScreenWidth + 80 ||
                     screen.Y < -80 || screen.Y > camera.ScreenHeight + 80) continue;
                 var tint = ((x + y) & 1) == 0 ? floorA : floorB;
-                sb.Draw(TextureGen.Diamond, new Vector2(screen.X - 32, screen.Y - 16), tint);
+                sb.Draw(TextureGen.Diamond, new Vector2((int)screen.X - 32, (int)screen.Y - 16), tint);
             }
         }
 
@@ -54,10 +54,12 @@ public class WorldRenderer
         // --- ONE painter's list so tall geometry occludes what stands behind/under it ---
         _sorted.Clear();
 
-        // Depth key convention: tiles/decks use (x + y + height*0.6); entities add +0.1 on
-        // top of their own surface height so they draw over their floor but under nearer
-        // (or higher) geometry — e.g. a bridge deck covers the entity walking beneath it,
-        // while an entity ON the deck draws above it.
+        // Depth key convention: walkable TOPS sort low (tile x + y + level*0.6) so
+        // entities draw above their floor; occluders (prism side faces, bridge decks)
+        // sort like an occupant of their tile (x + y + 1 + ...). Entities use their
+        // continuous position plus height*1.0 + 0.1 — high enough that standing
+        // anywhere on a deck clears the deck's key, while entities walking UNDER the
+        // deck stay below it.
         for (int y = 0; y < map.Height; y++)
         {
             for (int x = 0; x < map.Width; x++)
@@ -88,10 +90,10 @@ public class WorldRenderer
                     var faceTint = new Color(140, 133, 173);
                     _sorted.Add((x + y + 1 + top * 0.001f, batch =>
                         batch.Draw(TextureGen.GetPrismFaces(top),
-                            new Vector2(baseScreen.X - 32, baseScreen.Y - topPx), faceTint)));
+                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx), faceTint)));
                     _sorted.Add((x + y + top * 0.6f, batch =>
-                        batch.Draw(TextureGen.Diamond,
-                            new Vector2(baseScreen.X - 32, baseScreen.Y - 16 - topPx),
+                        batch.Draw(TextureGen.DiamondSolid,
+                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
                             new Color(84, 80, 104))));
                     continue;
                 }
@@ -105,12 +107,12 @@ public class WorldRenderer
                     var rampTint = new Color(150, 160, 130);
                     _sorted.Add((x + y + (ground + 0.5f) * 0.6f, batch =>
                         batch.Draw(sprite,
-                            new Vector2(corner.X - 32, corner.Y - TextureGen.RampSpriteOffsetY),
+                            new Vector2((int)corner.X - 32, (int)corner.Y - TextureGen.RampSpriteOffsetY),
                             rampTint)));
                     if (ground > 0)
                         _sorted.Add((x + y + 1 + ground * 0.001f, batch =>
                             batch.Draw(TextureGen.GetPrismFaces(ground),
-                                new Vector2(baseScreen.X - 32, baseScreen.Y - ground * hpx),
+                                new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - ground * hpx),
                                 new Color(128, 140, 128))));
                 }
                 else if (ground > 0)
@@ -123,11 +125,11 @@ public class WorldRenderer
                         : new Color(64 + ground * 12, 74 + ground * 10, 62 + ground * 8);
                     _sorted.Add((x + y + 1 + ground * 0.001f, batch =>
                         batch.Draw(TextureGen.GetPrismFaces(ground),
-                            new Vector2(baseScreen.X - 32, baseScreen.Y - topPx),
+                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx),
                             new Color(128, 140, 128))));
                     _sorted.Add((x + y + ground * 0.6f, batch =>
-                        batch.Draw(TextureGen.Diamond,
-                            new Vector2(baseScreen.X - 32, baseScreen.Y - 16 - topPx), top)));
+                        batch.Draw(TextureGen.DiamondSolid,
+                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), top)));
                 }
 
                 if (bridge > 0)
@@ -136,17 +138,26 @@ public class WorldRenderer
                     // lip. The ground below was already drawn (base pass or elevated above),
                     // so entities beneath draw between the two in the depth order.
                     int deckPx = bridge * hpx;
-                    float depth = x + y + bridge * 0.6f;
+                    float depth = x + y + 1 + bridge * 0.6f;
                     var deck = ((x + y) & 1) == 0 ? new Color(122, 96, 62) : new Color(112, 88, 58);
                     _sorted.Add((depth, batch =>
                     {
                         batch.Draw(TextureGen.Pixel,
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - deckPx, 64, 6),
                             new Color(70, 54, 36));
-                        batch.Draw(TextureGen.Diamond, new Vector2(baseScreen.X - 32, baseScreen.Y - 16 - deckPx), deck);
+                        batch.Draw(TextureGen.DiamondSolid, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - deckPx), deck);
                     }));
                 }
             }
+        }
+
+        // Entities/effects UNDERNEATH a bridge deck sort a full unit lower, so every
+        // tile of the deck above draws over them (heads no longer poke through the
+        // deck plane); entities ON the deck are unaffected (their height ~ the deck's).
+        float UnderDeckBias(NumVec2 pos, float h)
+        {
+            int b = map.BridgeLevel((int)MathF.Floor(pos.X), (int)MathF.Floor(pos.Y));
+            return b > 0 && h < b - 0.5f ? -1f : 0f;
         }
 
         foreach (var drop in world.Drops.Values)
@@ -154,7 +165,7 @@ public class WorldRenderer
             var pos = drop.Position;
             var screen = camera.WorldToScreen(pos, drop.Height);
             var item = drop.Item;
-            _sorted.Add((pos.X + pos.Y + drop.Height * 0.6f + 0.05f, batch =>
+            _sorted.Add((pos.X + pos.Y + drop.Height * 1.0f + 0.05f + UnderDeckBias(pos, drop.Height), batch =>
             {
                 if (drop.IsGold)
                 {
@@ -194,7 +205,7 @@ public class WorldRenderer
             var color = ParseColor(def?.Color, new Color(190, 60, 60));
             float size = (def?.Radius ?? 0.4f) * 90f;
             var frames = SpriteGen.GetEnemyFrames(def);
-            _sorted.Add((pos.X + pos.Y + e.Height * 0.6f + 0.1f, batch =>
+            _sorted.Add((pos.X + pos.Y + e.Height * 1.0f + 0.1f + UnderDeckBias(pos, e.Height), batch =>
             {
                 int barY;
                 if (frames != null)
@@ -238,7 +249,7 @@ public class WorldRenderer
             if (!p.Alive) color = new Color(80, 80, 90);
             if (p.DodgeTimeLeft > 0) color = Color.Lerp(color, Color.White, 0.65f); // dash flash / i-frame hint
             var name = p.Name ?? "?";
-            _sorted.Add((pos.X + pos.Y + p.Height * 0.6f + 0.1f, batch =>
+            _sorted.Add((pos.X + pos.Y + p.Height * 1.0f + 0.1f + UnderDeckBias(pos, p.Height), batch =>
             {
                 // Held weapon, upright, orbiting the body toward the aim (like the old
                 // facing dot). When the aim points up-screen the weapon is behind the
@@ -331,14 +342,14 @@ public class WorldRenderer
                 // Named sprite (e.g. the ice spike shard), rotated along the flight path.
                 var isoDir = new Vector2(pr.Direction.X - pr.Direction.Y, (pr.Direction.X + pr.Direction.Y) * 0.5f);
                 float ang = MathF.Atan2(isoDir.Y, isoDir.X);
-                _sorted.Add((pr.Position.X + pr.Position.Y + pr.Height * 0.6f + 0.1f, batch =>
+                _sorted.Add((pr.Position.X + pr.Position.Y + pr.Height * 1.0f + 0.1f + UnderDeckBias(pr.Position, pr.Height), batch =>
                     batch.Draw(projSprite, new Vector2(screen.X, screen.Y - 14), null, Color.White, ang,
                         new Vector2(projSprite.Width / 2f, projSprite.Height / 2f), 2f, SpriteEffects.None, 0f)));
             }
             else
             {
                 var color = pr.FromPlayer ? new Color(255, 150, 50) : new Color(140, 255, 90);
-                _sorted.Add((pr.Position.X + pr.Position.Y + pr.Height * 0.6f + 0.1f, batch =>
+                _sorted.Add((pr.Position.X + pr.Position.Y + pr.Height * 1.0f + 0.1f + UnderDeckBias(pr.Position, pr.Height), batch =>
                     batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 6, (int)screen.Y - 6 - 14, 12, 12), color)));
             }
         }
@@ -357,7 +368,7 @@ public class WorldRenderer
                 float arcRadius = fx.Radius * IsoCamera.HalfTileW;
                 const float halfArc = 1.1f;
                 float head = -halfArc + 2f * halfArc * t; // sweep position this frame
-                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 0.6f + 0.2f, batch =>
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
                     for (int k = 0; k < 5; k++)
                     {
@@ -385,7 +396,7 @@ public class WorldRenderer
                 var coreColor = Color.White * (fade * 0.85f);
                 int flickerSeed = (int)(Environment.TickCount64 / 45);
                 var pts = fx.Points;
-                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 0.6f + 1.2f, batch =>
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 1.2f, batch =>
                 {
                     for (int seg = 0; seg < pts.Count - 1; seg++)
                     {
@@ -427,7 +438,7 @@ public class WorldRenderer
                 "melee" => new Color((byte)255, (byte)255, (byte)255, alpha),
                 _ => new Color((byte)255, (byte)120, (byte)60, alpha),
             };
-            _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 0.6f + 0.2f, batch =>
+            _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 batch.Draw(TextureGen.Circle32,
                     new Rectangle((int)(screen.X - radiusPx), (int)(screen.Y - radiusPx / 2f),
                         (int)(radiusPx * 2), (int)radiusPx), color)));
