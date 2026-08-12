@@ -238,9 +238,29 @@ the plateau can fire down. Heights ride along in every movement/spawn/effect pac
 depth `x + y + height * 0.6`, which draws bridge decks over the entities beneath.
 
 Generation stays simple: the seeded arena plus a deterministic, seed-independent demo
-carve (`CarveDemoTerrain`) with two plateau levels, a tall cliff wall, ramps and a
-bridge over a walkable corridor — the scaffolding a real generator can later replace
-tile by tile.
+carve (`CarveDemoTerrain`) with two plateau levels, a tall cliff wall, transitions
+inset into the cliff edges (a smooth ramp AND a stairs variant — the same tile data
+with a per-tile render style), and a bridge over a walkable corridor — the
+scaffolding a real generator can later replace tile by tile.
+
+Terrain renders from runtime-baked isometric prism sprites (`TextureGen`): each
+wall/cliff column draws a top diamond plus two sheared side faces whose edges match
+the diamond geometry exactly, so silhouettes are straight instead of jagged; ramps
+and stairs are baked per ascent direction with a genuinely sloped (or stepped) top
+surface. Side faces sort as occluders (`x+y+1`) while walkable tops sort low
+(`x+y+level*0.6`), which is what lets tall towers stand behind short ones without
+paint-over glitches while entities still draw above their own floor.
+
+### Enemy pathfinding (flow fields)
+
+Enemy aggro and chasing run on a per-player breadth-first **flow field** over the
+walkable-surface graph: nodes are (tile, surface) pairs — bridge tiles contribute a
+ground node and a deck node — and edges connect surfaces whose heights meet within
+the step tolerance. Aggro triggers on *path* distance, so climbing a ramp no longer
+breaks aggro: enemies route to the ramp or stairs and follow you up (and around
+pillar walls on flat ground). Attacks remain strictly same-surface, so nothing hits
+through a cliff face or a bridge deck. Fields recompute a few times a second per
+player (~4k nodes), cheap enough for much larger generated maps later.
 
 ### Loot flow (why items are identical on every peer)
 

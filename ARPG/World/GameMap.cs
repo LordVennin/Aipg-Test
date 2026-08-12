@@ -38,6 +38,7 @@ public class GameMap
     private readonly byte[] _ground;   // walkable ground elevation per tile
     private readonly byte[] _wall;     // solid obstacle height above ground (0 = walkable)
     private readonly byte[] _ramp;     // RampDirection per tile
+    private readonly byte[] _rampStyle; // 0 = smooth ramp, 1 = stairs (render-only)
     private readonly byte[] _bridge;   // elevated walkable deck level (0 = none)
 
     /// <summary>Vertical step an entity can absorb when moving between surfaces. Level
@@ -55,6 +56,7 @@ public class GameMap
         _ground = new byte[width * height];
         _wall = new byte[width * height];
         _ramp = new byte[width * height];
+        _rampStyle = new byte[width * height];
         _bridge = new byte[width * height];
         Generate(new Random(seed));
     }
@@ -65,6 +67,9 @@ public class GameMap
     public int GroundLevel(int x, int y) => InBounds(x, y) ? _ground[Idx(x, y)] : 0;
     public int WallHeight(int x, int y) => InBounds(x, y) ? _wall[Idx(x, y)] : 1; // out of bounds = solid
     public RampDirection Ramp(int x, int y) => InBounds(x, y) ? (RampDirection)_ramp[Idx(x, y)] : RampDirection.None;
+    /// <summary>True when the transition tile renders as stairs instead of a smooth
+    /// ramp. Purely visual — movement treats both identically.</summary>
+    public bool RampIsStairs(int x, int y) => InBounds(x, y) && _rampStyle[Idx(x, y)] == 1;
     public int BridgeLevel(int x, int y) => InBounds(x, y) ? _bridge[Idx(x, y)] : 0;
 
     public bool IsSolid(int x, int y) => WallHeight(x, y) > 0;
@@ -253,6 +258,7 @@ public class GameMap
                 _wall[i] = 0;
                 _ground[i] = 0;
                 _ramp[i] = 0;
+                _rampStyle[i] = 0;
                 _bridge[i] = 0;
             }
 
@@ -283,6 +289,7 @@ public class GameMap
                 _wall[Idx(x, y)] = 0;
                 _ground[Idx(x, y)] = 0;
                 _ramp[Idx(x, y)] = 0;
+                _rampStyle[Idx(x, y)] = 0;
                 _bridge[Idx(x, y)] = 0;
             }
 
@@ -299,15 +306,23 @@ public class GameMap
             for (int x = 6; x < 16; x++)
                 _ground[Idx(x, y)] = 1;
 
-        // Ramp from the ground floor (x=16 side) up onto plateau A's east edge.
-        _ramp[Idx(16, 10)] = (byte)RampDirection.MinusX;
-        _ramp[Idx(16, 11)] = (byte)RampDirection.MinusX;
-        // Ramp between plateau A (level 1) and its level-2 crown.
+        // Smooth ramp INSET into plateau A's east edge (a notch cut out of the cliff, so
+        // the flanking cliff faces read as retaining walls instead of a floating wedge).
+        _ramp[Idx(15, 10)] = (byte)RampDirection.MinusX;
+        _ramp[Idx(15, 11)] = (byte)RampDirection.MinusX;
+        _ground[Idx(15, 10)] = 0;
+        _ground[Idx(15, 11)] = 0;
+        // Stairs between plateau A (level 1) and its level-2 crown.
         _ramp[Idx(9, 7)] = (byte)RampDirection.MinusX;
+        _rampStyle[Idx(9, 7)] = 1;
         _ground[Idx(9, 7)] = 1;
-        // Ramp up plateau B's east edge so enemies/players below can reach it too.
-        _ramp[Idx(16, 24)] = (byte)RampDirection.MinusX;
-        _ramp[Idx(16, 25)] = (byte)RampDirection.MinusX;
+        // Stairs inset into plateau B's east edge — the demo shows both transition styles.
+        _ramp[Idx(15, 24)] = (byte)RampDirection.MinusX;
+        _ramp[Idx(15, 25)] = (byte)RampDirection.MinusX;
+        _rampStyle[Idx(15, 24)] = 1;
+        _rampStyle[Idx(15, 25)] = 1;
+        _ground[Idx(15, 24)] = 0;
+        _ground[Idx(15, 25)] = 0;
 
         // A tall free-standing cliff wall on open ground, varying height (2-3 levels).
         for (int x = 19; x < 26; x++)

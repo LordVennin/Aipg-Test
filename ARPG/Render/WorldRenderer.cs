@@ -75,68 +75,59 @@ public class WorldRenderer
 
                 int hpx = IsoCamera.LevelHeightPx;
 
+                // Depth keys: TOP surfaces stay low (x+y + level*0.6) so entities standing
+                // on/near them draw above; SIDE FACES are occluders and sort like an object
+                // standing on the tile (x+y+1) with the tiny height term only breaking ties,
+                // so a tall column BEHIND a short one can no longer paint over it. Face
+                // geometry matches diamond edges exactly, so overdraw between neighbors is
+                // seamless instead of jagged.
                 if (wall > 0)
                 {
-                    // Solid column: side slab from ground up wall-height levels, lighter top.
-                    int topH = (ground + wall) * hpx;
-                    int baseH = ground * hpx;
-                    float depth = x + y + (ground + wall) * 0.6f;
-                    _sorted.Add((depth, batch =>
-                    {
-                        batch.Draw(TextureGen.Pixel,
-                            new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topH, 64, topH - baseH + 16),
-                            new Color(44, 42, 56));
-                        batch.Draw(TextureGen.Diamond, new Vector2(baseScreen.X - 32, baseScreen.Y - 16 - topH),
-                            new Color(84, 80, 104));
-                    }));
+                    int top = ground + wall;
+                    int topPx = top * hpx;
+                    var faceTint = new Color(140, 133, 173);
+                    _sorted.Add((x + y + 1 + top * 0.001f, batch =>
+                        batch.Draw(TextureGen.GetPrismFaces(top),
+                            new Vector2(baseScreen.X - 32, baseScreen.Y - topPx), faceTint)));
+                    _sorted.Add((x + y + top * 0.6f, batch =>
+                        batch.Draw(TextureGen.Diamond,
+                            new Vector2(baseScreen.X - 32, baseScreen.Y - 16 - topPx),
+                            new Color(84, 80, 104))));
                     continue;
                 }
 
                 if (ramp != RampDirection.None)
                 {
-                    // Ramp: a half-raised slab between Ground and Ground+1 with a
-                    // directional two-tone top so the slope reads at a glance.
-                    float mid = ground + 0.5f;
-                    float depth = x + y + mid * 0.6f;
-                    int midPx = (int)(mid * hpx);
-                    var rampLow = new Color(78, 88, 74);
-                    var rampHigh = new Color(108, 120, 100);
-                    var dir = ramp;
-                    _sorted.Add((depth, batch =>
-                    {
-                        if (midPx > 0)
-                            batch.Draw(TextureGen.Pixel,
-                                new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - midPx, 64, midPx + 16),
-                                new Color(40, 44, 42));
-                        batch.Draw(TextureGen.Diamond, new Vector2(baseScreen.X - 32, baseScreen.Y - 16 - midPx), rampLow);
-                        // Highlight the HIGH half of the ramp (isometric quadrant toward the ascent).
-                        var high = new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - midPx, 64, 32);
-                        switch (dir)
-                        {
-                            case RampDirection.PlusX: high.Y += 8; high.X += 16; high.Width = 32; high.Height = 16; break;
-                            case RampDirection.MinusX: high.Y -= 0; high.X -= 0; high.Width = 32; high.Height = 16; high.X += 16; high.Y += 0; break;
-                            case RampDirection.PlusY: high.X += 16; high.Y += 8; high.Width = 32; high.Height = 16; break;
-                            default: high.X += 16; high.Width = 32; high.Height = 16; break;
-                        }
-                        batch.Draw(TextureGen.Diamond, high, rampHigh);
-                    }));
+                    // Transition tile: baked sloped-ramp or stairs sprite (its own skirt
+                    // included), anchored at the tile's (x, y) corner at the LOW level.
+                    var sprite = TextureGen.GetRampSprite(ramp, map.RampIsStairs(x, y));
+                    var corner = camera.WorldToScreen(new NumVec2(x, y), ground);
+                    var rampTint = new Color(150, 160, 130);
+                    _sorted.Add((x + y + (ground + 0.5f) * 0.6f, batch =>
+                        batch.Draw(sprite,
+                            new Vector2(corner.X - 32, corner.Y - TextureGen.RampSpriteOffsetY),
+                            rampTint)));
+                    if (ground > 0)
+                        _sorted.Add((x + y + 1 + ground * 0.001f, batch =>
+                            batch.Draw(TextureGen.GetPrismFaces(ground),
+                                new Vector2(baseScreen.X - 32, baseScreen.Y - ground * hpx),
+                                new Color(128, 140, 128))));
                 }
                 else if (ground > 0)
                 {
-                    // Elevated ground: top diamond at its level, tinted lighter per level,
-                    // with a full skirt down (front tiles drawn later cover the overdraw).
+                    // Elevated ground: top diamond at its level plus prism faces down to
+                    // the ground floor (front tiles' tops cover interior faces).
                     int topPx = ground * hpx;
-                    float depth = x + y + ground * 0.6f;
                     var top = ((x + y) & 1) == 0
                         ? new Color(70 + ground * 12, 80 + ground * 10, 68 + ground * 8)
                         : new Color(64 + ground * 12, 74 + ground * 10, 62 + ground * 8);
-                    _sorted.Add((depth, batch =>
-                    {
-                        batch.Draw(TextureGen.Pixel,
-                            new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16),
-                            new Color(38, 42, 44));
-                        batch.Draw(TextureGen.Diamond, new Vector2(baseScreen.X - 32, baseScreen.Y - 16 - topPx), top);
-                    }));
+                    _sorted.Add((x + y + 1 + ground * 0.001f, batch =>
+                        batch.Draw(TextureGen.GetPrismFaces(ground),
+                            new Vector2(baseScreen.X - 32, baseScreen.Y - topPx),
+                            new Color(128, 140, 128))));
+                    _sorted.Add((x + y + ground * 0.6f, batch =>
+                        batch.Draw(TextureGen.Diamond,
+                            new Vector2(baseScreen.X - 32, baseScreen.Y - 16 - topPx), top)));
                 }
 
                 if (bridge > 0)

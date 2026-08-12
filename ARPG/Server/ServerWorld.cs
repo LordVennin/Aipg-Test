@@ -104,7 +104,11 @@ public partial class ServerWorld
         return p;
     }
 
-    public void RemovePlayer(int id) => Players.Remove(id);
+    public void RemovePlayer(int id)
+    {
+        Players.Remove(id);
+        _flow.Remove(id);
+    }
 
     /// <summary>Movement is client-computed for responsiveness; the server sanity-clamps it.
     /// All important results (damage, loot, items) remain host-authoritative.</summary>
@@ -260,6 +264,7 @@ public partial class ServerWorld
 
     private void TickEnemies(float dt)
     {
+        UpdateFlowFields();
         SeparateEnemies(dt);
         foreach (var e in Enemies.Values.ToList())
         {
@@ -286,11 +291,16 @@ public partial class ServerWorld
 
             if (Time < e.StunnedUntil) continue; // stunned: no movement, no attacks
 
-            var target = NearestAlivePlayer(e.Position, e.Height, out float dist);
+            // Aggro/chase run on PATH distance (flow field), so climbing a ramp no longer
+            // drops aggro — enemies path to the ramp and follow. Attacks stay strictly
+            // same-surface: nothing hits through a cliff face or a bridge deck.
+            var (target, pathDist) = FindTarget(e);
+            float dist = target != null ? Vector2.Distance(e.Position, target.Position) : float.MaxValue;
+            bool sameSurface = target != null && MathF.Abs(target.Height - e.Height) <= 0.75f;
             switch (e.State)
             {
                 case EnemyState.Idle:
-                    if (target != null && dist <= e.Def.AggroRange)
+                    if (target != null && pathDist <= e.Def.AggroRange)
                     {
                         e.State = EnemyState.Chase;
                         e.TargetPlayerId = target.Id;
@@ -298,23 +308,24 @@ public partial class ServerWorld
                     break;
 
                 case EnemyState.Chase:
-                    if (target == null || dist > e.Def.AggroRange * 1.5f)
+                    if (target == null || pathDist > e.Def.AggroRange * 1.5f)
                     {
                         e.State = EnemyState.Idle;
                         e.TargetPlayerId = -1;
                         break;
                     }
                     e.TargetPlayerId = target.Id;
-                    if (dist <= e.Def.AttackRange && (!e.Def.Ranged || !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f)))
+                    if (sameSurface && dist <= e.Def.AttackRange &&
+                        (!e.Def.Ranged || !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f)))
                     {
                         e.State = EnemyState.Attack;
                         break;
                     }
-                    MoveEnemyToward(e, target.Position, dt);
+                    MoveEnemyToward(e, ChaseWaypoint(e, target), dt);
                     break;
 
                 case EnemyState.Attack:
-                    if (target == null || dist > e.Def.AttackRange * 1.15f)
+                    if (target == null || !sameSurface || dist > e.Def.AttackRange * 1.15f)
                     {
                         e.State = target == null ? EnemyState.Idle : EnemyState.Chase;
                         break;
@@ -339,19 +350,140 @@ public partial class ServerWorld
         e.Position = Map.MoveWithCollision(e.Position, delta, e.Def.Radius, ref e.Height);
     }
 
-    /// <summary>Nearest living player ON THE SAME SURFACE (height within step reach) —
-    /// entities on a bridge and entities underneath it ignore each other.</summary>
-    private ServerPlayer NearestAlivePlayer(Vector2 from, float height, out float distance)
+    // ------------------------------------------------------------------ pathfinding
+    //
+    // A breadth-first flow field per player over the walkable-surface graph. Nodes are
+    // (tile, surface) pairs — bridge tiles contribute TWO nodes (ground + deck) — and
+    // edges connect surfaces whose heights meet within the step tolerance, so the graph
+    // natively understands ramps, cliffs and walking under bridges. Each node stores its
+    // hop distance to the player and the next node toward them; enemies follow that
+    // chain when they can't walk a straight same-surface line. Cheap (44*44*2 nodes,
+    // recomputed a few times a second per player) and ready for bigger generated maps.
+
+    private const float FlowRecomputeInterval = 0.3f;
+    private const int FlowMaxRadius = 28; // BFS depth cap in tiles (aggro leash ceiling)
+
+    private sealed class FlowField
     {
-        ServerPlayer best = null;
-        distance = float.MaxValue;
+        public float NextComputeAt;
+        public ushort[] Dist; // hop count from the player's node; ushort.MaxValue = unreachable
+        public int[] Next;    // neighbor node one hop closer to the player; -1 = none/at player
+    }
+
+    private readonly Dictionary<int, FlowField> _flow = new();
+    private readonly Queue<int> _flowQueue = new();
+
+    private int NodeCount => Map.Width * Map.Height * 2;
+
+    /// <summary>The graph node an entity at (pos, height) occupies, or -1 on solid tiles.</summary>
+    private int NodeOf(Vector2 pos, float height)
+    {
+        int x = (int)MathF.Floor(pos.X), y = (int)MathF.Floor(pos.Y);
+        if (x < 0 || y < 0 || x >= Map.Width || y >= Map.Height || Map.IsSolid(x, y)) return -1;
+        int bridge = Map.BridgeLevel(x, y);
+        bool onDeck = bridge > 0 && MathF.Abs(height - bridge) < 0.5f;
+        return (y * Map.Width + x) * 2 + (onDeck ? 1 : 0);
+    }
+
+    /// <summary>Surface height where a node's tile meets the edge toward (dx, dy) —
+    /// ramps make this differ per edge, which is exactly what connects them to both
+    /// their low and high neighbors.</summary>
+    private float NodeEdgeHeight(int x, int y, bool deck, int dx, int dy)
+    {
+        if (deck) return Map.BridgeLevel(x, y);
+        var edgePoint = new Vector2(x + 0.5f + dx * 0.49f, y + 0.5f + dy * 0.49f);
+        return Map.GroundHeightAt(edgePoint);
+    }
+
+    private void RecomputeFlow(ServerPlayer p, FlowField f)
+    {
+        int w = Map.Width, n = NodeCount;
+        f.Dist ??= new ushort[n];
+        f.Next ??= new int[n];
+        Array.Fill(f.Dist, ushort.MaxValue);
+        Array.Fill(f.Next, -1);
+        int start = NodeOf(p.Position, p.Height);
+        if (start < 0) return;
+        _flowQueue.Clear();
+        f.Dist[start] = 0;
+        _flowQueue.Enqueue(start);
+        Span<(int dx, int dy)> dirs = stackalloc (int, int)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        while (_flowQueue.Count > 0)
+        {
+            int node = _flowQueue.Dequeue();
+            int d = f.Dist[node];
+            if (d >= FlowMaxRadius) continue;
+            int tile = node / 2;
+            bool deck = (node & 1) == 1;
+            int x = tile % w, y = tile / w;
+            foreach (var (dx, dy) in dirs)
+            {
+                int nx = x + dx, ny = y + dy;
+                if (nx < 0 || ny < 0 || nx >= Map.Width || ny >= Map.Height || Map.IsSolid(nx, ny))
+                    continue;
+                float exitH = NodeEdgeHeight(x, y, deck, dx, dy);
+                for (int s = 0; s < 2; s++)
+                {
+                    if (s == 1 && Map.BridgeLevel(nx, ny) == 0) continue;
+                    int nn = (ny * w + nx) * 2 + s;
+                    if (f.Dist[nn] != ushort.MaxValue) continue;
+                    float enterH = NodeEdgeHeight(nx, ny, s == 1, -dx, -dy);
+                    if (MathF.Abs(exitH - enterH) > GameMap.StepTolerance) continue;
+                    f.Dist[nn] = (ushort)(d + 1);
+                    f.Next[nn] = node; // one hop closer to the player
+                    _flowQueue.Enqueue(nn);
+                }
+            }
+        }
+    }
+
+    private void UpdateFlowFields()
+    {
         foreach (var p in Players.Values)
         {
-            if (!p.Alive || MathF.Abs(p.Height - height) > 0.75f) continue;
-            float d = Vector2.Distance(from, p.Position);
-            if (d < distance) { distance = d; best = p; }
+            if (!p.Alive) continue;
+            if (!_flow.TryGetValue(p.Id, out var f))
+                _flow[p.Id] = f = new FlowField();
+            if (Time < f.NextComputeAt) continue;
+            f.NextComputeAt = Time + FlowRecomputeInterval;
+            RecomputeFlow(p, f);
         }
-        return best;
+    }
+
+    /// <summary>The alive player with the shortest PATH to this enemy (in tiles), so
+    /// unreachable players (other surface, walled off) are never chosen.</summary>
+    private (ServerPlayer target, float pathDist) FindTarget(ServerEnemy e)
+    {
+        int node = NodeOf(e.Position, e.Height);
+        if (node < 0) return (null, float.MaxValue);
+        ServerPlayer best = null;
+        float bestD = float.MaxValue;
+        foreach (var p in Players.Values)
+        {
+            if (!p.Alive || !_flow.TryGetValue(p.Id, out var f) || f.Dist == null) continue;
+            float d = f.Dist[node];
+            if (d < bestD) { bestD = d; best = p; }
+        }
+        return (best, bestD);
+    }
+
+    /// <summary>Where a chasing enemy should move: straight at a same-surface visible
+    /// target, else the center of the next flow-field tile toward the player.</summary>
+    private Vector2 ChaseWaypoint(ServerEnemy e, ServerPlayer target)
+    {
+        if (MathF.Abs(target.Height - e.Height) <= 0.75f &&
+            !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f))
+            return target.Position;
+        if (_flow.TryGetValue(target.Id, out var f) && f.Next != null)
+        {
+            int node = NodeOf(e.Position, e.Height);
+            if (node >= 0 && f.Next[node] >= 0)
+            {
+                int tile = f.Next[node] / 2;
+                return new Vector2(tile % Map.Width + 0.5f, tile / Map.Width + 0.5f);
+            }
+        }
+        return target.Position; // no path info — fall back to a direct approach
     }
 
     // ------------------------------------------------------------------ projectiles
