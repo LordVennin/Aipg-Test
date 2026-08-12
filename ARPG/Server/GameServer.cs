@@ -197,8 +197,13 @@ public class GameServer : IServerEvents
                 break;
             }
             case PacketType.UseSkill:
-                World.UseSkill(playerId, r.GetString(), r.GetVec2());
+            {
+                string skillId = r.GetString();
+                var target = r.GetVec2();
+                int targetEnemyId = r.GetInt();
+                World.UseSkill(playerId, skillId, target, targetEnemyId);
                 break;
+            }
             case PacketType.PickupRequest:
                 World.RequestPickup(playerId, r.GetGuid());
                 break;
@@ -341,7 +346,8 @@ public class GameServer : IServerEvents
         w.PutVec2(e.Position);
         w.Put(e.Height);
         w.Put(e.Health);
-        w.Put(e.Def.MaxHealth);
+        w.Put(e.MaxHealth);
+        w.Put((byte)e.Affixes);
         return w;
     }
 
@@ -396,6 +402,15 @@ public class GameServer : IServerEvents
     // ------------------------------------------------------------------ IServerEvents
 
     public void EnemySpawned(ServerEnemy e) => Broadcast(EnemySpawnPacket(e), DeliveryMethod.ReliableOrdered);
+
+    public void EnemySlammed(ServerEnemy e, float radius)
+    {
+        var w = Packets.Make(PacketType.EnemySlam);
+        w.PutVec2(e.Position);
+        w.Put(radius);
+        w.Put(e.Height);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
 
     public void EnemyHealthChanged(ServerEnemy e)
     {
@@ -453,6 +468,7 @@ public class GameServer : IServerEvents
         w.PutVec2(p.Direction);
         w.Put(p.Speed);
         w.Put(p.MaxRange);
+        w.Put(p.HeightStep);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

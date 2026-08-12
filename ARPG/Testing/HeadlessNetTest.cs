@@ -1155,6 +1155,162 @@ public static class HeadlessNetTest
         clientB.World.Me.Height = 0f;
         Pump(0.4f);
 
+        Console.WriteLine("\n-- Overlook combat & targeted casts --");
+        // Line-of-fire geometry: descending shots off a cliff are clear, climbing shots
+        // into a cliff face are blocked, and NOTHING shoots through a bridge deck plane.
+        Check(!map.ShotBlocked(new Vector2(13.5f, 14.5f), 1.5f, new Vector2(13.5f, 17.5f), 0.5f),
+              "descending overlook shot has a clear line of fire");
+        Check(map.ShotBlocked(new Vector2(17.5f, 13.5f), 0.5f, new Vector2(12.5f, 13.5f), 1.5f),
+              "climbing shot into the cliff face is blocked");
+        Check(map.ShotBlocked(new Vector2(10.5f, 21.5f), 0.5f, new Vector2(10.5f, 14.5f), 1.5f) ||
+              map.ShotBlocked(new Vector2(10.5f, 17.5f), 0.5f, new Vector2(10.5f, 17.5f), 1.5f),
+              "shots crossing the bridge deck plane are blocked");
+
+        // A spitter on the plateau rim rains shots on a ground player below.
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = new Vector2(13.5f, 17.5f); // corridor floor, below the rim
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.2f);
+        var rimSpitter = server.World.SpawnEnemy("spitter", new Vector2(13.5f, 14.5f)); // plateau A rim, level 1
+        Check(MathF.Abs(rimSpitter.Height - 1f) < 0.05f, "overlook spitter holds the rim at level 1");
+        var srvB2 = server.World.Players[bId];
+        float hpBeforeRain = srvB2.Stats.MaxHealth;
+        bool rained = false;
+        for (int i = 0; i < 50 && !rained; i++)
+        {
+            srvB2.Health = hpBeforeRain;
+            clientB.World.Me.Position = new Vector2(13.5f, 17.5f);
+            Pump(0.2f);
+            rained = server.World.Projectiles.Values.Any(pr => pr.OwnerId == rimSpitter.Id && pr.HeightStep < -0.01f)
+                     || srvB2.Health < hpBeforeRain - 0.5f;
+        }
+        Check(rained, "overlook spitter fires a descending shot at the player below");
+        bool rainHit = false;
+        for (int i = 0; i < 60 && !rainHit; i++)
+        {
+            clientB.World.Me.Position = new Vector2(13.5f, 17.5f);
+            Pump(0.1f);
+            rainHit = srvB2.Health < hpBeforeRain - 0.5f;
+        }
+        Check(rainHit, $"the descending shot lands on the lower surface ({srvB2.Health:0}/{hpBeforeRain:0})");
+
+        // Targeted cast the other way: B climbs the rim and fire-bolts the grunt below
+        // by target id — the arc carries the bolt down to the enemy's elevation.
+        rimSpitter.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = new Vector2(13.5f, 14.5f); // up on the rim
+        clientB.World.Me.Height = 1f;
+        Pump(0.4f);
+        var lowTarget = server.World.SpawnEnemy("grunt", new Vector2(13.5f, 17.8f));
+        lowTarget.Health = 500f;
+        lowTarget.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        bool bolted = false;
+        for (int attempt = 0; attempt < 8 && !bolted; attempt++)
+        {
+            srvB2.Mana = srvB2.Stats.MaxMana;
+            srvB2.SkillReadyAt.Clear();
+            clientB.RequestUseSkill("fire_bolt", lowTarget.Position, lowTarget.Id);
+            for (int i = 0; i < 25 && !bolted; i++)
+            {
+                Pump(0.05f);
+                bolted = lowTarget.Health < 499.9f;
+            }
+        }
+        Check(bolted, $"hover-targeted cast arcs down and hits the enemy below (hp {lowTarget.Health:0})");
+        lowTarget.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+
+        Console.WriteLine("\n-- Authored encounters: packs & elites --");
+        Check(server.World.Packs.Count >= 6, $"authored packs registered ({server.World.Packs.Count})");
+        // Group respawn: wipe the corridor pack, force its timer, and watch it return
+        // as a full group with pack affiliation intact.
+        var corridorPack = server.World.Packs[0];
+        clientB.World.Me.Position = new Vector2(14.2f, 17.5f);
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.4f); // pack wiped; TickSpawners schedules its respawn
+        clientB.World.Me.Position = new Vector2(20.5f, 17.5f); // step away so the respawn is clean
+        Pump(0.3f);
+        corridorPack.RespawnAt = 0.001f; // force the timer (already scheduled -> spawn next tick)
+        Pump(0.4f);
+        Check(corridorPack.AliveIds.Count == 3 &&
+              corridorPack.AliveIds.All(id => server.World.Enemies[id].PackId == 0),
+              $"pack respawned as a full group ({corridorPack.AliveIds.Count} members)");
+        // Approach: the whole pack should engage together.
+        clientB.World.Me.Position = new Vector2(17.5f, 17.5f);
+        Pump(1.2f);
+        int chasing = corridorPack.AliveIds.Count(id =>
+            server.World.Enemies.TryGetValue(id, out var m) && !m.Dead && m.TargetPlayerId == bId);
+        Check(chasing >= 2, $"pack shares aggro ({chasing} members engaged)");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        Pump(0.4f);
+
+        // Elite scaling + replication.
+        var gruntBase = data.Enemies["grunt"];
+        var brutish = server.World.SpawnEnemy("grunt", clientB.World.Me.Position + new Vector2(3.5f, 0),
+            Server.EliteAffix.Brutish);
+        Check(MathF.Abs(brutish.MaxHealth - gruntBase.MaxHealth * 2.5f) < 0.1f && brutish.DamageScale > 1.4f,
+              $"Brutish elite scales life and damage (hp {brutish.MaxHealth:0})");
+        var warded = server.World.SpawnEnemy("grunt", clientB.World.Me.Position + new Vector2(-3.5f, 0),
+            Server.EliteAffix.Warded);
+        Check(warded.BonusResist >= 39f, "Warded elite gains flat resistances");
+        Pump(0.5f);
+        Check(clientA.World.Enemies.TryGetValue(brutish.Id, out var brutishOnA) &&
+              brutishOnA.EliteFlags == (byte)Server.EliteAffix.Brutish &&
+              brutishOnA.DisplayName.StartsWith("Brutish") &&
+              MathF.Abs(brutishOnA.MaxHealth - brutish.MaxHealth) < 0.1f,
+              $"elite affix and scaled health replicate to clients ({brutishOnA?.DisplayName})");
+        brutish.Health = 1f;
+        warded.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        Console.WriteLine("\n-- Gravelord: slam & reward --");
+        clientB.SendDebugCommand("heal");
+        var boss = server.World.SpawnEnemy("gravelord", clientB.World.Me.Position + new Vector2(1.5f, 0),
+            Server.EliteAffix.Boss);
+        var srvBBoss = server.World.Players[bId];
+        bool slamSeen = false;
+        float hpBeforeSlam = srvBBoss.Health;
+        for (int i = 0; i < 40 && !slamSeen; i++)
+        {
+            srvBBoss.Health = srvBBoss.Stats.MaxHealth; // out-heal the boss while observing
+            clientB.World.Me.Position = boss.Position + new Vector2(-1.2f, 0); // stay in slam range
+            Pump(0.2f);
+            slamSeen = clientA.World.Effects.Any(fx => fx.Kind == "slam") && boss.SlamReadyAt > 0;
+        }
+        Check(slamSeen, "boss ground slam fires and replicates its AoE visual");
+        int dropsBeforeBoss = server.World.Drops.Count;
+        boss.Health = 30f;
+        for (int hit = 0; hit < 20 && !boss.Dead; hit++)
+        {
+            srvBBoss.Mana = srvBBoss.Stats.MaxMana;
+            srvBBoss.SkillReadyAt.Clear();
+            srvBBoss.Health = srvBBoss.Stats.MaxHealth;
+            clientB.World.Me.Position = boss.Position + new Vector2(-1.0f, 0);
+            clientB.RequestUseSkill("mace_strike", boss.Position);
+            Pump(0.25f);
+        }
+        Check(boss.Dead, "Gravelord defeated");
+        Pump(0.5f);
+        int bossDrops = server.World.Drops.Count - dropsBeforeBoss;
+        Check(bossDrops >= 4, $"boss death guarantees a loot burst ({bossDrops} drops)");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.3f);
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

@@ -293,6 +293,36 @@ public class GameMap
     /// <summary>Legacy ground-layer segment test.</summary>
     public bool SegmentHitsWall(Vector2 a, Vector2 b) => SegmentBlocked(a, b, GroundHeightAt(a));
 
+    /// <summary>
+    /// Line-of-fire test between two points with DIFFERENT flight heights, interpolating
+    /// the height along the segment (a descending or climbing shot). Blocks on walls and
+    /// terrain rising past the flight height, like SegmentBlocked — and additionally on
+    /// CROSSING a bridge deck's plane, so nothing shoots up or down through the planks
+    /// at someone on the other side of the deck.
+    /// </summary>
+    public bool ShotBlocked(Vector2 a, float ha, Vector2 b, float hb)
+    {
+        float dist = Vector2.Distance(a, b);
+        int steps = Math.Max(1, (int)(dist * 4));
+        for (int i = 0; i <= steps; i++)
+        {
+            float t = i / (float)steps;
+            var p = Vector2.Lerp(a, b, t);
+            float h = ha + (hb - ha) * t;
+            int x = (int)MathF.Floor(p.X), y = (int)MathF.Floor(p.Y);
+            if (!InBounds(x, y)) return true;
+            int g = GroundLevel(x, y);
+            if (IsSolid(x, y) && h < g + WallHeight(x, y) - 0.25f) return true;
+            // Flight below the local surface = inside the terrain. The tight margin
+            // matters for arcs: shots from below always graze the cliff lip on the way
+            // up, so only true rim shooters get the angle — as they should.
+            if (!IsSolid(x, y) && h < g + RampT(x, y, p) - 0.05f) return true;
+            int bridge = BridgeLevel(x, y);
+            if (bridge > 0 && MathF.Abs(h - bridge) <= 0.3f) return true; // deck plane
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------ generation
 
     private void Generate(Random rng)

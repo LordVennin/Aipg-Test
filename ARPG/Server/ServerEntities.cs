@@ -66,6 +66,18 @@ public class ServerPlayer
 }
 
 /// <summary>Authoritative enemy with a simple Idle/Chase/Attack/Dead state machine.</summary>
+/// <summary>Elite modifiers rolled onto pack leaders and bosses. Flags so they can
+/// stack; replicated in EnemySpawn packets for tinting and name display.</summary>
+[Flags]
+public enum EliteAffix : byte
+{
+    None = 0,
+    Brutish = 1,  // much more life and damage
+    Swift = 2,    // faster movement and attacks
+    Warded = 4,   // elemental resistance shell + extra life
+    Boss = 8,     // miniboss: slam attack, stun resistance, guaranteed loot
+}
+
 public class ServerEnemy
 {
     public int Id;
@@ -74,11 +86,23 @@ public class ServerEnemy
     /// <summary>Surface height in elevation levels (see GameMap).</summary>
     public float Height;
     public float Health;
+    /// <summary>Actual max health (definition value scaled by elite affixes).</summary>
+    public float MaxHealth;
     public EnemyState State = EnemyState.Idle;
     public float AttackReadyAt;
     public int TargetPlayerId = -1;
     /// <summary>While the server clock is below this, the enemy neither moves nor attacks.</summary>
     public float StunnedUntil;
+
+    // Elite/pack state. Multipliers default to 1 so normal enemies are unaffected.
+    public EliteAffix Affixes;
+    public int PackId = -1;           // index into ServerWorld.Packs, -1 = unaffiliated
+    public float DamageScale = 1f;
+    public float SpeedScale = 1f;
+    public float CooldownScale = 1f;
+    public float BonusResist;         // flat % added to every resistance (Warded)
+    public float XpScale = 1f;
+    public float SlamReadyAt;         // boss ground-slam cooldown gate
 
     // Ignite (burning damage over time) bookkeeping. Burn ticks apply every frame but
     // damage events/health updates are batched via the accumulator to avoid packet spam.
@@ -107,6 +131,9 @@ public class ServerProjectile
     public float Speed;
     public float MaxRange;
     public float Traveled;
+    /// <summary>Height change per tile traveled — a shot arcing down from an overlook
+    /// (or up at one) descends/climbs linearly toward its target's elevation.</summary>
+    public float HeightStep;
     public float MinDamage;
     public float MaxDamage;
     public DamageKind DamageKind;
@@ -139,5 +166,21 @@ public class EnemySpawner
     public Vector2 Position;
     public string EnemyTypeId;
     public int AliveEnemyId = -1;
+    public float RespawnAt;
+}
+
+/// <summary>An authored encounter: a group of enemies spawned together around a point,
+/// sharing aggro (alert one, alert the pack) and respawning as a group. One member can
+/// carry elite affixes (the pack leader); a Boss pack is the zone's miniboss fight.</summary>
+public class PackSpawner
+{
+    public Vector2 Position;
+    /// <summary>Enemy type id -> count, spawned scattered around Position.</summary>
+    public (string typeId, int count)[] Entries;
+    /// <summary>Affixes applied to the FIRST spawned member (the leader). None = no elite.</summary>
+    public EliteAffix LeaderAffixes;
+    public float ScatterRadius = 1.4f;
+    public float RespawnDelay = 45f;
+    public readonly List<int> AliveIds = new();
     public float RespawnAt;
 }

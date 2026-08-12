@@ -56,6 +56,27 @@ public class ClientEnemy
     public byte DebuffFlags;
     /// <summary>Which way the sprite should face on screen (updated from movement).</summary>
     public bool FacingLeft;
+    /// <summary>Elite affix bitmask (Server.EliteAffix) from the spawn packet — drives
+    /// tinting, bar size and the hover display name.</summary>
+    public byte EliteFlags;
+
+    /// <summary>Display name with elite prefixes ("Brutish Gravebound Grunt").</summary>
+    public string DisplayName
+    {
+        get
+        {
+            string baseName = Def?.Name ?? TypeId;
+            if (EliteFlags == 0 || (EliteFlags & 8) != 0) return baseName; // bosses use their own name
+            string prefix = "";
+            if ((EliteFlags & 1) != 0) prefix += "Brutish ";
+            if ((EliteFlags & 2) != 0) prefix += "Swift ";
+            if ((EliteFlags & 4) != 0) prefix += "Warded ";
+            return prefix + baseName;
+        }
+    }
+
+    public bool IsElite => EliteFlags != 0;
+    public bool IsBoss => (EliteFlags & 8) != 0;
 }
 
 public class ClientProjectile
@@ -70,6 +91,8 @@ public class ClientProjectile
     public float Speed;
     public float MaxRange;
     public float Traveled;
+    /// <summary>Height change per tile traveled (overlook shots arc to their target).</summary>
+    public float HeightStep;
 }
 
 public class ClientDrop
@@ -195,6 +218,7 @@ public class ClientWorld
         {
             float step = pr.Speed * dt;
             pr.Position += pr.Direction * step;
+            pr.Height += pr.HeightStep * step;
             pr.Traveled += step;
             if (pr.Traveled > pr.MaxRange + 2f)
                 Projectiles.Remove(pr.Id);

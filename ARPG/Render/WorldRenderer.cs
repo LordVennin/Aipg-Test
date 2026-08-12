@@ -19,7 +19,25 @@ public class WorldRenderer
     /// <summary>Screen rectangles of drop name labels this frame, for click-to-pick-up.</summary>
     public readonly List<(Rectangle rect, Guid dropId)> DropLabelRects = new();
 
+    /// <summary>Screen rectangles of enemy sprites this frame, for hover targeting
+    /// (front-most = last drawn; hit-test in reverse).</summary>
+    public readonly List<(Rectangle rect, int enemyId)> EnemyHitRects = new();
+    /// <summary>Enemy currently under the mouse (set by PlayScreen) — tinted red and
+    /// shown in the top-of-screen target display.</summary>
+    public int HoveredEnemyId = -1;
+
     private const int WallHeight = 24;
+
+    /// <summary>Sprite tint marking elite affixes (boss purple, brutish red, swift gold,
+    /// warded blue) so dangerous enemies stand out before you read their name.</summary>
+    private static Color EliteTint(ClientEnemy e)
+    {
+        if (e.IsBoss) return new Color(228, 178, 255);
+        if ((e.EliteFlags & 1) != 0) return new Color(255, 158, 148);
+        if ((e.EliteFlags & 2) != 0) return new Color(255, 238, 150);
+        if ((e.EliteFlags & 4) != 0) return new Color(160, 195, 255);
+        return Color.White;
+    }
 
     public WorldRenderer(GameData data, Core.GameSettings settings)
     {
@@ -32,6 +50,7 @@ public class WorldRenderer
         var map = world.Map;
         if (map == null) return;
         DropLabelRects.Clear();
+        EnemyHitRects.Clear();
 
         // --- base pass: flat level-0 floor tiles (nothing ever renders beneath them) ---
         var floorA = new Color(58, 66, 58);
@@ -267,25 +286,31 @@ public class WorldRenderer
                     bool animated = e.State is (byte)Server.EnemyState.Chase or (byte)Server.EnemyState.Attack;
                     int frame = animated ? (int)((animClock / 170 + e.Id) % frames.Length) : 0;
                     var tex = frames[frame];
-                    const int scale = 2;
+                    int scale = e.IsBoss ? 3 : 2; // the boss reads bigger at a glance
                     int w = tex.Width * scale, h = tex.Height * scale;
+                    var spriteRect = new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 6, w, h);
+                    EnemyHitRects.Add((spriteRect, e.Id));
+                    var tint = e.Id == HoveredEnemyId ? new Color(255, 105, 95) : EliteTint(e);
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size / 4), (int)size, (int)(size / 2)),
                         new Color(0, 0, 0, 90)); // shadow
-                    batch.Draw(tex, new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 6, w, h), null,
-                        Color.White, 0f, Vector2.Zero,
+                    batch.Draw(tex, spriteRect, null,
+                        tint, 0f, Vector2.Zero,
                         e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
                     barY = (int)screen.Y - h + 2;
                 }
                 else
                 {
+                    EnemyHitRects.Add((new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size),
+                        (int)size, (int)size), e.Id));
                     DrawUnitToken(batch, screen, size, color);
                     barY = (int)screen.Y - (int)size - 26;
                 }
                 if (_settings.ShowEnemyHealthBars)
                 {
                     float frac = e.MaxHealth > 0 ? Math.Clamp(e.Health / e.MaxHealth, 0f, 1f) : 0;
-                    var bar = new Rectangle((int)screen.X - 16, barY, 32, 4);
+                    int barW = e.IsElite ? 44 : 32;
+                    var bar = new Rectangle((int)screen.X - barW / 2, barY, barW, e.IsElite ? 5 : 4);
                     batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));
                     batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
                         new Color(200, 50, 50));

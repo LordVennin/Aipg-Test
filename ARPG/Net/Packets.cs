@@ -52,6 +52,8 @@ public enum PacketType : byte
     PlayerPings,
     /// <summary>Chain-lightning path: the exact points the bolt leaps between.</summary>
     ChainEffect,
+    /// <summary>A boss ground-slam AoE burst (position, radius, height) for the visual.</summary>
+    EnemySlam,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

@@ -266,6 +266,23 @@ public class PlayScreen : IScreen
             // Aim unprojects onto the plane of MY surface, so overlapping layers
             // (bridge deck vs the ground below) resolve to the one I stand on.
             var mouseWorld = _camera.ScreenToWorld(input.RawMousePosition, me.Height);
+
+            // Hover targeting: the front-most enemy sprite under the cursor becomes the
+            // target — highlighted red, shown in the top-of-screen display, and casts
+            // aim at ITS true position/elevation (this is how you pick a victim on a
+            // different level: the unprojection above can't know which surface you meant).
+            _renderer.HoveredEnemyId = -1;
+            if (mouseFree)
+                for (int i = _renderer.EnemyHitRects.Count - 1; i >= 0; i--)
+                    if (_renderer.EnemyHitRects[i].rect.Contains(input.RawMousePosition))
+                    {
+                        _renderer.HoveredEnemyId = _renderer.EnemyHitRects[i].enemyId;
+                        break;
+                    }
+            if (_renderer.HoveredEnemyId >= 0 &&
+                _client.World.Enemies.TryGetValue(_renderer.HoveredEnemyId, out var hoveredEnemy))
+                mouseWorld = hoveredEnemy.Position;
+
             var facing = mouseWorld - me.Position;
             if (facing.LengthSquared() > 0.001f)
                 me.Facing = NumVec2.Normalize(facing);
@@ -313,7 +330,7 @@ public class PlayScreen : IScreen
         if (learned == null || def == null) return;
         var stats = SkillMath.Compute(_game.Data, def, learned.Level, learned.ScrollDefinitions(_game.Data), _client.World.MyStats);
         _cooldownEnds[skillId] = _clientTime + stats.Cooldown;
-        _client.RequestUseSkill(skillId, target);
+        _client.RequestUseSkill(skillId, target, _renderer.HoveredEnemyId);
 
         // Lunge skills (Shield Bash): scoot toward the aim, stopping just short of the
         // first enemy along the path so the shove reads as a body-check, not a pass-through.
@@ -334,6 +351,44 @@ public class PlayScreen : IScreen
             _lungeTimeLeft = lungeDuration;
             _lungeSpeed = dist / lungeDuration;
         }
+    }
+
+    /// <summary>Top-of-screen display for the hovered enemy: name (colored by rank)
+    /// over a large health bar, so you can pick targets across elevations at a glance.</summary>
+    private void DrawTargetDisplay(SpriteBatch sb, Point screen)
+    {
+        if (_renderer.HoveredEnemyId < 0 ||
+            !_client.World.Enemies.TryGetValue(_renderer.HoveredEnemyId, out var e))
+            return;
+
+        var nameColor = e.IsBoss ? new Color(216, 150, 255)
+            : e.IsElite ? new Color(255, 210, 110)
+            : new Color(230, 226, 214);
+        var font = FontManager.GetBold(20);
+        string name = e.DisplayName;
+        var nameSize = font.MeasureString(name);
+
+        const int barW = 340, barH = 16;
+        int cx = screen.X / 2;
+        int barX = cx - barW / 2, barY = 34;
+
+        // Backing panel sized to the wider of the name and the bar.
+        int panelW = (int)MathF.Max(barW + 24, nameSize.X + 40);
+        var panel = new Rectangle(cx - panelW / 2, 6, panelW, 52);
+        sb.Draw(TextureGen.Pixel, panel, new Color(12, 12, 16, 205));
+        sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Y, panel.Width, 1), new Color(90, 85, 110));
+        sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Bottom - 1, panel.Width, 1), new Color(90, 85, 110));
+
+        sb.DrawString(font, name, new Vector2(cx - nameSize.X / 2, 10), nameColor);
+
+        float frac = e.MaxHealth > 0 ? Math.Clamp(e.Health / e.MaxHealth, 0f, 1f) : 0f;
+        sb.Draw(TextureGen.Pixel, new Rectangle(barX - 1, barY - 1, barW + 2, barH + 2), new Color(60, 55, 70));
+        sb.Draw(TextureGen.Pixel, new Rectangle(barX, barY, barW, barH), new Color(30, 24, 26));
+        sb.Draw(TextureGen.Pixel, new Rectangle(barX, barY, (int)(barW * frac), barH), new Color(196, 54, 50));
+        var hpFont = FontManager.Get(13);
+        string hp = $"{MathF.Ceiling(MathF.Max(0, e.Health)):0} / {e.MaxHealth:0}";
+        var hpSize = hpFont.MeasureString(hp);
+        sb.DrawString(hpFont, hp, new Vector2(cx - hpSize.X / 2, barY + barH / 2 - hpSize.Y / 2), Color.White);
     }
 
     /// <summary>Fallback combined draw (unused by GameMain, which calls the split methods).</summary>
@@ -373,6 +428,7 @@ public class PlayScreen : IScreen
             return;
         }
 
+        DrawTargetDisplay(sb, screen);
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
         _skillMenu.Draw(sb, _game.Input);
         _characterSheet.Draw(sb);

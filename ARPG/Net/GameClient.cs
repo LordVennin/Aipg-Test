@@ -154,11 +154,12 @@ public class GameClient
         _server?.Send(w, method);
     }
 
-    public void RequestUseSkill(string skillId, Vector2 target)
+    public void RequestUseSkill(string skillId, Vector2 target, int targetEnemyId = -1)
     {
         var w = Packets.Make(PacketType.UseSkill);
         w.Put(skillId);
         w.PutVec2(target);
+        w.Put(targetEnemyId);
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -305,6 +306,14 @@ public class GameClient
                 break;
             }
 
+            case PacketType.EnemySlam:
+            {
+                var at = r.GetVec2();
+                float radius = r.GetFloat();
+                float height = r.GetFloat();
+                World.AddEffect(at, radius, 0.45f, "slam", height);
+                break;
+            }
             case PacketType.ChainEffect:
             {
                 r.GetString(); // skillId (unused for now — one chain visual)
@@ -366,6 +375,7 @@ public class GameClient
                 e.Height = e.NetTargetHeight = r.GetFloat();
                 e.Health = r.GetFloat();
                 e.MaxHealth = r.GetFloat();
+                e.EliteFlags = r.GetByte();
                 e.Def = _data.Enemies.GetValueOrDefault(e.TypeId);
                 World.Enemies[e.Id] = e;
                 break;
@@ -410,6 +420,7 @@ public class GameClient
                 pr.Direction = r.GetVec2();
                 pr.Speed = r.GetFloat();
                 pr.MaxRange = r.GetFloat();
+                pr.HeightStep = r.GetFloat();
                 World.Projectiles[pr.Id] = pr;
                 break;
             }
