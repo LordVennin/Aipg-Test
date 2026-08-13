@@ -404,33 +404,35 @@ public static class SpriteGen
                 break;
             case "forest:bigtree": // large 2x2-tile canopy trees (generated landmarks)
                 {
-                    Init(48, 62);
+                    Init(66, 88);
                     var trunk = new Color(98, 72, 46); var trunkD = Shade(trunk, 0.68f); var trunkL = Shade(trunk, 1.2f);
                     var leaf = variant == 0 ? new Color(56, 96, 44) : new Color(66, 90, 40);
                     var leafD = Shade(leaf, 0.7f); var leafL = Shade(leaf, 1.3f); var leafM = Shade(leaf, 1.12f);
                     // Trunk with buttress roots.
-                    Rect(21, 42, 6, 17, trunk);
-                    VLine(26, 42, 17, trunkD);
-                    VLine(21, 42, 17, trunkL);
-                    Rect(17, 55, 4, 4, trunkD); Rect(27, 55, 5, 4, trunkD);
-                    Rect(19, 40, 10, 3, trunk);
-                    // Canopy: big irregular mass built from stacked blobs.
-                    Rect(6, 16, 36, 22, leaf);
-                    Rect(10, 8, 28, 12, leaf);
-                    Rect(16, 3, 16, 8, leaf);
-                    Rect(2, 22, 8, 12, leaf);
-                    Rect(38, 20, 8, 12, leaf);
-                    // Shadow bottom + lit top-left.
-                    Rect(6, 34, 36, 4, leafD);
-                    Rect(2, 30, 8, 4, leafD);
-                    Rect(38, 28, 8, 4, leafD);
-                    Rect(12, 5, 14, 3, leafL);
-                    Rect(8, 12, 10, 4, leafM);
-                    Rect(30, 10, 8, 3, leafM);
+                    Rect(29, 58, 8, 27, trunk);
+                    VLine(35, 58, 27, trunkD); VLine(36, 58, 27, trunkD);
+                    VLine(29, 58, 27, trunkL);
+                    Rect(23, 80, 6, 5, trunkD); Rect(37, 80, 7, 5, trunkD);
+                    Rect(26, 55, 14, 4, trunk);
+                    // A visible branch into the canopy.
+                    Rect(20, 46, 4, 3, trunk); Rect(23, 48, 8, 3, trunk);
+                    // Canopy: tall irregular mass built from stacked blobs.
+                    Rect(8, 22, 50, 32, leaf);
+                    Rect(13, 11, 40, 16, leaf);
+                    Rect(21, 4, 24, 11, leaf);
+                    Rect(2, 30, 10, 16, leaf);
+                    Rect(54, 28, 10, 16, leaf);
+                    // Shadow bottom + lit crown.
+                    Rect(8, 48, 50, 6, leafD);
+                    Rect(2, 42, 10, 4, leafD);
+                    Rect(54, 40, 10, 4, leafD);
+                    Rect(17, 6, 20, 4, leafL);
+                    Rect(12, 15, 14, 5, leafM);
+                    Rect(40, 13, 12, 4, leafM);
                     // Texture clumps.
-                    Rect(14, 20, 5, 3, leafD); Rect(28, 24, 6, 3, leafD);
-                    Rect(22, 14, 4, 2, leafL); Rect(34, 18, 3, 2, leafL);
-                    Set(10, 26, leafL); Set(40, 24, leafL);
+                    Rect(18, 28, 7, 4, leafD); Rect(38, 34, 8, 4, leafD); Rect(28, 22, 6, 3, leafD);
+                    Rect(30, 18, 6, 3, leafL); Rect(46, 24, 5, 3, leafL); Rect(12, 36, 5, 3, leafL);
+                    Set(14, 34, leafL); Set(52, 32, leafL); Set(24, 40, leafL);
                 }
                 break;
             case "forest:feature": // trees
