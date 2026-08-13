@@ -28,6 +28,80 @@ public class WorldRenderer
 
     private const int WallHeight = 24;
 
+    // ------------------------------------------------------------------ zone theme
+    /// <summary>Active visual theme. All palette colors below are parsed from it; the
+    /// clutter/feature layout is rebuilt deterministically from the map seed on change.</summary>
+    public ZoneTheme Theme { get; private set; }
+    public Color BackgroundColor { get; private set; } = new(16, 17, 22);
+    private Color _floorA, _floorB, _cliffFace, _elevTop, _wallFace, _wallTop, _rampTint;
+    private Color _deckA, _deckB, _deckLip;
+    private GameMap _themedMap;
+    private int _themeIndex;
+    private readonly List<(NumVec2 pos, float height, string key)> _clutter = new();
+    private readonly List<(int x, int y, int top, string key)> _features = new();
+
+    public void CycleTheme()
+    {
+        if (_data.ZoneThemes.Count == 0) return;
+        _themeIndex = (_themeIndex + 1) % _data.ZoneThemes.Count;
+        SetTheme(_data.ZoneThemes[_themeIndex], _themedMap);
+    }
+
+    public void SetTheme(ZoneTheme theme, GameMap map)
+    {
+        Theme = theme;
+        _themedMap = map;
+        if (theme == null) return;
+        _themeIndex = Math.Max(0, _data.ZoneThemes.IndexOf(theme));
+        BackgroundColor = ParseColor(theme.Background, new Color(16, 17, 22));
+        _floorA = ParseColor(theme.FloorA, new Color(58, 66, 58));
+        _floorB = ParseColor(theme.FloorB, new Color(52, 60, 54));
+        _cliffFace = ParseColor(theme.CliffFace, new Color(128, 140, 128));
+        _elevTop = ParseColor(theme.ElevatedTop, new Color(70, 80, 68));
+        _wallFace = ParseColor(theme.WallFace, new Color(140, 133, 173));
+        _wallTop = ParseColor(theme.WallTop, new Color(84, 80, 104));
+        _rampTint = ParseColor(theme.RampTint, new Color(150, 160, 130));
+        _deckA = ParseColor(theme.DeckA, new Color(122, 96, 62));
+        _deckB = ParseColor(theme.DeckB, new Color(112, 88, 58));
+        _deckLip = ParseColor(theme.DeckLip, new Color(70, 54, 36));
+        RebuildProps(map);
+    }
+
+    /// <summary>Deterministic per-tile hash (independent of process randomization) so
+    /// every client lays out identical decoration for the same map seed.</summary>
+    private static uint TileHash(int seed, int x, int y) =>
+        (uint)(x * 73856093 ^ y * 19349663 ^ seed * 83492791 ^ 0x5bd1e995);
+
+    private void RebuildProps(GameMap map)
+    {
+        _clutter.Clear();
+        _features.Clear();
+        if (map == null || Theme == null) return;
+        string style = Theme.PropStyle;
+        for (int y = 1; y < map.Height - 1; y++)
+            for (int x = 1; x < map.Width - 1; x++)
+            {
+                uint n = TileHash(map.Seed, x, y);
+                float roll = (n & 0xFFFF) / 65536f;
+                int wall = map.WallHeight(x, y);
+                if (wall == 1 && map.GroundLevel(x, y) == 0)
+                {
+                    if (roll < Theme.WallFeatureChance)
+                        _features.Add((x, y, wall, $"{style}:feature:{(n >> 16) % 2}"));
+                    continue;
+                }
+                if (wall > 0 || map.Ramp(x, y) != RampDirection.None || map.BridgeLevel(x, y) > 0)
+                    continue;
+                if (roll < Theme.ClutterDensity)
+                {
+                    float ox = ((n >> 16 & 0xFF) / 255f - 0.5f) * 0.6f;
+                    float oy = ((n >> 24 & 0xFF) / 255f - 0.5f) * 0.6f;
+                    var pos = new NumVec2(x + 0.5f + ox, y + 0.5f + oy);
+                    _clutter.Add((pos, map.GroundLevel(x, y), $"{style}:clutter:{(n >> 8) % 3}"));
+                }
+            }
+    }
+
     /// <summary>Sprite tint marking elite affixes (boss purple, brutish red, swift gold,
     /// warded blue) so dangerous enemies stand out before you read their name.</summary>
     private static Color EliteTint(ClientEnemy e)
@@ -49,12 +123,19 @@ public class WorldRenderer
     {
         var map = world.Map;
         if (map == null) return;
+        if (Theme == null || _themedMap != map)
+        {
+            var wanted = Environment.GetEnvironmentVariable("ARPG_THEME");
+            var theme = _data.ZoneThemes.FirstOrDefault(t => t.Id == wanted)
+                        ?? (Theme ?? _data.ZoneThemes.FirstOrDefault());
+            SetTheme(theme, map);
+        }
         DropLabelRects.Clear();
         EnemyHitRects.Clear();
 
         // --- base pass: flat level-0 floor tiles (nothing ever renders beneath them) ---
-        var floorA = new Color(58, 66, 58);
-        var floorB = new Color(52, 60, 54);
+        var floorA = Theme != null ? _floorA : new Color(58, 66, 58);
+        var floorB = Theme != null ? _floorB : new Color(52, 60, 54);
         for (int y = 0; y < map.Height; y++)
         {
             for (int x = 0; x < map.Width; x++)
@@ -149,12 +230,12 @@ public class WorldRenderer
                     float faceDepth = x + y + 1 + top * 0.001f;
                     float faceFade = OccluderFade(faceDepth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16));
-                    var faceTint = new Color(140, 133, 173) * faceFade;
+                    var faceTint = _wallFace * faceFade;
                     _sorted.Add((faceDepth, batch =>
                         batch.Draw(TextureGen.GetPrismFaces(top),
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx), faceTint)));
                     float topDepth = x + y + top * 0.6f;
-                    var topTint = new Color(84, 80, 104) * OccluderFade(topDepth,
+                    var topTint = _wallTop * OccluderFade(topDepth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
                     _sorted.Add((topDepth, batch =>
                         batch.Draw(TextureGen.DiamondSolid,
@@ -170,7 +251,7 @@ public class WorldRenderer
                     var sprite = TextureGen.GetRampSprite(ramp, map.RampIsStairs(x, y));
                     var corner = camera.WorldToScreen(new NumVec2(x, y), ground);
                     float rampDepth = x + y + (ground + 0.5f) * 0.6f;
-                    var rampTint = new Color(150, 160, 130) * OccluderFade(rampDepth,
+                    var rampTint = _rampTint * OccluderFade(rampDepth,
                         new Rectangle((int)corner.X - 32, (int)corner.Y - TextureGen.RampSpriteOffsetY, 64, 96));
                     _sorted.Add((rampDepth, batch =>
                         batch.Draw(sprite,
@@ -179,7 +260,7 @@ public class WorldRenderer
                     if (ground > 0)
                     {
                         float rbDepth = x + y + 1 + ground * 0.001f;
-                        var rbTint = new Color(128, 140, 128) * OccluderFade(rbDepth,
+                        var rbTint = _cliffFace * OccluderFade(rbDepth,
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - ground * hpx, 64, ground * hpx + 16));
                         _sorted.Add((rbDepth, batch =>
                             batch.Draw(TextureGen.GetPrismFaces(ground),
@@ -192,11 +273,14 @@ public class WorldRenderer
                     // Elevated ground: top diamond at its level plus prism faces down to
                     // the ground floor (front tiles' tops cover interior faces).
                     int topPx = ground * hpx;
-                    var top = ((x + y) & 1) == 0
-                        ? new Color(70 + ground * 12, 80 + ground * 10, 68 + ground * 8)
-                        : new Color(64 + ground * 12, 74 + ground * 10, 62 + ground * 8);
+                    int lift = ground * 11;
+                    int check = ((x + y) & 1) == 0 ? 4 : 0;
+                    var top = new Color(
+                        Math.Min(255, _elevTop.R + lift + check),
+                        Math.Min(255, _elevTop.G + lift + check),
+                        Math.Min(255, _elevTop.B + lift + check));
                     float efDepth = x + y + 1 + ground * 0.001f;
-                    var efTint = new Color(128, 140, 128) * OccluderFade(efDepth,
+                    var efTint = _cliffFace * OccluderFade(efDepth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16));
                     _sorted.Add((efDepth, batch =>
                         batch.Draw(TextureGen.GetPrismFaces(ground),
@@ -219,8 +303,8 @@ public class WorldRenderer
                     float depth = x + y + 1 + bridge * 0.6f;
                     float deckFade = OccluderFade(depth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - deckPx, 64, 38));
-                    var deck = (((x + y) & 1) == 0 ? new Color(122, 96, 62) : new Color(112, 88, 58)) * deckFade;
-                    var lip = new Color(70, 54, 36) * deckFade;
+                    var deck = (((x + y) & 1) == 0 ? _deckA : _deckB) * deckFade;
+                    var lip = _deckLip * deckFade;
                     _sorted.Add((depth, batch =>
                     {
                         batch.Draw(TextureGen.Pixel,
@@ -230,6 +314,35 @@ public class WorldRenderer
                     }));
                 }
             }
+        }
+
+        // Themed decoration: ground clutter (no collision) and wall-tile features
+        // (trees, crypts, spires standing on their base block — collision comes free
+        // from the wall tile). Both fade with the occlusion reveal like terrain.
+        foreach (var (cpos, cheight, ckey) in _clutter)
+        {
+            var tex = SpriteGen.GetPropSprite(ckey);
+            if (tex == null) continue;
+            var screen = camera.WorldToScreen(cpos, cheight);
+            if (screen.X < -60 || screen.X > camera.ScreenWidth + 60 ||
+                screen.Y < -60 || screen.Y > camera.ScreenHeight + 60) continue;
+            int cw = tex.Width * 2, ch = tex.Height * 2;
+            var dest = new Rectangle((int)screen.X - cw / 2, (int)screen.Y - ch + 3, cw, ch);
+            _sorted.Add((cpos.X + cpos.Y + cheight * 1.0f + 0.04f + UnderDeckBias(cpos, cheight), batch =>
+                batch.Draw(tex, dest, Color.White)));
+        }
+        foreach (var (fx0, fy0, ftop, fkey) in _features)
+        {
+            var tex = SpriteGen.GetPropSprite(fkey);
+            if (tex == null) continue;
+            var screen = camera.WorldToScreen(new NumVec2(fx0 + 0.5f, fy0 + 0.5f), ftop);
+            if (screen.X < -80 || screen.X > camera.ScreenWidth + 80 ||
+                screen.Y < -100 || screen.Y > camera.ScreenHeight + 100) continue;
+            int fw = tex.Width * 2, fh = tex.Height * 2;
+            var dest = new Rectangle((int)screen.X - fw / 2, (int)screen.Y - fh + 4, fw, fh);
+            float fdepth = fx0 + fy0 + 1 + ftop * 0.001f + 0.0005f;
+            float ffade = OccluderFade(fdepth, dest);
+            _sorted.Add((fdepth, batch => batch.Draw(tex, dest, Color.White * ffade)));
         }
 
         foreach (var drop in world.Drops.Values)

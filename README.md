@@ -278,6 +278,20 @@ TARGETED: the server aims at that enemy's true position and elevation, which is
 how you pick a victim above or below you — the mouse unprojection alone cannot
 know which surface you meant.
 
+### Zone themes
+
+Zones have data-driven visual identities (`Data/Zones/themes.json`): a full terrain
+palette (floors, cliffs, walls, ramps, bridge, background), a clutter style and
+density, and a chance for 1-level wall tiles to render as themed FEATURES standing
+on their base block — trees in the forest, crypts and obelisks in the graveyard,
+columns and sarcophagi in the tomb, rock spires and cacti in the bluffs. Clutter is
+non-colliding decoration laid out deterministically from the map seed (identical on
+every client); features keep collision for free from their wall tile. Four themes
+ship: **Forsaken Graveyard** (default), **Sunken Tomb**, **Scorched Bluffs** and
+**Mirewood**. All of it is render-only — the hub/teleporter structure planned later
+will assign a theme per zone; until then F1 → "Cycle Zone Theme" previews them
+in-game, and the `ARPG_THEME` environment variable forces one at launch.
+
 ### Enemy pathfinding (flow fields)
 
 Enemy aggro and chasing run on a per-player breadth-first **flow field** over the

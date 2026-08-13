@@ -51,6 +51,35 @@ public class DodgeConfig
     public float InvulnerabilityDuration { get; set; } = 0.3f;
 }
 
+/// <summary>
+/// A zone's visual identity, loaded from Data/Zones/themes.json: terrain palette
+/// (colors as RRGGBB hex), ground clutter style/density and the chance that a 1-high
+/// wall tile renders as a themed feature (tree, crypt, rock spire...) on a base block.
+/// Purely visual — simulation and collision are theme-independent.
+/// </summary>
+public class ZoneTheme
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string Background { get; set; } = "101116";
+    public string FloorA { get; set; } = "3A423A";
+    public string FloorB { get; set; } = "343C36";
+    public string CliffFace { get; set; } = "808C80";
+    public string ElevatedTop { get; set; } = "465044";
+    public string WallFace { get; set; } = "8C85AD";
+    public string WallTop { get; set; } = "545068";
+    public string RampTint { get; set; } = "96A082";
+    public string DeckA { get; set; } = "7A603E";
+    public string DeckB { get; set; } = "70583A";
+    public string DeckLip { get; set; } = "463624";
+    /// <summary>Clutter/feature sprite set: "graveyard", "tomb", "arid" or "forest".</summary>
+    public string PropStyle { get; set; } = "graveyard";
+    /// <summary>Chance per walkable tile of a small non-colliding clutter sprite.</summary>
+    public float ClutterDensity { get; set; } = 0.05f;
+    /// <summary>Chance per 1-level wall tile of a themed feature sprite on the block.</summary>
+    public float WallFeatureChance { get; set; } = 0.3f;
+}
+
 /// <summary>Loot table, loaded from Data/LootTables/*.json.</summary>
 public class LootTable
 {
@@ -84,6 +113,8 @@ public class GameData
     public Dictionary<string, ScrollDefinition> Scrolls { get; } = new();
     public Dictionary<string, EnemyDefinition> Enemies { get; } = new();
     public Dictionary<string, LootTable> LootTables { get; } = new();
+    /// <summary>Zone visual themes in file order (Data/Zones/themes.json).</summary>
+    public List<ZoneTheme> ZoneThemes { get; } = new();
 
     /// <summary>Skill level reached -> total scroll slots unlocked (Data/Config/scroll_slots.json).</summary>
     public Dictionary<int, int> ScrollSlotProgression { get; private set; } = new();
@@ -106,6 +137,8 @@ public class GameData
             data.Enemies[enemy.Id] = enemy;
         foreach (var table in LoadAll<LootTable>(Path.Combine(dataDir, "LootTables")))
             data.LootTables[table.Id] = table;
+
+        data.ZoneThemes.AddRange(LoadAll<ZoneTheme>(Path.Combine(dataDir, "Zones")));
 
         string slotsPath = Path.Combine(dataDir, "Config", "scroll_slots.json");
         if (File.Exists(slotsPath))

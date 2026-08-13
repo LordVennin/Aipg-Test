@@ -64,6 +64,7 @@ public class PlayScreen : IScreen
         _skillMenu = new SkillMenuUI(game.Data, client, _drag);
         _characterSheet = new CharacterSheetUI(game.Data, client);
         _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
+        _debug.OnCycleTheme = () => _renderer.CycleTheme();
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
         _client.ServerMessageReceived += msg => _hud.AddMessage(msg);
@@ -397,6 +398,9 @@ public class PlayScreen : IScreen
         DrawWorld(sb);
         DrawUI(sb);
     }
+
+    /// <summary>The active zone theme's void/background color (GameMain clears with it).</summary>
+    public Color BackgroundColor => _renderer.BackgroundColor;
 
     /// <summary>World rendering — drawn UNSCALED in raw screen space (camera-driven).</summary>
     public void DrawWorld(SpriteBatch sb)
