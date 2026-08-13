@@ -143,13 +143,26 @@ damage per 10 points of equipped shield armor. Enemy debuffs (stun, burning)
 replicate as snapshot flags and render as tiny per-debuff icons above the enemy's
 head.
 
-**Skills**: *Mace Strike* (fast single-target swing with knockback, free), *Heavy
-Strike* (area blow at the aimed point), Ground Slam, Shield Bash, Fire Bolt,
-Arcane Burst, *Ice Spike* (a cold projectile with its own crystalline shard
-sprite) and *Chain Lightning* (an instant bolt that strikes the enemy nearest the
-aim and leaps between nearby targets — the exact chain path is broadcast so every
-client draws the same jagged, flickering bolt; Multishot scrolls add extra jumps).
-Melee strikes animate the actual held weapon sweeping an arc. Enemies softly
+**Skills**: *Mace Strike* (fast swing that hits EVERY enemy in its arc with light
+knockback, free), *Mace Slam* (mace-only ground slam at the aimed point: heavy
+knockback, a 60% chance to Slow survivors for 2.5s, an overhead slam animation and
+a cracked-earth impact overlay that fades — tagged `Slam`, higher mana cost),
+Ground Slam, Shield Bash, Fire Bolt, Arcane Burst, *Ice Spike* (a cold projectile
+with its own crystalline shard sprite) and *Chain Lightning* (an instant blue-white
+bolt that strikes the enemy nearest the aim and leaps between nearby targets — the
+exact chain path is broadcast so every client draws the same jagged, flickering
+bolt; Multishot scrolls add extra jumps; the tan-gold palette is reserved for
+future light damage). Melee strikes animate the actual held weapon sweeping an arc.
+
+**Use time (global cast lockout)**: every skill declares a `UseTime` — a global
+lockout (enforced server-side, mirrored client-side on the hotbar) that stops the
+whole hotbar from being dumped in a single instant: casting anything locks ALL
+skills for that skill's use time, on top of per-skill cooldowns.
+
+**Charged Shield Bash**: Shield Bash is `Chargeable` — hold the button to charge
+up to ~1s (a charge bar fills above the hotbar) and release to lunge farther
+(up to +80%) and hit harder (up to +70% damage/knockback). A quick tap still
+fires a normal bash. Enemies softly
 collide with each other, so packs spread out instead of stacking into one sprite.
 In borderless fullscreen the game always renders at the desktop resolution (the
 resolution setting applies to windowed mode), which keeps menus centered and the
@@ -272,11 +285,17 @@ lip and die — holding the high ground is a real advantage. Nothing shoots
 through a bridge deck's plane in either direction. Projectiles carry a height
 step and arc to their target's elevation.
 
-Hovering an enemy highlights it red and shows a top-of-screen target display
-(name colored by rank, large health bar). Casts made while hovering are
-TARGETED: the server aims at that enemy's true position and elevation, which is
-how you pick a victim above or below you — the mouse unprojection alone cannot
-know which surface you meant.
+Hovering an enemy draws a red OUTLINE around its sprite (a silhouette rim — the
+sprite itself stays untinted) and shows a top-of-screen target display (name
+colored by rank, large health bar). Casts made while hovering are TARGETED: the
+server aims at that enemy's true position and elevation, which is how you pick a
+victim above or below you — the mouse unprojection alone cannot know which
+surface you meant.
+
+**Ground loot UX**: item name labels that would overlap stack into a tidy
+vertical list per cluster. Hovering a label highlights it; the pickup key then
+grabs THAT item — auto-walking you to it first when it's out of reach (any
+manual movement cancels the walk). Clicking a label works too.
 
 ### Zone themes
 
@@ -385,10 +404,15 @@ Scroll · grant skill/character XP · kill nearby enemies · full heal — plus 
 network mode/status, **ping**, connected player IDs, entity counts, position and
 computed stats. All commands execute server-side like any other request.
 
+Dev conveniences for automated/headless sessions: `--sp` starts straight into
+single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
+`ARPG_DEVUI=debug[,skills][,inventory][,drops]` opens panels at startup
+(`drops` scatters one of every scroll shortly after joining, for loot-UI work).
+
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (36 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (190 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

@@ -22,9 +22,12 @@ public class WorldRenderer
     /// <summary>Screen rectangles of enemy sprites this frame, for hover targeting
     /// (front-most = last drawn; hit-test in reverse).</summary>
     public readonly List<(Rectangle rect, int enemyId)> EnemyHitRects = new();
-    /// <summary>Enemy currently under the mouse (set by PlayScreen) — tinted red and
+    /// <summary>Enemy currently under the mouse (set by PlayScreen) — outlined red and
     /// shown in the top-of-screen target display.</summary>
     public int HoveredEnemyId = -1;
+    /// <summary>Drop whose name label is under the mouse (set by PlayScreen) —
+    /// highlighted, and the pickup key targets it (walking over if needed).</summary>
+    public Guid HoveredDropId = Guid.Empty;
 
     private const int WallHeight = 24;
 
@@ -634,12 +637,27 @@ public class WorldRenderer
                     int w = tex.Width * scale, h = tex.Height * scale;
                     var spriteRect = new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 6, w, h);
                     EnemyHitRects.Add((spriteRect, e.Id));
-                    var tint = e.Id == HoveredEnemyId ? new Color(255, 105, 95) : EliteTint(e);
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size / 4), (int)size, (int)(size / 2)),
                         new Color(0, 0, 0, 90)); // shadow
+                    if (e.Id == HoveredEnemyId)
+                    {
+                        // Red OUTLINE: the sprite's silhouette at 4 offsets underneath,
+                        // then the untinted sprite on top — only the rim shows red.
+                        var sil = SpriteGen.GetEnemySilhouette(def, frame);
+                        if (sil != null)
+                        {
+                            var fx2 = e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+                            Span<(int dx, int dy)> off = stackalloc (int, int)[] { (2, 0), (-2, 0), (0, 2), (0, -2) };
+                            foreach (var (dx, dy) in off)
+                            {
+                                var r2 = spriteRect; r2.Offset(dx, dy);
+                                batch.Draw(sil, r2, null, Color.White, 0f, Vector2.Zero, fx2, 0f);
+                            }
+                        }
+                    }
                     batch.Draw(tex, spriteRect, null,
-                        tint, 0f, Vector2.Zero,
+                        EliteTint(e), 0f, Vector2.Zero,
                         e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
                     barY = (int)screen.Y - h + 2;
                 }
@@ -709,6 +727,19 @@ public class WorldRenderer
                     if (swingIso.LengthSquared() < 0.001f) swingIso = screenDir;
                     swingIso.Normalize();
                     float aimAng = MathF.Atan2(swingIso.Y, swingIso.X);
+                    if (p.SwingKind == 1)
+                    {
+                        // Overhead slam: raise the weapon high, then chop down HARD along
+                        // the aim with a snap (ease-in), ending buried toward the ground.
+                        float chop = st * st; // ease-in: slow raise, fast smash
+                        float side = swingIso.X >= 0 ? 1f : -1f;
+                        float ang2 = side * (-2.2f + 3.1f * chop);
+                        var hand2 = screen + new Vector2(swingIso.X * 8f, -18f + 16f * chop);
+                        batch.Draw(weaponTex, hand2, null, Color.White, ang2,
+                            new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f),
+                            2f + 0.3f * chop, SpriteEffects.None, 0f);
+                        return;
+                    }
                     float ang = aimAng - 1.25f + 2.5f * st;
                     var hand = screen + new Vector2(MathF.Cos(ang), MathF.Sin(ang) * 0.6f) * 20f + new Vector2(0, -12);
                     batch.Draw(weaponTex, hand, null, Color.White, ang,
@@ -814,8 +845,8 @@ public class WorldRenderer
                 // Chain lightning: jagged flickering bolts between the exact chain points
                 // (caster -> victim -> victim...). Re-jittered every few frames so it crackles.
                 float fade = 1f - t;
-                var boltColor = DamageKindColor(Skills.DamageKind.Lightning) * fade;
-                var coreColor = Color.White * (fade * 0.85f);
+                var boltColor = new Color(110, 165, 255) * fade;
+                var coreColor = new Color(225, 240, 255) * (fade * 0.9f);
                 int flickerSeed = (int)(Environment.TickCount64 / 45);
                 var pts = fx.Points;
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 1.2f, batch =>
@@ -851,6 +882,23 @@ public class WorldRenderer
                 continue;
             }
 
+            if (fx.Kind == "impact")
+            {
+                // Ground impact: a radial crack overlay at full size immediately, fading
+                // out — reads as a hit mark, not a growing bubble.
+                var impactTex = SpriteGen.GetImpactSprite();
+                if (impactTex != null)
+                {
+                    float ifade = 1f - t * t;
+                    float iw = fx.Radius * 2f * IsoCamera.HalfTileW * 1.05f;
+                    var idest = new Rectangle((int)(screen.X - iw), (int)(screen.Y - iw / 2f),
+                        (int)(iw * 2), (int)iw);
+                    _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height),
+                        batch => batch.Draw(impactTex, idest, Color.White * ifade)));
+                }
+                continue;
+            }
+
             float radiusPx = fx.Radius * 2f * IsoCamera.HalfTileW * (0.4f + 0.6f * t);
             byte alpha = (byte)(180 * (1f - t));
             var color = fx.Kind switch
@@ -870,8 +918,11 @@ public class WorldRenderer
             draw(sb);
 
         // --- drop name labels (screen space, on top) ---
+        // Labels de-overlap into stacked lists: each label shifts UP until it clears
+        // everything already placed, so dense loot piles read as a tidy column.
         var labelFont = FontManager.Get(13);
-        foreach (var drop in world.Drops.Values)
+        var placedLabels = new List<Rectangle>();
+        foreach (var drop in world.Drops.Values.OrderBy(d => d.Position.X + d.Position.Y))
         {
             var screen = camera.WorldToScreen(drop.Position, drop.Height);
             string label = drop.IsGold ? $"{drop.GoldAmount} Gold" : drop.Item.DisplayName(_data);
@@ -879,8 +930,24 @@ public class WorldRenderer
             var labelColor = drop.IsGold ? new Color(240, 200, 90) : RarityColor(drop.Item.Rarity);
             var size = labelFont.MeasureString(label);
             var rect = new Rectangle((int)(screen.X - size.X / 2) - 4, (int)(screen.Y - 30), (int)size.X + 8, (int)size.Y + 4);
-            sb.Draw(TextureGen.Pixel, rect, new Color(0, 0, 0, 170));
-            sb.DrawString(labelFont, label, new Vector2(rect.X + 4, rect.Y + 2), labelColor);
+            for (int guard = 0; guard < 24; guard++)
+            {
+                bool collides = false;
+                foreach (var placed in placedLabels)
+                    if (rect.Intersects(placed)) { collides = true; break; }
+                if (!collides) break;
+                rect.Y -= rect.Height + 1; // climb the stack
+            }
+            placedLabels.Add(rect);
+            bool hovered = drop.DropId == HoveredDropId;
+            sb.Draw(TextureGen.Pixel, rect, hovered ? new Color(58, 48, 20, 230) : new Color(0, 0, 0, 170));
+            if (hovered)
+            {
+                sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Y, rect.Width, 1), new Color(255, 220, 130));
+                sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Bottom - 1, rect.Width, 1), new Color(255, 220, 130));
+            }
+            sb.DrawString(labelFont, label, new Vector2(rect.X + 4, rect.Y + 2),
+                hovered ? Color.Lerp(labelColor, Color.White, 0.35f) : labelColor);
             DropLabelRects.Add((rect, drop.DropId));
         }
 
@@ -911,10 +978,11 @@ public class WorldRenderer
     private static void DrawDebuffIcons(SpriteBatch sb, byte flags, int centerX, int y)
     {
         if (flags == 0) return;
-        var kinds = new string[2];
+        var kinds = new string[3];
         int count = 0;
         if ((flags & Server.EnemyDebuffs.Stunned) != 0) kinds[count++] = "stun";
         if ((flags & Server.EnemyDebuffs.Burning) != 0) kinds[count++] = "burn";
+        if ((flags & Server.EnemyDebuffs.Slowed) != 0) kinds[count++] = "slow";
 
         const int iconSize = 13, gap = 2;
         int totalW = count * iconSize + (count - 1) * gap;

@@ -21,6 +21,7 @@ public static class EnemyDebuffs
 {
     public const byte Stunned = 1 << 0;
     public const byte Burning = 1 << 1;
+    public const byte Slowed = 1 << 2;
 }
 
 /// <summary>Authoritative player state held by the server (host).</summary>
@@ -46,6 +47,10 @@ public class ServerPlayer
 
     /// <summary>Blocking goes on cooldown after each successful block (server-authoritative).</summary>
     public float NextBlockReadyAt;
+
+    /// <summary>Global skill lockout: no skill may be used before this server time
+    /// (set to now + the last-used skill's UseTime).</summary>
+    public float GlobalSkillReadyAt;
 
     /// <summary>Last health value broadcast to clients (throttles regen sync spam).</summary>
     public float LastSyncedHealth;
@@ -93,6 +98,8 @@ public class ServerEnemy
     public int TargetPlayerId = -1;
     /// <summary>While the server clock is below this, the enemy neither moves nor attacks.</summary>
     public float StunnedUntil;
+    /// <summary>While the server clock is below this, the enemy moves at reduced speed.</summary>
+    public float SlowedUntil;
 
     // Elite/pack state. Multipliers default to 1 so normal enemies are unaffected.
     public EliteAffix Affixes;

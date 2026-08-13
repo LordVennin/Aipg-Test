@@ -47,8 +47,22 @@ public class PlayScreen : IScreen
     private NumVec2 _lungeDir;
     private float _lungeSpeed;
     private float _clientTime;
+    /// <summary>ARPG_DEVUI=drops: scatter one of every scroll shortly after joining.</summary>
+    private bool _devDropScrolls;
     /// <summary>Client-side cooldown estimates per skill (server still validates).</summary>
     private readonly Dictionary<string, float> _cooldownEnds = new();
+    /// <summary>Client-side mirror of the server's global use-time lockout.</summary>
+    private float _globalReadyEnd;
+    /// <summary>Hotbar slot currently charging a Chargeable skill (-1 = none).</summary>
+    private int _chargingSlot = -1;
+    private float _chargeStart;
+    /// <summary>0..1 charge of the currently charging skill (drawn as a bar).</summary>
+    public float ChargeFraction => _chargingSlot >= 0
+        ? Math.Clamp((_clientTime - _chargeStart) / ChargeTime, 0f, 1f) : 0f;
+    private const float ChargeTime = 0.9f;
+    /// <summary>Auto-walk pickup: the drop we're heading toward after the player
+    /// pressed pickup on a hovered (but out-of-range) item label.</summary>
+    private Guid _pickupTargetId = Guid.Empty;
     private float _fpsTimer;
     private int _fpsCounter;
     private float _autosaveTimer;
@@ -64,6 +78,18 @@ public class PlayScreen : IScreen
         _skillMenu = new SkillMenuUI(game.Data, client, _drag);
         _characterSheet = new CharacterSheetUI(game.Data, client);
         _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
+
+        // Dev convenience (like --sp): ARPG_DEVUI=debug[,skills][,inventory] opens
+        // panels at startup — lets headless/automated sessions drive them by mouse alone.
+        var devUi = Environment.GetEnvironmentVariable("ARPG_DEVUI");
+        if (!string.IsNullOrEmpty(devUi))
+        {
+            Console.WriteLine($"[DevUI] Startup panels/actions: {devUi}");
+            if (devUi.Contains("debug")) _debug.Open = true;
+            if (devUi.Contains("skills")) _skillMenu.Open = true;
+            if (devUi.Contains("inventory")) _inventory.Open = true;
+            if (devUi.Contains("drops")) _devDropScrolls = true;
+        }
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
         _client.ServerMessageReceived += msg => _hud.AddMessage(msg);
@@ -110,6 +136,11 @@ public class PlayScreen : IScreen
         _fpsCounter++;
         _fpsTimer += dt;
         if (_fpsTimer >= 0.5f) { _debug.Fps = (int)(_fpsCounter / _fpsTimer); _fpsCounter = 0; _fpsTimer = 0; }
+        if (_devDropScrolls && _clientTime > 1.5f)
+        {
+            _devDropScrolls = false;
+            _client.SendDebugCommand("drop_scrolls");
+        }
 
         // The server (when hosting) runs on its OWN thread with a fixed timestep — the
         // render thread only drives the client, which talks to it over loopback UDP.
@@ -287,18 +318,61 @@ public class PlayScreen : IScreen
             if (facing.LengthSquared() > 0.001f)
                 me.Facing = NumVec2.Normalize(facing);
 
-            // --- skills ---
-            TryUseHotbarSkill(0, input.IsActionDown(InputAction.PrimaryAttack) && mouseFree, mouseWorld);
-            TryUseHotbarSkill(1, input.IsActionDown(InputAction.Skill1), mouseWorld);
-            TryUseHotbarSkill(2, input.IsActionDown(InputAction.Skill2), mouseWorld);
-            TryUseHotbarSkill(3, input.IsActionDown(InputAction.Skill3), mouseWorld);
-            TryUseHotbarSkill(4, input.IsActionDown(InputAction.Skill4), mouseWorld);
+            // --- skills (chargeable skills fire on RELEASE, scaled by held time) ---
+            HandleHotbarSlot(0, input.IsActionDown(InputAction.PrimaryAttack) && mouseFree, mouseWorld);
+            HandleHotbarSlot(1, input.IsActionDown(InputAction.Skill1), mouseWorld);
+            HandleHotbarSlot(2, input.IsActionDown(InputAction.Skill2), mouseWorld);
+            HandleHotbarSlot(3, input.IsActionDown(InputAction.Skill3), mouseWorld);
+            HandleHotbarSlot(4, input.IsActionDown(InputAction.Skill4), mouseWorld);
 
             // --- pickup ---
+            // Hover a drop label to target it: the pickup key then grabs THAT item,
+            // auto-walking over first when it's out of reach.
+            _renderer.HoveredDropId = Guid.Empty;
+            if (mouseFree)
+                for (int i = _renderer.DropLabelRects.Count - 1; i >= 0; i--)
+                    if (_renderer.DropLabelRects[i].rect.Contains(input.RawMousePosition))
+                    {
+                        _renderer.HoveredDropId = _renderer.DropLabelRects[i].dropId;
+                        break;
+                    }
             if (input.WasActionPressed(InputAction.Interact))
             {
-                var drop = _client.World.NearestDrop(me.Position, 1.8f);
-                if (drop != null) _client.RequestPickup(drop.DropId);
+                if (_renderer.HoveredDropId != Guid.Empty &&
+                    _client.World.Drops.TryGetValue(_renderer.HoveredDropId, out var targeted))
+                {
+                    if (NumVec2.Distance(me.Position, targeted.Position) <= 1.8f)
+                        _client.RequestPickup(targeted.DropId);
+                    else
+                        _pickupTargetId = targeted.DropId; // walk over, then grab it
+                }
+                else
+                {
+                    var drop = _client.World.NearestDrop(me.Position, 1.8f);
+                    if (drop != null) _client.RequestPickup(drop.DropId);
+                }
+            }
+            // Auto-walk toward a targeted pickup; any manual movement cancels it.
+            if (_pickupTargetId != Guid.Empty)
+            {
+                if (worldDir != NumVec2.Zero ||
+                    !_client.World.Drops.TryGetValue(_pickupTargetId, out var walkTo))
+                {
+                    _pickupTargetId = Guid.Empty;
+                }
+                else if (NumVec2.Distance(me.Position, walkTo.Position) <= 1.6f)
+                {
+                    _client.RequestPickup(walkTo.DropId);
+                    _pickupTargetId = Guid.Empty;
+                }
+                else
+                {
+                    var dir = NumVec2.Normalize(walkTo.Position - me.Position);
+                    float speed = _client.World.MyStats.MovementSpeed;
+                    float wh = me.Height;
+                    me.Position = _client.World.Map.MoveWithCollision(me.Position, dir * speed * dt, 0.3f, ref wh);
+                    me.Height = wh;
+                }
             }
             if (mouseFree && input.MouseLeftPressed)
             {
@@ -317,20 +391,48 @@ public class PlayScreen : IScreen
         _camera.Center = NumVec2.Lerp(_camera.Center, me.Position, Math.Clamp(dt * 8f, 0, 1));
     }
 
-    private void TryUseHotbarSkill(int slot, bool pressed, NumVec2 target)
+    private void HandleHotbarSlot(int slot, bool down, NumVec2 target)
     {
-        if (!pressed) return;
+        var character = _client.World.MyCharacter;
+        string skillId = slot < character.Hotbar.Length ? character.Hotbar[slot] : null;
+        var def = skillId != null ? _game.Data.Skills.GetValueOrDefault(skillId) : null;
+        if (def == null) return;
+
+        if (def.Chargeable)
+        {
+            if (_chargingSlot == slot)
+            {
+                if (down) return; // still holding — keep charging
+                float charge = Math.Clamp((_clientTime - _chargeStart) / ChargeTime, 0f, 1f);
+                _chargingSlot = -1;
+                TryUseHotbarSkill(slot, target, charge);
+            }
+            else if (down && _chargingSlot < 0 && _clientTime >= _globalReadyEnd &&
+                     !(_cooldownEnds.TryGetValue(skillId, out float r) && _clientTime < r))
+            {
+                _chargingSlot = slot;
+                _chargeStart = _clientTime;
+            }
+            return;
+        }
+        if (down) TryUseHotbarSkill(slot, target, 0f);
+    }
+
+    private void TryUseHotbarSkill(int slot, NumVec2 target, float charge)
+    {
         var character = _client.World.MyCharacter;
         string skillId = slot < character.Hotbar.Length ? character.Hotbar[slot] : null;
         if (skillId == null) return;
         if (_cooldownEnds.TryGetValue(skillId, out float readyAt) && _clientTime < readyAt) return;
+        if (_clientTime < _globalReadyEnd) return; // predicted global use-time lockout
 
         var learned = character.GetSkill(skillId);
         var def = _game.Data.Skills.GetValueOrDefault(skillId);
         if (learned == null || def == null) return;
         var stats = SkillMath.Compute(_game.Data, def, learned.Level, learned.ScrollDefinitions(_game.Data), _client.World.MyStats);
         _cooldownEnds[skillId] = _clientTime + stats.Cooldown;
-        _client.RequestUseSkill(skillId, target, _renderer.HoveredEnemyId);
+        _globalReadyEnd = _clientTime + def.UseTime;
+        _client.RequestUseSkill(skillId, target, _renderer.HoveredEnemyId, charge);
 
         // Lunge skills (Shield Bash): scoot toward the aim, stopping just short of the
         // first enemy along the path so the shove reads as a body-check, not a pass-through.
@@ -338,7 +440,7 @@ public class PlayScreen : IScreen
         {
             var toTarget = target - lunger.Position;
             _lungeDir = toTarget.LengthSquared() > 0.001f ? NumVec2.Normalize(toTarget) : lunger.Facing;
-            float dist = def.LungeDistance;
+            float dist = def.LungeDistance * (1f + 0.8f * charge);
             foreach (var e in _client.World.Enemies.Values)
             {
                 if (MathF.Abs(e.Height - lunger.Height) > 0.75f) continue; // other layers don't body-check
@@ -432,6 +534,16 @@ public class PlayScreen : IScreen
         }
 
         DrawTargetDisplay(sb, screen);
+        if (_chargingSlot >= 0)
+        {
+            // Charge meter above the hotbar: fills over ChargeTime, flashes when full.
+            const int cw = 180, chh = 10;
+            int cx = screen.X / 2 - cw / 2, cy = screen.Y - 96;
+            float frac = ChargeFraction;
+            sb.Draw(TextureGen.Pixel, new Rectangle(cx - 1, cy - 1, cw + 2, chh + 2), new Color(20, 20, 26, 220));
+            sb.Draw(TextureGen.Pixel, new Rectangle(cx, cy, (int)(cw * frac), chh),
+                frac >= 1f ? new Color(255, 226, 120) : new Color(120, 180, 255));
+        }
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
         _skillMenu.Draw(sb, _game.Input);
         _characterSheet.Draw(sb);

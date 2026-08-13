@@ -101,6 +101,19 @@ public class SkillDefinition
     /// <summary>Chance (0..1) that a hit actually applies StunDuration. Defaults to always.</summary>
     public float StunChance { get; set; } = 1f;
 
+    /// <summary>Chance (0..1) that a hit slows the target's movement (0 = never).</summary>
+    public float SlowChance { get; set; }
+    /// <summary>How long the slow lasts, in seconds.</summary>
+    public float SlowDuration { get; set; } = 2f;
+
+    /// <summary>Global lockout after using ANY skill: no other skill can be used for this
+    /// long (prevents dumping the whole hotbar in one frame). Seconds.</summary>
+    public float UseTime { get; set; } = 0.35f;
+
+    /// <summary>Hold-to-charge: the client charges up to 1s before releasing; charge
+    /// scales damage, knockback and lunge distance.</summary>
+    public bool Chargeable { get; set; }
+
     /// <summary>Flat damage added per point of Armor on equipped SHIELDS (Shield Bash:
     /// heavier shields hit harder). 0 for skills that don't scale with shields.</summary>
     public float ShieldArmorScaling { get; set; }

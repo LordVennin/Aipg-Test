@@ -154,12 +154,13 @@ public class GameClient
         _server?.Send(w, method);
     }
 
-    public void RequestUseSkill(string skillId, Vector2 target, int targetEnemyId = -1)
+    public void RequestUseSkill(string skillId, Vector2 target, int targetEnemyId = -1, float charge = 0f)
     {
         var w = Packets.Make(PacketType.UseSkill);
         w.Put(skillId);
         w.PutVec2(target);
         w.Put(targetEnemyId);
+        w.Put(charge);
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -476,12 +477,14 @@ public class GameClient
                     // Melee strikes play a real weapon-swing animation on the caster's
                     // held weapon (replacing the old abstract swipe arc). Shield skills
                     // don't swing — Shield Bash is a forward shove, not a swipe.
+                    bool isSlam = def.Tags?.Contains("Slam") == true;
                     if (def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
                         !def.RequiresShield &&
                         World.Players.GetValueOrDefault(playerId) is { } swingCaster)
                     {
                         var swingDir = effectPoint - swingCaster.Position;
                         swingCaster.SwingTimeLeft = ClientPlayer.SwingDuration;
+                        swingCaster.SwingKind = (byte)(isSlam ? 1 : 0);
                         swingCaster.SwingDir = swingDir.LengthSquared() > 0.001f
                             ? Vector2.Normalize(swingDir)
                             : swingCaster.Facing;
@@ -490,7 +493,10 @@ public class GameClient
                     switch (def.Archetype)
                     {
                         case Skills.SkillArchetype.MeleeStrike:
-                            World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius), 0.18f, "melee", effectHeight);
+                            // Slam skills leave a ground impact that fades; plain strikes
+                            // keep the quick white arc flash.
+                            World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
+                                isSlam ? 0.45f : 0.18f, isSlam ? "impact" : "melee", effectHeight);
                             break;
                         // MeleeSingle: the weapon swing itself is the visual — no impact circle.
                         case Skills.SkillArchetype.MeleeArea:

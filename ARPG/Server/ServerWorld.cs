@@ -471,7 +471,8 @@ public partial class ServerWorld
     private void MoveEnemyToward(ServerEnemy e, Vector2 target, float dt)
     {
         var dir = (target - e.Position).NormalizedOrZero();
-        var delta = dir * e.Def.MoveSpeed * e.SpeedScale * dt;
+        float slowMult = Time < e.SlowedUntil ? 0.5f : 1f;
+        var delta = dir * e.Def.MoveSpeed * e.SpeedScale * slowMult * dt;
         e.Position = Map.MoveWithCollision(e.Position, delta, e.Def.Radius, ref e.Height);
     }
 
@@ -746,12 +747,21 @@ public partial class ServerWorld
 
     // ------------------------------------------------------------------ combat
 
-    public void UseSkill(int playerId, string skillId, Vector2 target, int targetEnemyId = -1)
+    public void UseSkill(int playerId, string skillId, Vector2 target, int targetEnemyId = -1, float charge = 0f)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
         var learned = p.Character.GetSkill(skillId);
         var def = Data.Skills.GetValueOrDefault(skillId);
         if (learned == null || def == null) return;
+
+        // Global use-time lockout: you cannot dump the whole hotbar in one frame —
+        // every cast locks ALL skills for its UseTime (small tolerance for jitter).
+        if (Time < p.GlobalSkillReadyAt - 0.05f) return;
+
+        // Hold-to-charge (Shield Bash): scales damage/knockback (and the client's
+        // lunge). Client-timed like movement; the server just clamps it.
+        charge = def.Chargeable ? Math.Clamp(charge, 0f, 1f) : 0f;
+        float chargeMult = 1f + 0.7f * charge;
 
         // Weapon requirement: category check, never a specific item check.
         if (def.RequiredWeapon.HasValue)
@@ -799,6 +809,7 @@ public partial class ServerWorld
         }
 
         p.SkillReadyAt[skillId] = Time + stats.Cooldown;
+        p.GlobalSkillReadyAt = Time + def.UseTime;
 
         // Lunge skills (Shield Bash) shove the caster forward client-side; cover the
         // collision with brief server-side invulnerability so it can't hurt them.
@@ -814,10 +825,26 @@ public partial class ServerWorld
             case SkillArchetype.MeleeStrike:
             {
                 // Caster-relative: always projected in front of the player along the aim
-                // direction, never behind, clamped to weapon/skill range.
+                // direction, never behind, clamped to weapon/skill range. Hits EVERY
+                // enemy in the arc — the mace visibly swings through all of them.
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
                 foreach (var e in EnemiesNear(effectPoint, stats.Radius, p.Height))
-                    { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
+                {
+                    var (dmg, kind) = RollSkillHit(e, stats);
+                    HitEnemy(e, dmg * chargeMult, playerId, skillId, kind, RollIgnite(stats));
+                    if (e.Dead) continue;
+                    if (def.Knockback > 0)
+                    {
+                        var push = (e.Position - p.Position).NormalizedOrZero();
+                        if (push == Vector2.Zero) push = p.Facing;
+                        e.Position = Map.MoveWithCollision(e.Position, push * def.Knockback * chargeMult, e.Def.Radius, ref e.Height);
+                    }
+                    if (RollStun(def))
+                        e.StunnedUntil = Time + def.StunDuration *
+                            (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.3f : 1f);
+                    if (def.SlowChance > 0 && _rng.NextDouble() < def.SlowChance)
+                        e.SlowedUntil = Time + def.SlowDuration;
+                }
                 break;
             }
             case SkillArchetype.MeleeSingle:
@@ -831,12 +858,12 @@ public partial class ServerWorld
                 if (victim != null)
                 {
                     var (vDmg, vKind) = RollSkillHit(victim, stats);
-                    HitEnemy(victim, vDmg, playerId, skillId, vKind, RollIgnite(stats));
+                    HitEnemy(victim, vDmg * chargeMult, playerId, skillId, vKind, RollIgnite(stats));
                     if (!victim.Dead && def.Knockback > 0)
                     {
                         var push = (victim.Position - p.Position).NormalizedOrZero();
                         if (push == Vector2.Zero) push = p.Facing;
-                        victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback, victim.Def.Radius, ref victim.Height);
+                        victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback * chargeMult, victim.Def.Radius, ref victim.Height);
                     }
                     if (!victim.Dead && RollStun(def))
                         victim.StunnedUntil = Time + def.StunDuration *
