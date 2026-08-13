@@ -192,7 +192,8 @@ public class WorldRenderer
                     float ox = ((n >> 16 & 0xFF) / 255f - 0.5f) * 0.6f;
                     float oy = ((n >> 24 & 0xFF) / 255f - 0.5f) * 0.6f;
                     var pos = new NumVec2(x + 0.5f + ox, y + 0.5f + oy);
-                    _clutter.Add((pos, map.GroundLevel(x, y), $"{style}:clutter:{(n >> 8) % 3}"));
+                    uint variants = style == "forest" ? 6u : 3u; // forest: grass-heavy mix + stones
+                    _clutter.Add((pos, map.GroundLevel(x, y), $"{style}:clutter:{(n >> 8) % variants}"));
                 }
             }
     }
@@ -235,8 +236,8 @@ public class WorldRenderer
             for (int x = 0; x < map.Width; x++)
             {
                 if ((map.IsSolid(x, y) && map.Feature(x, y) == TileFeature.None) ||
-                    map.GroundLevel(x, y) > 0 || map.Ramp(x, y) != RampDirection.None)
-                    continue;
+                    map.GroundLevel(x, y) > 0)
+                    continue; // ramps at ground level get a floor beneath their sprite
                 var screen = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f));
                 if (screen.X < -80 || screen.X > camera.ScreenWidth + 80 ||
                     screen.Y < -80 || screen.Y > camera.ScreenHeight + 80) continue;
@@ -421,18 +422,20 @@ public class WorldRenderer
                     if (ground > 0)
                     {
                         float rbDepth = x + y + 1 + ground * 0.001f;
-                        var rbTint = _cliffFace * OccluderFade(rbDepth,
+                        float rbFade = OccluderFade(rbDepth,
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - ground * hpx, 64, ground * hpx + 16));
+                        var rbTex = organic ? TextureGen.GetEarthFaces(ground) : TextureGen.GetPrismFaces(ground);
+                        var rbTint = organic ? Color.White * rbFade : _cliffFace * rbFade;
                         _sorted.Add((rbDepth, batch =>
-                            batch.Draw(TextureGen.GetPrismFaces(ground),
+                            batch.Draw(rbTex,
                                 new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - ground * hpx),
                                 rbTint)));
                     }
                 }
                 else if (ground > 0)
                 {
-                    // Elevated ground: top diamond at its level plus prism faces down to
-                    // the ground floor (front tiles' tops cover interior faces).
+                    // Elevated ground: top diamond at its level plus cliff sides down to
+                    // the ground floor (interior tiles skip their sides entirely).
                     int topPx = ground * hpx;
                     int lift = ground * 11;
                     Color top;
@@ -459,20 +462,63 @@ public class WorldRenderer
                     if (Exposed(x + 1, y) || Exposed(x, y + 1))
                     {
                         float efDepth = x + y + 1 + ground * 0.001f;
-                        var efTint = _cliffFace * OccluderFade(efDepth,
-                            new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16));
-                        _sorted.Add((efDepth, batch =>
-                            batch.Draw(TextureGen.GetPrismFaces(ground),
-                                new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx),
-                                efTint)));
+                        var faceRect = new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16);
+                        float efFade = OccluderFade(efDepth, faceRect);
+                        if (organic)
+                        {
+                            // Earth cliff with a grass lip tinted per tile — the lip
+                            // overhangs the seam so rim tiles blend into their tops.
+                            var lipTint = new Color(
+                                (int)(top.R * 0.94f), (int)(top.G * 0.94f), (int)(top.B * 0.94f)) * efFade;
+                            var earthTint = Color.White * efFade;
+                            _sorted.Add((efDepth, batch =>
+                            {
+                                batch.Draw(TextureGen.GetEarthFaces(ground),
+                                    new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx), earthTint);
+                                batch.Draw(TextureGen.GetLipBand(),
+                                    new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx), lipTint);
+                            }));
+                        }
+                        else
+                        {
+                            var efTint = _cliffFace * efFade;
+                            _sorted.Add((efDepth, batch =>
+                                batch.Draw(TextureGen.GetPrismFaces(ground),
+                                    new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx),
+                                    efTint)));
+                        }
                     }
                     float etDepth = x + y + ground * 0.6f;
-                    var etTint = top * OccluderFade(etDepth,
+                    float etFade = OccluderFade(etDepth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
+                    var etTint = top * etFade;
                     var etTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
+                    uint etHash = TileHash(map.Seed ^ 0x746F70, x, y);
+                    var etDark = new Color((int)(top.R * 0.8f), (int)(top.G * 0.8f), (int)(top.B * 0.8f)) * etFade;
+                    var etLite = new Color(
+                        Math.Min(255, top.R + 22), Math.Min(255, top.G + 30), Math.Min(255, top.B + 16)) * etFade;
+                    bool etOrganic = organic;
                     _sorted.Add((etDepth, batch =>
+                    {
                         batch.Draw(etTex,
-                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint)));
+                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint);
+                        if (!etOrganic) return;
+                        // Grass blades on elevated tops too — same detail as the floor.
+                        for (int spk = 0; spk < 3; spk++)
+                        {
+                            int shift = 6 + spk * 9;
+                            int gx = (int)(10 + (etHash >> shift) % 44);
+                            int gy = (int)(6 + (etHash >> (shift + 5)) % 18);
+                            if (((etHash >> shift) & 3) != 0)
+                                batch.Draw(TextureGen.Pixel,
+                                    new Rectangle((int)baseScreen.X - 32 + gx, (int)baseScreen.Y - 16 - topPx + gy - 1, 1, 2),
+                                    spk == 1 ? etLite : new Color(88, 138, 66) * etFade);
+                            else
+                                batch.Draw(TextureGen.Pixel,
+                                    new Rectangle((int)baseScreen.X - 32 + gx, (int)baseScreen.Y - 16 - topPx + gy, 2, 1),
+                                    etDark);
+                        }
+                    }));
                 }
 
                 if (bridge > 0)
