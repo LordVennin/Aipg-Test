@@ -57,6 +57,7 @@ public class WorldRenderer
         _deckA = ParseColor(theme.DeckA, new Color(122, 96, 62));
         _deckB = ParseColor(theme.DeckB, new Color(112, 88, 58));
         _deckLip = ParseColor(theme.DeckLip, new Color(70, 54, 36));
+        GeneratePaths(map);
         RebuildProps(map);
     }
 
@@ -71,6 +72,98 @@ public class WorldRenderer
         n ^= n >> 15; n *= 0x846ca68b;
         n ^= n >> 16;
         return n;
+    }
+
+    /// <summary>Smooth per-tile value noise in [0,1]: hashed lattice values interpolated
+    /// with smoothstep, so ADJACENT tiles differ only slightly — this is what blends
+    /// organic ground without any visible tile boundary.</summary>
+    private static float ValueNoise(int seed, float x, float y, float freq)
+    {
+        float fx = x * freq, fy = y * freq;
+        int x0 = (int)MathF.Floor(fx), y0 = (int)MathF.Floor(fy);
+        float tx = fx - x0, ty = fy - y0;
+        tx = tx * tx * (3f - 2f * tx);
+        ty = ty * ty * (3f - 2f * ty);
+        float V(int gx, int gy) => (TileHash(seed, gx, gy) & 0xFFFFFF) / (float)0xFFFFFF;
+        float a = V(x0, y0), b = V(x0 + 1, y0), c = V(x0, y0 + 1), d = V(x0 + 1, y0 + 1);
+        return MathHelper.Lerp(MathHelper.Lerp(a, b, tx), MathHelper.Lerp(c, d, tx), ty);
+    }
+
+    /// <summary>Two octaves of value noise: broad patches plus fine mottling.</summary>
+    private float GroundNoise(int seed, int x, int y) =>
+        0.62f * ValueNoise(seed, x, y, 0.21f) + 0.38f * ValueNoise(seed ^ unchecked((int)0x9E3779B9), x, y, 0.57f);
+
+    private static Color LerpColor(Color a, Color b, float t) => new(
+        (int)MathHelper.Lerp(a.R, b.R, t),
+        (int)MathHelper.Lerp(a.G, b.G, t),
+        (int)MathHelper.Lerp(a.B, b.B, t));
+
+    /// <summary>Winding dirt paths (organic themes): seed-generated random walks across
+    /// the map, purely visual — floor tiles recolored to dirt with blended edges, and
+    /// clutter stays off the trail.</summary>
+    private readonly HashSet<int> _pathTiles = new();
+    /// <summary>Per-tile path strength 0..1 (core 1, fading rings outward), noise-scaled
+    /// at draw time so trail edges are ragged instead of diamond-staircased.</summary>
+    private readonly Dictionary<int, float> _pathField = new();
+
+    private void GeneratePaths(GameMap map)
+    {
+        _pathTiles.Clear();
+        _pathField.Clear();
+        if (Theme?.OrganicFloor != true) return;
+        var rng = new Random(map.Seed ^ 0x50415448);
+        bool Walkable(int tx, int ty) =>
+            tx > 0 && ty > 0 && tx < map.Width - 1 && ty < map.Height - 1 &&
+            !map.IsSolid(tx, ty) && map.Ramp(tx, ty) == RampDirection.None &&
+            map.GroundLevel(tx, ty) == 0 && map.BridgeLevel(tx, ty) == 0;
+        void Mark(int tx, int ty)
+        {
+            if (Walkable(tx, ty)) _pathTiles.Add(ty * map.Width + tx);
+        }
+        for (int p = 0; p < 3; p++)
+        {
+            bool horizontal = rng.Next(2) == 0;
+            var pos = horizontal
+                ? new NumVec2(2, rng.Next(4, map.Height - 4))
+                : new NumVec2(rng.Next(4, map.Width - 4), 2);
+            var goal = horizontal
+                ? new NumVec2(map.Width - 3, rng.Next(4, map.Height - 4))
+                : new NumVec2(rng.Next(4, map.Width - 4), map.Height - 3);
+            for (int step = 0; step < 160 && NumVec2.Distance(pos, goal) > 2f; step++)
+            {
+                var dir = NumVec2.Normalize(goal - pos);
+                float wobble = (float)(rng.NextDouble() * 2 - 1) * 0.9f;
+                var d = new NumVec2(
+                    dir.X * MathF.Cos(wobble) - dir.Y * MathF.Sin(wobble),
+                    dir.X * MathF.Sin(wobble) + dir.Y * MathF.Cos(wobble));
+                pos += d;
+                int tx = (int)pos.X, ty = (int)pos.Y;
+                Mark(tx, ty);
+                if (rng.Next(3) != 0) Mark(tx + rng.Next(-1, 2), ty + rng.Next(-1, 2));
+            }
+        }
+        // Graded field: core tiles at full strength, two fading rings outward. The
+        // draw pass scales this by fine noise, so the trail's boundary wanders
+        // naturally instead of following tile diamonds.
+        foreach (int key in _pathTiles) _pathField[key] = 1f;
+        void Spread(float strength)
+        {
+            foreach (var (key, val) in _pathField.ToList())
+            {
+                if (val < strength + 0.01f) continue;
+                int tx = key % map.Width, ty = key / map.Width;
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        if (dx == 0 && dy == 0) continue;
+                        int nk = (ty + dy) * map.Width + (tx + dx);
+                        if (Walkable(tx + dx, ty + dy) && _pathField.GetValueOrDefault(nk) < strength)
+                            _pathField[nk] = strength;
+                    }
+            }
+        }
+        Spread(0.55f);
+        Spread(0.22f);
     }
 
     private void RebuildProps(GameMap map)
@@ -93,6 +186,7 @@ public class WorldRenderer
                 }
                 if (wall > 0 || map.Ramp(x, y) != RampDirection.None || map.BridgeLevel(x, y) > 0)
                     continue;
+                if (_pathTiles.Contains(y * map.Width + x)) continue; // trails stay clear
                 if (roll < Theme.ClutterDensity)
                 {
                     float ox = ((n >> 16 & 0xFF) / 255f - 0.5f) * 0.6f;
@@ -153,18 +247,36 @@ public class WorldRenderer
                     continue;
                 }
                 uint n = TileHash(map.Seed, x, y);
-                var shade = ((n >> 4) & 3) switch
+                // Smooth noise field: neighbors differ only slightly, so tile edges
+                // disappear and the ground reads as continuous mottled terrain.
+                float gn = GroundNoise(map.Seed, x, y);
+                var shade = LerpColor(_floorD, _floorC, gn);
+                int key = y * map.Width + x;
+                float trail = _pathField.GetValueOrDefault(key);
+                bool onPath = trail > 0.6f;
+                if (trail > 0f)
                 {
-                    0 => _floorA, 1 => _floorB, 2 => _floorC, _ => _floorD,
-                };
+                    // Ragged edge: strength wobbles with fine noise so the dirt/grass
+                    // boundary wanders across tiles instead of tracing diamonds.
+                    float ragged = Math.Clamp(trail * (0.55f + 0.9f * ValueNoise(
+                        map.Seed ^ 0x7261696C, x, y, 0.9f)), 0f, 1f);
+                    var dirt = LerpColor(new Color(96, 78, 50), new Color(116, 96, 62), gn);
+                    shade = LerpColor(shade, dirt, ragged);
+                }
                 sb.Draw(TextureGen.DiamondFlat, new Vector2((int)screen.X - 32, (int)screen.Y - 16), shade);
-                // Two tiny speckles per tile (kept inside the diamond's central band).
-                int sx1 = (int)(12 + (n >> 6) % 40), sy1 = (int)(8 + (n >> 12) % 16);
-                int sx2 = (int)(12 + (n >> 17) % 40), sy2 = (int)(8 + (n >> 22) % 16);
-                var dark = new Color((int)(shade.R * 0.82f), (int)(shade.G * 0.82f), (int)(shade.B * 0.82f));
-                var lite = new Color(Math.Min(255, shade.R + 18), Math.Min(255, shade.G + 22), Math.Min(255, shade.B + 14));
-                sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + sx1, (int)screen.Y - 16 + sy1, 2, 1), dark);
-                sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + sx2, (int)screen.Y - 16 + sy2, 2, 1), lite);
+                // Ground detail: tiny grass blades off-trail, pebbles on it.
+                var dark = new Color((int)(shade.R * 0.8f), (int)(shade.G * 0.8f), (int)(shade.B * 0.8f));
+                var lite = new Color(Math.Min(255, shade.R + 22), Math.Min(255, shade.G + 30), Math.Min(255, shade.B + 16));
+                for (int spk = 0; spk < 3; spk++)
+                {
+                    int shift = 6 + spk * 9;
+                    int sx1 = (int)(10 + (n >> shift) % 44), sy1 = (int)(6 + (n >> (shift + 5)) % 18);
+                    if (!onPath && ((n >> shift) & 3) != 0)
+                        sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + sx1, (int)screen.Y - 16 + sy1 - 1, 1, 2),
+                            spk == 1 ? lite : new Color(88, 138, 66)); // grass blade
+                    else
+                        sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + sx1, (int)screen.Y - 16 + sy1, 2, 1), dark);
+                }
             }
         }
 
@@ -275,10 +387,19 @@ public class WorldRenderer
                         batch.Draw(TextureGen.GetPrismFaces(top),
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx), faceTint)));
                     float topDepth = x + y + top * 0.6f;
-                    var topTint = _wallTop * OccluderFade(topDepth,
+                    var wallTopColor = _wallTop;
+                    if (organic)
+                    {
+                        float wn = GroundNoise(map.Seed, x, y);
+                        wallTopColor = LerpColor(
+                            new Color(Math.Max(0, _wallTop.R - 9), Math.Max(0, _wallTop.G - 9), Math.Max(0, _wallTop.B - 9)),
+                            new Color(_wallTop.R + 11, _wallTop.G + 13, _wallTop.B + 9), wn);
+                    }
+                    var topTint = wallTopColor * OccluderFade(topDepth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
+                    var wtTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
                     _sorted.Add((topDepth, batch =>
-                        batch.Draw(TextureGen.DiamondSolid,
+                        batch.Draw(wtTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
                             topTint)));
                     continue;
@@ -314,23 +435,43 @@ public class WorldRenderer
                     // the ground floor (front tiles' tops cover interior faces).
                     int topPx = ground * hpx;
                     int lift = ground * 11;
-                    int check = ((x + y) & 1) == 0 ? 4 : 0;
-                    var top = new Color(
-                        Math.Min(255, _elevTop.R + lift + check),
-                        Math.Min(255, _elevTop.G + lift + check),
-                        Math.Min(255, _elevTop.B + lift + check));
-                    float efDepth = x + y + 1 + ground * 0.001f;
-                    var efTint = _cliffFace * OccluderFade(efDepth,
-                        new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16));
-                    _sorted.Add((efDepth, batch =>
-                        batch.Draw(TextureGen.GetPrismFaces(ground),
-                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx),
-                            efTint)));
+                    Color top;
+                    if (organic)
+                    {
+                        float en = GroundNoise(map.Seed, x, y);
+                        var baseTop = LerpColor(
+                            new Color(Math.Max(0, _elevTop.R - 8), Math.Max(0, _elevTop.G - 8), Math.Max(0, _elevTop.B - 8)),
+                            new Color(_elevTop.R + 10, _elevTop.G + 12, _elevTop.B + 8), en);
+                        top = new Color(
+                            Math.Min(255, baseTop.R + lift), Math.Min(255, baseTop.G + lift), Math.Min(255, baseTop.B + lift));
+                    }
+                    else
+                    {
+                        int check = ((x + y) & 1) == 0 ? 4 : 0;
+                        top = new Color(
+                            Math.Min(255, _elevTop.R + lift + check),
+                            Math.Min(255, _elevTop.G + lift + check),
+                            Math.Min(255, _elevTop.B + lift + check));
+                    }
+                    bool Exposed(int nx, int ny) =>
+                        !map.IsSolid(nx, ny) &&
+                        (map.GroundLevel(nx, ny) < ground || map.Ramp(nx, ny) != RampDirection.None);
+                    if (Exposed(x + 1, y) || Exposed(x, y + 1))
+                    {
+                        float efDepth = x + y + 1 + ground * 0.001f;
+                        var efTint = _cliffFace * OccluderFade(efDepth,
+                            new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16));
+                        _sorted.Add((efDepth, batch =>
+                            batch.Draw(TextureGen.GetPrismFaces(ground),
+                                new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx),
+                                efTint)));
+                    }
                     float etDepth = x + y + ground * 0.6f;
                     var etTint = top * OccluderFade(etDepth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
+                    var etTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
                     _sorted.Add((etDepth, batch =>
-                        batch.Draw(TextureGen.DiamondSolid,
+                        batch.Draw(etTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint)));
                 }
 
@@ -343,14 +484,18 @@ public class WorldRenderer
                     float depth = x + y + 1 + bridge * 0.6f;
                     float deckFade = OccluderFade(depth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - deckPx, 64, 38));
-                    var deck = (((x + y) & 1) == 0 ? _deckA : _deckB) * deckFade;
+                    var deckColor = organic
+                        ? LerpColor(_deckB, _deckA, GroundNoise(map.Seed, x, y))
+                        : ((x + y) & 1) == 0 ? _deckA : _deckB;
+                    var deck = deckColor * deckFade;
                     var lip = _deckLip * deckFade;
                     _sorted.Add((depth, batch =>
                     {
                         batch.Draw(TextureGen.Pixel,
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - deckPx, 64, 6),
                             lip);
-                        batch.Draw(TextureGen.DiamondSolid, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - deckPx), deck);
+                        batch.Draw(organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid,
+                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - deckPx), deck);
                     }));
                 }
             }
