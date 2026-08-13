@@ -12,6 +12,10 @@ public class GameSettings
     public bool ShowEnemyHealthBars { get; set; } = true;
     /// <summary>Show the multiplayer player list with pings (bottom left of the HUD).</summary>
     public bool ShowPlayerList { get; set; } = true;
+    /// <summary>Zone theme used when hosting/starting single player. Themes shape map
+    /// GENERATION (the forest grows big trees), so this is decided before the map exists
+    /// and replicated to joining clients.</summary>
+    public string ZoneThemeId { get; set; } = "graveyard";
     public bool Fullscreen { get; set; }
     public int ResolutionWidth { get; set; } = 1280;
     public int ResolutionHeight { get; set; } = 720;
@@ -58,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 9; // v9: elites/boss (spawn affixes, slam), targeted casts, projectile arcs
+    public const int ProtocolVersion = 10; // v10: zone theme in JoinAccept (themes shape generation)
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

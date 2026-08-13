@@ -234,13 +234,15 @@ public class GameClient
             {
                 World.MyPlayerId = r.GetInt();
                 int mapSeed = r.GetInt();
+                string zoneThemeId = r.GetString();
                 var pos = r.GetVec2();
                 float joinHeight = r.GetFloat();
                 float hp = r.GetFloat();
                 float maxHp = r.GetFloat();
                 float mana = r.GetFloat();
                 World.MyCharacter = Json.Load<CharacterData>(r.GetString());
-                World.Map = new GameMap(mapSeed);
+                World.Map = new GameMap(mapSeed,
+                    _data.ZoneThemes.FirstOrDefault(t => t.Id == zoneThemeId) ?? _data.ZoneThemes.FirstOrDefault());
                 World.Players[World.MyPlayerId] = new ClientPlayer
                 {
                     Id = World.MyPlayerId,

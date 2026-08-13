@@ -1321,6 +1321,62 @@ public static class HeadlessNetTest
         clientB.SendDebugCommand("heal");
         Pump(0.3f);
 
+        Console.WriteLine("\n-- Theme-driven generation --");
+        var forestTheme = data.ZoneThemes.First(t => t.Id == "forest");
+        var forestMap = new World.GameMap(1234, forestTheme);
+        int roots = 0, parts = 0;
+        (int rx, int ry) = (-1, -1);
+        for (int fy = 0; fy < forestMap.Height; fy++)
+            for (int fx = 0; fx < forestMap.Width; fx++)
+            {
+                if (forestMap.Feature(fx, fy) == World.TileFeature.BigTreeRoot) { roots++; (rx, ry) = (fx, fy); }
+                if (forestMap.Feature(fx, fy) != World.TileFeature.None) parts++;
+            }
+        Check(roots >= 8 && parts == roots * 4,
+              $"forest theme grows multi-tile trees ({roots} trees over {parts} tiles)");
+        Check(rx >= 0 && forestMap.IsSolid(rx, ry) && forestMap.WallHeight(rx, ry) == 2 &&
+              forestMap.Feature(rx + 1, ry + 1) == World.TileFeature.BigTreePart,
+              "big trees are solid 2x2 two-level columns (collision/LOS for free)");
+        // Same seed, different theme: the BASE layout must be identical outside the
+        // theme's added features (trees come from their own seeded stream).
+        bool baseSame = true;
+        for (int fy = 0; fy < forestMap.Height && baseSame; fy++)
+            for (int fx = 0; fx < forestMap.Width && baseSame; fx++)
+            {
+                if (forestMap.Feature(fx, fy) != World.TileFeature.None) continue;
+                baseSame = forestMap.WallHeight(fx, fy) == map.WallHeight(fx, fy) &&
+                           forestMap.GroundLevel(fx, fy) == map.GroundLevel(fx, fy) &&
+                           forestMap.BridgeLevel(fx, fy) == map.BridgeLevel(fx, fy);
+            }
+        Check(baseSame, "base layout is identical across themes for the same seed");
+
+        // The theme is decided server-side BEFORE generation and replicated on join.
+        var forestServer = new GameServer(data, 4242, "forest");
+        Check(forestServer.Start(0), "forest-themed server started");
+        var forestClient = new GameClient(data, "Ranger", null);
+        forestClient.Connect("127.0.0.1", forestServer.LocalPort, out _);
+        for (int i = 0; i < 240 && forestClient.Status != ClientStatus.InGame; i++)
+        {
+            forestServer.Update(1f / 60f);
+            forestClient.Update(1f / 60f);
+            Thread.Sleep(2);
+        }
+        Check(forestClient.Status == ClientStatus.InGame &&
+              forestClient.World.Map.Theme?.Id == "forest",
+              $"zone theme replicates to joining clients ({forestClient.World.Map?.Theme?.Id})");
+        int clientRoots = 0;
+        for (int fy = 0; fy < forestClient.World.Map.Height; fy++)
+            for (int fx = 0; fx < forestClient.World.Map.Width; fx++)
+                if (forestClient.World.Map.Feature(fx, fy) == World.TileFeature.BigTreeRoot) clientRoots++;
+        int serverRoots = 0;
+        for (int fy = 0; fy < forestServer.World.Map.Height; fy++)
+            for (int fx = 0; fx < forestServer.World.Map.Width; fx++)
+                if (forestServer.World.Map.Feature(fx, fy) == World.TileFeature.BigTreeRoot) serverRoots++;
+        Check(clientRoots == serverRoots && clientRoots > 0,
+              $"client and server grow identical trees ({clientRoots} == {serverRoots})");
+        forestClient.Disconnect();
+        forestServer.Stop();
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

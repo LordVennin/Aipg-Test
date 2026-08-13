@@ -1,6 +1,16 @@
 using System.Numerics;
+using ARPG.Data;
 
 namespace ARPG.World;
+
+/// <summary>Multi-tile generated features. Root tiles anchor the sprite; Part tiles are
+/// the rest of the footprint (rendered by the root, still solid for collision/LOS).</summary>
+public enum TileFeature : byte
+{
+    None = 0,
+    BigTreeRoot = 1,
+    BigTreePart = 2,
+}
 
 /// <summary>Ramp ascent direction: the side of the tile where the ramp reaches Ground+1.</summary>
 public enum RampDirection : byte
@@ -40,6 +50,7 @@ public class GameMap
     private readonly byte[] _ramp;     // RampDirection per tile
     private readonly byte[] _rampStyle; // 0 = smooth ramp, 1 = stairs (render-only)
     private readonly byte[] _bridge;   // elevated walkable deck level (0 = none)
+    private readonly byte[] _feature;  // TileFeature per tile (theme-generated landmarks)
 
     /// <summary>Vertical step an entity can absorb when moving between surfaces. Level
     /// differences at or under this are walkable (ramp ends); full levels are not.</summary>
@@ -48,9 +59,15 @@ public class GameMap
     public Vector2 PlayerSpawn { get; private set; }
     public List<Vector2> EnemySpawns { get; } = new();
 
-    public GameMap(int seed, int width = 44, int height = 44)
+    /// <summary>The zone theme this map was GENERATED with. Themes are decided before
+    /// generation and replicated to clients (JoinAccept), because they shape the map
+    /// itself — the forest grows multi-tile trees, not just different colors.</summary>
+    public ZoneTheme Theme { get; }
+
+    public GameMap(int seed, ZoneTheme theme = null, int width = 44, int height = 44)
     {
         Seed = seed;
+        Theme = theme;
         Width = width;
         Height = height;
         _ground = new byte[width * height];
@@ -58,6 +75,7 @@ public class GameMap
         _ramp = new byte[width * height];
         _rampStyle = new byte[width * height];
         _bridge = new byte[width * height];
+        _feature = new byte[width * height];
         Generate(new Random(seed));
     }
 
@@ -71,6 +89,7 @@ public class GameMap
     /// ramp. Purely visual — movement treats both identically.</summary>
     public bool RampIsStairs(int x, int y) => InBounds(x, y) && _rampStyle[Idx(x, y)] == 1;
     public int BridgeLevel(int x, int y) => InBounds(x, y) ? _bridge[Idx(x, y)] : 0;
+    public TileFeature Feature(int x, int y) => InBounds(x, y) ? (TileFeature)_feature[Idx(x, y)] : TileFeature.None;
 
     public bool IsSolid(int x, int y) => WallHeight(x, y) > 0;
 
@@ -361,6 +380,8 @@ public class GameMap
                 _bridge[i] = 0;
             }
 
+        GenerateThemeFeatures();
+
         // Enemy spawn points: walkable ground tiles far enough from the player spawn.
         // Includes elevated ground — enemies spawn at whatever level the tile has.
         int wanted = 14;
@@ -370,6 +391,42 @@ public class GameMap
             var p = new Vector2(rng.Next(3, Width - 3) + 0.5f, rng.Next(3, Height - 3) + 0.5f);
             if (!IsWallAt(p) && Vector2.Distance(p, PlayerSpawn) > 8f)
                 EnemySpawns.Add(p);
+        }
+    }
+
+    /// <summary>
+    /// Theme-specific landmarks, generated from their own seeded stream so the BASE
+    /// layout stays identical across themes for the same seed. The forest grows large
+    /// 2x2 trees: solid 2-level wall columns (collision, pathfinding avoidance and
+    /// line-of-sight blocking come free) marked with feature flags so the renderer
+    /// draws one big canopy sprite instead of blocks.
+    /// </summary>
+    private void GenerateThemeFeatures()
+    {
+        if (Theme?.Id != "forest") return;
+        var rng = new Random(Seed ^ 0x466F7245); // separate stream: base layout unchanged
+        int planted = 0, attempts = 0;
+        while (planted < 16 && attempts++ < 400)
+        {
+            int x = rng.Next(2, Width - 3), y = rng.Next(2, Height - 3);
+            // Keep the authored demo region and the spawn area clear of big trees.
+            if (x >= 4 && x <= 19 && y >= 4 && y <= 32) continue;
+            if (Vector2.Distance(new Vector2(x + 1f, y + 1f), PlayerSpawn) < 5f) continue;
+            bool clear = true;
+            for (int dy = 0; dy < 2 && clear; dy++)
+                for (int dx = 0; dx < 2 && clear; dx++)
+                    clear = _wall[Idx(x + dx, y + dy)] == 0 && _ground[Idx(x + dx, y + dy)] == 0 &&
+                            _ramp[Idx(x + dx, y + dy)] == 0 && _bridge[Idx(x + dx, y + dy)] == 0 &&
+                            _feature[Idx(x + dx, y + dy)] == 0;
+            if (!clear) continue;
+            for (int dy = 0; dy < 2; dy++)
+                for (int dx = 0; dx < 2; dx++)
+                {
+                    _wall[Idx(x + dx, y + dy)] = 2;
+                    _feature[Idx(x + dx, y + dy)] = (byte)TileFeature.BigTreePart;
+                }
+            _feature[Idx(x, y)] = (byte)TileFeature.BigTreeRoot;
+            planted++;
         }
     }
 

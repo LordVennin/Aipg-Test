@@ -63,10 +63,12 @@ public partial class ServerWorld
     private const float RespawnDelay = 20f;
     private const float PlayerRespawnDelay = 3f;
 
-    public ServerWorld(GameData data, int mapSeed, IServerEvents events)
+    public ServerWorld(GameData data, int mapSeed, IServerEvents events, string zoneThemeId = null)
     {
         Data = data;
-        Map = new GameMap(mapSeed);
+        var theme = data.ZoneThemes.FirstOrDefault(t => t.Id == zoneThemeId)
+                    ?? data.ZoneThemes.FirstOrDefault();
+        Map = new GameMap(mapSeed, theme);
         _events = events;
         _rng = new Random();
         Loot = new LootGenerator(data, _rng);

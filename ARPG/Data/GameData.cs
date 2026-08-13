@@ -64,6 +64,11 @@ public class ZoneTheme
     public string Background { get; set; } = "101116";
     public string FloorA { get; set; } = "3A423A";
     public string FloorB { get; set; } = "343C36";
+    /// <summary>Organic floor: per-tile shade picked from FloorA..FloorD by a seed hash,
+    /// drawn gridless with tiny speckles — continuous terrain instead of a checkerboard.</summary>
+    public bool OrganicFloor { get; set; }
+    public string FloorC { get; set; }
+    public string FloorD { get; set; }
     public string CliffFace { get; set; } = "808C80";
     public string ElevatedTop { get; set; } = "465044";
     public string WallFace { get; set; } = "8C85AD";

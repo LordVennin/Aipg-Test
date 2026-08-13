@@ -33,29 +33,22 @@ public class WorldRenderer
     /// clutter/feature layout is rebuilt deterministically from the map seed on change.</summary>
     public ZoneTheme Theme { get; private set; }
     public Color BackgroundColor { get; private set; } = new(16, 17, 22);
-    private Color _floorA, _floorB, _cliffFace, _elevTop, _wallFace, _wallTop, _rampTint;
+    private Color _floorA, _floorB, _floorC, _floorD, _cliffFace, _elevTop, _wallFace, _wallTop, _rampTint;
     private Color _deckA, _deckB, _deckLip;
     private GameMap _themedMap;
-    private int _themeIndex;
     private readonly List<(NumVec2 pos, float height, string key)> _clutter = new();
     private readonly List<(int x, int y, int top, string key)> _features = new();
-
-    public void CycleTheme()
-    {
-        if (_data.ZoneThemes.Count == 0) return;
-        _themeIndex = (_themeIndex + 1) % _data.ZoneThemes.Count;
-        SetTheme(_data.ZoneThemes[_themeIndex], _themedMap);
-    }
 
     public void SetTheme(ZoneTheme theme, GameMap map)
     {
         Theme = theme;
         _themedMap = map;
         if (theme == null) return;
-        _themeIndex = Math.Max(0, _data.ZoneThemes.IndexOf(theme));
         BackgroundColor = ParseColor(theme.Background, new Color(16, 17, 22));
         _floorA = ParseColor(theme.FloorA, new Color(58, 66, 58));
         _floorB = ParseColor(theme.FloorB, new Color(52, 60, 54));
+        _floorC = ParseColor(theme.FloorC ?? theme.FloorA, _floorA);
+        _floorD = ParseColor(theme.FloorD ?? theme.FloorB, _floorB);
         _cliffFace = ParseColor(theme.CliffFace, new Color(128, 140, 128));
         _elevTop = ParseColor(theme.ElevatedTop, new Color(70, 80, 68));
         _wallFace = ParseColor(theme.WallFace, new Color(140, 133, 173));
@@ -68,9 +61,17 @@ public class WorldRenderer
     }
 
     /// <summary>Deterministic per-tile hash (independent of process randomization) so
-    /// every client lays out identical decoration for the same map seed.</summary>
-    private static uint TileHash(int seed, int x, int y) =>
-        (uint)(x * 73856093 ^ y * 19349663 ^ seed * 83492791 ^ 0x5bd1e995);
+    /// every client lays out identical decoration for the same map seed. Uses a full
+    /// avalanche mix — low bits of a plain multiply-xor correlate with tile parity and
+    /// read as a checkerboard on organic floors.</summary>
+    private static uint TileHash(int seed, int x, int y)
+    {
+        uint n = (uint)(x * 73856093 ^ y * 19349663 ^ seed * 83492791);
+        n ^= n >> 16; n *= 0x7feb352d;
+        n ^= n >> 15; n *= 0x846ca68b;
+        n ^= n >> 16;
+        return n;
+    }
 
     private void RebuildProps(GameMap map)
     {
@@ -124,29 +125,46 @@ public class WorldRenderer
         var map = world.Map;
         if (map == null) return;
         if (Theme == null || _themedMap != map)
-        {
-            var wanted = Environment.GetEnvironmentVariable("ARPG_THEME");
-            var theme = _data.ZoneThemes.FirstOrDefault(t => t.Id == wanted)
-                        ?? (Theme ?? _data.ZoneThemes.FirstOrDefault());
-            SetTheme(theme, map);
-        }
+            SetTheme(map.Theme ?? _data.ZoneThemes.FirstOrDefault(), map);
         DropLabelRects.Clear();
         EnemyHitRects.Clear();
 
         // --- base pass: flat level-0 floor tiles (nothing ever renders beneath them) ---
+        // Grid style: the classic checker with subtle tile edges. Organic style (forest):
+        // per-tile shades picked by seed hash on a gridless diamond, plus tiny speckles,
+        // so the ground reads as continuous terrain instead of a board.
+        bool organic = Theme?.OrganicFloor == true;
         var floorA = Theme != null ? _floorA : new Color(58, 66, 58);
         var floorB = Theme != null ? _floorB : new Color(52, 60, 54);
         for (int y = 0; y < map.Height; y++)
         {
             for (int x = 0; x < map.Width; x++)
             {
-                if (map.IsSolid(x, y) || map.GroundLevel(x, y) > 0 || map.Ramp(x, y) != RampDirection.None)
+                if ((map.IsSolid(x, y) && map.Feature(x, y) == TileFeature.None) ||
+                    map.GroundLevel(x, y) > 0 || map.Ramp(x, y) != RampDirection.None)
                     continue;
                 var screen = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f));
                 if (screen.X < -80 || screen.X > camera.ScreenWidth + 80 ||
                     screen.Y < -80 || screen.Y > camera.ScreenHeight + 80) continue;
-                var tint = ((x + y) & 1) == 0 ? floorA : floorB;
-                sb.Draw(TextureGen.Diamond, new Vector2((int)screen.X - 32, (int)screen.Y - 16), tint);
+                if (!organic)
+                {
+                    var tint = ((x + y) & 1) == 0 ? floorA : floorB;
+                    sb.Draw(TextureGen.Diamond, new Vector2((int)screen.X - 32, (int)screen.Y - 16), tint);
+                    continue;
+                }
+                uint n = TileHash(map.Seed, x, y);
+                var shade = ((n >> 4) & 3) switch
+                {
+                    0 => _floorA, 1 => _floorB, 2 => _floorC, _ => _floorD,
+                };
+                sb.Draw(TextureGen.DiamondFlat, new Vector2((int)screen.X - 32, (int)screen.Y - 16), shade);
+                // Two tiny speckles per tile (kept inside the diamond's central band).
+                int sx1 = (int)(12 + (n >> 6) % 40), sy1 = (int)(8 + (n >> 12) % 16);
+                int sx2 = (int)(12 + (n >> 17) % 40), sy2 = (int)(8 + (n >> 22) % 16);
+                var dark = new Color((int)(shade.R * 0.82f), (int)(shade.G * 0.82f), (int)(shade.B * 0.82f));
+                var lite = new Color(Math.Min(255, shade.R + 18), Math.Min(255, shade.G + 22), Math.Min(255, shade.B + 14));
+                sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + sx1, (int)screen.Y - 16 + sy1, 2, 1), dark);
+                sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + sx2, (int)screen.Y - 16 + sy2, 2, 1), lite);
             }
         }
 
@@ -223,6 +241,28 @@ public class WorldRenderer
                 // so a tall column BEHIND a short one can no longer paint over it. Face
                 // geometry matches diamond edges exactly, so overdraw between neighbors is
                 // seamless instead of jagged.
+                var tileFeature = map.Feature(x, y);
+                if (tileFeature != TileFeature.None)
+                {
+                    // Multi-tile generated feature (forest big tree): the wall data
+                    // supplies collision/LOS; the ROOT tile draws one large sprite
+                    // anchored at the 2x2 footprint's center instead of blocks.
+                    if (tileFeature == TileFeature.BigTreeRoot)
+                    {
+                        var tex = SpriteGen.GetPropSprite($"forest:bigtree:{(TileHash(map.Seed, x, y) >> 5) % 2}");
+                        if (tex != null)
+                        {
+                            var center = camera.WorldToScreen(new NumVec2(x + 1f, y + 1f));
+                            int tw = tex.Width * 2, th = tex.Height * 2;
+                            var dest = new Rectangle((int)center.X - tw / 2, (int)center.Y - th + 10, tw, th);
+                            float tdepth = x + y + 2 + 0.002f; // occupant of the footprint center
+                            float tfade = OccluderFade(tdepth, dest);
+                            _sorted.Add((tdepth, batch => batch.Draw(tex, dest, Color.White * tfade)));
+                        }
+                    }
+                    continue;
+                }
+
                 if (wall > 0)
                 {
                     int top = ground + wall;
