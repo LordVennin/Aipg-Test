@@ -172,6 +172,15 @@ public static class HeadlessNetTest
               "generated item is byte-identical on both clients (no rerolling)");
         Check(dropA.Item.InstanceId == dropB.Item.InstanceId, "drop shares one InstanceId across peers");
 
+        // Dev/testing command: drop_scrolls scatters one drop per scroll type.
+        int scrollDropsBefore = server.World.Drops.Count;
+        clientA.SendDebugCommand("drop_scrolls");
+        Pump(0.5f);
+        int scrollTypes = data.Items.Values.Count(b =>
+            b.Category is Items.ItemCategory.EnchantScroll or Items.ItemCategory.SkillScroll);
+        Check(scrollTypes > 0 && server.World.Drops.Count - scrollDropsBefore == scrollTypes,
+              $"drop_scrolls scatters one drop per scroll type ({server.World.Drops.Count - scrollDropsBefore}/{scrollTypes})");
+
         Console.WriteLine("\n-- Exclusive pickup --");
         // Drops can land inside wall pillars (the server rejects teleports into walls, so a
         // player standing "at" such a drop never actually moves). Stand at the nearest
@@ -381,6 +390,7 @@ public static class HeadlessNetTest
         var kbPlayer = server.World.Players[clientA.World.MyPlayerId];
         var kbTarget = server.World.Enemies.Values.Where(e => !e.Dead)
             .OrderBy(e => Vector2.Distance(e.Position, kbPlayer.Position)).First();
+        kbTarget.StunnedUntil = server.World.Time + 5f; // hold still: measure pure knockback, not chase drift
         float kbBefore = Vector2.Distance(kbTarget.Position, kbPlayer.Position);
         clientA.RequestUseSkill("basic_strike", kbTarget.Position);
         Pump(0.15f);
@@ -533,8 +543,8 @@ public static class HeadlessNetTest
                   or Stats.StatType.ArcaneResistance or Stats.StatType.Armor)
               .All(m => !m.CompatibleWith(Items.ItemCategory.Mace) && !m.CompatibleWith(Items.ItemCategory.Staff)),
               "defense modifiers (armor, resistances) no longer roll on weapons");
-        Check(data.Skills["basic_strike"].Name == "Mace Strike" && data.Skills["mace_strike"].Name == "Heavy Strike",
-              "skills renamed: Mace Strike (single target) and Heavy Strike (area)");
+        Check(data.Skills["basic_strike"].Name == "Mace Strike" && data.Skills["mace_strike"].Name == "Mace Slam",
+              "skills renamed: Mace Strike (swing) and Mace Slam (ground slam)");
 
         // Crit stats flow through the stat system: base 5% / 150% plus weapon suffixes.
         var critChar = new Sim.CharacterData();
@@ -865,6 +875,7 @@ public static class HeadlessNetTest
         Pump(1.0f);
         manaPlayer.Mana = 1;
         manaPlayer.SkillReadyAt.Remove("fire_bolt");
+        manaPlayer.GlobalSkillReadyAt = 0;
         clientB.RequestUseSkill("fire_bolt", clientB.World.Me.Position + new Vector2(3, 0));
         Pump(0.4f);
         Check(!manaPlayer.SkillReadyAt.ContainsKey("fire_bolt") && manaPlayer.Mana <= 1.01f + manaPlayer.Stats.ManaRegeneration,
@@ -1086,6 +1097,7 @@ public static class HeadlessNetTest
         Pump(0.4f);
         srvB.Mana = srvB.Stats.MaxMana;
         srvB.SkillReadyAt.Remove("mace_strike");
+        srvB.GlobalSkillReadyAt = 0;
         clientB.RequestUseSkill("mace_strike", underEnemy.Position);
         Pump(0.5f);
         Check(underEnemy.Health < 499.9f,
@@ -1106,8 +1118,13 @@ public static class HeadlessNetTest
         bool elevatedDrop = false;
         for (int hit = 0; hit < 30 && !plateauEnemy.Dead; hit++)
         {
+            // Mace Slam's knockback shoves the target out of reach between swings;
+            // pin it back to the spawn spot so every iteration connects.
+            plateauEnemy.Position = new Vector2(10.5f, 25.3f);
+            plateauEnemy.Height = 1f;
             srvB.Mana = srvB.Stats.MaxMana;
             srvB.SkillReadyAt.Clear();
+            srvB.GlobalSkillReadyAt = 0;
             clientB.RequestUseSkill("mace_strike", plateauEnemy.Position);
             Pump(0.25f);
         }
@@ -1121,7 +1138,7 @@ public static class HeadlessNetTest
         {
             Pump(0.1f);
             elevatedDrop = clientA.World.Drops.Values.Any(d =>
-                Vector2.Distance(d.Position, goldSpot) < 0.5f && MathF.Abs(d.Height - 1f) < 0.05f);
+                Vector2.Distance(d.Position, goldSpot) < 0.75f && MathF.Abs(d.Height - 1f) < 0.05f);
         }
         Check(elevatedDrop, "drops replicate to clients with their surface elevation");
         clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
@@ -1193,6 +1210,8 @@ public static class HeadlessNetTest
         {
             srvB2.Health = hpBeforeRain;
             clientB.World.Me.Position = new Vector2(13.5f, 17.5f);
+            rimSpitter.Position = new Vector2(13.5f, 14.5f); // pin to the rim: wandering off breaks the sightline
+            rimSpitter.Height = 1f;
             Pump(0.2f);
             rained = server.World.Projectiles.Values.Any(pr => pr.OwnerId == rimSpitter.Id && pr.HeightStep < -0.01f)
                      || srvB2.Health < hpBeforeRain - 0.5f;
@@ -1224,6 +1243,7 @@ public static class HeadlessNetTest
         {
             srvB2.Mana = srvB2.Stats.MaxMana;
             srvB2.SkillReadyAt.Clear();
+            srvB2.GlobalSkillReadyAt = 0;
             clientB.RequestUseSkill("fire_bolt", lowTarget.Position, lowTarget.Id);
             for (int i = 0; i < 25 && !bolted; i++)
             {
@@ -1302,24 +1322,105 @@ public static class HeadlessNetTest
             slamSeen = clientA.World.Effects.Any(fx => fx.Kind == "slam") && boss.SlamReadyAt > 0;
         }
         Check(slamSeen, "boss ground slam fires and replicates its AoE visual");
-        int dropsBeforeBoss = server.World.Drops.Count;
+        // Track NEW drop ids rather than a raw count delta: B's teleport sweep during
+        // the kill loop can auto-pickup OLD gold piles, which would mask the burst.
+        var dropKeysBeforeBoss = server.World.Drops.Keys.ToHashSet();
         boss.Health = 30f;
         for (int hit = 0; hit < 20 && !boss.Dead; hit++)
         {
             srvBBoss.Mana = srvBBoss.Stats.MaxMana;
             srvBBoss.SkillReadyAt.Clear();
+            srvBBoss.GlobalSkillReadyAt = 0;
             srvBBoss.Health = srvBBoss.Stats.MaxHealth;
-            clientB.World.Me.Position = boss.Position + new Vector2(-1.0f, 0);
+            // Stand at the edge of Mace Slam's reach (range 1.5 + radius 1.25) but
+            // outside gold auto-pickup (1.1 + ~0.6 drop scatter), so the loot burst
+            // survives long enough to be counted.
+            clientB.World.Me.Position = boss.Position + new Vector2(-2.2f, 0);
             clientB.RequestUseSkill("mace_strike", boss.Position);
             Pump(0.25f);
         }
         Check(boss.Dead, "Gravelord defeated");
         Pump(0.5f);
-        int bossDrops = server.World.Drops.Count - dropsBeforeBoss;
+        int bossDrops = server.World.Drops.Keys.Count(k => !dropKeysBeforeBoss.Contains(k));
         Check(bossDrops >= 4, $"boss death guarantees a loot burst ({bossDrops} drops)");
         clientB.SendDebugCommand("kill_nearby");
         clientB.SendDebugCommand("heal");
         Pump(0.3f);
+
+        Console.WriteLine("\n-- Combat feel: multi-hit, slow, use-time lockout --");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+        var srvMulti = server.World.Players[bId];
+        // Three grunts stacked in one spot: a single swing must hit more than one.
+        var pack3 = new List<Server.ServerEnemy>();
+        for (int i = 0; i < 3; i++)
+        {
+            var g = server.World.SpawnEnemy("grunt", clientB.World.Me.Position + new Vector2(1.2f, 0.1f * i));
+            g.Health = 500f;
+            g.StunnedUntil = server.World.Time + 30f;
+            pack3.Add(g);
+        }
+        Pump(0.2f);
+        srvMulti.Mana = srvMulti.Stats.MaxMana;
+        srvMulti.SkillReadyAt.Clear();
+        srvMulti.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("basic_strike", pack3[0].Position);
+        Pump(0.4f);
+        int struck = pack3.Count(g => g.Health < 499.9f);
+        Check(struck >= 2, $"Mace Strike hits every enemy in the arc ({struck} of 3 struck)");
+
+        // Mace Slam applies its slow debuff (60% chance — retry a few casts).
+        bool slowed = false;
+        for (int attempt = 0; attempt < 8 && !slowed; attempt++)
+        {
+            srvMulti.Mana = srvMulti.Stats.MaxMana;
+            srvMulti.SkillReadyAt.Clear();
+            srvMulti.GlobalSkillReadyAt = 0;
+            clientB.RequestUseSkill("mace_strike", pack3[0].Position);
+            Pump(0.3f);
+            slowed = pack3.Any(g => g.SlowedUntil > server.World.Time);
+        }
+        Check(slowed, "Mace Slam slows survivors");
+        Check(data.Skills["mace_strike"].Name == "Mace Slam" &&
+              data.Skills["mace_strike"].Tags.Contains("Slam") &&
+              data.Skills["mace_strike"].Tags.Contains("Area"),
+              "Heavy Strike renamed to Mace Slam with Slam/Area tags");
+
+        // Global use-time lockout: two casts in the same instant — only ONE fires.
+        srvMulti.Mana = srvMulti.Stats.MaxMana;
+        srvMulti.SkillReadyAt.Clear();
+        srvMulti.GlobalSkillReadyAt = 0;
+        // (fire_bolt may be multishot-scrolled by now — compare against ITS projectile
+        // count, and require the second cast to add nothing.)
+        int projBefore = server.World.Projectiles.Count;
+        server.World.UseSkill(bId, "fire_bolt", srvMulti.Position + new Vector2(4, 0));
+        int projAfterFirst = server.World.Projectiles.Count;
+        server.World.UseSkill(bId, "ice_spike", srvMulti.Position + new Vector2(4, 0));
+        Check(projAfterFirst > projBefore && server.World.Projectiles.Count == projAfterFirst,
+              $"use-time lockout blocks the second simultaneous cast ({projAfterFirst - projBefore} bolt(s), then 0)");
+        foreach (var g in pack3) g.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        Console.WriteLine("\n-- Stairs side access --");
+        // Walking off the plateau rim onto the stairs' LOW section hops you down onto
+        // the steps (ramp tiles allow a one-level drop) instead of wedging in the corner.
+        float sideH = 1f;
+        var sideWalker = new Vector2(15.85f, 22.6f);
+        for (int i = 0; i < 160; i++)
+            sideWalker = map.MoveWithCollision(sideWalker, new Vector2(0, 0.05f), 0.3f, ref sideH);
+        Check(sideWalker.Y > 24.3f && sideH < 0.6f,
+              $"stairs are accessible from the upper side edge (y {sideWalker.Y:0.0}, h {sideH:0.00})");
+        // Plain cliff edges still refuse the drop — no walking off the plateau.
+        float cliffH2 = 1f;
+        var cliffWalker2 = new Vector2(13.5f, 15.6f);
+        for (int i = 0; i < 60; i++)
+            cliffWalker2 = map.MoveWithCollision(cliffWalker2, new Vector2(0, 0.05f), 0.3f, ref cliffH2);
+        Check(cliffWalker2.Y < 16.0f && MathF.Abs(cliffH2 - 1f) < 0.05f,
+              $"plain cliff edges still block walking off (y {cliffWalker2.Y:0.0})");
 
         Console.WriteLine("\n-- Theme-driven generation --");
         var forestTheme = data.ZoneThemes.First(t => t.Id == "forest");

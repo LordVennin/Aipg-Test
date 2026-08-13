@@ -278,7 +278,7 @@ public static class TextureGen
                     {
                         float hs = SurfH(1f, v);
                         float hgt = 16 * (1 + v) - syl;
-                        if (hs > 1f && hgt >= -16 && hgt <= hs)
+                        if (hs > 1f && hgt >= 0 && hgt <= hs)
                             Consider(1f, v, hs - hgt < 1.2f ? 88 : 140);
                     }
                     float uu = 1f + sxl / 32f; // v = 1 edge
@@ -286,7 +286,7 @@ public static class TextureGen
                     {
                         float hs = SurfH(uu, 1f);
                         float hgt = 16 * (uu + 1) - syl;
-                        if (hs > 1f && hgt >= -16 && hgt <= hs)
+                        if (hs > 1f && hgt >= 0 && hgt <= hs)
                             Consider(uu, 1f, hs - hgt < 1.2f ? 64 : 96);
                     }
                 }

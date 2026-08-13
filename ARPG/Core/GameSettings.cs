@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 10; // v10: zone theme in JoinAccept (themes shape generation)
+    public const int ProtocolVersion = 11; // v11: charged casts, global use-time, slow debuff
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

@@ -132,17 +132,26 @@ public class GameMap
         float bestDiff = float.MaxValue;
 
         float ground = GroundLevel(x, y) + RampT(x, y, pos);
-        float diff = MathF.Abs(ground - currentHeight);
-        if (diff <= bestDiff) { best = ground; bestDiff = diff; }
+        // Climbing more than the step tolerance is never allowed; DROPPING down is
+        // allowed up to a full level on RAMP tiles, so walking onto stairs from the
+        // upper side edge hops you down onto the steps instead of wedging you in the
+        // corner between the flank and the transition.
+        float signed = ground - currentHeight; // positive = climbing
+        float dropTol = Ramp(x, y) != RampDirection.None ? 1.05f : StepTolerance;
+        if (signed <= StepTolerance && signed >= -dropTol)
+        {
+            best = ground;
+            bestDiff = MathF.Abs(signed);
+        }
 
         int bridge = BridgeLevel(x, y);
         if (bridge > 0)
         {
             float bDiff = MathF.Abs(bridge - currentHeight);
-            if (bDiff < bestDiff) { best = bridge; bestDiff = bDiff; }
+            if (bDiff <= StepTolerance && bDiff < bestDiff) { best = bridge; bestDiff = bDiff; }
         }
 
-        return bestDiff <= StepTolerance ? best : null;
+        return best;
     }
 
     /// <summary>Can a circle at `height` overlap this tile at all? (Used for collision:
@@ -176,21 +185,32 @@ public class GameMap
         const float PenSlack = 0.15f;
         var pos = from;
         float penHere = CirclePenetration(pos, radius, height);
+        // A step is allowed when it doesn't push deeper into unreachable tiles — OR
+        // when the penetration only APPEARS because the surface height changed under
+        // us (dropping onto stairs makes the flank behind 'unreachable' while the
+        // circle still brushes it); the push-out below separates us over the next
+        // few steps. At the old height such a position is essentially clear, so this
+        // can never tunnel through a genuinely solid wall.
+        bool StepAllowed(Vector2 tryPos, float newHeight, float oldHeight, float basePen)
+        {
+            float cap = MathF.Max(basePen, PenSlack) + 0.001f;
+            if (CirclePenetration(tryPos, radius, newHeight) <= cap) return true;
+            return MathF.Abs(newHeight - oldHeight) > 0.2f &&
+                   CirclePenetration(tryPos, radius, oldHeight) <= cap;
+        }
         var tryX = pos + new Vector2(delta.X, 0);
-        if (SampleHeight(tryX, height) is { } hx &&
-            CirclePenetration(tryX, radius, hx) is { } px && px <= MathF.Max(penHere, PenSlack) + 0.001f)
+        if (SampleHeight(tryX, height) is { } hx && StepAllowed(tryX, hx, height, penHere))
         {
             pos = tryX;
             height = hx;
-            penHere = px;
+            penHere = CirclePenetration(pos, radius, height);
         }
         var tryY = pos + new Vector2(0, delta.Y);
-        if (SampleHeight(tryY, height) is { } hy &&
-            CirclePenetration(tryY, radius, hy) is { } py && py <= MathF.Max(penHere, PenSlack) + 0.001f)
+        if (SampleHeight(tryY, height) is { } hy && StepAllowed(tryY, hy, height, penHere))
         {
             pos = tryY;
             height = hy;
-            penHere = py;
+            penHere = CirclePenetration(pos, radius, height);
         }
         if (penHere > 0f)
         {

@@ -201,7 +201,8 @@ public class GameServer : IServerEvents
                 string skillId = r.GetString();
                 var target = r.GetVec2();
                 int targetEnemyId = r.GetInt();
-                World.UseSkill(playerId, skillId, target, targetEnemyId);
+                float charge = r.GetFloat();
+                World.UseSkill(playerId, skillId, target, targetEnemyId, charge);
                 break;
             }
             case PacketType.PickupRequest:
@@ -394,6 +395,7 @@ public class GameServer : IServerEvents
             byte debuffs = 0;
             if (World.Time < e.StunnedUntil) debuffs |= EnemyDebuffs.Stunned;
             if (e.BurnTimeLeft > 0) debuffs |= EnemyDebuffs.Burning;
+            if (World.Time < e.SlowedUntil) debuffs |= EnemyDebuffs.Slowed;
             w.Put(debuffs);
             w.Put(e.Height);
         }

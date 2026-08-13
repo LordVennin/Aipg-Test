@@ -123,6 +123,18 @@ public static class SpriteGen
             Set(4, 4, Color.White);
             Set(3, 4, new Color(255, 240, 170)); Set(5, 4, new Color(255, 240, 170));
         }
+        else if (kind == "slow")
+        {
+            // Double blue chevron pointing down: movement dragged toward the ground.
+            var blue = new Color(110, 170, 245);
+            var blueDark = new Color(60, 110, 200);
+            for (int i = 0; i < 4; i++)
+            {
+                Set(1 + i, 1 + i, blue); Set(7 - i, 1 + i, blue);
+                Set(1 + i, 4 + i, blueDark); Set(7 - i, 4 + i, blueDark);
+            }
+            Set(4, 4, blue); Set(4, 7, blueDark);
+        }
         else // burn
         {
             var flame = new Color(240, 120, 30);
@@ -142,6 +154,67 @@ public static class SpriteGen
 
         var tex = BakeStrip(px, s, s);
         _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    /// <summary>Solid-red silhouette of an enemy frame, cached per type+frame — the
+    /// renderer draws it at small offsets beneath the sprite as a hover OUTLINE
+    /// (tinting the whole sprite red made elites unreadable).</summary>
+    public static Texture2D GetEnemySilhouette(EnemyDefinition def, int frame)
+    {
+        var frames = GetEnemyFrames(def);
+        if (frames == null || frames.Length == 0) return null;
+        frame = Math.Abs(frame) % frames.Length;
+        string key = $"sil:{def.Id}:{frame}";
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+        var src = frames[frame];
+        var data = new Color[src.Width * src.Height];
+        src.GetData(data);
+        var red = new Color(255, 66, 52);
+        for (int i = 0; i < data.Length; i++)
+            data[i] = data[i].A != 0 ? red : Color.Transparent;
+        var tex = new Texture2D(_device, src.Width, src.Height);
+        tex.SetData(data);
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    /// <summary>Radial ground-crack impact overlay (drawn iso-squashed by the renderer):
+    /// jagged spokes radiating from a bright center, used by Slam skills.</summary>
+    public static Texture2D GetImpactSprite()
+    {
+        if (_device == null) return null;
+        if (_cache.TryGetValue("fx:impact", out var cached)) return cached[0];
+        const int s2 = 64;
+        var px = new Color[s2 * s2];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < s2 && y >= 0 && y < s2) px[y * s2 + x] = c; }
+        var crack = new Color(58, 46, 34);
+        var crackLite = new Color(96, 78, 56);
+        var flash = new Color(235, 220, 170);
+        var rng = new Random(1234);
+        const int spokes = 9;
+        for (int i = 0; i < spokes; i++)
+        {
+            float ang = i / (float)spokes * MathF.Tau + (float)rng.NextDouble() * 0.4f;
+            float len = 18 + (float)rng.NextDouble() * 12;
+            float cx = 32, cy = 32;
+            float dx = MathF.Cos(ang), dy = MathF.Sin(ang);
+            for (float d = 3; d < len; d += 0.7f)
+            {
+                // jitter the crack line as it travels
+                if (rng.Next(4) == 0) { cx += -dy * (rng.Next(3) - 1) * 0.8f; cy += dx * (rng.Next(3) - 1) * 0.8f; }
+                int xx = (int)(cx + dx * d), yy = (int)(cy + dy * d);
+                Set(xx, yy, d < len * 0.55f ? crack : crackLite);
+                if (d < len * 0.35f) Set(xx + 1, yy, crack);
+            }
+        }
+        // Bright center flash.
+        for (int y = -3; y <= 3; y++)
+            for (int x = -3; x <= 3; x++)
+                if (x * x + y * y <= 9) Set(32 + x, 32 + y, flash);
+        var tex = new Texture2D(_device, s2, s2);
+        tex.SetData(px);
+        _cache["fx:impact"] = new[] { tex };
         return tex;
     }
 

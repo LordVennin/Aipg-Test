@@ -32,6 +32,8 @@ public class ClientPlayer
     public const float SwingDuration = 0.26f;
     /// <summary>World-space direction of the current swing (toward the impact point).</summary>
     public Vector2 SwingDir = new(1, 0);
+    /// <summary>0 = horizontal swipe, 1 = overhead slam (Slam-tagged skills).</summary>
+    public byte SwingKind;
     /// <summary>Main-hand weapon base id (from PlayerAppearance packets), for held-weapon rendering.</summary>
     public string WeaponBaseId;
     /// <summary>Off-hand item base id (usually a shield), rendered in the other hand.</summary>
