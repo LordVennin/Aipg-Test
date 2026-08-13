@@ -27,6 +27,8 @@ public static class TextureGen
 
     private static GraphicsDevice _device;
     private static readonly Dictionary<int, Texture2D> _prismFaces = new();
+    private static readonly Dictionary<int, Texture2D> _earthFaces = new();
+    private static Texture2D _lipBand;
     private static readonly Dictionary<(RampDirection dir, bool stairs), Texture2D> _ramps = new();
 
     public static void Initialize(GraphicsDevice device)
@@ -79,6 +81,81 @@ public static class TextureGen
         tex.SetData(data);
         _prismFaces[levels] = tex;
         return tex;
+    }
+
+    /// <summary>
+    /// Organic cliff sides: layered EARTH instead of stone — brown strata with embedded
+    /// pebbles, darker on the left face. Baked in color (drawn white); the grass lip on
+    /// top is a separate tintable band so it can match each tile's surface shade.
+    /// </summary>
+    public static Texture2D GetEarthFaces(int levels)
+    {
+        levels = Math.Clamp(levels, 1, 12);
+        if (_earthFaces.TryGetValue(levels, out var cached)) return cached;
+
+        int drop = levels * IsoCamera.LevelHeightPx;
+        int h = TileHeight / 2 + drop;
+        var tex = new Texture2D(_device, TileWidth, h);
+        var data = new Color[TileWidth * h];
+        for (int py = 0; py < h; py++)
+            for (int px = 0; px < TileWidth; px++)
+            {
+                bool right = px >= TileWidth / 2;
+                float edge = (right ? (TileWidth - (px + 0.5f)) / 2f : (px + 0.5f) / 2f) - 1f;
+                if (edge < 0) edge = 0;
+                float y = py + 0.5f;
+                if (y < edge || y >= edge + drop) continue;
+                float depth = (y - edge) / drop; // 0 at the lip, 1 at the base
+                int r = (int)MathHelper.Lerp(92, 62, depth);
+                int g = (int)MathHelper.Lerp(70, 48, depth);
+                int b = (int)MathHelper.Lerp(46, 33, depth);
+                // Horizontal strata bands.
+                int band = (int)(y - edge);
+                if (band % 6 == 4) { r = r * 86 / 100; g = g * 86 / 100; b = b * 86 / 100; }
+                // Sparse embedded pebbles.
+                uint hnoise = (uint)(px * 374761393 ^ band * 668265263);
+                hnoise ^= hnoise >> 13; hnoise *= 1274126177; hnoise ^= hnoise >> 16;
+                if ((hnoise & 63) == 0)
+                {
+                    int stone = 96 + (int)(hnoise >> 8 & 31);
+                    r = stone; g = stone; b = stone - 6;
+                }
+                if (!right) { r = r * 78 / 100; g = g * 78 / 100; b = b * 78 / 100; }
+                if (edge + drop - y < 1.2f) { r = r * 2 / 3; g = g * 2 / 3; b = b * 2 / 3; }
+                data[py * TileWidth + px] = new Color(r, g, b);
+            }
+        tex.SetData(data);
+        _earthFaces[levels] = tex;
+        return tex;
+    }
+
+    /// <summary>A 4px band hugging the diamond's lower V edges — drawn tinted with the
+    /// tile's surface color over cliff faces so grass overhangs the earth, hiding the
+    /// face/top seam per tile.</summary>
+    public static Texture2D GetLipBand()
+    {
+        if (_lipBand != null) return _lipBand;
+        int h = TileHeight / 2 + 5;
+        var tex = new Texture2D(_device, TileWidth, h);
+        var data = new Color[TileWidth * h];
+        for (int py = 0; py < h; py++)
+            for (int px = 0; px < TileWidth; px++)
+            {
+                bool right = px >= TileWidth / 2;
+                float edge = (right ? (TileWidth - (px + 0.5f)) / 2f : (px + 0.5f) / 2f) - 1f;
+                if (edge < 0) edge = 0;
+                float y = py + 0.5f;
+                if (y < edge || y >= edge + 4) continue;
+                // Ragged bottom: some columns hang one pixel longer.
+                uint hnoise = (uint)(px * 2654435761);
+                hnoise ^= hnoise >> 15;
+                int extra = (int)(hnoise % 3) - 1;
+                if (y >= edge + 3 + extra) continue;
+                byte a = (byte)(y - edge < 2 ? 255 : 200);
+                data[py * TileWidth + px] = new Color((byte)255, (byte)255, (byte)255, a);
+            }
+        tex.SetData(data);
+        return _lipBand = tex;
     }
 
     /// <summary>

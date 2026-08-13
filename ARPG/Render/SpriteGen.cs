@@ -376,12 +376,13 @@ public static class SpriteGen
                 break;
 
             case "forest:clutter":
-                if (variant == 0) // grass tuft
+                if (variant is 0 or 5) // grass tuft (two spawn slots: grass is common)
                 {
                     Init(9, 7);
                     var grass = new Color(96, 150, 74);
                     VLine(2, 3, 3, grass); VLine(4, 1, 5, Shade(grass, 1.2f)); VLine(6, 2, 4, grass);
                     Set(3, 2, Shade(grass, 0.8f)); Set(5, 3, Shade(grass, 0.8f));
+                    if (variant == 5) { Set(1, 4, grass); Set(7, 3, Shade(grass, 1.1f)); }
                 }
                 else if (variant == 1) // mushroom
                 {
@@ -392,7 +393,7 @@ public static class SpriteGen
                     Set(2, 2, Shade(cap, 1.3f)); Set(5, 3, Shade(cap, 1.3f)); // spots
                     Rect(3, 5, 2, 3, stem);
                 }
-                else // bush
+                else if (variant == 2) // bush
                 {
                     Init(13, 9);
                     var leaf = new Color(66, 106, 54); var dark = Shade(leaf, 0.72f); var lite = Shade(leaf, 1.25f);
@@ -400,6 +401,25 @@ public static class SpriteGen
                     Rect(3, 1, 7, 3, leaf);
                     Rect(2, 7, 9, 1, dark);
                     Set(4, 2, lite); Set(7, 3, lite); Set(9, 4, lite);
+                }
+                else if (variant == 3) // small stones
+                {
+                    Init(12, 7);
+                    var stone = new Color(136, 134, 128); var dark = Shade(stone, 0.72f); var lite = Shade(stone, 1.2f);
+                    Rect(2, 3, 4, 3, stone);
+                    Set(2, 5, dark); Set(5, 3, lite);
+                    Rect(7, 4, 3, 2, dark);
+                    Set(8, 3, stone);
+                    Set(5, 6, dark);
+                }
+                else // taller grass clump
+                {
+                    Init(12, 11);
+                    var grass = new Color(90, 144, 70); var lite = Shade(grass, 1.25f); var dark = Shade(grass, 0.78f);
+                    VLine(2, 5, 5, grass); VLine(4, 2, 8, lite); VLine(6, 1, 9, grass);
+                    VLine(8, 3, 7, dark); VLine(9, 6, 4, grass);
+                    Set(3, 4, dark); Set(5, 2, lite); Set(7, 2, lite);
+                    Set(1, 7, grass); Set(10, 5, dark);
                 }
                 break;
             case "forest:bigtree": // large 2x2-tile canopy trees (generated landmarks)
