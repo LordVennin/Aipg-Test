@@ -173,7 +173,7 @@ public class GameMain : Game
 
     protected override void Draw(GameTime gameTime)
     {
-        GraphicsDevice.Clear(new Color(16, 17, 22));
+        GraphicsDevice.Clear(_screen is PlayScreen p ? p.BackgroundColor : new Color(16, 17, 22));
         var uiMatrix = Matrix.CreateScale(UIScale.Value);
         if (_screen is PlayScreen play)
         {

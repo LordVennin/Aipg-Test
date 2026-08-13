@@ -191,6 +191,242 @@ public static class SpriteGen
     // ------------------------------------------------------------------ held weapons
 
     /// <summary>Small horizontal canvas for held weapons (grip left, business end right).</summary>
+    /// <summary>
+    /// Themed zone decoration sprites (gravestones, pillars, rocks, trees...), anchored
+    /// at their bottom-center when drawn. Key format "style:kind:variant" — see
+    /// WorldRenderer's clutter/feature tables. Cached like everything else.
+    /// </summary>
+    public static Texture2D GetPropSprite(string key)
+    {
+        if (_device == null) return null;
+        string cacheKey = "prop:" + key;
+        if (_cache.TryGetValue(cacheKey, out var cached)) return cached[0];
+        var parts = key.Split(':');
+        var tex = DrawProp(parts[0], parts[1], parts.Length > 2 ? int.Parse(parts[2]) : 0);
+        if (tex == null) return null;
+        _cache[cacheKey] = new[] { tex };
+        return tex;
+    }
+
+    private static Texture2D DrawProp(string style, string kind, int variant)
+    {
+        Color[] px = null;
+        int w = 0, h = 0;
+        void Init(int pw, int ph) { w = pw; h = ph; px = new Color[w * h]; }
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int rw, int rh, Color c)
+        { for (int y = y0; y < y0 + rh; y++) for (int x = x0; x < x0 + rw; x++) Set(x, y, c); }
+        void VLine(int x, int y0, int len, Color c) { for (int y = y0; y < y0 + len; y++) Set(x, y, c); }
+
+        switch ($"{style}:{kind}")
+        {
+            case "graveyard:clutter":
+                if (variant == 0) // rounded gravestone
+                {
+                    Init(10, 12);
+                    var stone = new Color(120, 122, 130); var dark = Shade(stone, 0.7f);
+                    Rect(2, 3, 6, 8, stone);
+                    Rect(3, 1, 4, 3, stone);
+                    Rect(2, 9, 6, 2, dark);
+                    Set(4, 4, dark); Set(5, 6, dark); // weathering
+                }
+                else if (variant == 1) // cross marker
+                {
+                    Init(10, 13);
+                    var wood = new Color(96, 76, 52); var dark = Shade(wood, 0.7f);
+                    Rect(4, 1, 2, 11, wood);
+                    Rect(1, 3, 8, 2, wood);
+                    Rect(4, 10, 2, 2, dark);
+                }
+                else // bone pile
+                {
+                    Init(12, 7);
+                    var bone = new Color(205, 198, 178); var dark = Shade(bone, 0.75f);
+                    Rect(2, 4, 8, 2, bone);
+                    Rect(1, 5, 3, 1, dark);
+                    Set(9, 3, bone); Set(3, 3, bone); Set(6, 2, dark);
+                }
+                break;
+            case "graveyard:feature":
+                if (variant == 0) // obelisk
+                {
+                    Init(14, 30);
+                    var stone = new Color(126, 128, 140); var dark = Shade(stone, 0.68f); var lite = Shade(stone, 1.25f);
+                    Rect(4, 4, 6, 22, stone);
+                    Rect(5, 1, 4, 4, stone);
+                    Set(6, 0, lite); Set(7, 0, lite);
+                    Rect(2, 26, 10, 3, dark);
+                    VLine(4, 4, 22, lite);
+                    VLine(9, 4, 22, dark);
+                    Set(6, 8, dark); Set(7, 12, dark); Set(6, 16, dark); // runes
+                }
+                else // crypt slab
+                {
+                    Init(22, 20);
+                    var stone = new Color(108, 110, 122); var dark = Shade(stone, 0.7f); var lite = Shade(stone, 1.2f);
+                    Rect(2, 8, 18, 10, stone);
+                    Rect(1, 16, 20, 3, dark);
+                    Rect(4, 4, 14, 5, stone);
+                    Rect(4, 4, 14, 1, lite);
+                    Rect(8, 10, 6, 6, dark); // doorway
+                    Rect(9, 11, 4, 5, new Color(18, 14, 22));
+                }
+                break;
+
+            case "tomb:clutter":
+                if (variant == 0) // urn
+                {
+                    Init(9, 11);
+                    var clay = new Color(150, 110, 76); var dark = Shade(clay, 0.7f);
+                    Rect(2, 4, 5, 5, clay);
+                    Rect(3, 2, 3, 2, dark);
+                    Rect(2, 8, 5, 1, dark);
+                    Set(2, 5, Shade(clay, 1.2f));
+                }
+                else if (variant == 1) // rubble
+                {
+                    Init(13, 7);
+                    var stone = new Color(112, 106, 118); var dark = Shade(stone, 0.7f);
+                    Rect(2, 4, 4, 2, stone); Rect(7, 3, 4, 3, dark); Set(5, 2, stone); Set(10, 2, stone);
+                }
+                else // fallen column chunk
+                {
+                    Init(14, 8);
+                    var stone = new Color(140, 130, 104); var dark = Shade(stone, 0.7f);
+                    Rect(2, 2, 10, 5, stone);
+                    Rect(2, 5, 10, 2, dark);
+                    VLine(5, 2, 5, dark); VLine(9, 2, 5, dark);
+                }
+                break;
+            case "tomb:feature":
+                if (variant == 0) // standing column
+                {
+                    Init(14, 30);
+                    var stone = new Color(158, 146, 116); var dark = Shade(stone, 0.68f); var lite = Shade(stone, 1.2f);
+                    Rect(3, 2, 8, 3, stone);
+                    Rect(2, 1, 10, 2, lite);
+                    Rect(4, 5, 6, 20, stone);
+                    VLine(4, 5, 20, lite); VLine(9, 5, 20, dark);
+                    VLine(6, 5, 20, dark);
+                    Rect(3, 25, 8, 3, dark);
+                }
+                else // sarcophagus
+                {
+                    Init(22, 16);
+                    var stone = new Color(150, 138, 108); var dark = Shade(stone, 0.7f); var lite = Shade(stone, 1.2f);
+                    Rect(3, 5, 16, 9, stone);
+                    Rect(2, 3, 18, 3, lite);
+                    Rect(3, 12, 16, 2, dark);
+                    Rect(8, 7, 6, 1, dark); // carving
+                    Rect(10, 5, 2, 7, dark);
+                }
+                break;
+
+            case "arid:clutter":
+                if (variant == 0) // rock
+                {
+                    Init(11, 8);
+                    var rock = new Color(148, 112, 84); var dark = Shade(rock, 0.7f);
+                    Rect(2, 3, 7, 4, rock);
+                    Rect(3, 2, 5, 1, rock);
+                    Rect(2, 6, 7, 1, dark);
+                    Set(4, 3, Shade(rock, 1.2f));
+                }
+                else if (variant == 1) // skull
+                {
+                    Init(9, 8);
+                    var bone = new Color(214, 204, 182); var dark = Shade(bone, 0.65f);
+                    Rect(2, 1, 5, 4, bone);
+                    Rect(3, 5, 3, 2, bone);
+                    Set(3, 3, dark); Set(5, 3, dark); // sockets
+                }
+                else // dry shrub
+                {
+                    Init(12, 9);
+                    var twig = new Color(150, 122, 70);
+                    VLine(5, 3, 5, twig); VLine(6, 2, 6, Shade(twig, 0.8f));
+                    Set(3, 3, twig); Set(4, 4, twig); Set(8, 3, twig); Set(7, 4, twig);
+                    Set(2, 2, Shade(twig, 0.8f)); Set(9, 2, Shade(twig, 0.8f));
+                }
+                break;
+            case "arid:feature":
+                if (variant == 0) // rock spire
+                {
+                    Init(18, 28);
+                    var rock = new Color(168, 122, 88); var dark = Shade(rock, 0.68f); var lite = Shade(rock, 1.2f);
+                    Rect(6, 2, 6, 8, rock);
+                    Rect(5, 8, 9, 9, rock);
+                    Rect(3, 16, 12, 9, rock);
+                    Rect(3, 23, 12, 2, dark);
+                    VLine(6, 2, 22, lite);
+                    VLine(12, 8, 16, dark);
+                    Set(8, 1, lite);
+                }
+                else // saguaro cactus
+                {
+                    Init(18, 28);
+                    var cactus = new Color(88, 130, 72); var dark = Shade(cactus, 0.7f); var lite = Shade(cactus, 1.25f);
+                    Rect(8, 3, 3, 23, cactus);
+                    VLine(8, 3, 23, lite); VLine(10, 3, 23, dark);
+                    Rect(3, 8, 2, 3, cactus); Rect(3, 8, 6, 2, cactus); // left arm
+                    VLine(3, 6, 3, cactus);
+                    Rect(13, 12, 2, 3, cactus); Rect(11, 12, 4, 2, cactus); // right arm
+                    VLine(14, 10, 3, cactus);
+                }
+                break;
+
+            case "forest:clutter":
+                if (variant == 0) // grass tuft
+                {
+                    Init(9, 7);
+                    var grass = new Color(96, 150, 74);
+                    VLine(2, 3, 3, grass); VLine(4, 1, 5, Shade(grass, 1.2f)); VLine(6, 2, 4, grass);
+                    Set(3, 2, Shade(grass, 0.8f)); Set(5, 3, Shade(grass, 0.8f));
+                }
+                else if (variant == 1) // mushroom
+                {
+                    Init(8, 8);
+                    var cap = new Color(178, 84, 70); var stem = new Color(206, 196, 172);
+                    Rect(1, 2, 6, 3, cap);
+                    Rect(2, 1, 4, 1, cap);
+                    Set(2, 2, Shade(cap, 1.3f)); Set(5, 3, Shade(cap, 1.3f)); // spots
+                    Rect(3, 5, 2, 3, stem);
+                }
+                else // bush
+                {
+                    Init(13, 9);
+                    var leaf = new Color(66, 106, 54); var dark = Shade(leaf, 0.72f); var lite = Shade(leaf, 1.25f);
+                    Rect(2, 3, 9, 5, leaf);
+                    Rect(3, 1, 7, 3, leaf);
+                    Rect(2, 7, 9, 1, dark);
+                    Set(4, 2, lite); Set(7, 3, lite); Set(9, 4, lite);
+                }
+                break;
+            case "forest:feature": // trees
+                {
+                    Init(24, 34);
+                    var trunk = new Color(104, 78, 50); var trunkD = Shade(trunk, 0.7f);
+                    var leaf = variant == 0 ? new Color(60, 102, 48) : new Color(72, 96, 44);
+                    var leafD = Shade(leaf, 0.72f); var leafL = Shade(leaf, 1.28f);
+                    Rect(10, 22, 4, 10, trunk);
+                    VLine(13, 22, 10, trunkD);
+                    Rect(8, 30, 2, 2, trunkD); Rect(14, 30, 2, 2, trunkD); // roots
+                    // Canopy: stacked blobs.
+                    Rect(4, 10, 16, 12, leaf);
+                    Rect(6, 5, 12, 7, leaf);
+                    Rect(8, 2, 8, 5, leaf);
+                    Rect(4, 19, 16, 3, leafD);
+                    Rect(6, 3, 6, 2, leafL);
+                    Set(6, 12, leafL); Set(15, 8, leafL); Set(10, 16, leafD); Set(17, 14, leafD);
+                }
+                break;
+
+            default:
+                return null;
+        }
+        return BakeStrip(px, w, h);
+    }
+
     private static Texture2D BakeStrip(Color[] px, int w, int h)
     {
         // Outline pass identical in spirit to Canvas.Bake.

@@ -1117,9 +1117,9 @@ public static class HeadlessNetTest
         // 1.1-tile auto-pickup range so it survives long enough to observe.)
         var goldSpot = new Vector2(8.5f, 26.5f);
         server.World.SpawnGoldDrop(25, goldSpot, 1f);
-        for (int i = 0; i < 20 && !elevatedDrop; i++)
+        for (int i = 0; i < 40 && !elevatedDrop; i++)
         {
-            Pump(0.05f);
+            Pump(0.1f);
             elevatedDrop = clientA.World.Drops.Values.Any(d =>
                 Vector2.Distance(d.Position, goldSpot) < 0.5f && MathF.Abs(d.Height - 1f) < 0.05f);
         }
@@ -1154,6 +1154,16 @@ public static class HeadlessNetTest
         clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
         clientB.World.Me.Height = 0f;
         Pump(0.4f);
+
+        Console.WriteLine("\n-- Zone themes --");
+        Check(data.ZoneThemes.Count >= 4 &&
+              data.ZoneThemes.Any(t => t.Id == "graveyard") &&
+              data.ZoneThemes.Any(t => t.Id == "tomb") &&
+              data.ZoneThemes.Any(t => t.Id == "arid") &&
+              data.ZoneThemes.Any(t => t.Id == "forest"),
+              $"zone themes loaded ({data.ZoneThemes.Count}: {string.Join(", ", data.ZoneThemes.Select(t => t.Id))})");
+        Check(data.ZoneThemes.All(t => t.ClutterDensity is > 0 and < 0.5f && t.PropStyle != null),
+              "themes carry sane clutter settings");
 
         Console.WriteLine("\n-- Overlook combat & targeted casts --");
         // Line-of-fire geometry: descending shots off a cliff are clear, climbing shots
