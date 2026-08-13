@@ -57,8 +57,8 @@
     "Id": "forest",
     "Name": "Mirewood",
     "Background": "08110B",
-    "FloorA": "344E2E",
-    "FloorB": "2E4629",
+    "FloorA": "37522F",
+    "FloorB": "314A2B",
     "CliffFace": "64785A",
     "ElevatedTop": "3C5434",
     "WallFace": "6E6450",
@@ -68,7 +68,10 @@
     "DeckB": "645236",
     "DeckLip": "3C3222",
     "PropStyle": "forest",
-    "ClutterDensity": 0.11,
-    "WallFeatureChance": 0.85
+    "ClutterDensity": 0.13,
+    "WallFeatureChance": 0.85,
+    "OrganicFloor": true,
+    "FloorC": "3C5834",
+    "FloorD": "2C4427"
   }
 ]

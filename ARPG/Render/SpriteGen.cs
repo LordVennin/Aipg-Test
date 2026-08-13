@@ -402,6 +402,37 @@ public static class SpriteGen
                     Set(4, 2, lite); Set(7, 3, lite); Set(9, 4, lite);
                 }
                 break;
+            case "forest:bigtree": // large 2x2-tile canopy trees (generated landmarks)
+                {
+                    Init(48, 62);
+                    var trunk = new Color(98, 72, 46); var trunkD = Shade(trunk, 0.68f); var trunkL = Shade(trunk, 1.2f);
+                    var leaf = variant == 0 ? new Color(56, 96, 44) : new Color(66, 90, 40);
+                    var leafD = Shade(leaf, 0.7f); var leafL = Shade(leaf, 1.3f); var leafM = Shade(leaf, 1.12f);
+                    // Trunk with buttress roots.
+                    Rect(21, 42, 6, 17, trunk);
+                    VLine(26, 42, 17, trunkD);
+                    VLine(21, 42, 17, trunkL);
+                    Rect(17, 55, 4, 4, trunkD); Rect(27, 55, 5, 4, trunkD);
+                    Rect(19, 40, 10, 3, trunk);
+                    // Canopy: big irregular mass built from stacked blobs.
+                    Rect(6, 16, 36, 22, leaf);
+                    Rect(10, 8, 28, 12, leaf);
+                    Rect(16, 3, 16, 8, leaf);
+                    Rect(2, 22, 8, 12, leaf);
+                    Rect(38, 20, 8, 12, leaf);
+                    // Shadow bottom + lit top-left.
+                    Rect(6, 34, 36, 4, leafD);
+                    Rect(2, 30, 8, 4, leafD);
+                    Rect(38, 28, 8, 4, leafD);
+                    Rect(12, 5, 14, 3, leafL);
+                    Rect(8, 12, 10, 4, leafM);
+                    Rect(30, 10, 8, 3, leafM);
+                    // Texture clumps.
+                    Rect(14, 20, 5, 3, leafD); Rect(28, 24, 6, 3, leafD);
+                    Rect(22, 14, 4, 2, leafL); Rect(34, 18, 3, 2, leafL);
+                    Set(10, 26, leafL); Set(40, 24, leafL);
+                }
+                break;
             case "forest:feature": // trees
                 {
                     Init(24, 34);

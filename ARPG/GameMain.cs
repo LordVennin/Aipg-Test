@@ -117,9 +117,13 @@ public class GameMain : Game
 
     /// <summary>Single player = a local server on a loopback OS-assigned port + a normal client.
     /// Exactly the same simulation path as multiplayer.</summary>
+    /// <summary>Theme for maps WE host: env override, else the settings choice.</summary>
+    private string HostZoneThemeId =>
+        Environment.GetEnvironmentVariable("ARPG_THEME") ?? Settings.ZoneThemeId;
+
     public void StartSinglePlayer()
     {
-        var server = new GameServer(Data, SeedRng.Next());
+        var server = new GameServer(Data, SeedRng.Next(), HostZoneThemeId);
         if (!server.Start(0))
         {
             SwitchScreen(new MainMenuScreen(this, "Could not start the local server."));
@@ -132,7 +136,7 @@ public class GameMain : Game
     /// <summary>Host = the same local server, but listening on 0.0.0.0:port for remote players.</summary>
     public string StartHost(int port)
     {
-        var server = new GameServer(Data, SeedRng.Next());
+        var server = new GameServer(Data, SeedRng.Next(), HostZoneThemeId);
         if (!server.Start(port))
             return $"Could not listen on port {port} (already in use?).";
         server.StartLoop(); // simulation runs on its own thread, decoupled from rendering

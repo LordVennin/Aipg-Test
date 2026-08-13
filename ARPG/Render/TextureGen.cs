@@ -17,6 +17,9 @@ public static class TextureGen
     /// tops use this — the translucent-edged Diamond shows the void behind cliffs as
     /// see-through seams between wall tiles.</summary>
     public static Texture2D DiamondSolid { get; private set; }
+    /// <summary>Flat filled diamond with NO edge marking — organic floors tile with it
+    /// so the ground reads as continuous terrain instead of a grid.</summary>
+    public static Texture2D DiamondFlat { get; private set; }
     public static Texture2D DiamondOutline { get; private set; }
 
     public const int TileWidth = 64;
@@ -37,6 +40,7 @@ public static class TextureGen
         Circle32 = MakeCircle(device, 32);
         Diamond = MakeDiamond(device, TileWidth, TileHeight, filled: true);
         DiamondSolid = MakeDiamond(device, TileWidth, TileHeight, filled: true, opaqueEdge: true);
+        DiamondFlat = MakeDiamond(device, TileWidth, TileHeight, filled: true, opaqueEdge: true, flat: true);
         DiamondOutline = MakeDiamond(device, TileWidth, TileHeight, filled: false);
     }
 
@@ -238,7 +242,7 @@ public static class TextureGen
         return tex;
     }
 
-    private static Texture2D MakeDiamond(GraphicsDevice device, int w, int h, bool filled, bool opaqueEdge = false)
+    private static Texture2D MakeDiamond(GraphicsDevice device, int w, int h, bool filled, bool opaqueEdge = false, bool flat = false)
     {
         var tex = new Texture2D(device, w, h);
         var data = new Color[w * h];
@@ -251,7 +255,7 @@ public static class TextureGen
                 Color c = Color.Transparent;
                 if (d <= 1f)
                 {
-                    bool edge = d >= 0.93f;
+                    bool edge = !flat && d >= 0.93f;
                     c = filled ? (edge ? (opaqueEdge ? new Color(215, 215, 215) : new Color(255, 255, 255, 160)) : Color.White)
                                : (edge ? Color.White : Color.Transparent);
                 }

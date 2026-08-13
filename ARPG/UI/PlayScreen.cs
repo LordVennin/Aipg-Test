@@ -64,7 +64,6 @@ public class PlayScreen : IScreen
         _skillMenu = new SkillMenuUI(game.Data, client, _drag);
         _characterSheet = new CharacterSheetUI(game.Data, client);
         _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
-        _debug.OnCycleTheme = () => _renderer.CycleTheme();
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
         _client.ServerMessageReceived += msg => _hud.AddMessage(msg);

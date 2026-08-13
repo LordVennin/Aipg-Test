@@ -180,8 +180,6 @@ public class DebugUI
     public int Fps;
     public bool IsHost;
     public int HostPort;
-    /// <summary>Client-side hook: cycles the zone visual theme (render-only preview).</summary>
-    public Action OnCycleTheme;
 
     public DebugUI(GameClient client)
     {
@@ -210,8 +208,6 @@ public class DebugUI
                 () => _client.SendDebugCommand(cmd, arg)) { FontSize = 14 });
             y += 33;
         }
-        _panel.Children.Add(new Button("Cycle Zone Theme", new Rectangle(_panel.Bounds.X + 10, y, 230, 28),
-            () => OnCycleTheme?.Invoke()) { FontSize = 14 });
     }
 
     public bool Contains(Point p) => Open && _panel.Bounds.Contains(p);

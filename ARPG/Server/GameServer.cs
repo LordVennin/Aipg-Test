@@ -39,11 +39,11 @@ public class GameServer : IServerEvents
     /// <summary>Fixed simulation rate of the dedicated server thread.</summary>
     public const float TickRate = 60f;
 
-    public GameServer(GameData data, int mapSeed)
+    public GameServer(GameData data, int mapSeed, string zoneThemeId = null)
     {
         Data = data;
         MapSeed = mapSeed;
-        World = new ServerWorld(data, mapSeed, this);
+        World = new ServerWorld(data, mapSeed, this, zoneThemeId);
         _net = new NetManager(_listener) { AutoRecycle = true };
 
         _listener.ConnectionRequestEvent += request =>
@@ -262,6 +262,7 @@ public class GameServer : IServerEvents
         var accept = Packets.Make(PacketType.JoinAccept);
         accept.Put(playerId);
         accept.Put(MapSeed);
+        accept.Put(World.Map.Theme?.Id ?? "");
         accept.PutVec2(player.Position);
         accept.Put(player.Height);
         accept.Put(player.Health);

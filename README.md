@@ -280,17 +280,23 @@ know which surface you meant.
 
 ### Zone themes
 
-Zones have data-driven visual identities (`Data/Zones/themes.json`): a full terrain
-palette (floors, cliffs, walls, ramps, bridge, background), a clutter style and
-density, and a chance for 1-level wall tiles to render as themed FEATURES standing
-on their base block — trees in the forest, crypts and obelisks in the graveyard,
-columns and sarcophagi in the tomb, rock spires and cacti in the bluffs. Clutter is
-non-colliding decoration laid out deterministically from the map seed (identical on
-every client); features keep collision for free from their wall tile. Four themes
+Zones have data-driven identities (`Data/Zones/themes.json`) that are decided
+BEFORE the map generates and replicated to joining clients (the theme id rides in
+JoinAccept next to the seed). A theme carries the full terrain palette (floors,
+cliffs, walls, ramps, bridge, background), a clutter style and density, a chance
+for 1-level wall tiles to render as themed FEATURES on their base block (crypts,
+columns, rock spires, small trees) — and it can SHAPE GENERATION itself: the
+forest grows large multi-tile trees, generated as solid 2x2 two-level wall
+columns from their own seeded stream (base layout stays identical across themes
+for a given seed), so collision, pathfinding avoidance and line-of-sight blocking
+come free while the renderer draws one big canopy sprite per tree. Forest ground
+uses an ORGANIC floor: per-tile shades hashed from the seed on gridless tiles
+with speckles, replacing the checkerboard. Clutter is non-colliding decoration
+laid out deterministically from the seed (identical on every client). Four themes
 ship: **Forsaken Graveyard** (default), **Sunken Tomb**, **Scorched Bluffs** and
-**Mirewood**. All of it is render-only — the hub/teleporter structure planned later
-will assign a theme per zone; until then F1 → "Cycle Zone Theme" previews them
-in-game, and the `ARPG_THEME` environment variable forces one at launch.
+**Mirewood**. The hosted zone is chosen in Options → Gameplay ("Zone: ..."), or
+forced with the `ARPG_THEME` environment variable; the planned hub/teleporter
+will assign one per destination zone.
 
 ### Enemy pathfinding (flow fields)
 

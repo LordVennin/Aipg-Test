@@ -198,6 +198,7 @@ public class OptionsPanel
     private readonly Panel[] _tabPanels;   // 0 = Display, 1 = Gameplay, 2 = Controls
     private readonly Button[] _tabButtons;
     private static readonly string[] TabNames = { "Display", "Gameplay", "Controls" };
+    private Button _zoneThemeButton;
     private int _tab;
 
     private InputAction? _rebinding;
@@ -287,6 +288,18 @@ public class OptionsPanel
                 RefreshLabels();
             }) { FontSize = 15 };
         gameplay.Children.Add(_playerListButton);
+        _zoneThemeButton = new Button(ZoneThemeLabel(),
+            new Rectangle(cx + 250, contentY + 40, 240, 30), () =>
+            {
+                var themes = game.Data.ZoneThemes;
+                if (themes.Count == 0) return;
+                int idx = themes.FindIndex(t => t.Id == game.Settings.ZoneThemeId);
+                game.Settings.ZoneThemeId = themes[(idx + 1) % themes.Count].Id;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        gameplay.Children.Add(_zoneThemeButton);
+        gameplay.Children.Add(new Label("Zone theme shapes the NEXT map you host (forest grows big trees).",
+            cx, contentY + 80, 14));
 
         // --- Controls tab ---
         var controls = new Panel { Bounds = Rectangle.Empty, Background = Color.Transparent, Border = Color.Transparent };
@@ -310,6 +323,12 @@ public class OptionsPanel
 
         _tabPanels = new[] { display, gameplay, controls };
         RefreshLabels();
+    }
+
+    private string ZoneThemeLabel()
+    {
+        var t = _game.Data.ZoneThemes.FirstOrDefault(z => z.Id == _game.Settings.ZoneThemeId);
+        return $"Zone: {t?.Name ?? _game.Settings.ZoneThemeId}";
     }
 
     private static string ToggleLabel(string name, bool on) => $"{name}: {(on ? "ON" : "OFF")}";
@@ -346,6 +365,7 @@ public class OptionsPanel
             _damageNumbersButton.Text = ToggleLabel("Damage Numbers", _game.Settings.ShowDamageNumbers);
             _healthBarsButton.Text = ToggleLabel("Enemy Health Bars", _game.Settings.ShowEnemyHealthBars);
             _playerListButton.Text = ToggleLabel("Player List & Pings", _game.Settings.ShowPlayerList);
+            if (_zoneThemeButton != null) _zoneThemeButton.Text = ZoneThemeLabel();
             _fullscreenButton.Text = ToggleLabel("Fullscreen", _game.Settings.Fullscreen);
             _resolutionButton.Text = ResolutionLabel();
         }
