@@ -214,7 +214,11 @@ Two summon skills exist so the command systems have something to differentiate:
 
 Minions have health bars and take damage — enemies turn on them and enemy
 projectiles hit them first — and a dead minion **respawns free** near the
-summoner after its skill's respawn time. Summons softly collide with each other
+summoner after its skill's respawn time. They're animated from `SummonAttack`
+events: warriors carry a separately-drawn bone sword (lowered at rest, chopped
+through the strike direction with a forward lurch on every swing), archers
+recoil from each bow release, and both bob lightly while walking instead of
+gliding as static sprites. Summons softly collide with each other
 (the same push-apart enemies use), so packs fan out instead of stacking into one
 sprite. A **summon roster** sits beside the mana orb: one card per learned summon
 skill with its living count / limit; `Tab` cycles which pack is FOCUSED (lit
@@ -550,7 +554,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (299 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (301 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

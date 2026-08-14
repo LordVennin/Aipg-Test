@@ -389,6 +389,18 @@ public class GameClient
                 }
                 break;
             }
+            case PacketType.SummonAttack:
+            {
+                int id = r.GetInt();
+                var dir = r.GetVec2();
+                if (World.Summons.TryGetValue(id, out var su))
+                {
+                    su.AttackDir = dir;
+                    su.AttackAnimAtMs = Environment.TickCount64;
+                    if (MathF.Abs(dir.X) > 0.05f) su.FacingLeft = dir.X < 0; // face the shot/swing
+                }
+                break;
+            }
             case PacketType.NpcInfo:
             {
                 var npc = new ClientNpc { Id = r.GetInt(), TypeId = r.GetString() };

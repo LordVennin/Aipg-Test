@@ -206,17 +206,12 @@ public static class SpriteGen
 
         if (warrior)
         {
-            var blade = new Color(176, 182, 192);
-            var bladeDark = new Color(120, 126, 138);
-            var hilt = new Color(96, 70, 44);
             var shield = new Color(104, 88, 60);
             var shieldRim = new Color(140, 122, 88);
-            // Sword arm + upright notched blade on the right
-            Rect(11, 8, 12, 9, bone);
-            for (int i = 0; i < 8; i++) Set(13, 3 + i, i % 3 == 2 ? bladeDark : blade);
-            Set(14, 4, blade); Set(13, 2, blade);          // tip + edge chip
-            Rect(12, 11, 14, 11, hilt);                    // crossguard
-            Set(13, 12, hilt);
+            // Sword arm reaching forward — the blade itself is NOT baked in: the
+            // renderer draws GetBoneSword() in this hand and animates rest/chop.
+            Rect(11, 8, 13, 9, bone);
+            Set(13, 9, boneDark);
             // Scrap shield strapped to the off arm
             Rect(3, 8, 4, 10, bone);
             Rect(1, 7, 3, 11, shield);
