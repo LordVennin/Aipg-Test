@@ -203,6 +203,11 @@ public class OptionsPanel
 
     private InputAction? _rebinding;
     private readonly Dictionary<InputAction, Button> _bindButtons = new();
+    /// <summary>Controls tab scroll state: the binding rows overflow the panel, so the
+    /// wheel slides them; rows outside the content window are hidden.</summary>
+    private readonly List<(UIElement element, int baseY)> _controlRows = new();
+    private int _controlsScroll;
+    private int _controlsContentTop, _controlsContentBottom, _controlRowsHeight;
     private Button _damageNumbersButton, _healthBarsButton, _playerListButton;
     private Button _fullscreenButton, _resolutionButton;
 
@@ -303,18 +308,25 @@ public class OptionsPanel
 
         // --- Controls tab ---
         var controls = new Panel { Bounds = Rectangle.Empty, Background = Color.Transparent, Border = Color.Transparent };
-        controls.Children.Add(new Label("Click a binding, then press the new key or mouse button.", cx, contentY, 14));
+        controls.Children.Add(new Label("Click a binding, then press the new key or mouse button. Scroll for more.", cx, contentY, 14));
         int rowY = contentY + 24;
+        _controlsContentTop = rowY;
+        _controlsContentBottom = bottomY - 8;
         foreach (var action in actions)
         {
             var a = action;
-            controls.Children.Add(new Label(ActionName(a), cx, rowY + 6, 16));
+            var lbl = new Label(ActionName(a), cx, rowY + 6, 16);
+            controls.Children.Add(lbl);
+            _controlRows.Add((lbl, rowY + 6));
             var btn = new Button(game.Input.Bindings[a].Display(), new Rectangle(cx + 260, rowY, 200, 28),
                 () => _rebinding = a) { FontSize = 15 };
             _bindButtons[a] = btn;
             controls.Children.Add(btn);
+            _controlRows.Add((btn, rowY));
             rowY += 34;
         }
+        _controlRowsHeight = rowY - _controlsContentTop;
+        ApplyControlsScroll();
         controls.Children.Add(new Button("Reset Default Keys", new Rectangle(cx, bottomY, 200, 36), () =>
         {
             game.Input.ApplyBindings(null);
@@ -350,6 +362,7 @@ public class OptionsPanel
         InputAction.SkillMenu => "Skill Menu",
         InputAction.CharacterSheet => "Character Sheet",
         InputAction.Dodge => "Dodge",
+        InputAction.CommandSummons => "Command Summons",
         InputAction.Interact => "Interact / Pickup",
         InputAction.Pause => "Pause",
         InputAction.DebugMenu => "Debug Menu",
@@ -389,9 +402,30 @@ public class OptionsPanel
             input.KeyboardCapturedByUI = true;
             return; // swallow other UI input while capturing
         }
+        // Controls tab: the binding list is taller than the panel — wheel to scroll.
+        if (_tab == 2 && input.ScrollDelta != 0)
+        {
+            _controlsScroll -= input.ScrollDelta / 4;
+            ApplyControlsScroll();
+        }
         _framePanel.Update(input);
         _tabPanels[_tab].Update(input);
         input.KeyboardCapturedByUI = true; // an open options panel owns the keyboard
+    }
+
+    /// <summary>Slide the binding rows by the scroll offset and hide rows that fall
+    /// outside the content window (so they can't overlap the bottom buttons).</summary>
+    private void ApplyControlsScroll()
+    {
+        int maxScroll = Math.Max(0, _controlRowsHeight - (_controlsContentBottom - _controlsContentTop));
+        _controlsScroll = Math.Clamp(_controlsScroll, 0, maxScroll);
+        foreach (var (element, baseY) in _controlRows)
+        {
+            element.Bounds = new Rectangle(element.Bounds.X, baseY - _controlsScroll,
+                element.Bounds.Width, element.Bounds.Height);
+            element.Visible = element.Bounds.Y >= _controlsContentTop - 4 &&
+                              element.Bounds.Y + 30 <= _controlsContentBottom + 4;
+        }
     }
 
     public void Draw(SpriteBatch sb)

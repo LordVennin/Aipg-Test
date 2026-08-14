@@ -263,7 +263,19 @@ public static class HeadlessNetTest
         var charB = clientB.World.MyCharacter;
         Check(charB.GetSkill("arcane_burst") != null, "client B learned Arcane Burst");
         var fireBolt = charB.GetSkill("fire_bolt");
-        Check(fireBolt != null && fireBolt.Level > 1, $"skill leveled up (fire_bolt level {fireBolt?.Level})");
+        Check(fireBolt != null && fireBolt.Level == 1 && fireBolt.Experience > 0,
+              $"skill XP banks WITHOUT auto-leveling (fire_bolt level {fireBolt?.Level}, {fireBolt?.Experience:0} xp)");
+        // Leveling is a deliberate Skill Menu action: spend the banked XP now.
+        for (int i = 0; i < 6; i++) clientB.RequestLevelSkill("fire_bolt");
+        Pump(0.5f);
+        fireBolt = clientB.World.MyCharacter.GetSkill("fire_bolt");
+        Check(fireBolt != null && fireBolt.Level > 1,
+              $"the Level Up request spends banked XP (fire_bolt level {fireBolt?.Level})");
+        float bankedNow = fireBolt?.Experience ?? 0;
+        clientB.RequestLevelSkill("fire_bolt"); // no XP left for another level
+        Pump(0.3f);
+        Check(clientB.World.MyCharacter.GetSkill("fire_bolt").Level == fireBolt.Level,
+              "leveling without enough banked XP is refused");
         int slots = Skills.SkillMath.ScrollSlotsAtLevel(data, fireBolt?.Level ?? 1);
         Check(slots > 0, $"higher skill level unlocked scroll slots ({slots})");
 
@@ -528,9 +540,9 @@ public static class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 371, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
-        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 37,
-              "every family has a tier X (10 tiers x 37 tiered families)");
+        Check(data.Modifiers.Count == 393, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 39,
+              "every full family has a tier X (39 tiered families reach tier 10)");
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&
               data.Modifiers["of_ferocity"].StatAffected == Stats.StatType.CriticalDamage &&
               data.Modifiers["of_precision"].CompatibleItemCategories.All(c =>
@@ -1916,6 +1928,124 @@ public static class HeadlessNetTest
         srvFrozen.FrozenUntil = 0;
         srvFrozen.ElectrocutedUntil = 0;
         clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        Pump(0.4f);
+
+        Console.WriteLine("\n-- Summons: skeleton archers --");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        clientB.RequestLearnSkill("summon_skeleton");
+        Pump(0.4f);
+        var srvSum = server.World.Players[bId];
+        var sumDef = data.Skills["summon_skeleton"];
+        var sumLearned = srvSum.Character.GetSkill("summon_skeleton");
+        Check(sumLearned != null && sumDef.Archetype == Skills.SkillArchetype.Summon &&
+              sumDef.SummonLimit == 2,
+              "Summon Skeleton Archers learned (limit 2 at level 1)");
+        float expectedCost = server.World.SummonManaCost(srvSum, sumDef, 1);
+        Check(MathF.Abs(expectedCost - (10f + 0.05f * srvSum.Stats.MaxMana)) < 0.01f,
+              $"summon costs 10 flat + 5% of max mana ({expectedCost:0.0})");
+
+        srvSum.Mana = srvSum.Stats.MaxMana;
+        float manaBeforeSummon = srvSum.Mana;
+        clientB.RequestSummonAdjust("summon_skeleton", +1);
+        Pump(0.4f);
+        Check(server.World.Summons.Values.Count(su => su.OwnerId == bId) == 1,
+              "the Skill Menu + button raises a skeleton");
+        Check(MathF.Abs(manaBeforeSummon - srvSum.Mana - expectedCost) < 3f, // regen creeps back during the pump
+              $"summoning spent the mana ({manaBeforeSummon:0} -> {srvSum.Mana:0})");
+        clientB.RequestSummonAdjust("summon_skeleton", +1);
+        Pump(0.4f);
+        clientB.RequestSummonAdjust("summon_skeleton", +1); // over the limit: refused
+        Pump(0.4f);
+        Check(server.World.Summons.Values.Count(su => su.OwnerId == bId) == 2,
+              "the summon limit caps the pack at 2");
+        Pump(0.3f);
+        Check(clientA.World.Summons.Count == 2 && clientB.World.Summons.Count == 2,
+              "summons replicate to every client");
+
+        // Archers fight: spawn a grunt nearby and expect arrow projectiles + damage.
+        var sumPrey = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(3f, 0));
+        sumPrey.Health = 400f;
+        sumPrey.StunnedUntil = server.World.Time + 60f;
+        bool arrowSeen = false;
+        for (int i = 0; i < 40 && (!arrowSeen || sumPrey.Health >= 399.9f); i++)
+        {
+            Pump(0.1f);
+            arrowSeen |= server.World.Projectiles.Values.Any(pr => pr.SpriteOverride == "Arrow");
+        }
+        Check(arrowSeen, "skeleton archers shoot arrows at nearby enemies");
+        Check(sumPrey.Health < 399.9f, $"arrows damage the enemy (hp {sumPrey.Health:0})");
+
+        // Summons can be hurt and die; the death queues a FREE respawn near the summoner.
+        var victim2 = server.World.Summons.Values.First(su => su.OwnerId == bId);
+        int victimId = victim2.Id;
+        float manaBeforeDeath = srvSum.Mana;
+        server.World.DamageSummon(victim2, 99999f);
+        Pump(0.3f);
+        Check(!server.World.Summons.ContainsKey(victimId) && !clientB.World.Summons.ContainsKey(victimId),
+              "summons take damage, die and despawn everywhere");
+        Check(server.World.Summons.Values.Count(su => su.OwnerId == bId) == 1, "one archer remains");
+        bool respawned = false;
+        for (int i = 0; i < 30 && !respawned; i++)
+        {
+            Pump(0.4f);
+            respawned = server.World.Summons.Values.Count(su => su.OwnerId == bId) == 2;
+        }
+        Check(respawned, $"dead archers freely respawn after {sumDef.SummonRespawnTime:0}s");
+        Check(srvSum.Mana >= manaBeforeDeath - 1f, // free respawn: mana only regens, never drops
+              "the respawn costs no mana");
+
+        // Rally: the backquote command walks the pack to a marked point.
+        var rallyPoint = srvSum.Position + new Vector2(0f, 4f);
+        clientB.RequestSummonRally(true, rallyPoint);
+        bool rallied = false;
+        for (int i = 0; i < 30 && !rallied; i++)
+        {
+            Pump(0.3f);
+            rallied = server.World.Summons.Values.Where(su => su.OwnerId == bId)
+                .All(su => Vector2.Distance(su.Position, rallyPoint) < 1.6f);
+        }
+        Check(rallied, "rallied summons hold the marked point");
+        clientB.RequestSummonRally(false, default);
+        Pump(0.3f);
+        Check(srvSum.SummonRally == null, "clearing the rally returns them to following");
+
+        // The - button dismisses one.
+        clientB.RequestSummonAdjust("summon_skeleton", -1);
+        Pump(0.4f);
+        Check(server.World.Summons.Values.Count(su => su.OwnerId == bId) == 1,
+              "the Skill Menu - button dismisses a skeleton");
+
+        // Gear scaling: summon damage/health % and +limit modifiers exist and apply.
+        Check(data.Modifiers["commanding"].StatAffected == Stats.StatType.SummonDamage &&
+              data.Modifiers["commanding"].CompatibleItemCategories.All(c =>
+                  c is Items.ItemCategory.Helmet or Items.ItemCategory.Staff) &&
+              data.Modifiers["commanding"].AffixType == Items.AffixType.Prefix,
+              "summon damage rolls as a helmet/staff PREFIX");
+        Check(data.Modifiers["of_undeath"].StatAffected == Stats.StatType.SummonHealth &&
+              data.Modifiers["of_undeath"].AffixType == Items.AffixType.Suffix,
+              "summon health rolls as a helmet/staff SUFFIX");
+        Check(data.Modifiers["of_legions"].StatAffected == Stats.StatType.SummonLimit &&
+              data.Modifiers["of_legions"].CompatibleItemCategories.SequenceEqual(
+                  new[] { Items.ItemCategory.Helmet }) &&
+              data.Modifiers["of_legions"].AffixType == Items.AffixType.Suffix,
+              "+summon limit rolls as a helmet-only SUFFIX");
+        var sumChar = new Sim.CharacterData();
+        var sumHelm = new Items.ItemInstance { BaseItemId = "leather_hood", Rarity = Items.ItemRarity.Rare };
+        sumHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "commanding", Value = 8 });
+        sumHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_undeath", Value = 10 });
+        sumHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_legions", Value = 1 });
+        sumChar.Equipment[Items.EquipSlot.Helmet] = sumHelm;
+        var sumStats = Stats.StatCalculator.Compute(data, sumChar);
+        Check(MathF.Abs(sumStats.SummonDamageIncrease - 8f) < 0.01f &&
+              MathF.Abs(sumStats.SummonHealthIncrease - 10f) < 0.01f &&
+              sumStats.SummonLimitBonus == 1,
+              "summon modifiers flow through the stat pipeline (+8% dmg, +10% hp, +1 limit)");
+        clientB.RequestSummonAdjust("summon_skeleton", -1);
+        sumPrey.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
         Pump(0.4f);
 
         Console.WriteLine("\n-- Disconnect resilience --");

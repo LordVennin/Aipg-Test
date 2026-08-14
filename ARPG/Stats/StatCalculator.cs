@@ -33,6 +33,11 @@ public struct ComputedStats
     public float PoisonMagnitudeIncrease;
     public float BleedMagnitudeIncrease;
 
+    // Minions
+    public float SummonDamageIncrease;   // percent
+    public float SummonHealthIncrease;   // percent
+    public int SummonLimitBonus;         // flat extra minions
+
     // Blocking (requires shields only in practice: BlockChance rolls solely on shields)
     public float BlockChance;            // percent chance to fully avoid one hit
     public float BlockCooldown;          // seconds between successful blocks
@@ -193,6 +198,9 @@ public static class StatCalculator
             ChillMagnitudeIncrease = total.Get(StatType.ChillMagnitude),
             PoisonMagnitudeIncrease = total.Get(StatType.PoisonMagnitude),
             BleedMagnitudeIncrease = total.Get(StatType.BleedMagnitude),
+            SummonDamageIncrease = total.Get(StatType.SummonDamage),
+            SummonHealthIncrease = total.Get(StatType.SummonHealth),
+            SummonLimitBonus = (int)total.Get(StatType.SummonLimit),
         };
 
         // Blocking: chance comes entirely from gear (shields and their modifiers); a block

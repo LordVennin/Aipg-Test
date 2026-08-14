@@ -30,6 +30,12 @@ public enum PacketType : byte
     ShopSellRequest,
     /// <summary>Allocate a passive tree node (node id). Server-validated.</summary>
     AllocatePassiveRequest,
+    /// <summary>Spend banked skill XP to level a skill up (skill id). Server-validated.</summary>
+    LevelSkillRequest,
+    /// <summary>Adjust a summon skill's minion count from the Skill Menu (skill id, +1/-1).</summary>
+    SummonAdjustRequest,
+    /// <summary>Command all summons to a world point (hasPoint=false clears the rally).</summary>
+    SummonRallyRequest,
 
     // Server -> Client
     JoinAccept,
@@ -68,6 +74,12 @@ public enum PacketType : byte
     ShopStock,
     /// <summary>A world visual effect: kind ("zap", "firepatch"), position, radius, duration, height.</summary>
     WorldEffect,
+    /// <summary>A summon spawned (id, owner, skill id, position, height, max/current hp).</summary>
+    SummonSpawn,
+    /// <summary>Summon movement/health snapshots (10 Hz).</summary>
+    SummonStates,
+    /// <summary>A summon died or was dismissed (id).</summary>
+    SummonDespawn,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

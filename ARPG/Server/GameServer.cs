@@ -149,6 +149,7 @@ public class GameServer : IServerEvents
         {
             _enemyStateTimer = 0;
             BroadcastEnemyStates();
+            BroadcastSummonStates();
         }
         _pingTimer += dt;
         if (_pingTimer >= 2f)
@@ -241,6 +242,19 @@ public class GameServer : IServerEvents
             case PacketType.AllocatePassiveRequest:
                 World.AllocatePassive(playerId, r.GetString());
                 break;
+            case PacketType.LevelSkillRequest:
+                World.LevelSkill(playerId, r.GetString());
+                break;
+            case PacketType.SummonAdjustRequest:
+                World.SummonAdjust(playerId, r.GetString(), r.GetInt());
+                break;
+            case PacketType.SummonRallyRequest:
+            {
+                bool hasPoint = r.GetBool();
+                var point = r.GetVec2();
+                World.SummonRally(playerId, hasPoint, point);
+                break;
+            }
         }
     }
 
@@ -297,6 +311,8 @@ public class GameServer : IServerEvents
 
         foreach (var npc in World.Npcs)
             peer.Send(NpcInfoPacket(npc), DeliveryMethod.ReliableOrdered);
+        foreach (var summon in World.Summons.Values)
+            peer.Send(SummonSpawnPacket(summon), DeliveryMethod.ReliableOrdered);
 
         // Announce to everyone else.
         BroadcastExcept(peer, PlayerJoinedPacket(player), DeliveryMethod.ReliableOrdered);
@@ -523,6 +539,46 @@ public class GameServer : IServerEvents
         w.Put(p.HeightStep);
         w.Put(p.SpriteOverride ?? "");
         Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void SummonSpawned(ServerSummon s)
+    {
+        Broadcast(SummonSpawnPacket(s), DeliveryMethod.ReliableOrdered);
+    }
+
+    public void SummonDespawned(ServerSummon s)
+    {
+        var w = Packets.Make(PacketType.SummonDespawn);
+        w.Put(s.Id);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    private NetDataWriter SummonSpawnPacket(ServerSummon s)
+    {
+        var w = Packets.Make(PacketType.SummonSpawn);
+        w.Put(s.Id);
+        w.Put(s.OwnerId);
+        w.Put(s.SkillId ?? "");
+        w.PutVec2(s.Position);
+        w.Put(s.Height);
+        w.Put(s.MaxHealth);
+        w.Put(s.Health);
+        return w;
+    }
+
+    private void BroadcastSummonStates()
+    {
+        if (_peerToPlayer.Count == 0 || World.Summons.Count == 0) return;
+        var w = Packets.Make(PacketType.SummonStates);
+        w.Put(World.Summons.Count);
+        foreach (var s in World.Summons.Values)
+        {
+            w.Put(s.Id);
+            w.PutVec2(s.Position);
+            w.Put(s.Height);
+            w.Put(s.Health);
+        }
+        Broadcast(w, DeliveryMethod.Unreliable);
     }
 
     public void WorldEffect(string kind, Vector2 position, float radius, float duration, float height)

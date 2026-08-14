@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 14; // v14: ailments (chill/freeze, electrocute, poison, bleed), world effects
+    public const int ProtocolVersion = 15; // v15: summons, manual skill leveling
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

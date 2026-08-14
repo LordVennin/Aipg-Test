@@ -3913,5 +3913,175 @@
   "MaximumValue": 92,
   "Weight": 46,
   "IsPercent": false
+ },
+ {
+  "Id": "commanding",
+  "Name": "Commanding I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 4,
+  "MaximumValue": 8,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t2",
+  "Name": "Commanding II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 3,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 8,
+  "MaximumValue": 12,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t3",
+  "Name": "Commanding III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 5,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 12,
+  "MaximumValue": 16,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t4",
+  "Name": "Commanding IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 7,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 16,
+  "MaximumValue": 20,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t5",
+  "Name": "Commanding V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 9,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 20,
+  "MaximumValue": 24,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t6",
+  "Name": "Commanding VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 11,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 24,
+  "MaximumValue": 28,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t7",
+  "Name": "Commanding VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 13,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 28,
+  "MaximumValue": 32,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t8",
+  "Name": "Commanding VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 15,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 32,
+  "MaximumValue": 36,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t9",
+  "Name": "Commanding IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 17,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 36,
+  "MaximumValue": 40,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "commanding_t10",
+  "Name": "Commanding X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 19,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_damage_prefix",
+  "StatAffected": "SummonDamage",
+  "MinimumValue": 40,
+  "MaximumValue": 44,
+  "Weight": 100,
+  "IsPercent": true
  }
 ]

@@ -40,6 +40,8 @@ public interface IServerEvents
     void ShopStockFor(ServerPlayer p, int npcId, IReadOnlyList<ShopEntry> stock);
     /// <summary>A one-shot or timed world visual ("zap" bursts, "firepatch" ground fire).</summary>
     void WorldEffect(string kind, Vector2 position, float radius, float duration, float height);
+    void SummonSpawned(ServerSummon s);
+    void SummonDespawned(ServerSummon s);
 }
 
 /// <summary>One merchant stock slot as offered to a specific player.</summary>
@@ -171,6 +173,12 @@ public partial class ServerWorld
     /// <summary>Friendly NPCs (the test merchant). Not combat entities.</summary>
     public readonly List<ServerNpc> Npcs = new();
 
+    /// <summary>Player minions (skeleton archers), by id.</summary>
+    public readonly Dictionary<int, ServerSummon> Summons = new();
+    private int _nextSummonId = 1;
+    private class SummonRespawn { public int OwnerId; public string SkillId; public float At; }
+    private readonly List<SummonRespawn> _summonRespawns = new();
+
     // ------------------------------------------------------------------ players
 
     public ServerPlayer AddPlayer(int id, string name, CharacterData character)
@@ -234,6 +242,7 @@ public partial class ServerWorld
         Time += dt;
         UpdateWindups();
         TickFirePatches();
+        TickSummons(dt);
         TickEnemies(dt);
         TickProjectiles(dt);
         TickSpawners();
@@ -472,6 +481,21 @@ public partial class ServerWorld
             }
 
             if (Time < e.StunnedUntil || Time < e.FrozenUntil) continue; // no movement, no attacks
+
+            // Summons soak aggression: an angry enemy with a minion in reach hits IT.
+            if (e.State is EnemyState.Chase or EnemyState.Attack)
+            {
+                var meat = NearestSummonNear(e.Position, e.Def.AttackRange, e.Height);
+                if (meat != null && Time >= e.AttackReadyAt)
+                {
+                    e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
+                    if (e.Def.Ranged)
+                        SpawnEnemyProjectileAt(e, meat.Position, meat.Height);
+                    else
+                        DamageSummon(meat, RollEnemyDamage(e).Sum(c => c.amount));
+                    continue;
+                }
+            }
 
             // Aggro/chase run on PATH distance (flow field), so climbing a ramp no longer
             // drops aggro — enemies path to the ramp and follow. Attacks stay strictly
@@ -736,8 +760,11 @@ public partial class ServerWorld
     }
 
     private void SpawnEnemyProjectile(ServerEnemy e, ServerPlayer target)
+        => SpawnEnemyProjectileAt(e, target.Position, target.Height);
+
+    private void SpawnEnemyProjectileAt(ServerEnemy e, Vector2 targetPos, float targetHeight)
     {
-        var dir = (target.Position - e.Position).NormalizedOrZero();
+        var dir = (targetPos - e.Position).NormalizedOrZero();
         var damageTypes = e.Def.DamageTypes is { Count: > 0 }
             ? e.Def.DamageTypes
             : new Dictionary<DamageKind, float> { [DamageKind.Fire] = e.Def.Damage };
@@ -755,8 +782,8 @@ public partial class ServerWorld
             Direction = dir,
             Speed = e.Def.ProjectileSpeed,
             MaxRange = e.Def.AttackRange + 3f,
-            HeightStep = (target.Height - e.Height) /
-                         MathF.Max(0.5f, Vector2.Distance(e.Position, target.Position)),
+            HeightStep = (targetHeight - e.Height) /
+                         MathF.Max(0.5f, Vector2.Distance(e.Position, targetPos)),
             MinDamage = primary.Value * 0.8f * e.DamageScale,
             MaxDamage = primary.Value * 1.2f * e.DamageScale,
             DamageKind = primary.Key,
@@ -810,6 +837,19 @@ public partial class ServerWorld
             }
             else
             {
+                bool consumed = false;
+                foreach (var s2 in Summons.Values)
+                {
+                    if (MathF.Abs(s2.Height - pr.Height) > 0.75f) continue;
+                    if (Vector2.Distance(pr.Position, s2.Position) <= ServerSummon.Radius + 0.25f)
+                    {
+                        DamageSummon(s2, Roll(pr.MinDamage, pr.MaxDamage));
+                        RemoveProjectile(pr, pr.Position);
+                        consumed = true;
+                        break;
+                    }
+                }
+                if (consumed) continue;
                 foreach (var p in Players.Values)
                 {
                     if (!p.Alive || MathF.Abs(p.Height - pr.Height) > 0.75f) continue;
@@ -1138,6 +1178,236 @@ public partial class ServerWorld
         p.NextDodgeAt = Time + p.Stats.DodgeCooldown;
         p.InvulnerableUntil = Time + p.Stats.DodgeInvulnerability;
         _events.PlayerDodged(p, dir, p.Stats.DodgeDistance, p.Stats.DodgeDuration);
+    }
+
+    // ------------------------------------------------------------------ summons
+
+    /// <summary>Minion cap for a summon skill: base + gear bonus (+X to summon limit).</summary>
+    public int SummonLimitFor(ServerPlayer p, SkillDefinition def) =>
+        def.SummonLimit + p.Stats.SummonLimitBonus;
+
+    /// <summary>Mana price of ONE summon: flat (grows per skill level) + a fraction of
+    /// the caster's max mana. Respawns after death are free.</summary>
+    public float SummonManaCost(ServerPlayer p, SkillDefinition def, int level) =>
+        def.ManaCost + def.ManaCostPerLevel * (level - 1) + def.ManaCostPctMax * p.Stats.MaxMana;
+
+    private int LivingSummons(int ownerId, string skillId) =>
+        Summons.Values.Count(s => s.OwnerId == ownerId && s.SkillId == skillId) +
+        _summonRespawns.Count(r => r.OwnerId == ownerId && r.SkillId == skillId);
+
+    /// <summary>Skill Menu +/- : raise or lower a summon skill's minion count.</summary>
+    public void SummonAdjust(int playerId, string skillId, int delta)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        var learned = p.Character.GetSkill(skillId);
+        var def = Data.Skills.GetValueOrDefault(skillId);
+        if (learned == null || def == null || def.Archetype != SkillArchetype.Summon) return;
+
+        if (delta > 0)
+        {
+            if (LivingSummons(playerId, skillId) >= SummonLimitFor(p, def))
+            {
+                _events.MessageFor(p, "Summon limit reached.");
+                return;
+            }
+            float cost = SummonManaCost(p, def, learned.Level);
+            if (p.Mana < cost - 0.01f)
+            {
+                _events.MessageFor(p, "Not enough mana.");
+                return;
+            }
+            p.Mana -= cost;
+            p.LastSyncedMana = p.Mana;
+            _events.PlayerHealthChanged(p);
+            SpawnSummon(p, learned, def);
+            p.DesiredSummons[skillId] = LivingSummons(playerId, skillId);
+        }
+        else if (delta < 0)
+        {
+            // Prefer cancelling a pending respawn; otherwise dismiss a living minion.
+            int pending = _summonRespawns.FindIndex(r => r.OwnerId == playerId && r.SkillId == skillId);
+            if (pending >= 0)
+            {
+                _summonRespawns.RemoveAt(pending);
+            }
+            else
+            {
+                var victim = Summons.Values.FirstOrDefault(s => s.OwnerId == playerId && s.SkillId == skillId);
+                if (victim == null) return;
+                Summons.Remove(victim.Id);
+                _events.SummonDespawned(victim);
+            }
+            p.DesiredSummons[skillId] = LivingSummons(playerId, skillId);
+        }
+    }
+
+    /// <summary>Rally command (backquote): send this player's summons to a point, or
+    /// clear the rally so they fall back to following the summoner.</summary>
+    public void SummonRally(int playerId, bool hasPoint, Vector2 point)
+    {
+        if (!Players.TryGetValue(playerId, out var p)) return;
+        if (hasPoint)
+        {
+            p.SummonRally = point;
+            p.SummonRallyHeight = Map.GroundHeightAt(point);
+        }
+        else p.SummonRally = null;
+    }
+
+    private void SpawnSummon(ServerPlayer p, LearnedSkill learned, SkillDefinition def)
+    {
+        int level = learned.Level;
+        float hp = (def.SummonHealth + def.SummonHealthPerLevel * (level - 1)) *
+                   (1f + p.Stats.SummonHealthIncrease / 100f);
+        float dmg = (def.SummonDamage + def.SummonDamagePerLevel * (level - 1)) *
+                    (1f + p.Stats.SummonDamageIncrease / 100f);
+        var pos = p.Position;
+        foreach (var off in new[]
+                 {
+                     new Vector2(0.9f, 0.4f), new Vector2(-0.9f, 0.4f), new Vector2(0.4f, -0.9f),
+                     new Vector2(-0.4f, 0.9f), new Vector2(1.2f, -0.6f), new Vector2(-1.2f, -0.6f),
+                 })
+        {
+            if (!Map.CircleHitsWall(p.Position + off, ServerSummon.Radius)) { pos = p.Position + off; break; }
+        }
+        var s = new ServerSummon
+        {
+            Id = _nextSummonId++,
+            OwnerId = p.Id,
+            SkillId = learned.SkillId,
+            Position = pos,
+            Height = Map.GroundHeightAt(pos),
+            Health = hp,
+            MaxHealth = hp,
+            Damage = dmg,
+        };
+        Summons[s.Id] = s;
+        _events.SummonSpawned(s);
+    }
+
+    /// <summary>Damage a minion (enemy melee/projectiles). Death queues a FREE respawn
+    /// near the summoner after the skill's respawn time.</summary>
+    public void DamageSummon(ServerSummon s, float damage)
+    {
+        if (s.Dead || damage <= 0) return;
+        s.Health -= damage;
+        _events.DamageDealt(false, -s.Id, damage, DamageKind.Blunt, s.Position);
+        if (s.Health > 0) return;
+        s.Health = 0;
+        Summons.Remove(s.Id);
+        _events.SummonDespawned(s);
+        var def = Data.Skills.GetValueOrDefault(s.SkillId);
+        _summonRespawns.Add(new SummonRespawn
+        {
+            OwnerId = s.OwnerId, SkillId = s.SkillId,
+            At = Time + (def?.SummonRespawnTime ?? 6f),
+        });
+    }
+
+    private void TickSummons(float dt)
+    {
+        // Pending respawns: free, near the (living) summoner.
+        for (int i = _summonRespawns.Count - 1; i >= 0; i--)
+        {
+            var r = _summonRespawns[i];
+            if (Time < r.At) continue;
+            if (!Players.TryGetValue(r.OwnerId, out var owner)) { _summonRespawns.RemoveAt(i); continue; }
+            if (!owner.Alive) { r.At = Time + 1f; continue; } // wait for the summoner to respawn
+            var learned = owner.Character.GetSkill(r.SkillId);
+            var def = Data.Skills.GetValueOrDefault(r.SkillId);
+            _summonRespawns.RemoveAt(i);
+            if (learned == null || def == null) continue;
+            SpawnSummon(owner, learned, def);
+        }
+
+        foreach (var s in Summons.Values.ToList())
+        {
+            if (!Players.TryGetValue(s.OwnerId, out var owner))
+            {
+                Summons.Remove(s.Id);
+                _events.SummonDespawned(s);
+                continue;
+            }
+
+            // Goal: the rally point when set, otherwise loosely follow the summoner.
+            var goal = owner.SummonRally ?? owner.Position;
+            float goalHeight = owner.SummonRally.HasValue ? owner.SummonRallyHeight : owner.Height;
+
+            // Nearest living enemy in aggro range with a clear line of fire.
+            ServerEnemy prey = null;
+            float bestDist = ServerSummon.AggroRange;
+            foreach (var e in Enemies.Values)
+            {
+                if (e.Dead || MathF.Abs(e.Height - s.Height) > 0.75f) continue;
+                float d = Vector2.Distance(e.Position, s.Position);
+                if (d < bestDist && !Map.ShotBlocked(s.Position, s.Height + 0.5f, e.Position, e.Height + 0.5f))
+                {
+                    bestDist = d;
+                    prey = e;
+                }
+            }
+
+            // A rally is an explicit order: march to the point before picking fights,
+            // then shoot whatever is in range from the held position.
+            bool marchingToRally = owner.SummonRally.HasValue &&
+                Vector2.Distance(s.Position, goal) > 1.2f;
+
+            if (!marchingToRally && prey != null && bestDist <= ServerSummon.AttackRange)
+            {
+                if (Time >= s.AttackReadyAt)
+                {
+                    s.AttackReadyAt = Time + ServerSummon.AttackCooldown;
+                    var dir = (prey.Position - s.Position).NormalizedOrZero();
+                    var arrow = new ServerProjectile
+                    {
+                        Id = _nextProjectileId++,
+                        FromPlayer = true,
+                        OwnerId = s.OwnerId,       // kill credit and XP go to the summoner
+                        SkillId = s.SkillId,
+                        SpriteOverride = "Arrow",
+                        Position = s.Position + dir * 0.4f,
+                        Height = s.Height,
+                        Direction = dir,
+                        Speed = 11f,
+                        MaxRange = ServerSummon.AttackRange + 1.5f,
+                        MinDamage = s.Damage * 0.85f,
+                        MaxDamage = s.Damage * 1.15f,
+                        DamageKind = DamageKind.Thrust,
+                    };
+                    Projectiles[arrow.Id] = arrow;
+                    _events.ProjectileSpawned(arrow);
+                }
+                continue; // in firing position: hold
+            }
+
+            // March: toward the prey if hunting near home, else toward the goal.
+            var moveTarget = prey?.Position ?? goal;
+            if (owner.SummonRally.HasValue) moveTarget = goal; // rallied: hold the point
+            float distToTarget = Vector2.Distance(s.Position, moveTarget);
+            float stop = owner.SummonRally.HasValue || prey != null ? 0.6f : 1.8f;
+            if (distToTarget > stop)
+            {
+                var dir = (moveTarget - s.Position).NormalizedOrZero();
+                float h = s.Height;
+                s.Position = Map.MoveWithCollision(s.Position, dir * ServerSummon.MoveSpeed * dt,
+                    ServerSummon.Radius, ref h);
+                s.Height = h;
+            }
+        }
+    }
+
+    /// <summary>Nearest living summon within range of a point (enemy target picking).</summary>
+    public ServerSummon NearestSummonNear(Vector2 point, float range, float height)
+    {
+        ServerSummon best = null;
+        float bestD = range;
+        foreach (var s in Summons.Values)
+        {
+            if (MathF.Abs(s.Height - height) > 0.75f) continue;
+            float d = Vector2.Distance(s.Position, point);
+            if (d < bestD) { bestD = d; best = s; }
+        }
+        return best;
     }
 
     // ------------------------------------------------------------------ ailments
@@ -1502,14 +1772,24 @@ public partial class ServerWorld
 
     public bool GrantSkillXp(ServerPlayer p, LearnedSkill skill, float xp)
     {
+        // XP only ACCRUES here — leveling is a deliberate Skill Menu action
+        // (LevelSkill below), so skills can never over-level by accident.
         if (skill.Level >= SkillMath.MaxSkillLevel) return false;
         skill.Experience += xp;
-        while (skill.Level < SkillMath.MaxSkillLevel && skill.Experience >= SkillMath.XpToNextLevel(skill.Level))
-        {
-            skill.Experience -= SkillMath.XpToNextLevel(skill.Level);
-            skill.Level++;
-        }
         return true;
+    }
+
+    /// <summary>Spend banked skill XP on a level (the Skill Menu's Level Up button).</summary>
+    public void LevelSkill(int playerId, string skillId)
+    {
+        if (!Players.TryGetValue(playerId, out var p)) return;
+        var skill = p.Character.GetSkill(skillId);
+        if (skill == null || skill.Level >= SkillMath.MaxSkillLevel) return;
+        float need = SkillMath.XpToNextLevel(skill.Level);
+        if (skill.Experience < need) return;
+        skill.Experience -= need;
+        skill.Level++;
+        _events.CharacterChanged(p);
     }
 
     private void DamagePlayerTyped(ServerPlayer p, List<(DamageKind kind, float amount)> components)

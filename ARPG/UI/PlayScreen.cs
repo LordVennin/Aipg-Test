@@ -53,6 +53,8 @@ public class PlayScreen : IScreen
     private bool _devDropScrolls;
     /// <summary>ARPG_DEVUI=shop: walk-free shop open shortly after joining (GUI automation).</summary>
     private bool _devOpenShop;
+    /// <summary>ARPG_DEVUI=summons: learn the skeleton archers and raise a pack (GUI automation).</summary>
+    private bool _devLearnSummons, _devRaiseSummons;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     private bool _lmbClaimedByUI;
@@ -115,6 +117,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("shop")) _devOpenShop = true;
             if (devUi.Contains("shopgrid")) _shop.DevAutoGrid = true;
             if (devUi.Contains("tree")) _skillTree.Open = true;
+            if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
         }
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
@@ -171,6 +174,17 @@ public class PlayScreen : IScreen
         {
             _devOpenShop = false;
             _client.RequestShopOpen(_client.World.Npcs.Values.First().Id);
+        }
+        if (_devLearnSummons && _clientTime > 1.5f)
+        {
+            _devLearnSummons = false;
+            _client.RequestLearnSkill("summon_skeleton");
+        }
+        if (_devRaiseSummons && _clientTime > 2.5f)
+        {
+            _devRaiseSummons = false;
+            _client.RequestSummonAdjust("summon_skeleton", +1);
+            _client.RequestSummonAdjust("summon_skeleton", +1);
         }
 
         // The server (when hosting) runs on its OWN thread with a fixed timestep — the
@@ -405,6 +419,15 @@ public class PlayScreen : IScreen
                     if (drop != null) _client.RequestPickup(drop.DropId);
                 }
             }
+            // Command summons (backquote): rally them at the cursor; pointing at
+            // yourself (or very close) recalls them to following you.
+            if (input.WasActionPressed(InputAction.CommandSummons))
+            {
+                bool recall = NumVec2.Distance(mouseWorld, me.Position) < 1.5f;
+                _client.RequestSummonRally(!recall, mouseWorld);
+                _hud.AddMessage(recall ? "Summons follow you." : "Summons rally to your mark.");
+            }
+
             // Auto-walk toward a targeted pickup; any manual movement cancels it.
             if (_pickupTargetId != Guid.Empty)
             {
@@ -494,6 +517,7 @@ public class PlayScreen : IScreen
         var learned = character.GetSkill(skillId);
         var def = _game.Data.Skills.GetValueOrDefault(skillId);
         if (learned == null || def == null) return;
+        if (def.Archetype == SkillArchetype.Summon) return; // managed from the Skill Menu
 
         // Mirror the server's equipment gates: without them the client would predict
         // the lunge/cooldown for a cast the server is about to reject (e.g. Shield

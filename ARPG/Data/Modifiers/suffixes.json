@@ -3098,5 +3098,207 @@
   "MaximumValue": 60,
   "Weight": 41,
   "IsPercent": true
+ },
+ {
+  "Id": "of_undeath",
+  "Name": "of Undeath I",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 5,
+  "MaximumValue": 10,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t2",
+  "Name": "of Undeath II",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 3,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 10,
+  "MaximumValue": 15,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t3",
+  "Name": "of Undeath III",
+  "AffixType": "Suffix",
+  "Tier": 3,
+  "MinimumItemLevel": 5,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 15,
+  "MaximumValue": 20,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t4",
+  "Name": "of Undeath IV",
+  "AffixType": "Suffix",
+  "Tier": 4,
+  "MinimumItemLevel": 7,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 20,
+  "MaximumValue": 25,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t5",
+  "Name": "of Undeath V",
+  "AffixType": "Suffix",
+  "Tier": 5,
+  "MinimumItemLevel": 9,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 25,
+  "MaximumValue": 30,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t6",
+  "Name": "of Undeath VI",
+  "AffixType": "Suffix",
+  "Tier": 6,
+  "MinimumItemLevel": 11,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 30,
+  "MaximumValue": 35,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t7",
+  "Name": "of Undeath VII",
+  "AffixType": "Suffix",
+  "Tier": 7,
+  "MinimumItemLevel": 13,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 35,
+  "MaximumValue": 40,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t8",
+  "Name": "of Undeath VIII",
+  "AffixType": "Suffix",
+  "Tier": 8,
+  "MinimumItemLevel": 15,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 40,
+  "MaximumValue": 45,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t9",
+  "Name": "of Undeath IX",
+  "AffixType": "Suffix",
+  "Tier": 9,
+  "MinimumItemLevel": 17,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 45,
+  "MaximumValue": 50,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_undeath_t10",
+  "Name": "of Undeath X",
+  "AffixType": "Suffix",
+  "Tier": 10,
+  "MinimumItemLevel": 19,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "Staff"
+  ],
+  "ModifierGroup": "summon_health_suffix",
+  "StatAffected": "SummonHealth",
+  "MinimumValue": 50,
+  "MaximumValue": 55,
+  "Weight": 100,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_legions",
+  "Name": "of Legions I",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Helmet"
+  ],
+  "ModifierGroup": "summon_limit_suffix",
+  "StatAffected": "SummonLimit",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 40,
+  "IsPercent": false
+ },
+ {
+  "Id": "of_legions_t2",
+  "Name": "of Legions II",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 22,
+  "CompatibleItemCategories": [
+   "Helmet"
+  ],
+  "ModifierGroup": "summon_limit_suffix",
+  "StatAffected": "SummonLimit",
+  "MinimumValue": 2,
+  "MaximumValue": 2,
+  "Weight": 40,
+  "IsPercent": false
  }
 ]

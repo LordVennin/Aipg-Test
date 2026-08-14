@@ -27,6 +27,7 @@ public enum SkillArchetype
     Projectile,    // launches one or more projectiles toward the cursor
     AreaBurst,     // damages enemies in a radius around the aimed point (range-limited)
     ChainLightning, // instantly hits a target near the aim, then leaps between nearby enemies
+    Summon,        // maintains persistent minions; managed from the Skill Menu, not the hotbar
 }
 
 /// <summary>
@@ -80,6 +81,20 @@ public class SkillDefinition
 
     /// <summary>Mana spent per use (0 = free, e.g. Basic Strike). Server-validated.</summary>
     public float ManaCost { get; set; }
+    /// <summary>Extra flat mana cost per skill level past the first (summons get pricier).</summary>
+    public float ManaCostPerLevel { get; set; }
+    /// <summary>Extra cost as a fraction of the caster's MAX mana (summons: 0.05 = 5%).</summary>
+    public float ManaCostPctMax { get; set; }
+
+    // ------------------------------------------------------------------ summons
+    /// <summary>Base number of minions this skill can maintain (gear can add more).</summary>
+    public int SummonLimit { get; set; }
+    public float SummonHealth { get; set; } = 30f;
+    public float SummonHealthPerLevel { get; set; } = 12f;
+    public float SummonDamage { get; set; } = 6f;
+    public float SummonDamagePerLevel { get; set; } = 2.5f;
+    /// <summary>Seconds after a minion dies before it freely respawns near the summoner.</summary>
+    public float SummonRespawnTime { get; set; } = 6f;
 
     public float Cooldown { get; set; } = 0.5f;
     public float Range { get; set; } = 1.5f;
