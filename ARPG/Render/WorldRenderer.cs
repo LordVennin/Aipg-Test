@@ -749,9 +749,11 @@ public class WorldRenderer
                         // Overhead slam: raise the weapon high, then chop down HARD along
                         // the aim with a snap (ease-in), ending buried toward the ground.
                         float chop = st * st; // ease-in: slow raise, fast smash
-                        float side = swingIso.X >= 0 ? 1f : -1f;
-                        float ang2 = side * (-2.2f + 3.1f * chop);
-                        var hand2 = screen + new Vector2(swingIso.X * 8f, -18f + 16f * chop);
+                        // Mirror the arc for leftward aims (angle -> PI - angle), otherwise
+                        // the chop plays in reverse: buried start, upward "smash".
+                        float baseAng = -2.2f + 3.1f * chop;
+                        float ang2 = swingIso.X >= 0 ? baseAng : MathF.PI - baseAng;
+                        var hand2 = screen + new Vector2(swingIso.X >= 0 ? 8f : -8f, -18f + 16f * chop);
                         batch.Draw(weaponTex, hand2, null, Color.White, ang2,
                             new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f),
                             2f + 0.3f * chop, SpriteEffects.None, 0f);

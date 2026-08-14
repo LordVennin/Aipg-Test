@@ -466,6 +466,41 @@ public partial class ServerWorld
         return false;
     }
 
+    // ------------------------------------------------------------------ passive tree
+
+    /// <summary>Server-validated passive allocation: the node must exist, be unallocated,
+    /// be a start node or adjacent to an allocated one, and the character must have an
+    /// unspent point (one per level past the first).</summary>
+    public void AllocatePassive(int playerId, string nodeId)
+    {
+        if (!Players.TryGetValue(playerId, out var p)) return;
+        var c = p.Character;
+        var tree = Data.PassiveTree;
+        if (!tree.ById.TryGetValue(nodeId, out var node)) return;
+        if (c.AllocatedPassives.Contains(nodeId)) return;
+        int available = Skills.PassiveTree.PointsForLevel(c.Level) - c.AllocatedPassives.Count;
+        if (available <= 0)
+        {
+            _events.MessageFor(p, "No passive points available.");
+            return;
+        }
+        bool reachable = node.Start ||
+                         tree.Neighbors(nodeId).Any(n => c.AllocatedPassives.Contains(n));
+        if (!reachable)
+        {
+            _events.MessageFor(p, "That passive is not connected to your allocated nodes.");
+            return;
+        }
+        c.AllocatedPassives.Add(nodeId);
+        p.RecomputeStats(Data);
+        // Max health/mana may have grown; keep current values within the new caps and
+        // let clients re-read both bars.
+        p.Health = MathF.Min(p.Health + 0, p.Stats.MaxHealth);
+        p.Mana = MathF.Min(p.Mana, p.Stats.MaxMana);
+        _events.PlayerHealthChanged(p);
+        _events.CharacterChanged(p);
+    }
+
     // ------------------------------------------------------------------ merchant shop
 
     public const int ShopSlotCount = 6;

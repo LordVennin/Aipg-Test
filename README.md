@@ -96,6 +96,7 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Inventory | `I` |
 | Skill Menu | `K` |
 | Character Sheet (defenses, resistances, skill DPS by damage type) | `C` |
+| Passive Skill Tree | `P` |
 | Interact: talk to NPCs / pick up items | `F` (or click an item's ground label) |
 | Debug menu | `F1` |
 | Pause / close panels / menu | `Escape` |
@@ -146,10 +147,11 @@ head.
 **Skills**: *Mace Strike* (fast swing that hits EVERY enemy in its arc with light
 knockback, free — no impact circle, the weapon swing IS the visual), *Mace Slam*
 (mace-only ground slam at the aimed point: a 0.35s WIND-UP before the hit lands —
-the overhead animation stretches to match — then heavy knockback, a 60% chance to
-Slow survivors for 2.5s, a cracked-earth impact overlay and a burst of dust and
-terrain-colored rock debris that pops up and settles — tagged `Slam`, higher mana
-cost),
+the overhead animation stretches to match, and the hit resolves from wherever the
+caster IS at landing time, so moving mid-swing moves the impact and its visuals
+with you — then heavy knockback, a 60% chance to Slow survivors for 2.5s, a
+cracked-earth impact overlay and a burst of dust and terrain-colored rock debris —
+tagged `Slam`, higher mana cost),
 Ground Slam, Shield Bash, Fire Bolt, Arcane Burst, *Ice Spike* (a cold projectile
 with its own crystalline shard sprite) and *Chain Lightning* (an instant blue-white
 bolt that strikes the enemy nearest the aim and leaps between nearby targets — the
@@ -328,8 +330,11 @@ will assign one per destination zone. **Mirewood (forest) is the default zone.**
 ### The merchant (test shop)
 
 **Weaver the Peddler** sets up camp a few tiles from the player spawn. Walk up
-and press the pickup key (`F`) to talk — a random dialogue line and a shop panel
-open. The stock is PER PLAYER and deterministic: seeded from (character name,
+and press the pickup key (`F`) to talk — a DIALOGUE panel opens first (random
+flavor line plus options; browsing the shop is one of them). The shop shows the
+stock as an inventory-style grid — the same cells, sprites and tooltips as your
+bag — and opens your inventory beside it in SELL MODE, where clicking a bag item
+sells it. The stock is PER PLAYER and deterministic: seeded from (character name,
 character level), so every player sees their own six items (the last is always a
 rare), the shop rerolls exactly once per level-up, and leaving/rejoining a
 session never rerolls it — no shop-scumming by hopping between friends' games.
@@ -337,6 +342,17 @@ Purchases mark the slot SOLD for the rest of the level (persisted on the
 character save). Buy price is twice the item's gold value; selling an inventory
 item (click it in the right column) pays its base value. All transactions are
 validated server-side like any other request.
+
+### Passive skill tree
+
+`P` opens a PoE-style passive tree. One point per character level past the first;
+nodes allocate outward from the start node ("Adventurer's Spark"), each adding
+stats through the SAME StatCollection pipeline as item modifiers — any existing
+stat works as a perk with zero extra code. Allocation is server-validated
+(existence, adjacency, unspent points) and persists in the character save. The
+starter cluster is deliberately tiny (10 perks in three branches: melee, defense,
+caster) — the SYSTEM is the point, and class-specific starting trees can replace
+`Data/SkillTree/tree.json` later without code changes.
 
 ### Enemy pathfinding (flow fields)
 
@@ -434,7 +450,7 @@ single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (211 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (222 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

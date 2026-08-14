@@ -238,6 +238,9 @@ public class GameServer : IServerEvents
             case PacketType.ShopSellRequest:
                 World.ShopSell(playerId, r.GetGuid());
                 break;
+            case PacketType.AllocatePassiveRequest:
+                World.AllocatePassive(playerId, r.GetString());
+                break;
         }
     }
 
@@ -549,13 +552,14 @@ public class GameServer : IServerEvents
         return w;
     }
 
-    public void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint)
+    public void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint, byte phase = 0)
     {
         var w = Packets.Make(PacketType.SkillEffect);
         w.Put(p.Id);
         w.Put(skillId);
         w.PutVec2(effectPoint);
         w.Put(p.Height);
+        w.Put(phase);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 12; // v12: NPCs + merchant shop, slam wind-up
+    public const int ProtocolVersion = 13; // v13: skill-effect phases, dialogue shop, passive tree
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

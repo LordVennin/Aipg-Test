@@ -240,6 +240,13 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestAllocatePassive(string nodeId)
+    {
+        var w = Packets.Make(PacketType.AllocatePassiveRequest);
+        w.Put(nodeId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void SendDebugCommand(string cmd, string arg = "")
     {
         var w = Packets.Make(PacketType.DebugCommand);
@@ -520,6 +527,10 @@ public class GameClient
                 // never at a client-side recomputation of the target.
                 var effectPoint = r.GetVec2();
                 float effectHeight = r.GetFloat();
+                // phase 0 = instant cast, 1 = wind-up start (animation only),
+                // 2 = wind-up landing (impact at the REAL point — the caster may have
+                // moved during the wind-up, so this point supersedes the cast point).
+                byte phase = r.GetByte();
                 var def = _data.Skills.GetValueOrDefault(skillId);
                 if (def != null && World.Players.ContainsKey(playerId))
                 {
@@ -527,12 +538,13 @@ public class GameClient
                     // held weapon (replacing the old abstract swipe arc). Shield skills
                     // don't swing — Shield Bash is a forward shove, not a swipe.
                     bool isSlam = def.Tags?.Contains("Slam") == true;
-                    if (def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
+                    if (phase != 2 &&
+                        def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
                         !def.RequiresShield &&
                         World.Players.GetValueOrDefault(playerId) is { } swingCaster)
                     {
                         var swingDir = effectPoint - swingCaster.Position;
-                        swingCaster.SwingTotal = isSlam && def.WindupTime > 0
+                        swingCaster.SwingTotal = phase == 1
                             ? def.WindupTime + 0.12f   // raise during the wind-up, land with the hit
                             : ClientPlayer.SwingDuration;
                         swingCaster.SwingTimeLeft = swingCaster.SwingTotal;
@@ -542,27 +554,28 @@ public class GameClient
                             : swingCaster.Facing;
                     }
 
-                    switch (def.Archetype)
-                    {
-                        case Skills.SkillArchetype.MeleeStrike:
-                            // Slam skills leave a ground impact that fades (delayed to land
-                            // with the windup); plain strikes are just the weapon swing.
-                            if (isSlam)
-                            {
-                                World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
-                                    0.45f, "impact", effectHeight, def.WindupTime);
-                                World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
-                                    0.9f, "debris", effectHeight, def.WindupTime);
-                            }
-                            break;
-                        // MeleeSingle: the weapon swing itself is the visual — no impact circle.
-                        case Skills.SkillArchetype.MeleeArea:
-                            World.AddEffect(effectPoint, def.Radius, 0.3f, "slam", effectHeight);
-                            break;
-                        case Skills.SkillArchetype.AreaBurst:
-                            World.AddEffect(effectPoint, def.Radius, 0.3f, "burst", effectHeight);
-                            break;
-                    }
+                    if (phase != 1) // impact visuals come with the landing, never the wind-up
+                        switch (def.Archetype)
+                        {
+                            case Skills.SkillArchetype.MeleeStrike:
+                                // Slam skills leave a ground impact that fades; plain
+                                // strikes are just the weapon swing.
+                                if (isSlam)
+                                {
+                                    World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
+                                        0.45f, "impact", effectHeight);
+                                    World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
+                                        0.9f, "debris", effectHeight);
+                                }
+                                break;
+                            // MeleeSingle: the weapon swing itself is the visual — no impact circle.
+                            case Skills.SkillArchetype.MeleeArea:
+                                World.AddEffect(effectPoint, def.Radius, 0.3f, "slam", effectHeight);
+                                break;
+                            case Skills.SkillArchetype.AreaBurst:
+                                World.AddEffect(effectPoint, def.Radius, 0.3f, "burst", effectHeight);
+                                break;
+                        }
                 }
                 break;
             }

@@ -136,6 +136,9 @@ public class GameData
 
     public DodgeConfig Dodge { get; private set; } = new();
 
+    /// <summary>The passive skill tree (Data/SkillTree/tree.json).</summary>
+    public Skills.PassiveTree PassiveTree { get; private set; } = new();
+
     public static GameData LoadFromDirectory(string dataDir)
     {
         var data = new GameData();
@@ -162,6 +165,13 @@ public class GameData
         {
             var raw = Json.LoadFile<Dictionary<string, int>>(slotsPath);
             data.ScrollSlotProgression = raw.ToDictionary(kv => int.Parse(kv.Key), kv => kv.Value);
+        }
+
+        string treePath = Path.Combine(dataDir, "SkillTree", "tree.json");
+        if (File.Exists(treePath))
+        {
+            try { data.PassiveTree = Json.LoadFile<Skills.PassiveTree>(treePath) ?? new Skills.PassiveTree(); }
+            catch (Exception e) { Console.WriteLine($"[Data] Failed to load tree.json: {e.Message}"); }
         }
 
         string dodgePath = Path.Combine(dataDir, "Config", "dodge.json");
