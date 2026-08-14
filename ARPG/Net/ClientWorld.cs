@@ -124,6 +124,12 @@ public class ClientSummon
     public float Health;
     public float MaxHealth;
     public bool FacingLeft;
+
+    // Attack animation (SummonAttack events): warriors chop their drawn sword along
+    // AttackDir, archers recoil from the bow release. Stale timestamps just stop
+    // drawing once the short animation duration has elapsed.
+    public Vector2 AttackDir;
+    public long AttackAnimAtMs;
 }
 
 /// <summary>A friendly NPC (the test merchant): stationary, interacted with via the pickup key.</summary>

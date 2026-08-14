@@ -805,15 +805,70 @@ public class WorldRenderer
             var summonTex = SpriteGen.GetSummonSprite(summon.SkillId);
             if (summonTex == null) continue;
             bool mine = summon.OwnerId == world.MyPlayerId;
+            bool isWarrior = summon.SkillId != null && summon.SkillId.Contains("warrior");
+
+            // Attack animation (SummonAttack events): warriors lurch and chop their
+            // drawn sword; archers recoil from the bow release. Plus a light walk bob
+            // while moving so the pack doesn't glide around as frozen statues.
+            const float SummonSwingDur = 0.22f;
+            float attackT = -1f;
+            Vector2 strikeDir = Vector2.Zero;
+            if (summon.AttackAnimAtMs > 0 && (summon.AttackDir.X != 0f || summon.AttackDir.Y != 0f))
+            {
+                float elapsed = (animClock - summon.AttackAnimAtMs) / 1000f;
+                if (elapsed < SummonSwingDur)
+                {
+                    attackT = elapsed / SummonSwingDur;
+                    var tip = camera.WorldToScreen(pos + summon.AttackDir * 0.6f, summon.Height);
+                    var sd = new Vector2(tip.X - screen.X, tip.Y - screen.Y);
+                    if (sd.LengthSquared() > 0.001f) sd.Normalize();
+                    strikeDir = sd;
+                }
+            }
+            Vector2 sumOff = Vector2.Zero;
+            if (attackT >= 0f)
+                sumOff = isWarrior
+                    ? strikeDir * (4.5f * (1f - attackT))   // sword lurch, settling back
+                    : -strikeDir * (3f * (1f - attackT));   // bow recoil
+            bool walking = NumVec2.Distance(summon.Position, summon.NetTarget) > 0.06f;
+            if (walking && attackT < 0f)
+                sumOff.Y += MathF.Sin(animClock * 0.014f + summon.Id * 1.7f) * 1.5f;
+
             _sorted.Add((pos.X + pos.Y + summon.Height * 1.0f + 0.1f + UnderDeckBias(pos, summon.Height), batch =>
             {
                 int w = summonTex.Width * 2, h = summonTex.Height * 2;
                 batch.Draw(TextureGen.Circle32,
                     new Rectangle((int)(screen.X - 12), (int)(screen.Y - 6), 24, 12),
                     new Color(0, 0, 0, 90));
-                batch.Draw(summonTex, new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 4, w, h),
+                batch.Draw(summonTex,
+                    new Rectangle((int)(screen.X + sumOff.X) - w / 2, (int)(screen.Y + sumOff.Y) - h + 4, w, h),
                     null, Color.White, 0f, Vector2.Zero,
                     summon.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
+                if (isWarrior)
+                {
+                    // The warrior's blade is drawn separately so it can actually swing:
+                    // lowered at rest, chopped through the strike direction on attack.
+                    var sword = SpriteGen.GetBoneSword();
+                    if (sword != null)
+                    {
+                        float dirSign = summon.FacingLeft ? -1f : 1f;
+                        var hand = new Vector2(screen.X + sumOff.X + dirSign * 7,
+                            screen.Y + sumOff.Y - 13);
+                        float angle;
+                        if (attackT >= 0f)
+                        {
+                            float baseAng = MathF.Atan2(strikeDir.Y, strikeDir.X);
+                            float sweep = 1f - (1f - attackT) * (1f - attackT); // fast chop, soft settle
+                            angle = baseAng + MathHelper.Lerp(-1.9f, 0.9f, sweep);
+                        }
+                        else
+                        {
+                            angle = summon.FacingLeft ? MathF.PI - 0.65f : 0.65f; // lowered at rest
+                        }
+                        batch.Draw(sword, hand, null, Color.White, angle,
+                            new Vector2(1f, 2.5f), 1.7f, SpriteEffects.None, 0f);
+                    }
+                }
                 float frac = summon.MaxHealth > 0 ? Math.Clamp(summon.Health / summon.MaxHealth, 0f, 1f) : 0;
                 var bar = new Rectangle((int)screen.X - 13, (int)screen.Y - h - 4, 26, 3);
                 batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));

@@ -490,6 +490,14 @@ public class GameServer : IServerEvents
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void SummonAttacked(ServerSummon s, System.Numerics.Vector2 dir)
+    {
+        var w = Packets.Make(PacketType.SummonAttack);
+        w.Put(s.Id);
+        w.PutVec2(dir);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void EnemyHealthChanged(ServerEnemy e)
     {
         var w = Packets.Make(PacketType.EnemyHealth);

@@ -69,6 +69,7 @@ public enum PacketType : byte
     /// <summary>A boss ground-slam AoE burst (position, radius, height) for the visual.</summary>
     EnemySlam,
     EnemyAttack,
+    SummonAttack,
     /// <summary>A friendly NPC in the world (id, type id, position, height).</summary>
     NpcInfo,
     /// <summary>A merchant's stock for THIS player: per slot the item, price and sold flag.</summary>

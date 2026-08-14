@@ -38,6 +38,8 @@ public interface IServerEvents
     void EnemySlammed(ServerEnemy e, float radius);
     /// <summary>Telegraphed melee swing: phase 1 = wind-up started, 2 = swing resolved.</summary>
     void EnemyAttacked(ServerEnemy e, byte phase, Vector2 dir);
+    /// <summary>A summon attacked (arrow loosed / sword swung) — drives client animation.</summary>
+    void SummonAttacked(ServerSummon s, Vector2 dir);
     /// <summary>This player's current merchant stock (sent on shop open and after a buy).</summary>
     void ShopStockFor(ServerPlayer p, int npcId, IReadOnlyList<ShopEntry> stock);
     /// <summary>A one-shot or timed world visual ("zap" bursts, "firepatch" ground fire).</summary>
@@ -1482,6 +1484,7 @@ public partial class ServerWorld
                 {
                     s.AttackReadyAt = Time + s.SwingTime;
                     var dir = (prey.Position - s.Position).NormalizedOrZero();
+                    _events.SummonAttacked(s, dir);
                     if (s.Melee)
                     {
                         // Skeleton warrior swing: the full player-hit pipeline (mitigation,
