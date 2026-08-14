@@ -229,6 +229,15 @@ public class GameServer : IServerEvents
             case PacketType.ApplyEnchantRequest:
                 World.ApplyEnchant(playerId, r.GetGuid(), r.GetGuid());
                 break;
+            case PacketType.ShopOpenRequest:
+                World.ShopOpen(playerId, r.GetInt());
+                break;
+            case PacketType.ShopBuyRequest:
+                World.ShopBuy(playerId, r.GetInt(), r.GetInt());
+                break;
+            case PacketType.ShopSellRequest:
+                World.ShopSell(playerId, r.GetGuid());
+                break;
         }
     }
 
@@ -282,6 +291,9 @@ public class GameServer : IServerEvents
             peer.Send(EnemySpawnPacket(enemy), DeliveryMethod.ReliableOrdered);
         foreach (var drop in World.Drops.Values)
             peer.Send(WorldItemSpawnPacket(drop), DeliveryMethod.ReliableOrdered);
+
+        foreach (var npc in World.Npcs)
+            peer.Send(NpcInfoPacket(npc), DeliveryMethod.ReliableOrdered);
 
         // Announce to everyone else.
         BroadcastExcept(peer, PlayerJoinedPacket(player), DeliveryMethod.ReliableOrdered);
@@ -351,6 +363,31 @@ public class GameServer : IServerEvents
         w.Put(e.MaxHealth);
         w.Put((byte)e.Affixes);
         return w;
+    }
+
+    private NetDataWriter NpcInfoPacket(ServerNpc npc)
+    {
+        var w = Packets.Make(PacketType.NpcInfo);
+        w.Put(npc.Id);
+        w.Put(npc.TypeId);
+        w.PutVec2(npc.Position);
+        w.Put(npc.Height);
+        return w;
+    }
+
+    public void ShopStockFor(ServerPlayer p, int npcId, IReadOnlyList<ShopEntry> stock)
+    {
+        var w = Packets.Make(PacketType.ShopStock);
+        w.Put(npcId);
+        w.Put(stock.Count);
+        foreach (var entry in stock)
+        {
+            w.Put(entry.Slot);
+            w.Put(entry.Price);
+            w.Put(entry.Sold);
+            w.Put(Json.SaveCompact(entry.Item));
+        }
+        SendTo(p.Id, w, DeliveryMethod.ReliableOrdered);
     }
 
     private NetDataWriter WorldItemSpawnPacket(WorldItem item)

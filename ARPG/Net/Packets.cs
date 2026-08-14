@@ -22,6 +22,12 @@ public enum PacketType : byte
     DebugCommand,
     DodgeRequest,
     ApplyEnchantRequest,
+    /// <summary>Open a merchant's shop (npc id) — the server answers with ShopStock.</summary>
+    ShopOpenRequest,
+    /// <summary>Buy the item in a stock slot (npc id, slot index).</summary>
+    ShopBuyRequest,
+    /// <summary>Sell an inventory item to the merchant (item instance id).</summary>
+    ShopSellRequest,
 
     // Server -> Client
     JoinAccept,
@@ -54,6 +60,10 @@ public enum PacketType : byte
     ChainEffect,
     /// <summary>A boss ground-slam AoE burst (position, radius, height) for the visual.</summary>
     EnemySlam,
+    /// <summary>A friendly NPC in the world (id, type id, position, height).</summary>
+    NpcInfo,
+    /// <summary>A merchant's stock for THIS player: per slot the item, price and sold flag.</summary>
+    ShopStock,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

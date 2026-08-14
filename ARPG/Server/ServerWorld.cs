@@ -34,6 +34,17 @@ public interface IServerEvents
     void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false);
     /// <summary>A boss ground-slam burst, for the AoE visual on all clients.</summary>
     void EnemySlammed(ServerEnemy e, float radius);
+    /// <summary>This player's current merchant stock (sent on shop open and after a buy).</summary>
+    void ShopStockFor(ServerPlayer p, int npcId, IReadOnlyList<ShopEntry> stock);
+}
+
+/// <summary>One merchant stock slot as offered to a specific player.</summary>
+public class ShopEntry
+{
+    public int Slot;
+    public ItemInstance Item;
+    public int Price;
+    public bool Sold;
 }
 
 /// <summary>
@@ -129,7 +140,32 @@ public partial class ServerWorld
             ScatterRadius = 1.8f,
             RespawnDelay = 90f,
         });
+
+        // The test merchant sets up near the player spawn, on the first walkable spot
+        // outside the spawn-clear zone (so players never spawn inside them).
+        if (data.Npcs.ContainsKey("merchant"))
+        {
+            var spawn = Map.PlayerSpawn;
+            foreach (var off in new[]
+                     {
+                         new Vector2(2.6f, -1.2f), new Vector2(-2.6f, 1.2f), new Vector2(2.6f, 1.6f),
+                         new Vector2(-1.4f, -2.6f), new Vector2(3.2f, 0f), new Vector2(0f, 3.2f),
+                     })
+            {
+                var pos = spawn + off;
+                if (Map.CircleHitsWall(pos, 0.4f)) continue;
+                Npcs.Add(new ServerNpc
+                {
+                    Id = 1, TypeId = "merchant", Position = pos,
+                    Height = Map.GroundHeightAt(pos),
+                });
+                break;
+            }
+        }
     }
+
+    /// <summary>Friendly NPCs (the test merchant). Not combat entities.</summary>
+    public readonly List<ServerNpc> Npcs = new();
 
     // ------------------------------------------------------------------ players
 
@@ -186,6 +222,7 @@ public partial class ServerWorld
     public void Tick(float dt)
     {
         Time += dt;
+        UpdateWindups();
         TickEnemies(dt);
         TickProjectiles(dt);
         TickSpawners();
@@ -816,6 +853,71 @@ public partial class ServerWorld
         if (def.LungeDistance > 0)
             p.InvulnerableUntil = MathF.Max(p.InvulnerableUntil, Time + 0.35f);
 
+        // Wind-up skills (Mace Slam): costs are paid now, but the hit lands after
+        // WindupTime. SkillUsed is broadcast immediately so clients start the slam
+        // animation; their impact visuals self-delay by the same WindupTime.
+        if (def.WindupTime > 0)
+        {
+            _windups.Add(new PendingStrike
+            {
+                PlayerId = playerId, SkillId = skillId, Target = target,
+                TargetHeight = targetHeight, TargetEnemyId = targetEnemyId,
+                ChargeMult = chargeMult, Stats = stats,
+                ExecuteAt = Time + def.WindupTime,
+            });
+            _events.SkillUsed(p, skillId,
+                SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range));
+            return;
+        }
+
+        ResolveSkill(p, skillId, def, stats, target, targetHeight, chargeMult, announce: true);
+    }
+
+    /// <summary>A cast whose hit is still winding up (Mace Slam's delayed impact).</summary>
+    private class PendingStrike
+    {
+        public int PlayerId;
+        public string SkillId;
+        public Vector2 Target;
+        public float TargetHeight;
+        public int TargetEnemyId;
+        public float ChargeMult;
+        public EffectiveSkillStats Stats;
+        public float ExecuteAt;
+    }
+
+    private readonly List<PendingStrike> _windups = new();
+
+    /// <summary>Land queued wind-up strikes whose timers expired (called from the tick).</summary>
+    private void UpdateWindups()
+    {
+        for (int i = _windups.Count - 1; i >= 0; i--)
+        {
+            var w = _windups[i];
+            if (Time < w.ExecuteAt) continue;
+            _windups.RemoveAt(i);
+            if (!Players.TryGetValue(w.PlayerId, out var caster) || !caster.Alive) continue;
+            var def = Data.Skills.GetValueOrDefault(w.SkillId);
+            if (def == null) continue;
+            // Re-aim at a hover-targeted enemy's current spot so the slam tracks
+            // slightly, the way the cast would have if it resolved instantly.
+            var target = w.Target;
+            if (w.TargetEnemyId >= 0 && Enemies.TryGetValue(w.TargetEnemyId, out var aimed) && !aimed.Dead)
+                target = aimed.Position;
+            ResolveSkill(caster, w.SkillId, def, w.Stats, target, w.TargetHeight, w.ChargeMult,
+                announce: false);
+        }
+    }
+
+    /// <summary>The actual hit resolution for a cast (immediately for normal skills, after
+    /// the wind-up for queued ones). `announce` controls the SkillUsed broadcast — wind-up
+    /// casts already announced at cast time.</summary>
+    private void ResolveSkill(ServerPlayer p, string skillId, SkillDefinition def,
+        EffectiveSkillStats stats, Vector2 target, float targetHeight, float chargeMult,
+        bool announce)
+    {
+        int playerId = p.Id;
+
         // The effect point is computed ONCE here and broadcast; hit detection below and
         // client visuals both use this exact point.
         Vector2 effectPoint = target;
@@ -965,7 +1067,7 @@ public partial class ServerWorld
             }
         }
 
-        _events.SkillUsed(p, skillId, effectPoint);
+        if (announce) _events.SkillUsed(p, skillId, effectPoint);
     }
 
     /// <summary>Server-authoritative dodge: validates the cooldown and applies i-frames.

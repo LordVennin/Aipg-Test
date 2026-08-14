@@ -30,6 +30,9 @@ public class ClientPlayer
     /// <summary>Counts down while the held weapon plays its melee swing animation.</summary>
     public float SwingTimeLeft;
     public const float SwingDuration = 0.26f;
+    /// <summary>Total duration of the current swing (slam wind-ups stretch it so the
+    /// overhead chop lands exactly when the delayed hit resolves).</summary>
+    public float SwingTotal = SwingDuration;
     /// <summary>World-space direction of the current swing (toward the impact point).</summary>
     public Vector2 SwingDir = new(1, 0);
     /// <summary>0 = horizontal swipe, 1 = overhead slam (Slam-tagged skills).</summary>
@@ -97,6 +100,25 @@ public class ClientProjectile
     public float HeightStep;
 }
 
+/// <summary>A friendly NPC (the test merchant): stationary, interacted with via the pickup key.</summary>
+public class ClientNpc
+{
+    public int Id;
+    public string TypeId;
+    public string Name;
+    public Vector2 Position;
+    public float Height;
+}
+
+/// <summary>One merchant stock slot as replicated for the local player.</summary>
+public class ClientShopEntry
+{
+    public int Slot;
+    public int Price;
+    public bool Sold;
+    public ItemInstance Item;
+}
+
 public class ClientDrop
 {
     public Guid DropId;
@@ -134,7 +156,9 @@ public class ClientEffect
     public float Radius;
     public float TimeLeft;
     public float Duration;
-    public string Kind; // "slam", "burst", "hit", "melee", "swipe", "chain"
+    /// <summary>Seconds before the effect starts playing (slam windups land late).</summary>
+    public float Delay;
+    public string Kind; // "slam", "burst", "hit", "melee", "swipe", "chain", "impact", "debris"
     /// <summary>World-space direction, used by directional effects (the swipe arc).</summary>
     public Vector2 Dir;
     /// <summary>World-space path for chained effects (chain lightning: caster -> victims).</summary>
@@ -154,6 +178,7 @@ public class ClientWorld
     public readonly Dictionary<int, ClientEnemy> Enemies = new();
     public readonly Dictionary<int, ClientProjectile> Projectiles = new();
     public readonly Dictionary<Guid, ClientDrop> Drops = new();
+    public readonly Dictionary<int, ClientNpc> Npcs = new();
     public readonly List<ClientEffect> Effects = new();
     public readonly List<FloatingNumber> FloatingNumbers = new();
     /// <summary>Diagnostic counter: dodge events received (used by the headless net test).</summary>
@@ -228,6 +253,7 @@ public class ClientWorld
 
         for (int i = Effects.Count - 1; i >= 0; i--)
         {
+            if (Effects[i].Delay > 0) { Effects[i].Delay -= dt; continue; }
             Effects[i].TimeLeft -= dt;
             if (Effects[i].TimeLeft <= 0) Effects.RemoveAt(i);
         }
@@ -243,8 +269,8 @@ public class ClientWorld
         }
     }
 
-    public void AddEffect(Vector2 pos, float radius, float duration, string kind, float height = 0f) =>
-        Effects.Add(new ClientEffect { Position = pos, Radius = radius, TimeLeft = duration, Duration = duration, Kind = kind, Height = height });
+    public void AddEffect(Vector2 pos, float radius, float duration, string kind, float height = 0f, float delay = 0f) =>
+        Effects.Add(new ClientEffect { Position = pos, Radius = radius, TimeLeft = duration, Duration = duration, Kind = kind, Height = height, Delay = delay });
 
     public ClientDrop NearestDrop(Vector2 pos, float maxDist)
     {

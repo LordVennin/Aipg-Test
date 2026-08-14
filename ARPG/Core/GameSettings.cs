@@ -15,7 +15,7 @@ public class GameSettings
     /// <summary>Zone theme used when hosting/starting single player. Themes shape map
     /// GENERATION (the forest grows big trees), so this is decided before the map exists
     /// and replicated to joining clients.</summary>
-    public string ZoneThemeId { get; set; } = "graveyard";
+    public string ZoneThemeId { get; set; } = "forest";
     public bool Fullscreen { get; set; }
     public int ResolutionWidth { get; set; } = 1280;
     public int ResolutionHeight { get; set; } = 720;
@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 11; // v11: charged casts, global use-time, slow debuff
+    public const int ProtocolVersion = 12; // v12: NPCs + merchant shop, slam wind-up
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

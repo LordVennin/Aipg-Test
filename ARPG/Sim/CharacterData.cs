@@ -46,6 +46,13 @@ public class CharacterData
     /// <summary>Hotbar: slot 0 = primary attack (mouse), 1..4 = Skill1..Skill4 keys. Values are skill ids.</summary>
     public string[] Hotbar { get; set; } = new string[5];
 
+    /// <summary>Character level the current merchant stock was rolled for. When it no longer
+    /// matches Level the shop rerolls (and sold slots reset). Persisted with the save, so
+    /// leaving and rejoining never rerolls the shop within a level.</summary>
+    public int ShopLevel { get; set; }
+    /// <summary>Stock slot indices already purchased at ShopLevel (they stay sold out).</summary>
+    public List<int> ShopSoldSlots { get; set; } = new();
+
     public float XpToNextLevel() => 40f + 25f * Level;
 
     public LearnedSkill GetSkill(string skillId) => Skills.FirstOrDefault(s => s.SkillId == skillId);

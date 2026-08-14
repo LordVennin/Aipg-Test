@@ -16,8 +16,8 @@
   "WeaponDamageMultiplierPerLevel": 0.09,
   "RequiredWeapon": "Mace",
   "Cooldown": 0.3,
-  "Range": 1.6,
-  "Radius": 1.0,
+  "Range": 1.5,
+  "Radius": 0.85,
   "Knockback": 0.8,
   "UseTime": 0.3
  },
@@ -41,13 +41,14 @@
   "RequiredWeapon": "Mace",
   "Cooldown": 0.35,
   "Range": 1.5,
-  "Radius": 1.25,
+  "Radius": 1.45,
   "RadiusPerLevel": 0.03,
-  "ManaCost": 7,
+  "ManaCost": 9,
   "Knockback": 2.2,
   "SlowChance": 0.6,
   "SlowDuration": 2.5,
-  "UseTime": 0.55
+  "UseTime": 0.6,
+  "WindupTime": 0.35
  },
  {
   "Id": "ground_slam",

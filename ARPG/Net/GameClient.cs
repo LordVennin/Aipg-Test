@@ -44,6 +44,8 @@ public class GameClient
     /// <summary>Server info/error text for the HUD message line.</summary>
     public event Action<string> ServerMessageReceived;
     public event Action<string> Disconnected;
+    /// <summary>The merchant's stock for the local player (on shop open and after buys).</summary>
+    public event Action<int, List<ClientShopEntry>> ShopStockReceived;
 
     private readonly CharacterData _initialCharacter;
 
@@ -216,6 +218,28 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestShopOpen(int npcId)
+    {
+        var w = Packets.Make(PacketType.ShopOpenRequest);
+        w.Put(npcId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void RequestShopBuy(int npcId, int slot)
+    {
+        var w = Packets.Make(PacketType.ShopBuyRequest);
+        w.Put(npcId);
+        w.Put(slot);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void RequestShopSell(Guid itemInstanceId)
+    {
+        var w = Packets.Make(PacketType.ShopSellRequest);
+        w.PutGuid(itemInstanceId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void SendDebugCommand(string cmd, string arg = "")
     {
         var w = Packets.Make(PacketType.DebugCommand);
@@ -315,6 +339,31 @@ public class GameClient
                 float radius = r.GetFloat();
                 float height = r.GetFloat();
                 World.AddEffect(at, radius, 0.45f, "slam", height);
+                break;
+            }
+            case PacketType.NpcInfo:
+            {
+                var npc = new ClientNpc { Id = r.GetInt(), TypeId = r.GetString() };
+                npc.Position = r.GetVec2();
+                npc.Height = r.GetFloat();
+                npc.Name = _data.Npcs.GetValueOrDefault(npc.TypeId)?.Name ?? npc.TypeId;
+                World.Npcs[npc.Id] = npc;
+                break;
+            }
+            case PacketType.ShopStock:
+            {
+                int npcId = r.GetInt();
+                int count = r.GetInt();
+                var stock = new List<ClientShopEntry>(count);
+                for (int i = 0; i < count; i++)
+                    stock.Add(new ClientShopEntry
+                    {
+                        Slot = r.GetInt(),
+                        Price = r.GetInt(),
+                        Sold = r.GetBool(),
+                        Item = Json.Load<ItemInstance>(r.GetString()),
+                    });
+                ShopStockReceived?.Invoke(npcId, stock);
                 break;
             }
             case PacketType.ChainEffect:
@@ -483,7 +532,10 @@ public class GameClient
                         World.Players.GetValueOrDefault(playerId) is { } swingCaster)
                     {
                         var swingDir = effectPoint - swingCaster.Position;
-                        swingCaster.SwingTimeLeft = ClientPlayer.SwingDuration;
+                        swingCaster.SwingTotal = isSlam && def.WindupTime > 0
+                            ? def.WindupTime + 0.12f   // raise during the wind-up, land with the hit
+                            : ClientPlayer.SwingDuration;
+                        swingCaster.SwingTimeLeft = swingCaster.SwingTotal;
                         swingCaster.SwingKind = (byte)(isSlam ? 1 : 0);
                         swingCaster.SwingDir = swingDir.LengthSquared() > 0.001f
                             ? Vector2.Normalize(swingDir)
@@ -493,10 +545,15 @@ public class GameClient
                     switch (def.Archetype)
                     {
                         case Skills.SkillArchetype.MeleeStrike:
-                            // Slam skills leave a ground impact that fades; plain strikes
-                            // keep the quick white arc flash.
-                            World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
-                                isSlam ? 0.45f : 0.18f, isSlam ? "impact" : "melee", effectHeight);
+                            // Slam skills leave a ground impact that fades (delayed to land
+                            // with the windup); plain strikes are just the weapon swing.
+                            if (isSlam)
+                            {
+                                World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
+                                    0.45f, "impact", effectHeight, def.WindupTime);
+                                World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
+                                    0.9f, "debris", effectHeight, def.WindupTime);
+                            }
                             break;
                         // MeleeSingle: the weapon swing itself is the visual — no impact circle.
                         case Skills.SkillArchetype.MeleeArea:

@@ -117,7 +117,7 @@ public static class HeadlessNetTest
 
         float hpBefore = serverEnemy.Health;
         clientA.RequestUseSkill("mace_strike", serverEnemy.Position);
-        Pump(0.4f);
+        Pump(0.7f); // covers network latency + the slam's 0.35s wind-up
         Check(serverEnemy.Health < hpBefore, $"mace strike damaged enemy ({hpBefore:0} -> {serverEnemy.Health:0})");
         Check(clientB.World.Enemies.TryGetValue(targetId, out var enemyOnB) &&
               Math.Abs(enemyOnB.Health - serverEnemy.Health) < 0.01f, "enemy damage synchronized to client B");
@@ -128,7 +128,7 @@ public static class HeadlessNetTest
         float hpBefore2 = serverEnemy.Health;
         clientA.RequestUseSkill("mace_strike",
             clientA.World.Me.Position - new Vector2(10f, 0)); // aimed the opposite direction
-        Pump(0.4f);
+        Pump(0.7f); // long enough that a wind-up strike WOULD have landed if aimed here
         Check(Math.Abs(serverEnemy.Health - hpBefore2) < 0.01f,
               "melee strike aimed away from the enemy does not hit it (caster-relative aim)");
 
@@ -1477,6 +1477,160 @@ public static class HeadlessNetTest
               $"client and server grow identical trees ({clientRoots} == {serverRoots})");
         forestClient.Disconnect();
         forestServer.Stop();
+
+        Console.WriteLine("\n-- Combat feel 2: weapon-% damage, slam wind-up, clean strikes --");
+        // Attacks are pure weapon scaling (PoE2-style): % of weapon damage, no flat
+        // skill damage added on top. Spells keep their own progression.
+        var pctChar = new Sim.CharacterData();
+        pctChar.Equipment[Items.EquipSlot.MainHand] = new Items.ItemInstance
+            { BaseItemId = "wooden_club", Rarity = Items.ItemRarity.Normal };
+        var pctStats = Stats.StatCalculator.Compute(data, pctChar);
+        var strikeDef = data.Skills["basic_strike"];
+        var pctEff = Skills.SkillMath.Compute(data, strikeDef, 1,
+            Enumerable.Empty<Skills.ScrollDefinition>(), pctStats);
+        float physScale = 1f + pctStats.PhysicalDamageIncrease / 100f;
+        Check(strikeDef.UsesWeaponDamage && strikeDef.BaseDamage == 0 &&
+              MathF.Abs(pctEff.MinDamage - pctStats.WeaponMinDamage * strikeDef.WeaponDamageMultiplier * physScale) < 0.01f &&
+              MathF.Abs(pctEff.MaxDamage - pctStats.WeaponMaxDamage * strikeDef.WeaponDamageMultiplier * physScale) < 0.01f,
+              $"attacks deal % of weapon damage, nothing added ({pctEff.MinDamage:0.0}-{pctEff.MaxDamage:0.0} " +
+              $"= {strikeDef.WeaponDamageMultiplier:P0} of {pctStats.WeaponMinDamage:0}-{pctStats.WeaponMaxDamage:0})");
+        Check(!data.Skills["fire_bolt"].UsesWeaponDamage && data.Skills["fire_bolt"].BaseDamage > 0,
+              "spells keep their own base damage progression");
+        Check(data.Skills["shield_bash"].ShieldArmorScaling > 0,
+              "Shield Bash keeps its shield-armor damage formula");
+
+        // Mace Slam wind-up: the cast happens now, the hit lands WindupTime later.
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+        var srvWind = server.World.Players[bId];
+        var windTarget = server.World.SpawnEnemy("grunt",
+            srvWind.Position + new Vector2(1.2f, 0));
+        windTarget.Health = 500f;
+        windTarget.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        srvWind.Mana = srvWind.Stats.MaxMana;
+        srvWind.SkillReadyAt.Clear();
+        srvWind.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("mace_strike", windTarget.Position);
+        Pump(0.15f); // inside the 0.35s wind-up: cast accepted, hit not yet landed
+        Check(data.Skills["mace_strike"].WindupTime > 0.2f && windTarget.Health >= 499.9f,
+              $"Mace Slam winds up before landing (hp {windTarget.Health:0} mid-windup)");
+        Pump(0.4f); // wind-up expires -> the queued strike lands
+        Check(windTarget.Health < 499.9f,
+              $"the queued slam lands after the wind-up (hp {windTarget.Health:0})");
+        // Plain Mace Strike stays visually clean: no ground-circle effect, only the swing.
+        srvWind.Mana = srvWind.Stats.MaxMana;
+        srvWind.SkillReadyAt.Clear();
+        srvWind.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("basic_strike", windTarget.Position);
+        Pump(0.12f);
+        Check(clientB.World.Effects.All(fx => fx.Kind != "melee"),
+              "plain Mace Strike draws no impact circle (weapon swing only)");
+        windTarget.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        Console.WriteLine("\n-- Merchant NPC & per-player shop --");
+        Check(server.World.Npcs.Count == 1 && server.World.Npcs[0].TypeId == "merchant",
+              "the test merchant spawned near the player spawn");
+        Check(clientA.World.Npcs.Count == 1 && clientB.World.Npcs.Count == 1 &&
+              clientB.World.Npcs.Values.First().Name == data.Npcs["merchant"].Name,
+              $"merchant replicates to all clients ({clientB.World.Npcs.Values.FirstOrDefault()?.Name})");
+        Check(data.Npcs["merchant"].Dialogue.Count >= 4, "merchant carries dialogue lines");
+
+        var merchant = server.World.Npcs[0];
+        List<ClientShopEntry> stockB = null;
+        clientB.ShopStockReceived += (_, stock) => stockB = stock;
+        List<ClientShopEntry> stockA = null;
+        clientA.ShopStockReceived += (_, stock) => stockA = stock;
+
+        // Range gate: opening from across the map is ignored.
+        clientB.World.Me.Position = merchant.Position + new Vector2(8f, 8f);
+        Pump(0.3f);
+        clientB.RequestShopOpen(merchant.Id);
+        Pump(0.3f);
+        Check(stockB == null, "shop refuses to open from out of range");
+
+        clientB.World.Me.Position = merchant.Position + new Vector2(1.0f, 0);
+        clientB.World.Me.Height = merchant.Height;
+        clientA.World.Me.Position = merchant.Position + new Vector2(-1.0f, 0);
+        clientA.World.Me.Height = merchant.Height;
+        Pump(0.4f);
+        clientB.RequestShopOpen(merchant.Id);
+        Pump(0.4f);
+        Check(stockB is { Count: >= 5 } && stockB.All(e => e.Item != null && e.Price > 0),
+              $"shop stock arrives with priced gear ({stockB?.Count} slots)");
+        Check(stockB != null && stockB.Any(e => e.Item.Rarity == Items.ItemRarity.Rare),
+              "the stock always includes a rare");
+
+        // Deterministic per (player, level): reopening yields the SAME items.
+        string StockSig(List<ClientShopEntry> s) => string.Join("|",
+            s.Select(e => $"{e.Slot}:{e.Item.InstanceId}:{Json.SaveCompact(e.Item)}:{e.Price}"));
+        string firstSig = StockSig(stockB);
+        stockB = null;
+        clientB.RequestShopOpen(merchant.Id);
+        Pump(0.4f);
+        Check(stockB != null && StockSig(stockB) == firstSig,
+              "reopening the shop never rerolls the stock (same level, same items)");
+
+        // ...and each player gets their OWN shop.
+        clientA.RequestShopOpen(merchant.Id);
+        Pump(0.4f);
+        Check(stockA != null && StockSig(stockA) != firstSig,
+              "each player sees a different personal stock");
+
+        // Buying: gold is spent, the item lands in the bag, the slot sells out for good.
+        var srvShopper = server.World.Players[bId];
+        var buyEntry = stockB.First(e => !e.Sold);
+        srvShopper.Character.Gold = buyEntry.Price + 5;
+        clientB.RequestShopBuy(merchant.Id, buyEntry.Slot);
+        Pump(0.5f);
+        Check(srvShopper.Character.Gold == 5 &&
+              srvShopper.Character.Inventory.FindByInstance(buyEntry.Item.InstanceId) != null,
+              $"buying spends gold and delivers the item (gold {srvShopper.Character.Gold})");
+        Check(stockB != null && stockB.First(e => e.Slot == buyEntry.Slot).Sold,
+              "the purchased slot is marked sold in the refreshed stock");
+        Check(srvShopper.Character.ShopSoldSlots.Contains(buyEntry.Slot),
+              "sold slots persist on the character (survives rejoining)");
+
+        // Refusals: broke, or a sold-out slot.
+        var buyEntry2 = stockB.First(e => !e.Sold);
+        srvShopper.Character.Gold = 0;
+        clientB.RequestShopBuy(merchant.Id, buyEntry2.Slot);
+        clientB.RequestShopBuy(merchant.Id, buyEntry.Slot);
+        Pump(0.4f);
+        Check(srvShopper.Character.Inventory.FindByInstance(buyEntry2.Item.InstanceId) == null &&
+              srvShopper.Character.Inventory.Items.Count(pl => pl.Item.InstanceId == buyEntry.Item.InstanceId) == 1,
+              "no gold and sold-out purchases are refused");
+
+        // Selling: the bought item converts back to gold at its base value.
+        int goldBeforeSell = srvShopper.Character.Gold;
+        int expectedSell = Math.Max(1, buyEntry.Item.GoldValue(data));
+        clientB.RequestShopSell(buyEntry.Item.InstanceId);
+        Pump(0.4f);
+        Check(srvShopper.Character.Gold == goldBeforeSell + expectedSell &&
+              srvShopper.Character.Inventory.FindByInstance(buyEntry.Item.InstanceId) == null,
+              $"selling removes the item and pays its value ({expectedSell} gold)");
+
+        // Leveling up rerolls the stock and clears the sold slots.
+        int lvlBefore = srvShopper.Character.Level;
+        for (int i = 0; i < 6 && srvShopper.Character.Level == lvlBefore; i++)
+        {
+            clientB.SendDebugCommand("char_xp");
+            Pump(0.2f);
+        }
+        stockB = null;
+        clientB.RequestShopOpen(merchant.Id);
+        Pump(0.4f);
+        Check(srvShopper.Character.Level > lvlBefore && stockB != null && StockSig(stockB) != firstSig &&
+              stockB.All(e => !e.Sold) && srvShopper.Character.ShopSoldSlots.Count == 0,
+              "leveling up rerolls the shop and clears sold slots");
+
+        Check(new Core.GameSettings().ZoneThemeId == "forest",
+              "forest is the default zone theme");
 
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();

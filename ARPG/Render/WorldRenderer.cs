@@ -681,6 +681,23 @@ public class WorldRenderer
             }));
         }
 
+        foreach (var npc in world.Npcs.Values)
+        {
+            var pos = npc.Position;
+            var screen = camera.WorldToScreen(pos, npc.Height);
+            var npcTex = SpriteGen.GetNpcSprite(npc.TypeId);
+            if (npcTex == null) continue;
+            _sorted.Add((pos.X + pos.Y + npc.Height * 1.0f + 0.1f + UnderDeckBias(pos, npc.Height), batch =>
+            {
+                int w = npcTex.Width * 2, h = npcTex.Height * 2;
+                batch.Draw(TextureGen.Circle32,
+                    new Rectangle((int)(screen.X - 16), (int)(screen.Y - 8), 32, 16),
+                    new Color(0, 0, 0, 90)); // shadow
+                batch.Draw(npcTex, new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 6, w, h),
+                    Color.White);
+            }));
+        }
+
         foreach (var p in world.Players.Values)
         {
             var pos = p.Position;
@@ -722,7 +739,7 @@ public class WorldRenderer
                 // at its handle, instead of standing upright.
                 void DrawSwingingWeapon()
                 {
-                    float st = 1f - Math.Clamp(p.SwingTimeLeft / ClientPlayer.SwingDuration, 0f, 1f);
+                    float st = 1f - Math.Clamp(p.SwingTimeLeft / MathF.Max(0.01f, p.SwingTotal), 0f, 1f);
                     var swingIso = new Vector2(p.SwingDir.X - p.SwingDir.Y, (p.SwingDir.X + p.SwingDir.Y) * 0.5f);
                     if (swingIso.LengthSquared() < 0.001f) swingIso = screenDir;
                     swingIso.Normalize();
@@ -809,8 +826,58 @@ public class WorldRenderer
 
         foreach (var fx in world.Effects)
         {
+            if (fx.Delay > 0) continue; // wind-up effects haven't landed yet
             var screen = camera.WorldToScreen(fx.Position, fx.Height);
             float t = 1f - fx.TimeLeft / fx.Duration;
+
+            if (fx.Kind == "debris")
+            {
+                // Slam debris: dust puffs and small terrain-colored "rock" pixels popping
+                // up from the impact. Fully deterministic from the effect's position hash
+                // and age — no particle state to track or replicate.
+                int seed = (int)(fx.Position.X * 733) ^ (int)(fx.Position.Y * 911);
+                float radiusPxD = fx.Radius * IsoCamera.HalfTileW;
+                var dustBase = _floorB;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.25f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    // Dust: soft flattened circles drifting outward and fading.
+                    for (int d = 0; d < 5; d++)
+                    {
+                        var rng = new Random(seed + d * 47);
+                        float ang = (float)(rng.NextDouble() * Math.PI * 2);
+                        float dist = radiusPxD * (0.25f + 0.55f * (float)rng.NextDouble()) * (0.4f + 0.6f * t);
+                        int size = (int)(14 + 20 * t + rng.Next(8));
+                        float alpha = 0.38f * (1f - t);
+                        var pos = new Vector2(screen.X + MathF.Cos(ang) * dist,
+                                              screen.Y + MathF.Sin(ang) * dist * 0.5f - 4 * t);
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(pos.X - size), (int)(pos.Y - size / 2f), size * 2, size),
+                            dustBase * alpha);
+                    }
+                    // Rocks: little pixels launched up that arc back down and linger.
+                    for (int k = 0; k < 12; k++)
+                    {
+                        var rng = new Random(seed * 31 + k * 101);
+                        float ang = (float)(rng.NextDouble() * Math.PI * 2);
+                        float dist = radiusPxD * (0.15f + 0.75f * (float)rng.NextDouble());
+                        float v0 = 40f + 55f * (float)rng.NextDouble(); // px/s upward
+                        float g = 240f;
+                        float age = t * fx.Duration;
+                        float hgt = MathF.Max(0f, v0 * age - 0.5f * g * age * age);
+                        float alpha = t < 0.7f ? 1f : 1f - (t - 0.7f) / 0.3f;
+                        int size = 2 + rng.Next(3);
+                        var rockShade = rng.Next(3) switch
+                        {
+                            0 => _floorA, 1 => _floorB, _ => new Color(120, 110, 100),
+                        };
+                        var pos = new Vector2(screen.X + MathF.Cos(ang) * dist * (0.5f + 0.5f * MathF.Min(1f, age * 4f)),
+                                              screen.Y + MathF.Sin(ang) * dist * 0.5f - hgt);
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)pos.X, (int)pos.Y, size, size), rockShade * alpha);
+                    }
+                }));
+                continue;
+            }
 
             if (fx.Kind == "swipe")
             {
@@ -922,7 +989,11 @@ public class WorldRenderer
         // everything already placed, so dense loot piles read as a tidy column.
         var labelFont = FontManager.Get(13);
         var placedLabels = new List<Rectangle>();
-        foreach (var drop in world.Drops.Values.OrderBy(d => d.Position.X + d.Position.Y))
+        // Deterministic order: without the DropId tiebreak, drops sharing a sort key keep
+        // dictionary order — which reshuffles whenever anything spawns or is picked up,
+        // making dense stacks jitter as labels swap slots.
+        foreach (var drop in world.Drops.Values
+                     .OrderBy(d => d.Position.X + d.Position.Y).ThenBy(d => d.DropId))
         {
             var screen = camera.WorldToScreen(drop.Position, drop.Height);
             string label = drop.IsGold ? $"{drop.GoldAmount} Gold" : drop.Item.DisplayName(_data);
@@ -949,6 +1020,24 @@ public class WorldRenderer
             sb.DrawString(labelFont, label, new Vector2(rect.X + 4, rect.Y + 2),
                 hovered ? Color.Lerp(labelColor, Color.White, 0.35f) : labelColor);
             DropLabelRects.Add((rect, drop.DropId));
+        }
+
+        // --- NPC name tags (screen space, on top): gold, with the interact hint ---
+        foreach (var npc in world.Npcs.Values)
+        {
+            var npcScreen = camera.WorldToScreen(npc.Position, npc.Height);
+            string nm = npc.Name ?? npc.TypeId;
+            var nmSize = labelFont.MeasureString(nm);
+            sb.DrawString(labelFont, nm,
+                new Vector2(npcScreen.X - nmSize.X / 2, npcScreen.Y - 66), new Color(240, 210, 130));
+            if (world.Me != null &&
+                System.Numerics.Vector2.Distance(world.Me.Position, npc.Position) <= 3f)
+            {
+                const string hint = "F  Talk";
+                var hintSize = labelFont.MeasureString(hint);
+                sb.DrawString(labelFont, hint,
+                    new Vector2(npcScreen.X - hintSize.X / 2, npcScreen.Y - 50), new Color(200, 200, 190));
+            }
         }
 
         // --- floating damage numbers (from server DamageEvents; toggle in Options) ---
