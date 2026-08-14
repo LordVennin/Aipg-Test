@@ -240,6 +240,29 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestLevelSkill(string skillId)
+    {
+        var w = Packets.Make(PacketType.LevelSkillRequest);
+        w.Put(skillId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void RequestSummonAdjust(string skillId, int delta)
+    {
+        var w = Packets.Make(PacketType.SummonAdjustRequest);
+        w.Put(skillId);
+        w.Put(delta);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void RequestSummonRally(bool hasPoint, Vector2 point)
+    {
+        var w = Packets.Make(PacketType.SummonRallyRequest);
+        w.Put(hasPoint);
+        w.PutVec2(point);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestAllocatePassive(string nodeId)
     {
         var w = Packets.Make(PacketType.AllocatePassiveRequest);
@@ -373,6 +396,41 @@ public class GameClient
                         Item = Json.Load<ItemInstance>(r.GetString()),
                     });
                 ShopStockReceived?.Invoke(npcId, stock);
+                break;
+            }
+            case PacketType.SummonSpawn:
+            {
+                var summon = new ClientSummon { Id = r.GetInt(), OwnerId = r.GetInt(), SkillId = r.GetString() };
+                summon.Position = r.GetVec2();
+                summon.NetTarget = summon.Position;
+                summon.Height = r.GetFloat();
+                summon.NetTargetHeight = summon.Height;
+                summon.MaxHealth = r.GetFloat();
+                summon.Health = r.GetFloat();
+                World.Summons[summon.Id] = summon;
+                break;
+            }
+            case PacketType.SummonStates:
+            {
+                int count = r.GetInt();
+                for (int i = 0; i < count; i++)
+                {
+                    int id = r.GetInt();
+                    var pos = r.GetVec2();
+                    float height = r.GetFloat();
+                    float hp = r.GetFloat();
+                    if (World.Summons.TryGetValue(id, out var summon))
+                    {
+                        summon.NetTarget = pos;
+                        summon.NetTargetHeight = height;
+                        summon.Health = hp;
+                    }
+                }
+                break;
+            }
+            case PacketType.SummonDespawn:
+            {
+                World.Summons.Remove(r.GetInt());
                 break;
             }
             case PacketType.WorldEffect:

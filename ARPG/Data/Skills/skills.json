@@ -190,5 +190,28 @@
   "ManaCost": 8,
   "UseTime": 0.5,
   "ElectrocuteChance": 0.5
+ },
+ {
+  "Id": "summon_skeleton",
+  "Name": "Summon Skeleton Archers",
+  "Description": "Raise skeletal archers that follow you and pepper your enemies with arrows. Managed from this menu with + and - (they cost mana per summon); press ` to rally them to a point. Fallen archers rise again near you for free.",
+  "Tags": [
+   "Spell",
+   "Summon"
+  ],
+  "Archetype": "Summon",
+  "DamageKind": "Thrust",
+  "UsesWeaponDamage": false,
+  "ManaCost": 10,
+  "ManaCostPerLevel": 5,
+  "ManaCostPctMax": 0.05,
+  "SummonLimit": 2,
+  "SummonHealth": 30,
+  "SummonHealthPerLevel": 12,
+  "SummonDamage": 6,
+  "SummonDamagePerLevel": 2.5,
+  "SummonRespawnTime": 6,
+  "Cooldown": 0.5,
+  "UseTime": 0.35
  }
 ]

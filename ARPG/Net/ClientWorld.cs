@@ -104,6 +104,21 @@ public class ClientProjectile
     public string SpriteOverride;
 }
 
+/// <summary>A player's minion (skeleton archer), replicated like a small friendly enemy.</summary>
+public class ClientSummon
+{
+    public int Id;
+    public int OwnerId;
+    public string SkillId;
+    public Vector2 Position;
+    public Vector2 NetTarget;
+    public float Height;
+    public float NetTargetHeight;
+    public float Health;
+    public float MaxHealth;
+    public bool FacingLeft;
+}
+
 /// <summary>A friendly NPC (the test merchant): stationary, interacted with via the pickup key.</summary>
 public class ClientNpc
 {
@@ -183,6 +198,7 @@ public class ClientWorld
     public readonly Dictionary<int, ClientProjectile> Projectiles = new();
     public readonly Dictionary<Guid, ClientDrop> Drops = new();
     public readonly Dictionary<int, ClientNpc> Npcs = new();
+    public readonly Dictionary<int, ClientSummon> Summons = new();
     public readonly List<ClientEffect> Effects = new();
     public readonly List<FloatingNumber> FloatingNumbers = new();
     /// <summary>Diagnostic counter: dodge events received (used by the headless net test).</summary>
@@ -260,6 +276,14 @@ public class ClientWorld
             if (Effects[i].Delay > 0) { Effects[i].Delay -= dt; continue; }
             Effects[i].TimeLeft -= dt;
             if (Effects[i].TimeLeft <= 0) Effects.RemoveAt(i);
+        }
+
+        foreach (var s in Summons.Values)
+        {
+            if (MathF.Abs(s.NetTarget.X - s.Position.X) > 0.02f)
+                s.FacingLeft = s.NetTarget.X < s.Position.X;
+            s.Position = Vector2.Lerp(s.Position, s.NetTarget, Math.Clamp(dt * 12f, 0f, 1f));
+            s.Height += (s.NetTargetHeight - s.Height) * Math.Clamp(dt * 12f, 0f, 1f);
         }
 
         foreach (var p in Players.Values)

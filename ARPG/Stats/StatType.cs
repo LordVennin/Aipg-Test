@@ -42,6 +42,11 @@ public enum StatType
     PoisonMagnitude,
     BleedMagnitude,
 
+    // Minions: percent-increased damage/health, flat extra summon limit
+    SummonDamage,
+    SummonHealth,
+    SummonLimit,
+
     // Weapon-local stats
     MinPhysicalDamage,
     MaxPhysicalDamage,

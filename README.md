@@ -97,6 +97,7 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Skill Menu | `K` |
 | Character Sheet (defenses, resistances, skill DPS by damage type) | `C` |
 | Passive Skill Tree | `P` |
+| Command summons: rally to the cursor (aim near yourself to recall) | `` ` `` (backquote) |
 | Interact: talk to NPCs / pick up items | `F` (or click an item's ground label) |
 | Debug menu | `F1` |
 | Pause / close panels / menu | `Escape` |
@@ -106,7 +107,9 @@ The Options screen (main menu, or Pause → Options in game) is organized into t
 **Display** (borderless fullscreen + selectable resolution — menus and HUD scale
 automatically with resolution via a global UI scale), **Gameplay** (persistent
 **Damage Numbers**, **Enemy Health Bars** and **Player List & Pings** toggles) and
-**Controls** (rebinding). In-game panels (inventory, skills, character sheet) also
+**Controls** (rebinding — the binding list is taller than the panel now, so it
+scrolls with the mouse wheel instead of overlapping the Back button). In-game
+panels (inventory, skills, character sheet) also
 have mouse "X" close buttons. In multiplayer, the player list (bottom left) shows
 every connected player's round-trip ping, measured server-side and broadcast to all.
 
@@ -189,6 +192,29 @@ and added-projectile scrolls deliberately can't raise the count) and *Scorched
 Earth* (Fire projectiles leave a 3-second burning ground circle that ticks fire
 damage and shreds fire resistance by a stacking 1% per second — 5s stacks, up to
 25%).
+
+**Skill leveling is manual**: skill XP banks up as you fight, but skills no longer
+level automatically — when a skill has enough banked XP, a **Level Up** button
+appears in its Skill Menu (`K`) detail pane, so you decide when (and whether) a
+skill advances instead of over-leveling it by accident. The server validates the
+spend like any other request.
+
+**Summons — Skeleton Archers**: a learnable `Summon`-archetype skill that is NOT
+cast from the hotbar. In the Skill Menu (`K`), summon skills show **`+` and `−`
+buttons** (in the list row and the detail pane) to raise or dismiss skeletons.
+Each summon costs **10 flat mana + 5% of your max mana** (the flat part grows
+per skill level while the archers' health and damage scale up), with a limit of
+2 at level 1. Archers follow their summoner, pick the nearest enemy in range with
+a clear line of fire and shoot arrows (kill credit and XP go to the summoner).
+They have health bars, take damage — enemies will turn on them, and enemy
+projectiles hit them first — and die; a dead archer **respawns free** near the
+summoner after the skill's respawn time (6s base, modifiable). The backquote
+key (`` ` ``) rallies the pack to the cursor: rallied archers march to the point
+before picking fights, hold it, and fight from there; aiming the command at
+yourself (or clearing it) returns them to following. Three new gear modifiers
+feed them through the regular stat pipeline: **Commanding** (% summon damage,
+prefix, helmets + staffs), **of Undeath** (% summon health, suffix, helmets +
+staffs) and **of Legions** (+1/+2 summon limit, suffix, helmets only).
 
 **Use time (global cast lockout)**: every skill declares a `UseTime` — a global
 lockout (enforced server-side, mirrored client-side on the hotbar) that stops the
@@ -442,8 +468,8 @@ learned skills with levels/XP/attached scrolls, and hotbar assignments included.
   skill system are category-driven — skills reference weapon *categories*
   (`"RequiredWeapon": "Mace"`), never item names.
 - **New skill**: add to `Data/Skills/`, choosing an `Archetype`
-  (`MeleeStrike` / `MeleeArea` / `Projectile` / `AreaBurst`), tags, damage/scaling
-  fields. A genuinely new behavior means one new archetype case in
+  (`MeleeStrike` / `MeleeArea` / `Projectile` / `AreaBurst` / `Summon`), tags,
+  damage/scaling fields. A genuinely new behavior means one new archetype case in
   `ServerWorld.UseSkill` — nothing else changes.
 - **New Skill Scroll**: add to `Data/SkillScrolls/` (a `RequiredTag` + a list of
   `Effects` over `ScrollStat` values), plus a 1x1 `SkillScroll`-category item in
@@ -469,14 +495,15 @@ computed stats. All commands execute server-side like any other request.
 
 Dev conveniences for automated/headless sessions: `--sp` starts straight into
 single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
-`ARPG_DEVUI=debug[,skills][,inventory][,drops][,shop]` opens panels at startup
-(`drops` scatters one of every scroll shortly after joining, for loot-UI work;
-`shop` opens the merchant shop without needing keyboard input).
+`ARPG_DEVUI=debug[,skills][,inventory][,drops][,shop][,shopgrid][,tree][,summons]`
+opens panels at startup (`drops` scatters one of every scroll shortly after
+joining, for loot-UI work; `shop` opens the merchant shop without needing
+keyboard input; `summons` learns Skeleton Archers and raises a pack).
 
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (254 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (275 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

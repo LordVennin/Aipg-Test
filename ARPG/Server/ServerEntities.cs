@@ -71,6 +71,12 @@ public class ServerPlayer
     /// <summary>Position pinned while frozen — movement updates are rejected against it.</summary>
     public Vector2 FrozenAt;
 
+    /// <summary>Desired minion count per summon skill id (managed via the Skill Menu).</summary>
+    public readonly Dictionary<string, int> DesiredSummons = new();
+    /// <summary>Rally point for this player's summons (null = follow the summoner).</summary>
+    public Vector2? SummonRally;
+    public float SummonRallyHeight;
+
     /// <summary>Last health value broadcast to clients (throttles regen sync spam).</summary>
     public float LastSyncedHealth;
 
@@ -236,6 +242,28 @@ public class PackSpawner
     public float RespawnDelay = 45f;
     public readonly List<int> AliveIds = new();
     public float RespawnAt;
+}
+
+/// <summary>A player's persistent minion (skeleton archer). Follows its summoner (or a
+/// rally point), shoots arrows at nearby enemies, takes damage, dies, and freely
+/// respawns near the summoner after the skill's respawn time.</summary>
+public class ServerSummon
+{
+    public int Id;
+    public int OwnerId;
+    public string SkillId;
+    public Vector2 Position;
+    public float Height;
+    public float Health;
+    public float MaxHealth;
+    public float Damage;
+    public float AttackReadyAt;
+    public const float Radius = 0.3f;
+    public const float AttackRange = 6.5f;
+    public const float AggroRange = 7.5f;
+    public const float AttackCooldown = 1.4f;
+    public const float MoveSpeed = 3.6f;
+    public bool Dead => Health <= 0;
 }
 
 /// <summary>A friendly, stationary NPC (the test merchant). Not a combat entity — enemies

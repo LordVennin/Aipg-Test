@@ -28,6 +28,10 @@ public class SkillMenuUI
     private readonly List<(Rectangle rect, string skillId, bool learned)> _listRows = new();
     private readonly List<(Rectangle rect, int index, bool unlocked, ItemInstance scroll)> _scrollSlots = new();
     private readonly List<(Rectangle rect, int hotbarSlot)> _hotbarButtons = new();
+    /// <summary>+/- boxes for summon skills (both the list rows and the detail pane).</summary>
+    private readonly List<(Rectangle rect, string skillId, int delta)> _summonButtons = new();
+    /// <summary>The Level Up button for the selected skill (null when not eligible).</summary>
+    private Rectangle? _levelUpRect;
 
     public ItemInstance HoveredScrollItem { get; private set; }
 
@@ -86,6 +90,17 @@ public class SkillMenuUI
             if (input.MouseLeftPressed && rect.Contains(mouse) && _selectedSkillId != null)
                 _client.RequestAssignHotbar(hotbarSlot, _selectedSkillId);
         }
+
+        foreach (var (rect, skillId, delta) in _summonButtons)
+            if (input.MouseLeftPressed && rect.Contains(mouse))
+            {
+                _client.RequestSummonAdjust(skillId, delta);
+                break;
+            }
+
+        if (_levelUpRect is { } lvlRect && input.MouseLeftPressed && lvlRect.Contains(mouse) &&
+            _selectedSkillId != null)
+            _client.RequestLevelSkill(_selectedSkillId);
     }
 
     /// <summary>Complete a drag released over the panel (attach a Skill Scroll). Returns true if handled.</summary>
@@ -132,10 +147,26 @@ public class SkillMenuUI
             sb.DrawString(font, $"Lv {learned.Level}", new Vector2(rect.X + 240, rect.Y + 4), new Color(180, 220, 160));
             _listRows.Add((rect, learned.SkillId, true));
 
-            // Hotbar badge
-            int slot = Array.IndexOf(character.Hotbar, learned.SkillId);
-            if (slot >= 0)
-                sb.DrawString(small, HotbarKeyLabel(slot), new Vector2(rect.Right + 8, rect.Y + 6), new Color(150, 190, 255));
+            if (def.Archetype == SkillArchetype.Summon)
+            {
+                // Quick +/- right next to the row: summons are managed here, not cast.
+                int active = _client.World.Summons.Values.Count(su =>
+                    su.OwnerId == _client.World.MyPlayerId && su.SkillId == learned.SkillId);
+                var minus = new Rectangle(rect.Right + 8, rect.Y + 1, 24, 24);
+                var plus = new Rectangle(rect.Right + 66, rect.Y + 1, 24, 24);
+                DrawSquareButton(sb, minus, "-", new Color(160, 90, 90));
+                sb.DrawString(font, active.ToString(), new Vector2(rect.Right + 42, rect.Y + 4), Color.White);
+                DrawSquareButton(sb, plus, "+", new Color(90, 150, 90));
+                _summonButtons.Add((minus, learned.SkillId, -1));
+                _summonButtons.Add((plus, learned.SkillId, +1));
+            }
+            else
+            {
+                // Hotbar badge
+                int slot = Array.IndexOf(character.Hotbar, learned.SkillId);
+                if (slot >= 0)
+                    sb.DrawString(small, HotbarKeyLabel(slot), new Vector2(rect.Right + 8, rect.Y + 6), new Color(150, 190, 255));
+            }
             y += 30;
         }
         foreach (var def in _data.Skills.Values.OrderBy(d => d.Name))
@@ -156,6 +187,8 @@ public class SkillMenuUI
         // --- selected skill details ---
         _scrollSlots.Clear();
         _hotbarButtons.Clear();
+        _summonButtons.Clear();
+        _levelUpRect = null;
         var sel = _selectedSkillId != null ? character.GetSkill(_selectedSkillId) : null;
         var selDef = sel?.GetDefinition(_data);
         if (sel == null || selDef == null) return;
@@ -183,7 +216,19 @@ public class SkillMenuUI
         Border(sb, xpRect, new Color(70, 70, 60));
         string xpText = sel.Level >= SkillMath.MaxSkillLevel ? "MAX" : $"Level {sel.Level}  ·  XP {sel.Experience:0}/{xpNeed:0}";
         sb.DrawString(small, xpText, new Vector2(xpRect.Right + 10, y - 2), Color.White);
-        y += 20;
+        y += 18;
+        // Leveling is a deliberate choice, never automatic — banked XP waits for this button.
+        if (sel.Level < SkillMath.MaxSkillLevel && sel.Experience >= xpNeed)
+        {
+            var lvlRect = new Rectangle(x, y, 130, 26);
+            bool lvlHover = lvlRect.Contains(input.MousePosition);
+            sb.Draw(TextureGen.Pixel, lvlRect, lvlHover ? new Color(90, 130, 70) : new Color(58, 92, 52));
+            Border(sb, lvlRect, new Color(150, 220, 130));
+            sb.DrawString(font, "Level Up!", new Vector2(lvlRect.X + 24, lvlRect.Y + 3), new Color(220, 255, 200));
+            _levelUpRect = lvlRect;
+            y += 32;
+        }
+        else y += 6;
 
         // Computed stats (same math the server uses)
         var stats = SkillMath.Compute(_data, selDef, sel.Level, sel.ScrollDefinitions(_data), _client.World.MyStats);
@@ -207,6 +252,31 @@ public class SkillMenuUI
         y += 20;
         sb.DrawString(font, statLine2, new Vector2(x, y), new Color(235, 225, 200));
         y += 26;
+        if (selDef.Archetype == SkillArchetype.Summon)
+        {
+            int active = _client.World.Summons.Values.Count(su =>
+                su.OwnerId == _client.World.MyPlayerId && su.SkillId == sel.SkillId);
+            int limit = selDef.SummonLimit + _client.World.MyStats.SummonLimitBonus;
+            float cost = selDef.ManaCost + selDef.ManaCostPerLevel * (sel.Level - 1) +
+                         selDef.ManaCostPctMax * _client.World.MyStats.MaxMana;
+            float sHp = (selDef.SummonHealth + selDef.SummonHealthPerLevel * (sel.Level - 1)) *
+                        (1f + _client.World.MyStats.SummonHealthIncrease / 100f);
+            float sDmg = (selDef.SummonDamage + selDef.SummonDamagePerLevel * (sel.Level - 1)) *
+                         (1f + _client.World.MyStats.SummonDamageIncrease / 100f);
+            sb.DrawString(font, $"Summoned {active} / {limit}   Cost {cost:0} mana each   Respawn {selDef.SummonRespawnTime:0}s",
+                new Vector2(x, y), new Color(200, 230, 200));
+            y += 20;
+            sb.DrawString(small, $"Each archer: {sHp:0} life · {sDmg:0.0} damage per arrow · press ` to rally them",
+                new Vector2(x, y), new Color(160, 170, 160));
+            y += 20;
+            var bigMinus = new Rectangle(x, y, 34, 28);
+            var bigPlus = new Rectangle(x + 44, y, 34, 28);
+            DrawSquareButton(sb, bigMinus, "-", new Color(160, 90, 90));
+            DrawSquareButton(sb, bigPlus, "+", new Color(90, 150, 90));
+            _summonButtons.Add((bigMinus, sel.SkillId, -1));
+            _summonButtons.Add((bigPlus, sel.SkillId, +1));
+            y += 36;
+        }
         if (selDef.RequiredWeapon.HasValue)
         {
             sb.DrawString(small, $"Requires weapon: {selDef.RequiredWeapon}", new Vector2(x, y), new Color(220, 170, 130));
@@ -300,6 +370,15 @@ public class SkillMenuUI
             _ => new Color(200, 190, 170),
         };
         sb.Draw(TextureGen.Circle32, rect, color);
+    }
+
+    private static void DrawSquareButton(SpriteBatch sb, Rectangle r, string label, Color accent)
+    {
+        sb.Draw(TextureGen.Pixel, r, new Color(34, 34, 44));
+        Border(sb, r, accent);
+        var f = FontManager.GetBold(17);
+        var size = f.MeasureString(label);
+        sb.DrawString(f, label, new Vector2(r.Center.X - size.X / 2, r.Center.Y - size.Y / 2), accent);
     }
 
     private static void Border(SpriteBatch sb, Rectangle r, Color c)

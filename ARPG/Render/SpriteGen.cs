@@ -125,6 +125,7 @@ public static class SpriteGen
         {
             "IceSpike" => DrawIceSpike(),
             "IceShard" => DrawIceShard(),
+            "Arrow" => DrawArrow(),
             _ => null,
         };
         if (tex == null) return null;
@@ -156,6 +157,74 @@ public static class SpriteGen
         Set(5, 7, iceDark); Set(6, 7, ice);
         Set(1, 4, iceDark);
 
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>A skeletal archer minion: bone-white frame, dark eye sockets, a short
+    /// bow held across the body. Cached under "summon:skeleton_archer".</summary>
+    public static Texture2D GetSummonSprite()
+    {
+        if (_device == null) return null;
+        if (_cache.TryGetValue("summon:skeleton_archer", out var cached)) return cached[0];
+
+        const int w = 16, h = 22;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var bone = new Color(226, 222, 204);
+        var boneDark = new Color(168, 162, 142);
+        var socket = new Color(30, 28, 26);
+        var bow = new Color(110, 78, 46);
+        var stringC = new Color(200, 196, 180);
+
+        // Skull
+        Rect(5, 0, 10, 5, bone);
+        Set(5, 0, Color.Transparent); Set(10, 0, Color.Transparent);
+        Set(6, 2, socket); Set(9, 2, socket);
+        Rect(6, 4, 9, 4, boneDark);              // jaw shadow
+        // Spine + ribcage
+        Set(7, 6, boneDark); Set(8, 6, boneDark);
+        Rect(5, 7, 10, 7, bone);
+        Rect(5, 9, 10, 9, bone);
+        Rect(5, 11, 10, 11, bone);
+        Set(7, 8, boneDark); Set(8, 8, boneDark);
+        Set(7, 10, boneDark); Set(8, 10, boneDark);
+        // Pelvis + legs
+        Rect(6, 12, 9, 13, boneDark);
+        Rect(5, 14, 6, 18, bone);
+        Rect(9, 14, 10, 18, bone);
+        Set(5, 19, boneDark); Set(6, 19, boneDark);
+        Set(9, 19, boneDark); Set(10, 19, boneDark);
+        Rect(4, 20, 6, 20, bone); Rect(9, 20, 11, 20, bone); // feet
+        // Bow arm + short bow held to the right side
+        Rect(11, 8, 12, 9, bone);
+        for (int i = 0; i < 7; i++) Set(13 + (i is 0 or 6 ? 0 : 1), 5 + i, bow);
+        for (int i = 1; i < 6; i++) Set(13, 5 + i, stringC);
+        // Off arm
+        Rect(3, 8, 4, 10, bone);
+
+        var tex = BakeStrip(px, w, h);
+        _cache["summon:skeleton_archer"] = new[] { tex };
+        return tex;
+    }
+
+    /// <summary>A slim arrow for skeleton archers: shaft, iron head, feather fletching.</summary>
+    private static Texture2D DrawArrow()
+    {
+        const int w = 13, h = 5;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        var shaft = new Color(150, 116, 72);
+        var head = new Color(180, 184, 192);
+        var feather = new Color(210, 205, 190);
+        for (int x = 1; x <= 9; x++) Set(x, 2, shaft);
+        Set(10, 2, head); Set(11, 2, head); Set(12, 2, head);
+        Set(10, 1, head); Set(10, 3, head);
+        Set(0, 1, feather); Set(1, 1, feather);
+        Set(0, 3, feather); Set(1, 3, feather);
+        Set(0, 2, feather);
         return BakeStrip(px, w, h);
     }
 

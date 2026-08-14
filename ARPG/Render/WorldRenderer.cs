@@ -691,6 +691,30 @@ public class WorldRenderer
             }));
         }
 
+        foreach (var summon in world.Summons.Values)
+        {
+            var pos = summon.Position;
+            var screen = camera.WorldToScreen(pos, summon.Height);
+            var summonTex = SpriteGen.GetSummonSprite();
+            if (summonTex == null) continue;
+            bool mine = summon.OwnerId == world.MyPlayerId;
+            _sorted.Add((pos.X + pos.Y + summon.Height * 1.0f + 0.1f + UnderDeckBias(pos, summon.Height), batch =>
+            {
+                int w = summonTex.Width * 2, h = summonTex.Height * 2;
+                batch.Draw(TextureGen.Circle32,
+                    new Rectangle((int)(screen.X - 12), (int)(screen.Y - 6), 24, 12),
+                    new Color(0, 0, 0, 90));
+                batch.Draw(summonTex, new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 4, w, h),
+                    null, Color.White, 0f, Vector2.Zero,
+                    summon.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
+                float frac = summon.MaxHealth > 0 ? Math.Clamp(summon.Health / summon.MaxHealth, 0f, 1f) : 0;
+                var bar = new Rectangle((int)screen.X - 13, (int)screen.Y - h - 4, 26, 3);
+                batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));
+                batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
+                    mine ? new Color(140, 220, 150) : new Color(120, 180, 220));
+            }));
+        }
+
         foreach (var npc in world.Npcs.Values)
         {
             var pos = npc.Position;
