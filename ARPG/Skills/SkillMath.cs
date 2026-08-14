@@ -25,6 +25,21 @@ public struct EffectiveSkillStats
     public float ProjectileSpeed;
     public int ProjectileCount;
     public float IgniteChance;    // 0..1
+    /// <summary>Final ailment numbers: chances 0..1; magnitudes are multipliers with the
+    /// skill's own magnitude AND the player's %-increase already folded in.</summary>
+    public float IgniteMagnitude;
+    public float ChillChance;
+    public float ChillMagnitude;
+    public float ElectrocuteChance;
+    public float PoisonChance;
+    public float PoisonMagnitude;
+    public float BleedChance;
+    public float BleedMagnitude;
+    /// <summary>Cold projectiles: shards fired behind a struck enemy (Scroll of Shattering).
+    /// Deliberately NOT scaled by added-projectile scrolls.</summary>
+    public int ShatterShards;
+    /// <summary>Fire projectiles: leave a burning ground patch on hit (Scroll of Scorched Earth).</summary>
+    public bool FirePatch;
     public float ManaCost;
     public float CritChance;      // percent
     public float CritDamage;      // percent multiplier (150 = 1.5x)
@@ -111,7 +126,13 @@ public static class SkillMath
             Radius = def.Radius + def.RadiusPerLevel * (level - 1),
             ProjectileSpeed = def.ProjectileSpeed,
             ProjectileCount = def.ProjectileCount,
-            IgniteChance = 0f,
+            IgniteChance = def.IgniteChance,
+            IgniteMagnitude = def.IgniteMagnitude * (1f + playerStats.IgniteMagnitudeIncrease / 100f),
+            ChillChance = def.ChillChance,
+            ChillMagnitude = def.ChillMagnitude * (1f + playerStats.ChillMagnitudeIncrease / 100f),
+            ElectrocuteChance = def.ElectrocuteChance,
+            PoisonMagnitude = def.PoisonMagnitude * (1f + playerStats.PoisonMagnitudeIncrease / 100f),
+            BleedMagnitude = def.BleedMagnitude * (1f + playerStats.BleedMagnitudeIncrease / 100f),
             ManaCost = def.ManaCost,
             CritChance = playerStats.CritChance,
             CritDamage = playerStats.CritDamage,
@@ -235,6 +256,18 @@ public static class SkillMath
                         break;
                     case ScrollStat.IgniteChance:
                         s.IgniteChance = MathF.Min(1f, s.IgniteChance + fx.Add);
+                        break;
+                    case ScrollStat.PoisonChance:
+                        s.PoisonChance = MathF.Min(1f, s.PoisonChance + fx.Add);
+                        break;
+                    case ScrollStat.BleedChance:
+                        s.BleedChance = MathF.Min(1f, s.BleedChance + fx.Add);
+                        break;
+                    case ScrollStat.ShatterShards:
+                        s.ShatterShards += (int)fx.Add;
+                        break;
+                    case ScrollStat.FirePatch:
+                        s.FirePatch = true;
                         break;
                 }
             }

@@ -1711,6 +1711,213 @@ public static class HeadlessNetTest
         Check(reloaded.AllocatedPassives.Contains("root") && reloaded.AllocatedPassives.Contains("brawn"),
               "allocated passives persist in the character save");
 
+        Console.WriteLine("\n-- Ailments: chill/freeze, electrocute, ignite, poison, bleed --");
+        // SkillMath resolution: base chances from definitions, magnitudes folding the
+        // player's %-increases, and the new scroll effects.
+        var iceDef = data.Skills["ice_spike"];
+        var magStats = new Stats.ComputedStats { ChillMagnitudeIncrease = 50f, IgniteMagnitudeIncrease = 100f };
+        var iceEff = Skills.SkillMath.Compute(data, iceDef, 1, Enumerable.Empty<Skills.ScrollDefinition>(), magStats);
+        Check(iceDef.ChillChance > 0.5f && MathF.Abs(iceEff.ChillMagnitude - 1.5f) < 0.01f,
+              $"Ice Spike chills; player magnitude increases fold in ({iceEff.ChillMagnitude:0.00}x)");
+        var fireEff = Skills.SkillMath.Compute(data, data.Skills["fire_bolt"], 1,
+            Enumerable.Empty<Skills.ScrollDefinition>(), magStats);
+        Check(fireEff.IgniteChance >= 0.29f && MathF.Abs(fireEff.IgniteMagnitude - 2f) < 0.01f,
+              $"Fire Bolt has a base ignite chance ({fireEff.IgniteChance:0.00}) with scaling magnitude");
+        Check(data.Skills["chain_lightning"].ElectrocuteChance >= 0.4f,
+              "Chain Lightning has a base electrocute chance");
+        var meleeEff = Skills.SkillMath.Compute(data, data.Skills["basic_strike"], 1,
+            new[] { data.Scrolls["venom"], data.Scrolls["rending"] }, pctStats);
+        Check(MathF.Abs(meleeEff.PoisonChance - 0.35f) < 0.01f && MathF.Abs(meleeEff.BleedChance - 0.35f) < 0.01f,
+              "Venom and Rending scrolls add poison/bleed chance to melee skills");
+        var frenzyEff = Skills.SkillMath.Compute(data, data.Skills["basic_strike"], 1,
+            new[] { data.Scrolls["frenzy"] }, pctStats);
+        var plainEff = Skills.SkillMath.Compute(data, data.Skills["basic_strike"], 1,
+            Enumerable.Empty<Skills.ScrollDefinition>(), pctStats);
+        Check(frenzyEff.Cooldown < plainEff.Cooldown - 0.01f,
+              $"Frenzy scroll speeds melee attacks ({plainEff.Cooldown:0.00}s -> {frenzyEff.Cooldown:0.00}s)");
+        var shatterEff = Skills.SkillMath.Compute(data, iceDef, 1, new[] { data.Scrolls["shattering"] }, magStats);
+        var shatterMulti = Skills.SkillMath.Compute(data, iceDef, 1,
+            new[] { data.Scrolls["shattering"], data.Scrolls["multishot"] }, magStats);
+        Check(shatterEff.ShatterShards == 5 && shatterMulti.ShatterShards == 5,
+              "Shattering yields exactly 5 shards — added-projectile scrolls cannot raise it");
+        Check(Skills.SkillMath.Compute(data, data.Skills["fire_bolt"], 1,
+                  new[] { data.Scrolls["scorched_earth"] }, magStats).FirePatch,
+              "Scorched Earth flags fire projectiles to scorch the ground");
+
+        // ---- gameplay: chill builds, decays, and freezes at the cap (blue-tint flag)
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        clientB.RequestLearnSkill("ice_spike");
+        clientB.RequestLearnSkill("chain_lightning");
+        clientB.RequestLearnSkill("fire_bolt");
+        Pump(0.4f);
+        var srvAil = server.World.Players[bId];
+        var chillTarget = server.World.SpawnEnemy("grunt", srvAil.Position + new Vector2(2f, 0));
+        chillTarget.Health = 100000f;
+        chillTarget.StunnedUntil = server.World.Time + 300f;
+        Pump(0.2f);
+        void CastAt(string skill, Vector2 at)
+        {
+            srvAil.Mana = srvAil.Stats.MaxMana;
+            srvAil.SkillReadyAt.Clear();
+            srvAil.GlobalSkillReadyAt = 0;
+            clientB.RequestUseSkill(skill, at);
+            Pump(0.35f);
+        }
+        for (int i = 0; i < 10 && chillTarget.ChillMagnitude < 1f; i++) CastAt("ice_spike", chillTarget.Position);
+        Check(chillTarget.ChillMagnitude > 0f,
+              $"chilling hits build chill magnitude ({chillTarget.ChillMagnitude:0})");
+        for (int i = 0; i < 25 && server.World.Time >= chillTarget.FrozenUntil; i++)
+            CastAt("ice_spike", chillTarget.Position);
+        Check(server.World.Time < chillTarget.FrozenUntil,
+              "at full chill, hits can freeze the target solid");
+        Pump(0.4f);
+        Check(clientB.World.Enemies.TryGetValue(chillTarget.Id, out var chillOnB) &&
+              (chillOnB.DebuffFlags & (Server.EnemyDebuffs.Chilled | Server.EnemyDebuffs.Frozen)) != 0,
+              "chill/frozen flags replicate for the blue tint");
+        float chillPeak = chillTarget.ChillMagnitude;
+        chillTarget.FrozenUntil = 0;
+        Pump(1.5f);
+        Check(chillTarget.ChillMagnitude < chillPeak - 5f,
+              $"chill magnitude decays over time ({chillPeak:0} -> {chillTarget.ChillMagnitude:0})");
+        Check(chillTarget.ChillMagnitude <= Server.ServerWorld.ChillMaxMagnitude + 0.01f,
+              "chill magnitude respects its 100% cap");
+
+        // ---- electrocute: 6s duration, periodic freeze-in-place with a zap visual
+        for (int i = 0; i < 15 && server.World.Time >= chillTarget.ElectrocutedUntil; i++)
+            CastAt("chain_lightning", chillTarget.Position);
+        Check(server.World.Time < chillTarget.ElectrocutedUntil,
+              "Chain Lightning electrocutes its victims");
+        Check(chillTarget.ElectrocutedUntil - server.World.Time <= 6.05f,
+              $"electrocute base duration is 6 seconds ({chillTarget.ElectrocutedUntil - server.World.Time:0.0}s)");
+        chillTarget.ElectrocutedUntil = server.World.Time + 60f; // hold it for deterministic rolls
+        chillTarget.FrozenUntil = 0;
+        bool zapFroze = false, zapSeen = false;
+        for (int i = 0; i < 30 && !zapFroze; i++)
+        {
+            chillTarget.NextShockRollAt = 0; // force a roll this tick
+            Pump(0.1f);
+            zapFroze = server.World.Time < chillTarget.FrozenUntil;
+            zapSeen |= clientB.World.Effects.Any(fx => fx.Kind == "zap");
+        }
+        Pump(0.25f); // let the WorldEffect packet land
+        zapSeen |= clientB.World.Effects.Any(fx => fx.Kind == "zap");
+        Check(zapFroze, "electrocuted targets get frozen in place by periodic shocks");
+        Check(zapSeen, "the shock seize shows an electricity effect");
+        chillTarget.ElectrocutedUntil = 0;
+        chillTarget.FrozenUntil = 0;
+
+        // ---- ignite: DoT scaling off the hit that applied it
+        for (int i = 0; i < 25 && chillTarget.BurnTimeLeft <= 0; i++)
+            CastAt("fire_bolt", chillTarget.Position);
+        Check(chillTarget.BurnTimeLeft > 0 && chillTarget.BurnDps > 0,
+              $"Fire Bolt ignites ({chillTarget.BurnDps:0.0} dps burning)");
+        float hpBeforeBurn = chillTarget.Health;
+        Pump(1.0f);
+        Check(chillTarget.Health < hpBeforeBurn - 0.5f,
+              "ignite burns the target over time");
+
+        // ---- poison + bleed via attached melee scrolls
+        var srvStrike = srvAil.Character.GetSkill("basic_strike");
+        srvStrike.Scrolls.Add(new Items.ItemInstance { BaseItemId = "scroll_venom" });
+        srvStrike.Scrolls.Add(new Items.ItemInstance { BaseItemId = "scroll_rending" });
+        clientB.World.Me.Position = chillTarget.Position + new Vector2(-1.0f, 0);
+        Pump(0.3f);
+        chillTarget.Position = srvAil.Position + new Vector2(1.0f, 0); // pin beside the striker
+        for (int i = 0; i < 30 && (chillTarget.PoisonTimeLeft <= 0 || chillTarget.BleedTimeLeft <= 0); i++)
+        {
+            chillTarget.Position = srvAil.Position + new Vector2(1.0f, 0);
+            CastAt("basic_strike", chillTarget.Position);
+        }
+        Check(chillTarget.PoisonTimeLeft > 0 && chillTarget.PoisonDps > 0,
+              $"Venom-scrolled melee poisons ({chillTarget.PoisonDps:0.0} dps)");
+        Check(chillTarget.BleedTimeLeft > 0 && chillTarget.BleedDps > 0,
+              $"Rending-scrolled melee bleeds ({chillTarget.BleedDps:0.0} dps)");
+        Check(chillTarget.BleedDps > chillTarget.PoisonDps * 0.99f,
+              $"bleed outscales poison on pure-physical hits ({chillTarget.BleedDps:0.0} vs {chillTarget.PoisonDps:0.0})");
+        Pump(0.4f);
+        Check(clientB.World.Enemies.TryGetValue(chillTarget.Id, out var dotOnB) &&
+              (dotOnB.DebuffFlags & Server.EnemyDebuffs.Poisoned) != 0 &&
+              (dotOnB.DebuffFlags & Server.EnemyDebuffs.Bleeding) != 0,
+              "poison/bleed flags replicate for their visual effects");
+        srvStrike.Scrolls.Clear();
+
+        // ---- shatter: 5 ice shards continue behind the struck enemy
+        var srvIce = srvAil.Character.GetSkill("ice_spike");
+        srvIce.Scrolls.Add(new Items.ItemInstance { BaseItemId = "scroll_shattering" });
+        bool shardsSeen = false, shardOnClient = false;
+        for (int attempt = 0; attempt < 6 && !shardsSeen; attempt++)
+        {
+            srvAil.Mana = srvAil.Stats.MaxMana;
+            srvAil.SkillReadyAt.Clear();
+            srvAil.GlobalSkillReadyAt = 0;
+            chillTarget.Position = srvAil.Position + new Vector2(2f, 0);
+            clientB.RequestUseSkill("ice_spike", chillTarget.Position);
+            for (int step = 0; step < 14 && !(shardsSeen && shardOnClient); step++)
+            {
+                Pump(0.05f);
+                if (server.World.Projectiles.Values.Count(pr => pr.SpriteOverride == "IceShard") >= 4)
+                    shardsSeen = true;
+                if (clientB.World.Projectiles.Values.Any(pr => pr.SpriteOverride == "IceShard"))
+                    shardOnClient = true; // latched separately: replication is a pump behind
+            }
+        }
+        Check(shardsSeen, "Shattering bursts 5 ice shards out behind the struck enemy");
+        Check(shardOnClient, "shard projectiles replicate with their own sprite");
+        srvIce.Scrolls.Clear();
+
+        // ---- Scorched Earth: ground fire + stacking fire-res shred
+        var srvFire = srvAil.Character.GetSkill("fire_bolt");
+        srvFire.Scrolls.Add(new Items.ItemInstance { BaseItemId = "scroll_scorched_earth" });
+        chillTarget.Position = srvAil.Position + new Vector2(2f, 0);
+        chillTarget.StunnedUntil = server.World.Time + 300f;
+        CastAt("fire_bolt", chillTarget.Position);
+        Check(server.World.ActiveFirePatches > 0, "fire projectiles scorch the ground on hit");
+        Check(clientB.World.Effects.Any(fx => fx.Kind == "firepatch"),
+              "the fire patch visual replicates to clients");
+        int stacksBefore = server.World.FireExposureStacks(chillTarget);
+        float hpBeforePatch = chillTarget.Health;
+        Pump(2.2f); // stand in the fire
+        Check(server.World.FireExposureStacks(chillTarget) > stacksBefore,
+              $"standing in the fire stacks fire-resistance shred ({server.World.FireExposureStacks(chillTarget)} stacks)");
+        Check(chillTarget.Health < hpBeforePatch - 0.5f, "the patch deals fire damage over time");
+        Check(server.World.FireExposureStacks(chillTarget) <= Server.ServerWorld.FireExposureMaxStacks,
+              "fire exposure respects its 25-stack cap");
+        srvFire.Scrolls.Clear();
+        chillTarget.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        // ---- players: electrocute freezes them in place (position pinned, flag replicated)
+        var srvFrozen = server.World.Players[bId];
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        Pump(0.3f);
+        srvFrozen.ElectrocutedUntil = server.World.Time + 60f;
+        bool playerFroze = false;
+        for (int i = 0; i < 30 && !playerFroze; i++)
+        {
+            srvFrozen.NextShockRollAt = 0;
+            Pump(0.1f);
+            playerFroze = server.World.Time < srvFrozen.FrozenUntil;
+        }
+        Check(playerFroze, "electrocuted players seize up too");
+        var pinnedAt = srvFrozen.Position;
+        srvFrozen.FrozenUntil = server.World.Time + 5f;
+        srvFrozen.FrozenAt = pinnedAt;
+        clientB.World.Me.Position = pinnedAt + new Vector2(4f, 0);
+        Pump(0.4f);
+        Check(Vector2.Distance(srvFrozen.Position, pinnedAt) < 0.1f,
+              "frozen players cannot move (server pins the position)");
+        Check(clientB.World.Me != null &&
+              (clientB.World.Me.DebuffFlags & Server.PlayerDebuffs.Frozen) != 0,
+              "the frozen flag reaches the local player for the blue tint");
+        srvFrozen.FrozenUntil = 0;
+        srvFrozen.ElectrocutedUntil = 0;
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        Pump(0.4f);
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

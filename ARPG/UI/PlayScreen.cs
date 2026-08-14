@@ -302,6 +302,9 @@ public class PlayScreen : IScreen
             if (input.IsActionDown(InputAction.MoveDown)) screenDir.Y += 1;
             if (input.IsActionDown(InputAction.MoveLeft)) screenDir.X -= 1;
             if (input.IsActionDown(InputAction.MoveRight)) screenDir.X += 1;
+            // Frozen solid (chill freeze / electrocute seize): the server pins us anyway;
+            // dropping the input locally avoids a rubber-band fight.
+            if ((me.DebuffFlags & Server.PlayerDebuffs.Frozen) != 0) screenDir = NumVec2.Zero;
             var worldDir = IsoCamera.ScreenDirToWorldDir(screenDir); // normalized: diagonals aren't faster
 
             // --- dodge: movement is client-predicted for responsiveness; the server

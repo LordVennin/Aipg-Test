@@ -1,46 +1,101 @@
 [
-  {
-    "Id": "scroll_multishot",
-    "Name": "Multishot Scroll",
-    "Category": "SkillScroll",
-    "InventoryWidth": 1,
-    "InventoryHeight": 1,
-    "BaseModifierLimit": 0,
-    "DropWeight": 100,
-    "ScrollId": "multishot",
-    "Description": "Attach to a Projectile skill via the Skill Menu."
-  },
-  {
-    "Id": "scroll_greater_impact",
-    "Name": "Greater Impact Scroll",
-    "Category": "SkillScroll",
-    "InventoryWidth": 1,
-    "InventoryHeight": 1,
-    "BaseModifierLimit": 0,
-    "DropWeight": 100,
-    "ScrollId": "greater_impact",
-    "Description": "Attach to an Area skill via the Skill Menu."
-  },
-  {
-    "Id": "scroll_burning",
-    "Name": "Burning Scroll",
-    "Category": "SkillScroll",
-    "InventoryWidth": 1,
-    "InventoryHeight": 1,
-    "BaseModifierLimit": 0,
-    "DropWeight": 100,
-    "ScrollId": "burning",
-    "Description": "Attach to a Fire skill via the Skill Menu."
-  },
-  {
-    "Id": "scroll_rapid_casting",
-    "Name": "Rapid Casting Scroll",
-    "Category": "SkillScroll",
-    "InventoryWidth": 1,
-    "InventoryHeight": 1,
-    "BaseModifierLimit": 0,
-    "DropWeight": 100,
-    "ScrollId": "rapid_casting",
-    "Description": "Attach to a Spell via the Skill Menu."
-  }
+ {
+  "Id": "scroll_multishot",
+  "Name": "Multishot Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "multishot",
+  "Description": "Attach to a Projectile skill via the Skill Menu."
+ },
+ {
+  "Id": "scroll_greater_impact",
+  "Name": "Greater Impact Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "greater_impact",
+  "Description": "Attach to an Area skill via the Skill Menu."
+ },
+ {
+  "Id": "scroll_burning",
+  "Name": "Burning Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "burning",
+  "Description": "Attach to a Fire skill via the Skill Menu."
+ },
+ {
+  "Id": "scroll_rapid_casting",
+  "Name": "Rapid Casting Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "rapid_casting",
+  "Description": "Attach to a Spell via the Skill Menu."
+ },
+ {
+  "Id": "scroll_venom",
+  "Name": "Venom Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "venom",
+  "Description": "Attach to a Melee skill: 35% chance on hit to poison."
+ },
+ {
+  "Id": "scroll_rending",
+  "Name": "Rending Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "rending",
+  "Description": "Attach to a Melee skill: 35% chance on hit to bleed."
+ },
+ {
+  "Id": "scroll_frenzy",
+  "Name": "Frenzy Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "frenzy",
+  "Description": "Attach to a Melee skill: 20% increased attack speed."
+ },
+ {
+  "Id": "scroll_shattering",
+  "Name": "Shattering Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "shattering",
+  "Description": "Attach to a Cold skill: projectiles shatter into 5 shards behind the target."
+ },
+ {
+  "Id": "scroll_scorched_earth",
+  "Name": "Scorched Earth Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 100,
+  "ScrollId": "scorched_earth",
+  "Description": "Attach to a Fire skill: projectiles scorch the ground on hit."
+ }
 ]

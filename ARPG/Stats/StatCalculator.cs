@@ -27,6 +27,12 @@ public struct ComputedStats
     public float CritChance;             // percent chance a skill hit crits (base 5)
     public float CritDamage;             // crit damage multiplier percent (base 150)
 
+    // Percent-increased ailment magnitudes (0 = baseline 100%)
+    public float IgniteMagnitudeIncrease;
+    public float ChillMagnitudeIncrease;
+    public float PoisonMagnitudeIncrease;
+    public float BleedMagnitudeIncrease;
+
     // Blocking (requires shields only in practice: BlockChance rolls solely on shields)
     public float BlockChance;            // percent chance to fully avoid one hit
     public float BlockCooldown;          // seconds between successful blocks
@@ -183,6 +189,10 @@ public static class StatCalculator
             CastSpeedIncrease = total.Get(StatType.CastSpeed),
             CritChance = MathF.Min(CritChanceCap, BaseCritChance + total.Get(StatType.CriticalChance)),
             CritDamage = BaseCritDamage + total.Get(StatType.CriticalDamage),
+            IgniteMagnitudeIncrease = total.Get(StatType.IgniteMagnitude),
+            ChillMagnitudeIncrease = total.Get(StatType.ChillMagnitude),
+            PoisonMagnitudeIncrease = total.Get(StatType.PoisonMagnitude),
+            BleedMagnitudeIncrease = total.Get(StatType.BleedMagnitude),
         };
 
         // Blocking: chance comes entirely from gear (shields and their modifiers); a block

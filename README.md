@@ -164,6 +164,32 @@ future light damage). Melee strikes animate the actual held weapon sweeping an a
 on top; spells keep their own base-damage progression, and Shield Bash adds its
 shield-armor bonus on top of its weapon percent.
 
+**Ailments**: hits can inflict scaling status effects, all server-authoritative and
+replicated as debuff flags (tiny icons above heads plus on-body visuals):
+- **Chill / Freeze** (Ice Spike): chilling hits build a 0-100% chill magnitude from
+  the hit's damage relative to the target's max life, scaled by the skill's and the
+  player's chill magnitude increases. Chill decays constantly and slows movement up
+  to 50%; at 100% every further chilling hit can FREEZE the target solid — frozen
+  enemies and players tint blue and can't act.
+- **Electrocute** (Chain Lightning): 6 seconds of live current — every 2 seconds
+  the victim can seize up, frozen in place with a crackle of electricity. Works on
+  players too.
+- **Ignite** (Fire Bolt base chance, Burning scroll adds more): a fire DoT worth
+  80% of the igniting hit over 4s, scaled by ignite magnitudes, with rising flame
+  visuals.
+- **Poison** (Venom scroll, melee): a DoT off the physical + dark + acid portions
+  of the hit (60% over 4s), scaled by poison magnitude — green bubbles.
+- **Bleed** (Rending scroll, melee): physical-only but heavier (90% over 4s) —
+  dripping red.
+
+**New Skill Scrolls**: *Venom* and *Rending* (melee poison/bleed chance), *Frenzy*
+(20% increased melee attack speed), *Shattering* (Cold projectiles burst into 5
+small ice shards behind the struck enemy at 20% damage — a unique shard sprite,
+and added-projectile scrolls deliberately can't raise the count) and *Scorched
+Earth* (Fire projectiles leave a 3-second burning ground circle that ticks fire
+damage and shreds fire resistance by a stacking 1% per second — 5s stacks, up to
+25%).
+
 **Use time (global cast lockout)**: every skill declares a `UseTime` — a global
 lockout (enforced server-side, mirrored client-side on the hotbar) that stops the
 whole hotbar from being dumped in a single instant: casting anything locks ALL
@@ -450,7 +476,7 @@ single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (222 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (254 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.
