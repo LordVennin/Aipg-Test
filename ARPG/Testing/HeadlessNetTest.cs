@@ -2283,6 +2283,27 @@ public static class HeadlessNetTest
         clientB.SendDebugCommand("heal");
         Pump(0.4f);
 
+        Console.WriteLine("\n-- Client-side cast prediction --");
+        // The casting client gets INSTANT feedback (before any network round trip):
+        // a ghost projectile on projectile casts, the swing animation on melee casts.
+        srvSum.Mana = srvSum.Stats.MaxMana;
+        srvSum.SkillReadyAt.Remove("fire_bolt");
+        srvSum.GlobalSkillReadyAt = 0;
+        Pump(0.2f);
+        var predictAim = clientB.World.Me.Position + new Vector2(3f, 0);
+        clientB.RequestUseSkill("fire_bolt", predictAim);
+        Check(clientB.World.Projectiles.Values.Any(pr => pr.Ghost && pr.SkillId == "fire_bolt" && pr.Id < 0),
+              "casting spawns an instant local ghost projectile (zero round trips)");
+        Pump(0.3f);
+        Check(clientB.World.Projectiles.Values.All(pr => !pr.Ghost) &&
+              clientB.World.Projectiles.Values.Any(pr => pr.Id > 0 && pr.SkillId == "fire_bolt"),
+              "the ghost is adopted by the authoritative projectile on confirmation");
+        clientB.World.Me.SwingTimeLeft = 0f;
+        clientB.RequestUseSkill("basic_strike", predictAim);
+        Check(clientB.World.Me.SwingTimeLeft > 0f,
+              "the melee swing animation starts the instant of the click");
+        Pump(0.8f);
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

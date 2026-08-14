@@ -109,6 +109,11 @@ public class ClientProjectile
     public float HeightStep;
     /// <summary>Sprite name override (shatter shards); null = the skill's sprite.</summary>
     public string SpriteOverride;
+    /// <summary>Client-side cast prediction: a cosmetic local projectile spawned the
+    /// instant the cast was REQUESTED, so remote players see their bolt leave on click
+    /// instead of a round trip later. Replaced by the authoritative projectile when the
+    /// server confirms (negative id; fizzles quickly if the cast was rejected).</summary>
+    public bool Ghost;
 }
 
 /// <summary>A player's minion (skeleton archer), replicated like a small friendly enemy.</summary>

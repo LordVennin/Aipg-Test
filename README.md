@@ -299,6 +299,16 @@ ARPG/
 - **Movement** is client-predicted for responsiveness and sanity-clamped server-side
   (bounds + wall check). It is the one deliberately client-trusted input; everything
   persistent is server-decided.
+- **Attack FEEDBACK is client-predicted too** (the PoE approach): without it, a remote
+  player's swing would only start once the server's effect broadcast made the full
+  round trip back — ~170ms of dead time per click at 150 ping, while movement feels
+  instant. On a cast request the casting client immediately plays its own swing or
+  wind-up animation (the server's echo of that cast is suppressed so it doesn't play
+  twice), and projectile skills loose a cosmetic **ghost bolt** on click that the
+  authoritative projectile ADOPTS on arrival — it inherits the ghost's flight progress
+  so nothing snaps backwards. Damage, hits, cooldown enforcement and what every OTHER
+  player sees remain fully server-side; a rejected cast just shows a swing that hits
+  nothing, and an unconfirmed ghost fizzles within a second.
 - **Delivery**: player/enemy position snapshots go unreliable at 20/10 Hz (newest wins);
   everything that matters (joins, spawns, deaths, health, loot, character state) goes
   `ReliableOrdered`.
@@ -554,7 +564,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (301 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (304 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

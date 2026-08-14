@@ -158,12 +158,83 @@ public class GameClient
 
     public void RequestUseSkill(string skillId, Vector2 target, int targetEnemyId = -1, float charge = 0f)
     {
+        PredictOwnCast(skillId, target);
         var w = Packets.Make(PacketType.UseSkill);
         w.Put(skillId);
         w.PutVec2(target);
         w.Put(targetEnemyId);
         w.Put(charge);
         Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    // ------------------------------------------------------------------ cast prediction
+    //
+    // Attacks are server-authoritative, so without prediction a remote player's swing
+    // only starts once the server's SkillEffect broadcast makes the ROUND TRIP back —
+    // at 150 ping that's ~170ms of dead time after every click, while movement (client-
+    // predicted) feels instant. These helpers give the CASTING client instant cosmetic
+    // feedback: the swing/wind-up animation starts on click and projectile skills loose
+    // a local ghost bolt immediately. The server still decides all damage, hits and
+    // what everyone else sees; a rejected cast just shows a swing that does nothing.
+
+    /// <summary>Recently predicted swings per skill: the server's own SkillEffect echo
+    /// for these is suppressed so the animation doesn't play twice.</summary>
+    private readonly Dictionary<string, long> _predictedSwings = new();
+    private int _nextGhostId = -1;
+
+    private void PredictOwnCast(string skillId, Vector2 target)
+    {
+        if (Status != ClientStatus.InGame) return;
+        var me = World.Me;
+        var def = _data.Skills.GetValueOrDefault(skillId);
+        if (me == null || def == null || def.Archetype == Skills.SkillArchetype.Summon) return;
+        if (World.MyCharacter?.GetSkill(skillId) == null) return;
+
+        var aim = target - me.Position;
+        var dir = aim.LengthSquared() > 0.001f ? Vector2.Normalize(aim) : me.Facing;
+
+        // Swing / wind-up animation, mirroring the SkillEffect handler's rules.
+        if (def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
+            !def.RequiresShield)
+        {
+            me.SwingTotal = def.WindupTime > 0 ? def.WindupTime + 0.12f : ClientPlayer.SwingDuration;
+            me.SwingTimeLeft = me.SwingTotal;
+            me.SwingKind = (byte)(def.Tags?.Contains("Slam") == true ? 1 : 0);
+            me.SwingDir = dir;
+            _predictedSwings[skillId] = Environment.TickCount64;
+        }
+
+        // Ghost projectile: flies from the click; the authoritative spawn adopts its
+        // progress on arrival. A short range cap makes rejected casts fizzle quietly.
+        if (def.Archetype == Skills.SkillArchetype.Projectile)
+        {
+            var ghost = new ClientProjectile
+            {
+                Id = _nextGhostId--,
+                FromPlayer = true,
+                Ghost = true,
+                SkillId = skillId,
+                Position = me.Position + dir * 0.3f,
+                Height = me.Height,
+                Direction = dir,
+                Speed = def.ProjectileSpeed,
+                MaxRange = MathF.Min(def.Range, def.ProjectileSpeed * 0.8f),
+            };
+            World.Projectiles[ghost.Id] = ghost;
+        }
+    }
+
+    /// <summary>True (and consumed) when this skill's swing was predicted moments ago —
+    /// the server echo of our own cast must not restart the animation.</summary>
+    private bool ConsumePredictedSwing(string skillId)
+    {
+        if (_predictedSwings.TryGetValue(skillId, out long at) &&
+            Environment.TickCount64 - at < 900)
+        {
+            _predictedSwings.Remove(skillId);
+            return true;
+        }
+        return false;
     }
 
     public void RequestPickup(Guid dropId)
@@ -580,6 +651,21 @@ public class GameClient
                 pr.HeightStep = r.GetFloat();
                 pr.SpriteOverride = r.GetString();
                 if (pr.SpriteOverride.Length == 0) pr.SpriteOverride = null;
+                // Adopt a matching ghost from our own cast prediction: keep the ghost's
+                // flight progress so the bolt doesn't snap backwards on confirmation.
+                if (pr.FromPlayer && World.Me is { } ghostOwner &&
+                    Vector2.Distance(pr.Position, ghostOwner.Position) < 2.5f)
+                {
+                    var ghost = World.Projectiles.Values.FirstOrDefault(g =>
+                        g.Ghost && g.SkillId == pr.SkillId);
+                    if (ghost != null)
+                    {
+                        World.Projectiles.Remove(ghost.Id);
+                        pr.Position += pr.Direction * ghost.Traveled;
+                        pr.Height += pr.HeightStep * ghost.Traveled;
+                        pr.Traveled = ghost.Traveled;
+                    }
+                }
                 World.Projectiles[pr.Id] = pr;
                 break;
             }
@@ -638,7 +724,10 @@ public class GameClient
                     // held weapon (replacing the old abstract swipe arc). Shield skills
                     // don't swing — Shield Bash is a forward shove, not a swipe.
                     bool isSlam = def.Tags?.Contains("Slam") == true;
-                    if (phase != 2 &&
+                    // Our own casts already played their swing at click time (prediction);
+                    // the server echo must not restart the animation mid-motion.
+                    bool ownPredicted = playerId == World.MyPlayerId && ConsumePredictedSwing(skillId);
+                    if (phase != 2 && !ownPredicted &&
                         def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
                         !def.RequiresShield &&
                         World.Players.GetValueOrDefault(playerId) is { } swingCaster)
