@@ -24,6 +24,8 @@ public class ClientPlayer
     /// <summary>Energy Shield: absorbed before life, replicated with health updates.</summary>
     public float EnergyShield;
     public float MaxEnergyShield;
+    /// <summary>Maximum mana reserved by this player's summons (orb shows it darkened).</summary>
+    public float ManaReserved;
     public bool Alive = true;
     public bool IsLocal;
     /// <summary>Latest round-trip ping in ms (from PlayerPings packets), for the player list.</summary>

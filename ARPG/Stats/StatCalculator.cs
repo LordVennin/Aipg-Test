@@ -119,7 +119,8 @@ public static class StatCalculator
 {
     public const float BaseMoveSpeed = 4.2f;
     public const float BaseMaxHealth = 60f;
-    public const float HealthPerCharLevel = 8f;
+    // Halved so gear/attributes carry growth — stats should matter more than levels.
+    public const float HealthPerCharLevel = 4f;
     public const float UnarmedMinDamage = 2f;
     public const float UnarmedMaxDamage = 4f;
     public const float UnarmedAttackSpeed = 1.2f;
@@ -130,7 +131,7 @@ public static class StatCalculator
     // Mana: pool and regen grow with character level (a PoE-style passive skill point
     // system will layer on top later); item modifiers add flat mana / % regen.
     public const float BaseMaxMana = 40f;
-    public const float ManaPerCharLevel = 4f;
+    public const float ManaPerCharLevel = 2f; // halved: INT/gear should drive the pool
     public const float BaseManaRegen = 1.2f;       // per second at level 1
     public const float ManaRegenPerCharLevel = 0.15f;
 
@@ -191,7 +192,7 @@ public static class StatCalculator
                             + dexterity / 10f * AttributeBalance.MovementPctPer10Dexterity) / 100f),
             Armor = total.Get(StatType.Armor),
             DeflectionRating = total.Get(StatType.DeflectionRating)
-                               + dexterity * AttributeBalance.DeflectionRatingPerDexterity,
+                               * (1f + dexterity * AttributeBalance.DeflectionPctPerDexterity / 100f),
             MaxEnergyShield = total.Get(StatType.EnergyShield)
                               * (1f + intelligence / 10f * AttributeBalance.EnergyShieldPctPer10Intelligence / 100f),
             FireResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.FireResistance)),

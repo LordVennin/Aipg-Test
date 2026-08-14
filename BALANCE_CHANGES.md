@@ -128,3 +128,53 @@ the character can actually equip.
 5. **Shop prices** don't scale with character level — gold inflates by mid-game.
 6. **ES recharge in combat**: 4s delay is generous while kiting; consider 5-6s
    once the room loop makes disengaging harder.
+
+
+---
+
+# Addendum — second tuning pass
+
+## Summon mana: cost → RESERVATION (behavior change)
+
+Summons no longer pay a one-time mana cost. Each minion **reserves**
+`flat + 5% of maximum mana` while it exists: your usable pool shrinks (dimmed
+band on the orb, "N reserved" label), regen only refills the unreserved part,
+free respawns keep the hold, and dismissing releases it. Raising a minion needs
+enough UNRESERVED maximum mana, not current mana. This matches the original
+design intent ("each summon should take ... of your maximum mana").
+
+## Level scaling (stats matter more)
+
+| Knob | Before | After |
+|---|---|---|
+| Health per character level | 8 | **4** |
+| Mana per character level | 4 | **2** |
+
+## Spell tuning
+
+| Skill | Before | After |
+|---|---|---|
+| Fire Bolt mana | 5 | **7** |
+| Chain Lightning mana | 8 | **11** |
+| Ice Spike base damage / per level | 15 / 4.5 | **12 / 4** |
+| Arcane Burst mana | 9 | **16** |
+| Arcane Burst cast | instant | **0.45s charge-up** (wind-up like Mace Slam) with a new gathering-energy telegraph and a reworked two-ring detonation visual |
+
+## Dexterity → Deflection (no more free defense)
+
+DEX no longer grants flat rating (was 2/point — 20 free rating with zero gear).
+It now **multiplies gear rating by +0.4% per point**: no deflection gear means
+no deflection, and bare attribute points only amplify what armor provides.
+
+## Armor curve + values (early %-reduction reined in)
+
+| Knob | Before | After |
+|---|---|---|
+| Soft cap | `armor + 40 + 10·level` | `armor + **60 + 12·level**` |
+| Starter set Armor | 10/20/7/7/4 | **8/15/5/5/3** |
+| Iron set | 14/26/10/10 | **10/19/7/7** |
+| Warplate set | 22/38/15/15 | **16/28/11/11** |
+| Hybrid bodies' Armor | 23 | **17** |
+
+A full starter set (~33 armor) is now ~31% reduction at level 1 and falls off
+fast without upgrades (was ~45%+ under the old base-40 denominator).

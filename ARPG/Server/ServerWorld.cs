@@ -186,7 +186,14 @@ public partial class ServerWorld
     /// <summary>Player minions (skeleton archers), by id.</summary>
     public readonly Dictionary<int, ServerSummon> Summons = new();
     private int _nextSummonId = 1;
-    private class SummonRespawn { public int OwnerId; public string SkillId; public float At; }
+    private class SummonRespawn
+    {
+        public int OwnerId;
+        public string SkillId;
+        public float At;
+        /// <summary>The dead minion's mana reservation carries through its respawn wait.</summary>
+        public float ManaReserved;
+    }
     private readonly List<SummonRespawn> _summonRespawns = new();
 
     // ------------------------------------------------------------------ players
@@ -287,7 +294,7 @@ public partial class ServerWorld
                     p.Position = Map.PlayerSpawn;
                     p.Height = Map.GroundHeightAt(Map.PlayerSpawn);
                     p.Health = p.Stats.MaxHealth;
-                    p.Mana = p.Stats.MaxMana;
+                    p.Mana = MathF.Max(0f, p.Stats.MaxMana - p.ManaReserved);
                     p.EnergyShield = p.Stats.MaxEnergyShield;
                     p.LastSyncedHealth = p.Health;
                     _events.PlayerRespawned(p);
@@ -316,10 +323,17 @@ public partial class ServerWorld
                 if (MathF.Abs(p.Health - p.LastSyncedHealth) >= 1f || p.Health >= p.Stats.MaxHealth)
                     resourceChanged = true;
             }
-            if (p.Stats.ManaRegeneration > 0 && p.Mana < p.Stats.MaxMana)
+            // Mana regenerates only into the UNRESERVED pool (summons hold the rest).
+            float manaCeiling = MathF.Max(0f, p.Stats.MaxMana - p.ManaReserved);
+            if (p.Mana > manaCeiling)
             {
-                p.Mana = MathF.Min(p.Stats.MaxMana, p.Mana + p.Stats.ManaRegeneration * dt);
-                if (MathF.Abs(p.Mana - p.LastSyncedMana) >= 1f || p.Mana >= p.Stats.MaxMana)
+                p.Mana = manaCeiling; // gear/reservation changes shrink the pool live
+                resourceChanged = true;
+            }
+            else if (p.Stats.ManaRegeneration > 0 && p.Mana < manaCeiling)
+            {
+                p.Mana = MathF.Min(manaCeiling, p.Mana + p.Stats.ManaRegeneration * dt);
+                if (MathF.Abs(p.Mana - p.LastSyncedMana) >= 1f || p.Mana >= manaCeiling)
                     resourceChanged = true;
             }
             // Energy Shield recharge: kicks in after RechargeDelay seconds without taking
@@ -1362,8 +1376,9 @@ public partial class ServerWorld
     public int SummonLimitFor(ServerPlayer p, SkillDefinition def) =>
         def.SummonLimit + p.Stats.SummonLimitBonus;
 
-    /// <summary>Mana price of ONE summon: flat (grows per skill level) + a fraction of
-    /// the caster's max mana. Respawns after death are free.</summary>
+    /// <summary>Maximum mana ONE summon RESERVES while it exists: flat (grows per skill
+    /// level) + a fraction of the caster's max mana. Captured at summon time, held
+    /// through free respawns, released on dismissal.</summary>
     public float SummonManaCost(ServerPlayer p, SkillDefinition def, int level) =>
         def.ManaCost + def.ManaCostPerLevel * (level - 1) + def.ManaCostPctMax * p.Stats.MaxMana;
 
@@ -1386,21 +1401,23 @@ public partial class ServerWorld
                 _events.MessageFor(p, "Summon limit reached.");
                 return;
             }
-            float cost = SummonManaCost(p, def, learned.Level);
-            if (p.Mana < cost - 0.01f)
+            // Summons RESERVE maximum mana while they exist (PoE-style) instead of
+            // paying a one-time cost: the reservation must fit in the total pool.
+            float reservation = SummonManaCost(p, def, learned.Level);
+            if (p.ManaReserved + reservation > p.Stats.MaxMana + 0.01f)
             {
-                _events.MessageFor(p, "Not enough mana.");
+                _events.MessageFor(p, "Not enough maximum mana to sustain another summon.");
                 return;
             }
-            p.Mana -= cost;
-            p.LastSyncedMana = p.Mana;
-            _events.PlayerHealthChanged(p);
-            SpawnSummon(p, learned, def);
+            var raised = SpawnSummon(p, learned, def);
+            raised.ManaReserved = reservation;
             p.DesiredSummons[skillId] = LivingSummons(playerId, skillId);
+            RecomputeManaReservation(p);
         }
         else if (delta < 0)
         {
             // Prefer cancelling a pending respawn; otherwise dismiss a living minion.
+            // Either way the reservation is released.
             int pending = _summonRespawns.FindIndex(r => r.OwnerId == playerId && r.SkillId == skillId);
             if (pending >= 0)
             {
@@ -1414,7 +1431,22 @@ public partial class ServerWorld
                 _events.SummonDespawned(victim);
             }
             p.DesiredSummons[skillId] = LivingSummons(playerId, skillId);
+            RecomputeManaReservation(p);
         }
+    }
+
+    /// <summary>Re-sum a player's summon mana reservation (living minions + those
+    /// awaiting their free respawn), clamp current mana into the unreserved pool, and
+    /// sync. THE place reservation bookkeeping happens.</summary>
+    public void RecomputeManaReservation(ServerPlayer p)
+    {
+        p.ManaReserved =
+            Summons.Values.Where(s => s.OwnerId == p.Id).Sum(s => s.ManaReserved) +
+            _summonRespawns.Where(r => r.OwnerId == p.Id).Sum(r => r.ManaReserved);
+        float effectiveMax = MathF.Max(0f, p.Stats.MaxMana - p.ManaReserved);
+        if (p.Mana > effectiveMax) p.Mana = effectiveMax;
+        p.LastSyncedMana = p.Mana;
+        _events.PlayerHealthChanged(p);
     }
 
     /// <summary>Rally command (backquote): send ONE summon skill's pack to a point, or
@@ -1450,7 +1482,7 @@ public partial class ServerWorld
         }
     }
 
-    private void SpawnSummon(ServerPlayer p, LearnedSkill learned, SkillDefinition def)
+    private ServerSummon SpawnSummon(ServerPlayer p, LearnedSkill learned, SkillDefinition def)
     {
         int level = learned.Level;
         float hp = (def.SummonHealth + def.SummonHealthPerLevel * (level - 1)) *
@@ -1482,6 +1514,7 @@ public partial class ServerWorld
         };
         Summons[s.Id] = s;
         _events.SummonSpawned(s);
+        return s;
     }
 
     /// <summary>Damage a minion (enemy melee/projectiles). Death queues a FREE respawn
@@ -1500,6 +1533,7 @@ public partial class ServerWorld
         {
             OwnerId = s.OwnerId, SkillId = s.SkillId,
             At = Time + (def?.SummonRespawnTime ?? 6f),
+            ManaReserved = s.ManaReserved,
         });
     }
 
@@ -1515,8 +1549,13 @@ public partial class ServerWorld
             var learned = owner.Character.GetSkill(r.SkillId);
             var def = Data.Skills.GetValueOrDefault(r.SkillId);
             _summonRespawns.RemoveAt(i);
-            if (learned == null || def == null) continue;
-            SpawnSummon(owner, learned, def);
+            if (learned == null || def == null)
+            {
+                RecomputeManaReservation(owner); // dropped entry releases its hold
+                continue;
+            }
+            var reborn = SpawnSummon(owner, learned, def);
+            reborn.ManaReserved = r.ManaReserved; // the reservation carries through
         }
 
         SeparateSummons(dt);

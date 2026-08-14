@@ -121,14 +121,14 @@
   "Range": 12,
   "ProjectileSpeed": 11,
   "ProjectileCount": 1,
-  "ManaCost": 5,
+  "ManaCost": 7,
   "UseTime": 0.4,
   "IgniteChance": 0.3
  },
  {
   "Id": "arcane_burst",
   "Name": "Arcane Burst",
-  "Description": "Detonate arcane energy at the target location.",
+  "Description": "Gather arcane power, then detonate it at the target location \u2014 the burst lands after a short charge-up.",
   "Tags": [
    "Spell",
    "Area",
@@ -143,8 +143,9 @@
   "Range": 5.5,
   "Radius": 1.8,
   "RadiusPerLevel": 0.1,
-  "ManaCost": 9,
-  "UseTime": 0.5
+  "ManaCost": 16,
+  "UseTime": 0.5,
+  "WindupTime": 0.45
  },
  {
   "Id": "ice_spike",
@@ -158,8 +159,8 @@
   "Archetype": "Projectile",
   "DamageKind": "Cold",
   "UsesWeaponDamage": false,
-  "BaseDamage": 15,
-  "DamagePerLevel": 4.5,
+  "BaseDamage": 12,
+  "DamagePerLevel": 4,
   "Cooldown": 0.85,
   "Range": 11,
   "ProjectileSpeed": 13,
@@ -187,14 +188,14 @@
   "Range": 7,
   "Radius": 3.2,
   "ProjectileCount": 3,
-  "ManaCost": 8,
+  "ManaCost": 11,
   "UseTime": 0.5,
   "ElectrocuteChance": 0.5
  },
  {
   "Id": "summon_skeleton",
   "Name": "Summon Skeleton Archers",
-  "Description": "Raise skeletal archers that follow you and pepper your enemies with arrows. Managed from this menu with + and - (they cost mana per summon); tap ` to rally them to a point, hold ` to call them back. Fallen archers rise again near you for free.",
+  "Description": "Raise skeletal archers that follow you and pepper your enemies with arrows. Managed from this menu with + and - (each RESERVES part of your maximum mana while it exists); tap ` to rally them to a point, hold ` to call them back. Fallen archers rise again near you for free.",
   "Tags": [
    "Spell",
    "Summon",
@@ -218,7 +219,7 @@
  {
   "Id": "summon_skeleton_warrior",
   "Name": "Summon Skeleton Warriors",
-  "Description": "Raise skeletal warriors that charge your enemies and cut them down at arm's reach. Managed from this menu with + and - (they cost mana per summon); tap ` to rally them to a point, hold ` to call them back. Fallen warriors rise again near you for free.",
+  "Description": "Raise skeletal warriors that charge your enemies and cut them down at arm's reach. Managed from this menu with + and - (each RESERVES part of your maximum mana while it exists); tap ` to rally them to a point, hold ` to call them back. Fallen warriors rise again near you for free.",
   "Tags": [
    "Spell",
    "Summon",

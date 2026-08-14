@@ -78,7 +78,11 @@ public class HudUI
         }
 
         // --- mana orb (bottom right) ---
+        // Summons RESERVE maximum mana: the reserved band renders as a dim violet cap
+        // at the orb's top and the text shows the usable pool.
         float maxMana = _client.World.MyStats.MaxMana;
+        float reserved = Math.Clamp(me.ManaReserved, 0f, maxMana);
+        float usableMax = MathF.Max(0f, maxMana - reserved);
         var manaRect = new Rectangle(screen.X - orbSize - 18, screen.Y - orbSize - 18, orbSize, orbSize);
         sb.Draw(TextureGen.Circle32, manaRect, new Color(12, 16, 42));
         float manaFrac = maxMana > 0 ? Math.Clamp(me.Mana / maxMana, 0f, 1f) : 0f;
@@ -89,9 +93,20 @@ public class HudUI
             var mDst = new Rectangle(manaRect.X, manaRect.Y + (int)(orbSize * (1 - manaFrac)), orbSize, (int)(orbSize * manaFrac));
             sb.Draw(TextureGen.Circle32, mDst, mSrc, new Color(50, 90, 220));
         }
-        string manaText = $"{me.Mana:0}/{maxMana:0}";
+        if (maxMana > 0 && reserved > 0)
+        {
+            float resFrac = Math.Clamp(reserved / maxMana, 0f, 1f);
+            int rH = (int)(32 * resFrac);
+            var rSrc = new Rectangle(0, 0, 32, rH);
+            var rDst = new Rectangle(manaRect.X, manaRect.Y, orbSize, (int)(orbSize * resFrac));
+            sb.Draw(TextureGen.Circle32, rDst, rSrc, new Color(70, 50, 110, 230));
+        }
+        string manaText = $"{me.Mana:0}/{usableMax:0}";
         var manaSize = font.MeasureString(manaText);
         sb.DrawString(font, manaText, new Vector2(manaRect.Center.X - manaSize.X / 2, manaRect.Center.Y - manaSize.Y / 2), Color.White);
+        if (reserved > 0)
+            sb.DrawString(FontManager.Get(11), $"{reserved:0} reserved",
+                new Vector2(manaRect.X - 4, manaRect.Y - 14), new Color(170, 150, 220));
 
         // --- summon roster (left of the mana orb): one card per learned summon skill ---
         // with its living count / limit; the focused card (the one the command key

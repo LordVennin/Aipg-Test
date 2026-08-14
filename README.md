@@ -202,19 +202,21 @@ spend like any other request.
 
 **Summons**: learnable `Summon`-archetype skills that are NOT cast from the
 hotbar. In the Skill Menu (`K`), summon skills show **`+` and `−` buttons** (in
-the list row and the detail pane) to raise or dismiss minions. Each summon costs
-**flat mana + 5% of your max mana** (the flat part grows per skill level while
-the minions' health and damage scale up), with a limit of 2 per skill at level 1.
+the list row and the detail pane) to raise or dismiss minions. Each summon **RESERVES
+flat mana + 5% of your maximum mana** while it exists (PoE-style — the reserved
+band shows dimmed on the mana orb and is released when you dismiss the minion;
+the flat part grows per skill level while the minions' health and damage scale
+up), with a limit of 2 per skill at level 1.
 Two summon skills exist so the command systems have something to differentiate:
-- **Skeleton Archers** (10 base mana): hold position and shoot arrows at the
+- **Skeleton Archers** (reserve 10 base mana): hold position and shoot arrows at the
   nearest enemy with a clear line of fire (kill credit and XP go to the summoner).
-- **Skeleton Warriors** (12 base mana, tougher, harder-hitting, slower respawn):
+- **Skeleton Warriors** (reserve 12 base mana, tougher, harder-hitting, slower respawn):
   charge enemies and cut them down at arm's reach — a distinct sprite with a
   notched sword and scrap shield.
 
 Minions have health bars and take damage — enemies turn on them and enemy
 projectiles hit them first — and a dead minion **respawns free** near the
-summoner after its skill's respawn time. They're animated from `SummonAttack`
+summoner after its skill's respawn time (its mana stays reserved while it waits). They're animated from `SummonAttack`
 events: warriors carry a separately-drawn bone sword (lowered at rest, chopped
 through the strike direction with a forward lurch on every swing), archers
 recoil from each bow release, and both bob lightly while walking instead of
@@ -632,7 +634,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (345 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (348 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.
