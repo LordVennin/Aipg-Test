@@ -72,6 +72,36 @@ public class PlayScreen : IScreen
     /// <summary>Auto-walk pickup: the drop we're heading toward after the player
     /// pressed pickup on a hovered (but out-of-range) item label.</summary>
     private Guid _pickupTargetId = Guid.Empty;
+    /// <summary>Summon command key state: press time (for tap-vs-hold) and whether the
+    /// current press already resolved (a hold sends "follow" once, then goes quiet).</summary>
+    private float _summonCmdDownAt = -1f;
+    private bool _summonCmdHandled;
+    private const float SummonFollowHoldTime = 0.45f;
+    /// <summary>Which learned summon SKILL the command key drives (cycled with Tab).</summary>
+    private int _summonFocusIdx;
+
+    /// <summary>Learned summon skills, in the stable order the skill list shows them.</summary>
+    private List<string> SummonSkillIds()
+    {
+        var character = _client.World.MyCharacter;
+        if (character == null) return new List<string>();
+        return character.Skills
+            .Where(s => _game.Data.Skills.GetValueOrDefault(s.SkillId)?.Archetype == SkillArchetype.Summon)
+            .Select(s => s.SkillId)
+            .ToList();
+    }
+
+    /// <summary>The focused summon skill id, or null when none are learned.</summary>
+    public string FocusedSummonSkillId
+    {
+        get
+        {
+            var ids = SummonSkillIds();
+            if (ids.Count == 0) return null;
+            _summonFocusIdx %= ids.Count;
+            return ids[_summonFocusIdx];
+        }
+    }
     private float _fpsTimer;
     private int _fpsCounter;
     private float _autosaveTimer;
@@ -179,10 +209,12 @@ public class PlayScreen : IScreen
         {
             _devLearnSummons = false;
             _client.RequestLearnSkill("summon_skeleton");
+            _client.RequestLearnSkill("summon_skeleton_warrior");
         }
         if (_devRaiseSummons && _clientTime > 2.5f)
         {
             _devRaiseSummons = false;
+            _client.RequestSummonAdjust("summon_skeleton_warrior", +1);
             _client.RequestSummonAdjust("summon_skeleton", +1);
             _client.RequestSummonAdjust("summon_skeleton", +1);
         }
@@ -419,14 +451,51 @@ public class PlayScreen : IScreen
                     if (drop != null) _client.RequestPickup(drop.DropId);
                 }
             }
-            // Command summons (backquote): rally them at the cursor; pointing at
-            // yourself (or very close) recalls them to following you.
-            if (input.WasActionPressed(InputAction.CommandSummons))
+            // Command summons (backquote), acting on the FOCUSED summon skill (Tab
+            // cycles focus, so different packs can hold different marks):
+            //  - TAP: rally the pack at the cursor (aiming at yourself also recalls)
+            //  - HOLD: order the pack back to following you.
+            if (input.WasActionPressed(InputAction.CycleSummonFocus))
             {
-                bool recall = NumVec2.Distance(mouseWorld, me.Position) < 1.5f;
-                _client.RequestSummonRally(!recall, mouseWorld);
-                _hud.AddMessage(recall ? "Summons follow you." : "Summons rally to your mark.");
+                var ids = SummonSkillIds();
+                if (ids.Count > 1)
+                {
+                    _summonFocusIdx = (_summonFocusIdx + 1) % ids.Count;
+                    var fDef = _game.Data.Skills.GetValueOrDefault(ids[_summonFocusIdx]);
+                    _hud.AddMessage($"Commanding: {fDef?.Name ?? ids[_summonFocusIdx]}");
+                }
             }
+            string focusedSummon = FocusedSummonSkillId;
+            if (focusedSummon != null)
+            {
+                string packName = _game.Data.Skills.GetValueOrDefault(focusedSummon)?.Name ?? "Summons";
+                if (input.WasActionPressed(InputAction.CommandSummons))
+                {
+                    _summonCmdDownAt = _clientTime;
+                    _summonCmdHandled = false;
+                }
+                if (_summonCmdDownAt >= 0 && !_summonCmdHandled &&
+                    input.IsActionDown(InputAction.CommandSummons) &&
+                    _clientTime - _summonCmdDownAt >= SummonFollowHoldTime)
+                {
+                    _summonCmdHandled = true; // held: back to heel
+                    _client.RequestSummonRally(focusedSummon, false, default);
+                    _hud.AddMessage($"{packName} follow you.");
+                }
+                if (_summonCmdDownAt >= 0 && !input.IsActionDown(InputAction.CommandSummons))
+                {
+                    if (!_summonCmdHandled)
+                    {
+                        bool recall = NumVec2.Distance(mouseWorld, me.Position) < 1.5f;
+                        _client.RequestSummonRally(focusedSummon, !recall, mouseWorld);
+                        _hud.AddMessage(recall
+                            ? $"{packName} follow you."
+                            : $"{packName} rally to your mark.");
+                    }
+                    _summonCmdDownAt = -1f;
+                }
+            }
+            _hud.FocusedSummonSkillId = focusedSummon;
 
             // Auto-walk toward a targeted pickup; any manual movement cancels it.
             if (_pickupTargetId != Guid.Empty)

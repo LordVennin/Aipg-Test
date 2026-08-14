@@ -255,9 +255,11 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
-    public void RequestSummonRally(bool hasPoint, Vector2 point)
+    /// <summary>Rally ONE summon skill's pack (empty skillId = all of them).</summary>
+    public void RequestSummonRally(string skillId, bool hasPoint, Vector2 point)
     {
         var w = Packets.Make(PacketType.SummonRallyRequest);
+        w.Put(skillId ?? "");
         w.Put(hasPoint);
         w.PutVec2(point);
         Send(w, DeliveryMethod.ReliableOrdered);

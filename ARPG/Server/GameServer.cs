@@ -250,9 +250,10 @@ public class GameServer : IServerEvents
                 break;
             case PacketType.SummonRallyRequest:
             {
+                string skillId = r.GetString();
                 bool hasPoint = r.GetBool();
                 var point = r.GetVec2();
-                World.SummonRally(playerId, hasPoint, point);
+                World.SummonRally(playerId, skillId, hasPoint, point);
                 break;
             }
         }

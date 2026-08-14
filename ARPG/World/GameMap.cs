@@ -51,6 +51,7 @@ public class GameMap
     private readonly byte[] _rampStyle; // 0 = smooth ramp, 1 = stairs (render-only)
     private readonly byte[] _bridge;   // elevated walkable deck level (0 = none)
     private readonly byte[] _feature;  // TileFeature per tile (theme-generated landmarks)
+    private readonly byte[] _water;    // 1 = water: impassable to walkers, open to shots/sight
 
     /// <summary>Vertical step an entity can absorb when moving between surfaces. Level
     /// differences at or under this are walkable (ramp ends); full levels are not.</summary>
@@ -76,6 +77,7 @@ public class GameMap
         _rampStyle = new byte[width * height];
         _bridge = new byte[width * height];
         _feature = new byte[width * height];
+        _water = new byte[width * height];
         Generate(new Random(seed));
     }
 
@@ -92,6 +94,11 @@ public class GameMap
     public TileFeature Feature(int x, int y) => InBounds(x, y) ? (TileFeature)_feature[Idx(x, y)] : TileFeature.None;
 
     public bool IsSolid(int x, int y) => WallHeight(x, y) > 0;
+
+    /// <summary>Water: a second kind of impassable tile. Unlike walls it has no height —
+    /// nothing can WALK onto it, but shots, sight lines and thrown effects pass freely
+    /// over the surface (bridge decks above water stay walkable).</summary>
+    public bool IsWater(int x, int y) => InBounds(x, y) && _water[Idx(x, y)] == 1;
 
     /// <summary>Legacy-style solid check (used by tests/debug helpers on the ground layer).</summary>
     public bool IsWallAt(Vector2 pos) => IsSolid((int)MathF.Floor(pos.X), (int)MathF.Floor(pos.Y));
@@ -131,6 +138,14 @@ public class GameMap
         float? best = null;
         float bestDiff = float.MaxValue;
 
+        if (IsWater(x, y))
+        {
+            // Water offers no ground surface — only a bridge deck above it is standable.
+            int wb = BridgeLevel(x, y);
+            if (wb > 0 && MathF.Abs(wb - currentHeight) <= StepTolerance) return wb;
+            return null;
+        }
+
         float ground = GroundLevel(x, y) + RampT(x, y, pos);
         // Climbing more than the step tolerance is never allowed; DROPPING down is
         // allowed up to a full level on RAMP tiles, so walking onto stairs from the
@@ -159,9 +174,12 @@ public class GameMap
     private bool TileReachable(int x, int y, float height)
     {
         if (!InBounds(x, y) || IsSolid(x, y)) return false;
-        int g = GroundLevel(x, y);
-        float lo = g, hi = Ramp(x, y) != RampDirection.None ? g + 1 : g;
-        if (height >= lo - StepTolerance && height <= hi + StepTolerance) return true;
+        if (!IsWater(x, y))
+        {
+            int g = GroundLevel(x, y);
+            float lo = g, hi = Ramp(x, y) != RampDirection.None ? g + 1 : g;
+            if (height >= lo - StepTolerance && height <= hi + StepTolerance) return true;
+        }
         int bridge = BridgeLevel(x, y);
         return bridge > 0 && MathF.Abs(bridge - height) <= StepTolerance;
     }
@@ -401,6 +419,7 @@ public class GameMap
             }
 
         GenerateThemeFeatures();
+        GeneratePonds();
 
         // Enemy spawn points: walkable ground tiles far enough from the player spawn.
         // Includes elevated ground — enemies spawn at whatever level the tile has.
@@ -409,8 +428,42 @@ public class GameMap
         while (EnemySpawns.Count < wanted && attempts++ < 500)
         {
             var p = new Vector2(rng.Next(3, Width - 3) + 0.5f, rng.Next(3, Height - 3) + 0.5f);
-            if (!IsWallAt(p) && Vector2.Distance(p, PlayerSpawn) > 8f)
+            if (!IsWallAt(p) && !IsWater((int)p.X, (int)p.Y) && Vector2.Distance(p, PlayerSpawn) > 8f)
                 EnemySpawns.Add(p);
+        }
+    }
+
+    /// <summary>
+    /// Water: a few organic ponds on open level-0 ground, from their own seeded stream
+    /// (base layout and theme features unchanged for the same seed). Each pond is a
+    /// noisy ellipse; tiles only flood where nothing else lives — never in the authored
+    /// demo region, near the player spawn, or under walls/ramps/bridges/features.
+    /// </summary>
+    private void GeneratePonds()
+    {
+        var rng = new Random(Seed ^ 0x57415452); // "WATR"
+        int ponds = 4;
+        for (int p = 0; p < ponds; p++)
+        {
+            int cx = rng.Next(5, Width - 5), cy = rng.Next(5, Height - 5);
+            float rx = 1.6f + (float)rng.NextDouble() * 1.6f;
+            float ry = 1.6f + (float)rng.NextDouble() * 1.6f;
+            double wobblePhase = rng.NextDouble() * Math.PI * 2;
+            for (int y = cy - 4; y <= cy + 4; y++)
+                for (int x = cx - 4; x <= cx + 4; x++)
+                {
+                    if (x < 2 || y < 2 || x >= Width - 2 || y >= Height - 2) continue;
+                    if (x >= 4 && x <= 19 && y >= 4 && y <= 32) continue; // authored demo region
+                    if (Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), PlayerSpawn) < 6f) continue;
+                    int i = Idx(x, y);
+                    if (_wall[i] != 0 || _ground[i] != 0 || _ramp[i] != 0 || _bridge[i] != 0 || _feature[i] != 0)
+                        continue;
+                    // Noisy ellipse: the rim wobbles with angle so shores read organic.
+                    float dx = (x - cx) / rx, dy = (y - cy) / ry;
+                    double ang = Math.Atan2(dy, dx);
+                    float wobble = 1f + 0.25f * (float)Math.Sin(ang * 3 + wobblePhase);
+                    if (dx * dx + dy * dy <= wobble) _water[i] = 1;
+                }
         }
     }
 

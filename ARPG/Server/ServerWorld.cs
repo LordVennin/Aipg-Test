@@ -625,6 +625,7 @@ public partial class ServerWorld
         if (x < 0 || y < 0 || x >= Map.Width || y >= Map.Height || Map.IsSolid(x, y)) return -1;
         int bridge = Map.BridgeLevel(x, y);
         bool onDeck = bridge > 0 && MathF.Abs(height - bridge) < 0.5f;
+        if (Map.IsWater(x, y) && !onDeck) return -1; // water has no ground surface
         return (y * Map.Width + x) * 2 + (onDeck ? 1 : 0);
     }
 
@@ -679,6 +680,7 @@ public partial class ServerWorld
                 for (int s = 0; s < 2; s++)
                 {
                     if (s == 1 && Map.BridgeLevel(nx, ny) == 0) continue;
+                    if (s == 0 && Map.IsWater(nx, ny)) continue; // no walking on water
                     int nn = (ny * w + nx) * 2 + s;
                     if (f.Dist[nn] != ushort.MaxValue) continue;
                     if (!SurfacesConnect(x, y, deck, nx, ny, s == 1, dx, dy)) continue;
@@ -1241,17 +1243,22 @@ public partial class ServerWorld
         }
     }
 
-    /// <summary>Rally command (backquote): send this player's summons to a point, or
-    /// clear the rally so they fall back to following the summoner.</summary>
-    public void SummonRally(int playerId, bool hasPoint, Vector2 point)
+    /// <summary>Rally command (backquote): send ONE summon skill's pack to a point, or
+    /// clear its rally so it falls back to following the summoner. An empty skillId
+    /// applies to every summon skill the player knows.</summary>
+    public void SummonRally(int playerId, string skillId, bool hasPoint, Vector2 point)
     {
         if (!Players.TryGetValue(playerId, out var p)) return;
-        if (hasPoint)
+        var targets = string.IsNullOrEmpty(skillId)
+            ? p.Character.Skills.Select(s => s.SkillId)
+                .Where(id => Data.Skills.GetValueOrDefault(id)?.Archetype == SkillArchetype.Summon)
+                .ToList()
+            : new List<string> { skillId };
+        foreach (var id in targets)
         {
-            p.SummonRally = point;
-            p.SummonRallyHeight = Map.GroundHeightAt(point);
+            if (hasPoint) p.SummonRallies[id] = (point, Map.GroundHeightAt(point));
+            else p.SummonRallies.Remove(id);
         }
-        else p.SummonRally = null;
     }
 
     private void SpawnSummon(ServerPlayer p, LearnedSkill learned, SkillDefinition def)
@@ -1280,6 +1287,9 @@ public partial class ServerWorld
             Health = hp,
             MaxHealth = hp,
             Damage = dmg,
+            Melee = def.SummonMelee,
+            Reach = def.SummonMelee ? 1.1f : ServerSummon.AttackRange,
+            SwingTime = def.SummonMelee ? 1.0f : ServerSummon.AttackCooldown,
         };
         Summons[s.Id] = s;
         _events.SummonSpawned(s);
@@ -1320,6 +1330,7 @@ public partial class ServerWorld
             SpawnSummon(owner, learned, def);
         }
 
+        SeparateSummons(dt);
         foreach (var s in Summons.Values.ToList())
         {
             if (!Players.TryGetValue(s.OwnerId, out var owner))
@@ -1329,9 +1340,9 @@ public partial class ServerWorld
                 continue;
             }
 
-            // Goal: the rally point when set, otherwise loosely follow the summoner.
-            var goal = owner.SummonRally ?? owner.Position;
-            float goalHeight = owner.SummonRally.HasValue ? owner.SummonRallyHeight : owner.Height;
+            // Goal: this SKILL's rally point when set, otherwise loosely follow the summoner.
+            bool rallied = owner.SummonRallies.TryGetValue(s.SkillId, out var rally);
+            var goal = rallied ? rally.Point : owner.Position;
 
             // Nearest living enemy in aggro range with a clear line of fire.
             ServerEnemy prey = null;
@@ -1348,43 +1359,56 @@ public partial class ServerWorld
             }
 
             // A rally is an explicit order: march to the point before picking fights,
-            // then shoot whatever is in range from the held position.
-            bool marchingToRally = owner.SummonRally.HasValue &&
-                Vector2.Distance(s.Position, goal) > 1.2f;
+            // then fight whatever comes in range from the held position.
+            bool marchingToRally = rallied && Vector2.Distance(s.Position, goal) > 1.2f;
 
-            if (!marchingToRally && prey != null && bestDist <= ServerSummon.AttackRange)
+            if (!marchingToRally && prey != null && bestDist <= s.Reach)
             {
                 if (Time >= s.AttackReadyAt)
                 {
-                    s.AttackReadyAt = Time + ServerSummon.AttackCooldown;
+                    s.AttackReadyAt = Time + s.SwingTime;
                     var dir = (prey.Position - s.Position).NormalizedOrZero();
-                    var arrow = new ServerProjectile
+                    if (s.Melee)
                     {
-                        Id = _nextProjectileId++,
-                        FromPlayer = true,
-                        OwnerId = s.OwnerId,       // kill credit and XP go to the summoner
-                        SkillId = s.SkillId,
-                        SpriteOverride = "Arrow",
-                        Position = s.Position + dir * 0.4f,
-                        Height = s.Height,
-                        Direction = dir,
-                        Speed = 11f,
-                        MaxRange = ServerSummon.AttackRange + 1.5f,
-                        MinDamage = s.Damage * 0.85f,
-                        MaxDamage = s.Damage * 1.15f,
-                        DamageKind = DamageKind.Thrust,
-                    };
-                    Projectiles[arrow.Id] = arrow;
-                    _events.ProjectileSpawned(arrow);
+                        // Skeleton warrior swing: the full player-hit pipeline (mitigation,
+                        // kill credit/XP to the summoner), slashing damage.
+                        var comps = RollComponentList(s.Damage * 0.85f, s.Damage * 1.15f, DamageKind.Slash, null);
+                        var (dmg, kind) = MitigateForEnemy(prey, comps);
+                        HitEnemy(prey, dmg, s.OwnerId, s.SkillId, kind);
+                    }
+                    else
+                    {
+                        var arrow = new ServerProjectile
+                        {
+                            Id = _nextProjectileId++,
+                            FromPlayer = true,
+                            OwnerId = s.OwnerId,   // kill credit and XP go to the summoner
+                            SkillId = s.SkillId,
+                            SpriteOverride = "Arrow",
+                            Position = s.Position + dir * 0.4f,
+                            Height = s.Height,
+                            Direction = dir,
+                            Speed = 11f,
+                            MaxRange = ServerSummon.AttackRange + 1.5f,
+                            MinDamage = s.Damage * 0.85f,
+                            MaxDamage = s.Damage * 1.15f,
+                            DamageKind = DamageKind.Thrust,
+                        };
+                        Projectiles[arrow.Id] = arrow;
+                        _events.ProjectileSpawned(arrow);
+                    }
                 }
-                continue; // in firing position: hold
+                continue; // in fighting position: hold
             }
 
             // March: toward the prey if hunting near home, else toward the goal.
+            // Rallied MELEE summons still chase prey near their post — a warrior with a
+            // 1.1 reach that refused to leave the mark could never fight at all — while
+            // rallied ranged summons hold the point and let the bow do the walking.
             var moveTarget = prey?.Position ?? goal;
-            if (owner.SummonRally.HasValue) moveTarget = goal; // rallied: hold the point
+            if (rallied && (!s.Melee || prey == null)) moveTarget = goal;
             float distToTarget = Vector2.Distance(s.Position, moveTarget);
-            float stop = owner.SummonRally.HasValue || prey != null ? 0.6f : 1.8f;
+            float stop = rallied || prey != null ? 0.6f : 1.8f;
             if (distToTarget > stop)
             {
                 var dir = (moveTarget - s.Position).NormalizedOrZero();
@@ -1392,6 +1416,36 @@ public partial class ServerWorld
                 s.Position = Map.MoveWithCollision(s.Position, dir * ServerSummon.MoveSpeed * dt,
                     ServerSummon.Radius, ref h);
                 s.Height = h;
+            }
+        }
+    }
+
+    /// <summary>Soft push-apart between overlapping summons (same recipe as enemies),
+    /// so a pack fans out around its summoner instead of stacking into one sprite.</summary>
+    private void SeparateSummons(float dt)
+    {
+        var list = Summons.Values.ToList();
+        for (int i = 0; i < list.Count; i++)
+        {
+            for (int j = i + 1; j < list.Count; j++)
+            {
+                var a = list[i];
+                var b = list[j];
+                if (MathF.Abs(a.Height - b.Height) > 0.75f) continue;
+                float minDist = ServerSummon.Radius * 2.2f;
+                var delta = b.Position - a.Position;
+                float distSq = delta.LengthSquared();
+                if (distSq >= minDist * minDist) continue;
+                var dir = distSq > 0.0001f
+                    ? delta / MathF.Sqrt(distSq)
+                    : new Vector2(MathF.Cos(a.Id * 2.4f), MathF.Sin(a.Id * 2.4f));
+                float overlap = minDist - MathF.Sqrt(distSq);
+                var push = dir * MathF.Min(overlap * 0.5f, 3f * dt);
+                float ha = a.Height, hb = b.Height;
+                a.Position = Map.MoveWithCollision(a.Position, -push, ServerSummon.Radius, ref ha);
+                b.Position = Map.MoveWithCollision(b.Position, push, ServerSummon.Radius, ref hb);
+                a.Height = ha;
+                b.Height = hb;
             }
         }
     }

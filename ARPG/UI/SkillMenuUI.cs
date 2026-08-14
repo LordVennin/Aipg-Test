@@ -133,6 +133,7 @@ public class SkillMenuUI
 
         // --- learned skill list + learnable skills ---
         _listRows.Clear();
+        _summonButtons.Clear(); // cleared HERE, before the list rows add theirs
         var font = FontManager.Get(15);
         var small = FontManager.Get(12);
         foreach (var learned in character.Skills)
@@ -187,7 +188,6 @@ public class SkillMenuUI
         // --- selected skill details ---
         _scrollSlots.Clear();
         _hotbarButtons.Clear();
-        _summonButtons.Clear();
         _levelUpRect = null;
         var sel = _selectedSkillId != null ? character.GetSkill(_selectedSkillId) : null;
         var selDef = sel?.GetDefinition(_data);
@@ -266,7 +266,9 @@ public class SkillMenuUI
             sb.DrawString(font, $"Summoned {active} / {limit}   Cost {cost:0} mana each   Respawn {selDef.SummonRespawnTime:0}s",
                 new Vector2(x, y), new Color(200, 230, 200));
             y += 20;
-            sb.DrawString(small, $"Each archer: {sHp:0} life · {sDmg:0.0} damage per arrow · press ` to rally them",
+            string minion = selDef.SummonMelee ? "warrior" : "archer";
+            string swing = selDef.SummonMelee ? "per swing" : "per arrow";
+            sb.DrawString(small, $"Each {minion}: {sHp:0} life · {sDmg:0.0} damage {swing} · tap ` to rally · hold ` to recall",
                 new Vector2(x, y), new Color(160, 170, 160));
             y += 20;
             var bigMinus = new Rectangle(x, y, 34, 28);

@@ -160,12 +160,14 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
-    /// <summary>A skeletal archer minion: bone-white frame, dark eye sockets, a short
-    /// bow held across the body. Cached under "summon:skeleton_archer".</summary>
-    public static Texture2D GetSummonSprite()
+    /// <summary>A skeletal minion sprite keyed by its summon skill: archers carry a short
+    /// bow, warriors a notched sword and a scrap shield. Shared bone body, cached per kind.</summary>
+    public static Texture2D GetSummonSprite(string skillId = null)
     {
         if (_device == null) return null;
-        if (_cache.TryGetValue("summon:skeleton_archer", out var cached)) return cached[0];
+        bool warrior = skillId != null && skillId.Contains("warrior");
+        string key = warrior ? "summon:skeleton_warrior" : "summon:skeleton_archer";
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
 
         const int w = 16, h = 22;
         var px = new Color[w * h];
@@ -176,8 +178,6 @@ public static class SpriteGen
         var bone = new Color(226, 222, 204);
         var boneDark = new Color(168, 162, 142);
         var socket = new Color(30, 28, 26);
-        var bow = new Color(110, 78, 46);
-        var stringC = new Color(200, 196, 180);
 
         // Skull
         Rect(5, 0, 10, 5, bone);
@@ -198,15 +198,41 @@ public static class SpriteGen
         Set(5, 19, boneDark); Set(6, 19, boneDark);
         Set(9, 19, boneDark); Set(10, 19, boneDark);
         Rect(4, 20, 6, 20, bone); Rect(9, 20, 11, 20, bone); // feet
-        // Bow arm + short bow held to the right side
-        Rect(11, 8, 12, 9, bone);
-        for (int i = 0; i < 7; i++) Set(13 + (i is 0 or 6 ? 0 : 1), 5 + i, bow);
-        for (int i = 1; i < 6; i++) Set(13, 5 + i, stringC);
-        // Off arm
-        Rect(3, 8, 4, 10, bone);
+
+        if (warrior)
+        {
+            var blade = new Color(176, 182, 192);
+            var bladeDark = new Color(120, 126, 138);
+            var hilt = new Color(96, 70, 44);
+            var shield = new Color(104, 88, 60);
+            var shieldRim = new Color(140, 122, 88);
+            // Sword arm + upright notched blade on the right
+            Rect(11, 8, 12, 9, bone);
+            for (int i = 0; i < 8; i++) Set(13, 3 + i, i % 3 == 2 ? bladeDark : blade);
+            Set(14, 4, blade); Set(13, 2, blade);          // tip + edge chip
+            Rect(12, 11, 14, 11, hilt);                    // crossguard
+            Set(13, 12, hilt);
+            // Scrap shield strapped to the off arm
+            Rect(3, 8, 4, 10, bone);
+            Rect(1, 7, 3, 11, shield);
+            Set(1, 7, shieldRim); Set(3, 7, shieldRim);
+            Set(1, 11, shieldRim); Set(3, 11, shieldRim);
+            Set(2, 9, shieldRim);                          // boss stud
+        }
+        else
+        {
+            var bow = new Color(110, 78, 46);
+            var stringC = new Color(200, 196, 180);
+            // Bow arm + short bow held to the right side
+            Rect(11, 8, 12, 9, bone);
+            for (int i = 0; i < 7; i++) Set(13 + (i is 0 or 6 ? 0 : 1), 5 + i, bow);
+            for (int i = 1; i < 6; i++) Set(13, 5 + i, stringC);
+            // Off arm
+            Rect(3, 8, 4, 10, bone);
+        }
 
         var tex = BakeStrip(px, w, h);
-        _cache["summon:skeleton_archer"] = new[] { tex };
+        _cache[key] = new[] { tex };
         return tex;
     }
 

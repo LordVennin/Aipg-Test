@@ -73,9 +73,9 @@ public class ServerPlayer
 
     /// <summary>Desired minion count per summon skill id (managed via the Skill Menu).</summary>
     public readonly Dictionary<string, int> DesiredSummons = new();
-    /// <summary>Rally point for this player's summons (null = follow the summoner).</summary>
-    public Vector2? SummonRally;
-    public float SummonRallyHeight;
+    /// <summary>Rally points PER SUMMON SKILL (absent = that pack follows the summoner).
+    /// Separate marks per skill let archers hold a ridge while warriors hold a door.</summary>
+    public readonly Dictionary<string, (Vector2 Point, float Height)> SummonRallies = new();
 
     /// <summary>Last health value broadcast to clients (throttles regen sync spam).</summary>
     public float LastSyncedHealth;
@@ -258,6 +258,11 @@ public class ServerSummon
     public float MaxHealth;
     public float Damage;
     public float AttackReadyAt;
+    /// <summary>Melee summons close to arm's reach and swing; ranged ones hold and shoot.</summary>
+    public bool Melee;
+    /// <summary>Attack reach and swing time, set at spawn from the summon's profile.</summary>
+    public float Reach = AttackRange;
+    public float SwingTime = AttackCooldown;
     public const float Radius = 0.3f;
     public const float AttackRange = 6.5f;
     public const float AggroRange = 7.5f;

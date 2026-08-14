@@ -95,6 +95,9 @@ public class SkillDefinition
     public float SummonDamagePerLevel { get; set; } = 2.5f;
     /// <summary>Seconds after a minion dies before it freely respawns near the summoner.</summary>
     public float SummonRespawnTime { get; set; } = 6f;
+    /// <summary>True for melee minions (skeleton warriors): they close to arm's reach and
+    /// swing instead of holding position and shooting.</summary>
+    public bool SummonMelee { get; set; }
 
     public float Cooldown { get; set; } = 0.5f;
     public float Range { get; set; } = 1.5f;

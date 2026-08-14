@@ -363,6 +363,7 @@ public class OptionsPanel
         InputAction.CharacterSheet => "Character Sheet",
         InputAction.Dodge => "Dodge",
         InputAction.CommandSummons => "Command Summons",
+        InputAction.CycleSummonFocus => "Cycle Summon Focus",
         InputAction.Interact => "Interact / Pickup",
         InputAction.Pause => "Pause",
         InputAction.DebugMenu => "Debug Menu",
