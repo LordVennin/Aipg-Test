@@ -592,11 +592,12 @@ public static class HeadlessNetTest
             var low = tierGen.Generate(data.Items["iron_mace"], 1, Items.ItemRarity.Rare, forcedModifierCount: 5);
             foreach (var roll in low.Modifiers)
                 if (data.Modifiers[roll.ModifierId].MinimumItemLevel > 1) gatingOk = false;
-            var high = tierGen.Generate(data.Items["iron_mace"], 18, Items.ItemRarity.Rare, forcedModifierCount: 5);
+            // Tiers stretch across ilvl 1-100 now (tier N unlocks at (N-1)*10).
+            var high = tierGen.Generate(data.Items["iron_mace"], 95, Items.ItemRarity.Rare, forcedModifierCount: 5);
             highTierSeen += high.Modifiers.Count(r => data.Modifiers[r.ModifierId].Tier >= 6);
         }
         Check(gatingOk, "ilvl-1 items never roll modifiers above their item level");
-        Check(highTierSeen > 0, $"ilvl-18 items roll high tiers ({highTierSeen} tier-6+ rolls seen)");
+        Check(highTierSeen > 0, $"ilvl-95 items roll high tiers ({highTierSeen} tier-6+ rolls seen)");
 
         // Same-family tiers can never stack: all groups on a many-mod item are distinct.
         var stackItem = tierGen.Generate(data.Items["arcane_staff"], 18, Items.ItemRarity.Rare, forcedModifierCount: 12);
@@ -2312,7 +2313,7 @@ public static class HeadlessNetTest
         attrChar.Equipment[Items.EquipSlot.BodyArmor] =
             new Items.ItemInstance { BaseItemId = "hunters_jerkin", Rarity = Items.ItemRarity.Normal };
         var defStats = Stats.StatCalculator.Compute(data, attrChar);
-        float expectRating = 90 + 30 + defStats.Dexterity * Stats.AttributeBalance.DeflectionRatingPerDexterity;
+        float expectRating = 62 + 30 + defStats.Dexterity * Stats.AttributeBalance.DeflectionRatingPerDexterity;
         Check(MathF.Abs(defStats.DeflectionRating - expectRating) < 0.01f,
               $"deflection rating aggregates across equipped pieces + dexterity ({defStats.DeflectionRating:0})");
         Check(defStats.DeflectionChance > 0 &&
@@ -2320,8 +2321,9 @@ public static class HeadlessNetTest
               MathF.Abs(defStats.DeflectionChance -
                         Stats.Deflection.ChanceFromRating(defStats.DeflectionRating, attrChar.Level)) < 0.01f,
               $"rating converts to a capped initial chance via the central formula ({defStats.DeflectionChance:0.0}%)");
-        Check(MathF.Abs(defStats.PhysicalReduction - defStats.Armor / (defStats.Armor + 60f)) < 0.001f,
-              "armor mitigation formula holds (armor / (armor + 60))");
+        Check(MathF.Abs(defStats.PhysicalReduction -
+                        Stats.ArmorBalance.PhysicalReduction(defStats.Armor, attrChar.Level)) < 0.001f,
+              "armor mitigation follows the central level-scaled soft cap");
 
         Console.WriteLine("\n-- Deflection layer mechanics --");
         var layers = Stats.Deflection.Layers(50f).ToList();
@@ -2346,7 +2348,8 @@ public static class HeadlessNetTest
         // iron_plate demands 14 Strength; a fresh character has 10 — the server refuses.
         var plate = new Items.ItemInstance { BaseItemId = "iron_plate", Rarity = Items.ItemRarity.Normal, ItemLevel = 5 };
         plate.EnsureSlotData();
-        srvSum.Character.Level = Math.Max(srvSum.Character.Level, 2);
+        srvSum.Character.Level = Math.Max(srvSum.Character.Level, 40); // tier-2 gear now wants level 30
+        srvSum.RecomputeStats(data);
         Check(srvSum.Character.Inventory.TryAdd(data, plate), "test plate added to the bag");
         var platePlaced = srvSum.Character.Inventory.FindByInstance(plate.InstanceId);
         server.World.MoveItem(bId, ItemLocation.AtGrid(platePlaced.X, platePlaced.Y),
@@ -2517,6 +2520,146 @@ public static class HeadlessNetTest
         Check(!clientB.World.Projectiles.Values.Any(pr => pr.Ghost),
               "no ghost bolt spawns when the cast will be rejected for mana");
         clientB.World.Me.Mana = manaSave;
+        Pump(0.5f);
+
+        Console.WriteLine("\n-- XP curves & enemy level scaling --");
+        Check(Stats.XpBalance.LevelFactor(5, 4) == 1f &&
+              MathF.Abs(Stats.XpBalance.LevelFactor(13, 8) - 0.25f) < 0.001f &&
+              MathF.Abs(Stats.XpBalance.LevelFactor(40, 1) - Stats.XpBalance.MinimumFactor) < 0.001f,
+              "under-level kills pay less XP, down to the floor");
+        var scaled = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(8f, 8f), level: 11);
+        var gruntNative = data.Enemies["grunt"];
+        int lvlUp = 11 - gruntNative.Level;
+        Check(scaled.Level == 11 &&
+              MathF.Abs(scaled.MaxHealth - gruntNative.MaxHealth * Stats.EnemyLevelScaling.Health(lvlUp)) < 0.5f &&
+              MathF.Abs(scaled.DamageScale - Stats.EnemyLevelScaling.Damage(lvlUp)) < 0.001f &&
+              MathF.Abs(scaled.XpScale - Stats.EnemyLevelScaling.Xp(lvlUp)) < 0.001f,
+              $"level-overridden enemies scale health/damage/XP centrally (hp {scaled.MaxHealth:0})");
+        scaled.Health = 0.1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Check(Stats.Deflection.ChanceFromRating(200, 50) < Stats.Deflection.ChanceFromRating(200, 5),
+              "the same deflection rating is worth less at higher character level");
+        Check(Stats.ArmorBalance.PhysicalReduction(100, 50) < Stats.ArmorBalance.PhysicalReduction(100, 5),
+              "the same armor is worth less at higher character level");
+        Pump(0.4f);
+
+        Console.WriteLine("\n-- Summon pathfinding, aggro symmetry & scrolls --");
+        // Rally the warriors ONTO PLATEAU A: the straight line runs into a cliff — only
+        // the rally flow field (routing via the inset ramp) gets them up there.
+        srvSum.Mana = srvSum.Stats.MaxMana;
+        clientB.RequestSummonAdjust("summon_skeleton_warrior", +1);
+        Pump(0.4f);
+        var plateauRally = new Vector2(10.5f, 12.5f); // plateau A interior, height 1
+        clientB.RequestSummonRally("summon_skeleton_warrior", true, plateauRally);
+        bool rallyClimbed = false;
+        for (int i = 0; i < 60 && !rallyClimbed; i++)
+        {
+            foreach (var intruder in server.World.Enemies.Values)
+                if (!intruder.Dead && Vector2.Distance(intruder.Position, plateauRally) < 12f)
+                {
+                    intruder.Position = new Vector2(2.5f, 2.5f);
+                    intruder.Height = 0f;
+                    intruder.StunnedUntil = server.World.Time + 5f;
+                }
+            Pump(0.3f);
+            rallyClimbed = server.World.Summons.Values
+                .Where(su => su.SkillId == "summon_skeleton_warrior")
+                .All(su => Vector2.Distance(su.Position, plateauRally) < 1.6f && su.Height > 0.75f);
+        }
+        Check(rallyClimbed, "rallied summons PATHFIND up the ramp onto the plateau (no wedging)");
+        clientB.RequestSummonRally("", false, default);
+        Pump(0.5f);
+
+        // Aggro symmetry: an enemy near a lone summon (its owner far away) aggros and
+        // fights IT, exactly like it would a player.
+        var lastWarrior = server.World.Summons.Values.First(su => su.SkillId == "summon_skeleton_warrior");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn + new Vector2(0f, 3f);
+        Pump(0.6f); // warrior heels to B
+        // Station the warrior on CLEAR level-0 ground away from B (probe like the rally
+        // test — random pillars/water can occupy any fixed offset on some seeds).
+        var stationSpot = srvSum.Position + new Vector2(9f, 0);
+        foreach (var cand in new[]
+                 {
+                     new Vector2(9f, 0), new Vector2(-9f, 0), new Vector2(0, 9f), new Vector2(0, -9f),
+                     new Vector2(7f, 7f), new Vector2(-7f, 7f),
+                 })
+        {
+            var spot = srvSum.Position + cand;
+            if (!server.World.Map.CircleHitsWall(spot, 0.5f) &&
+                !server.World.Map.CircleHitsWall(spot + new Vector2(1.5f, 0), 0.5f) &&
+                server.World.Map.GroundHeightAt(spot) < 0.05f &&
+                server.World.Map.GroundHeightAt(spot + new Vector2(1.5f, 0)) < 0.05f)
+            {
+                stationSpot = spot;
+                break;
+            }
+        }
+        lastWarrior.Position = stationSpot;
+        lastWarrior.Height = 0f; // it may still stand at plateau height from the rally
+        var meatHunter = server.World.SpawnEnemy("grunt", stationSpot + new Vector2(1.5f, 0));
+        float warriorHpBefore = lastWarrior.Health;
+        bool warriorFought = false;
+        for (int i = 0; i < 60 && !warriorFought; i++)
+        {
+            lastWarrior.Position = stationSpot; // hold the matchup
+            lastWarrior.Height = 0f;
+            Pump(0.15f);
+            warriorFought = lastWarrior.Health < warriorHpBefore - 0.1f || meatHunter.Winding;
+        }
+        Check(warriorFought, "enemies aggro and attack summons just like players");
+        clientB.SendDebugCommand("kill_nearby");
+        meatHunter.Health = 0.1f;
+        lastWarrior.Position = srvSum.Position + new Vector2(1f, 0);
+        lastWarrior.Height = srvSum.Height;
+        Pump(0.5f);
+
+        // Scroll support: summon skills carry Melee/Projectile tags so melee/projectile
+        // scrolls ATTACH, and their effects ride the summons' attacks.
+        Check(data.Skills["summon_skeleton_warrior"].Tags.Contains("Melee") &&
+              data.Skills["summon_skeleton"].Tags.Contains("Projectile"),
+              "summon skills carry the Melee / Projectile tags for scroll compatibility");
+        var warSkill = srvSum.Character.GetSkill("summon_skeleton_warrior");
+        warSkill.Scrolls.Add(new Items.ItemInstance { BaseItemId = "scroll_venom" });
+        var venomPrey = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(2f, 0));
+        venomPrey.Health = 500f;
+        venomPrey.StunnedUntil = server.World.Time + 60f;
+        bool poisonedBySummon = false;
+        for (int i = 0; i < 80 && !poisonedBySummon; i++)
+        {
+            Pump(0.15f);
+            poisonedBySummon = venomPrey.PoisonTimeLeft > 0;
+        }
+        Check(poisonedBySummon, "a Venom scroll on the warrior skill poisons its sword hits");
+        warSkill.Scrolls.Clear();
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.4f);
+
+        // Multishot on the archers: one volley looses multiple arrows.
+        srvSum.Mana = srvSum.Stats.MaxMana;
+        clientB.RequestSummonAdjust("summon_skeleton", +1);
+        Pump(0.4f);
+        var archSkill = srvSum.Character.GetSkill("summon_skeleton");
+        archSkill.Scrolls.Add(new Items.ItemInstance { BaseItemId = "scroll_multishot" });
+        var volleyPrey = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(3f, 0));
+        volleyPrey.Health = 500f;
+        volleyPrey.StunnedUntil = server.World.Time + 60f;
+        int maxArrowsAloft = 0;
+        for (int i = 0; i < 60; i++)
+        {
+            Pump(0.05f);
+            maxArrowsAloft = Math.Max(maxArrowsAloft,
+                server.World.Projectiles.Values.Count(pr => pr.SpriteOverride == "Arrow"));
+            if (maxArrowsAloft >= 2) break;
+        }
+        Check(maxArrowsAloft >= 2, $"a Multishot scroll fans the archers' volley ({maxArrowsAloft} arrows aloft)");
+        archSkill.Scrolls.Clear();
+        foreach (var skl in new[] { "summon_skeleton", "summon_skeleton_warrior" })
+        {
+            clientB.RequestSummonAdjust(skl, -1);
+            clientB.RequestSummonAdjust(skl, -1);
+        }
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
         Pump(0.5f);
 
         Console.WriteLine("\n-- Client-side cast prediction --");

@@ -599,6 +599,21 @@ learned skills with levels/XP/attached scrolls, and hotbar assignments included.
   universal cap anywhere in the engine** — the F1 debug command "Give 10-Modifier Item"
   demonstrates an item with 10 affixes and a limit of 12+.
 
+### Balance & scaling knobs
+
+All tuning lives in `ARPG/Stats/Defense.cs` (attribute rates, Deflection and
+Armor curves, XP penalties, enemy level scaling, Energy Shield recharge) or in
+data JSON — see **BALANCE_CHANGES.md** in the repo root for the current pass's
+before/after list. Highlights: kills more than 2 levels below you pay -25% XP
+per level (floor 10%); any spawner/pack can set `EnemyLevel` to reuse an enemy
+type at a higher level (+16% health / +14% damage / +22% XP per level above its
+native def); Deflection and Armor both use level-scaled soft caps so defenses
+decay unless gear keeps up; modifier tiers unlock across item level 1-100
+(tier N at (N-1)*10). Summons pathfind via flow fields (the owner's live field
+when following, a one-shot rally field when stationed), enemies aggro summons
+with the same rules as players, and summon skills carry Melee/Projectile tags
+so Skill Scrolls attach and ride their attacks.
+
 ## 11. Debug tools (F1)
 
 Spawn enemy · give random rare mace/staff/equipment · give 10-modifier item · give Skill
@@ -617,7 +632,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (336 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (345 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

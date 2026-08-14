@@ -197,7 +197,8 @@
   "Description": "Raise skeletal archers that follow you and pepper your enemies with arrows. Managed from this menu with + and - (they cost mana per summon); tap ` to rally them to a point, hold ` to call them back. Fallen archers rise again near you for free.",
   "Tags": [
    "Spell",
-   "Summon"
+   "Summon",
+   "Projectile"
   ],
   "Archetype": "Summon",
   "DamageKind": "Thrust",
@@ -220,7 +221,8 @@
   "Description": "Raise skeletal warriors that charge your enemies and cut them down at arm's reach. Managed from this menu with + and - (they cost mana per summon); tap ` to rally them to a point, hold ` to call them back. Fallen warriors rise again near you for free.",
   "Tags": [
    "Spell",
-   "Summon"
+   "Summon",
+   "Melee"
   ],
   "Archetype": "Summon",
   "DamageKind": "Slash",

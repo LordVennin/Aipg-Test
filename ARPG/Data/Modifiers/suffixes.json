@@ -23,7 +23,7 @@
   "Name": "of Haste II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -42,7 +42,7 @@
   "Name": "of Haste III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -61,7 +61,7 @@
   "Name": "of Haste IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -80,7 +80,7 @@
   "Name": "of Haste V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -99,7 +99,7 @@
   "Name": "of Haste VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -118,7 +118,7 @@
   "Name": "of Haste VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -137,7 +137,7 @@
   "Name": "of Haste VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -156,7 +156,7 @@
   "Name": "of Haste IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -175,7 +175,7 @@
   "Name": "of Haste X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
    "Gloves",
@@ -213,7 +213,7 @@
   "Name": "of Casting II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -232,7 +232,7 @@
   "Name": "of Casting III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -251,7 +251,7 @@
   "Name": "of Casting IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -270,7 +270,7 @@
   "Name": "of Casting V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -289,7 +289,7 @@
   "Name": "of Casting VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -308,7 +308,7 @@
   "Name": "of Casting VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -327,7 +327,7 @@
   "Name": "of Casting VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -346,7 +346,7 @@
   "Name": "of Casting IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -365,7 +365,7 @@
   "Name": "of Casting X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -404,7 +404,7 @@
   "Name": "of Vigor II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -424,7 +424,7 @@
   "Name": "of Vigor III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -444,7 +444,7 @@
   "Name": "of Vigor IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -464,7 +464,7 @@
   "Name": "of Vigor V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -484,7 +484,7 @@
   "Name": "of Vigor VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -504,7 +504,7 @@
   "Name": "of Vigor VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -524,7 +524,7 @@
   "Name": "of Vigor VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -544,7 +544,7 @@
   "Name": "of Vigor IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -564,7 +564,7 @@
   "Name": "of Vigor X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Belt",
    "BodyArmor",
@@ -607,7 +607,7 @@
   "Name": "of Fire Resistance II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -630,7 +630,7 @@
   "Name": "of Fire Resistance III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -653,7 +653,7 @@
   "Name": "of Fire Resistance IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -676,7 +676,7 @@
   "Name": "of Fire Resistance V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -699,7 +699,7 @@
   "Name": "of Fire Resistance VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -722,7 +722,7 @@
   "Name": "of Fire Resistance VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -745,7 +745,7 @@
   "Name": "of Fire Resistance VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -768,7 +768,7 @@
   "Name": "of Fire Resistance IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -791,7 +791,7 @@
   "Name": "of Fire Resistance X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -837,7 +837,7 @@
   "Name": "of Cold Resistance II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -860,7 +860,7 @@
   "Name": "of Cold Resistance III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -883,7 +883,7 @@
   "Name": "of Cold Resistance IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -906,7 +906,7 @@
   "Name": "of Cold Resistance V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -929,7 +929,7 @@
   "Name": "of Cold Resistance VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -952,7 +952,7 @@
   "Name": "of Cold Resistance VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -975,7 +975,7 @@
   "Name": "of Cold Resistance VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -998,7 +998,7 @@
   "Name": "of Cold Resistance IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1021,7 +1021,7 @@
   "Name": "of Cold Resistance X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1067,7 +1067,7 @@
   "Name": "of Lightning Resistance II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1090,7 +1090,7 @@
   "Name": "of Lightning Resistance III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1113,7 +1113,7 @@
   "Name": "of Lightning Resistance IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1136,7 +1136,7 @@
   "Name": "of Lightning Resistance V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1159,7 +1159,7 @@
   "Name": "of Lightning Resistance VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1182,7 +1182,7 @@
   "Name": "of Lightning Resistance VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1205,7 +1205,7 @@
   "Name": "of Lightning Resistance VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1228,7 +1228,7 @@
   "Name": "of Lightning Resistance IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1251,7 +1251,7 @@
   "Name": "of Lightning Resistance X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1297,7 +1297,7 @@
   "Name": "of Acid Resistance II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1320,7 +1320,7 @@
   "Name": "of Acid Resistance III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1343,7 +1343,7 @@
   "Name": "of Acid Resistance IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1366,7 +1366,7 @@
   "Name": "of Acid Resistance V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1389,7 +1389,7 @@
   "Name": "of Acid Resistance VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1412,7 +1412,7 @@
   "Name": "of Acid Resistance VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1435,7 +1435,7 @@
   "Name": "of Acid Resistance VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1458,7 +1458,7 @@
   "Name": "of Acid Resistance IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1481,7 +1481,7 @@
   "Name": "of Acid Resistance X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1527,7 +1527,7 @@
   "Name": "of Dark Resistance II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1550,7 +1550,7 @@
   "Name": "of Dark Resistance III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1573,7 +1573,7 @@
   "Name": "of Dark Resistance IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1596,7 +1596,7 @@
   "Name": "of Dark Resistance V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1619,7 +1619,7 @@
   "Name": "of Dark Resistance VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1642,7 +1642,7 @@
   "Name": "of Dark Resistance VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1665,7 +1665,7 @@
   "Name": "of Dark Resistance VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1688,7 +1688,7 @@
   "Name": "of Dark Resistance IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1711,7 +1711,7 @@
   "Name": "of Dark Resistance X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1757,7 +1757,7 @@
   "Name": "of Light Resistance II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1780,7 +1780,7 @@
   "Name": "of Light Resistance III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1803,7 +1803,7 @@
   "Name": "of Light Resistance IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1826,7 +1826,7 @@
   "Name": "of Light Resistance V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1849,7 +1849,7 @@
   "Name": "of Light Resistance VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1872,7 +1872,7 @@
   "Name": "of Light Resistance VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1895,7 +1895,7 @@
   "Name": "of Light Resistance VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1918,7 +1918,7 @@
   "Name": "of Light Resistance IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1941,7 +1941,7 @@
   "Name": "of Light Resistance X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1980,7 +1980,7 @@
   "Name": "of Blocking II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -1996,7 +1996,7 @@
   "Name": "of Blocking III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2012,7 +2012,7 @@
   "Name": "of Blocking IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2028,7 +2028,7 @@
   "Name": "of Blocking V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2044,7 +2044,7 @@
   "Name": "of Blocking VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2060,7 +2060,7 @@
   "Name": "of Blocking VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2076,7 +2076,7 @@
   "Name": "of Blocking VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2092,7 +2092,7 @@
   "Name": "of Blocking IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2108,7 +2108,7 @@
   "Name": "of Blocking X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2140,7 +2140,7 @@
   "Name": "of Deflection II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2156,7 +2156,7 @@
   "Name": "of Deflection III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2172,7 +2172,7 @@
   "Name": "of Deflection IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2188,7 +2188,7 @@
   "Name": "of Deflection V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2204,7 +2204,7 @@
   "Name": "of Deflection VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2220,7 +2220,7 @@
   "Name": "of Deflection VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2236,7 +2236,7 @@
   "Name": "of Deflection VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2252,7 +2252,7 @@
   "Name": "of Deflection IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2268,7 +2268,7 @@
   "Name": "of Deflection X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Shield"
   ],
@@ -2307,7 +2307,7 @@
   "Name": "of Nullification II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2330,7 +2330,7 @@
   "Name": "of Nullification III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2353,7 +2353,7 @@
   "Name": "of Nullification IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2376,7 +2376,7 @@
   "Name": "of Nullification V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2399,7 +2399,7 @@
   "Name": "of Nullification VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2422,7 +2422,7 @@
   "Name": "of Nullification VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2445,7 +2445,7 @@
   "Name": "of Nullification VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2468,7 +2468,7 @@
   "Name": "of Nullification IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2491,7 +2491,7 @@
   "Name": "of Nullification X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -2539,7 +2539,7 @@
   "Name": "of Clarity II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2564,7 +2564,7 @@
   "Name": "of Clarity III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2589,7 +2589,7 @@
   "Name": "of Clarity IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2614,7 +2614,7 @@
   "Name": "of Clarity V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2639,7 +2639,7 @@
   "Name": "of Clarity VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2664,7 +2664,7 @@
   "Name": "of Clarity VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2689,7 +2689,7 @@
   "Name": "of Clarity VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2714,7 +2714,7 @@
   "Name": "of Clarity IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2739,7 +2739,7 @@
   "Name": "of Clarity X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -2781,7 +2781,7 @@
   "Name": "of Precision II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2798,7 +2798,7 @@
   "Name": "of Precision III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2815,7 +2815,7 @@
   "Name": "of Precision IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2832,7 +2832,7 @@
   "Name": "of Precision V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2849,7 +2849,7 @@
   "Name": "of Precision VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2866,7 +2866,7 @@
   "Name": "of Precision VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2883,7 +2883,7 @@
   "Name": "of Precision VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2900,7 +2900,7 @@
   "Name": "of Precision IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2917,7 +2917,7 @@
   "Name": "of Precision X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2951,7 +2951,7 @@
   "Name": "of Ferocity II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2968,7 +2968,7 @@
   "Name": "of Ferocity III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -2985,7 +2985,7 @@
   "Name": "of Ferocity IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -3002,7 +3002,7 @@
   "Name": "of Ferocity V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -3019,7 +3019,7 @@
   "Name": "of Ferocity VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -3036,7 +3036,7 @@
   "Name": "of Ferocity VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -3053,7 +3053,7 @@
   "Name": "of Ferocity VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -3070,7 +3070,7 @@
   "Name": "of Ferocity IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -3087,7 +3087,7 @@
   "Name": "of Ferocity X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
    "Staff"
@@ -3121,7 +3121,7 @@
   "Name": "of Undeath II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 3,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3138,7 +3138,7 @@
   "Name": "of Undeath III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 5,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3155,7 +3155,7 @@
   "Name": "of Undeath IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 7,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3172,7 +3172,7 @@
   "Name": "of Undeath V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 9,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3189,7 +3189,7 @@
   "Name": "of Undeath VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 11,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3206,7 +3206,7 @@
   "Name": "of Undeath VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 13,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3223,7 +3223,7 @@
   "Name": "of Undeath VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 15,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3240,7 +3240,7 @@
   "Name": "of Undeath IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 17,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3257,7 +3257,7 @@
   "Name": "of Undeath X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 19,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3274,7 +3274,7 @@
   "Name": "of Legions I",
   "AffixType": "Suffix",
   "Tier": 1,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
    "Helmet"
   ],
@@ -3290,7 +3290,7 @@
   "Name": "of Legions II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 22,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet"
   ],
@@ -3328,7 +3328,7 @@
   "Name": "of the Bear II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 1,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3350,7 +3350,7 @@
   "Name": "of the Bear III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3372,7 +3372,7 @@
   "Name": "of the Bear IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3394,7 +3394,7 @@
   "Name": "of the Bear V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3416,7 +3416,7 @@
   "Name": "of the Bear VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3438,7 +3438,7 @@
   "Name": "of the Bear VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 20,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3460,7 +3460,7 @@
   "Name": "of the Bear VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 24,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3482,7 +3482,7 @@
   "Name": "of the Bear IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 28,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3504,7 +3504,7 @@
   "Name": "of the Bear X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 32,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3548,7 +3548,7 @@
   "Name": "of the Fox II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 1,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3570,7 +3570,7 @@
   "Name": "of the Fox III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3592,7 +3592,7 @@
   "Name": "of the Fox IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3614,7 +3614,7 @@
   "Name": "of the Fox V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3636,7 +3636,7 @@
   "Name": "of the Fox VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3658,7 +3658,7 @@
   "Name": "of the Fox VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 20,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3680,7 +3680,7 @@
   "Name": "of the Fox VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 24,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3702,7 +3702,7 @@
   "Name": "of the Fox IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 28,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3724,7 +3724,7 @@
   "Name": "of the Fox X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 32,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3768,7 +3768,7 @@
   "Name": "of the Owl II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 1,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3790,7 +3790,7 @@
   "Name": "of the Owl III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3812,7 +3812,7 @@
   "Name": "of the Owl IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3834,7 +3834,7 @@
   "Name": "of the Owl V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3856,7 +3856,7 @@
   "Name": "of the Owl VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3878,7 +3878,7 @@
   "Name": "of the Owl VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 20,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3900,7 +3900,7 @@
   "Name": "of the Owl VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 24,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3922,7 +3922,7 @@
   "Name": "of the Owl IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 28,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3944,7 +3944,7 @@
   "Name": "of the Owl X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 32,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -3989,7 +3989,7 @@
   "Name": "of Ease II",
   "AffixType": "Suffix",
   "Tier": 2,
-  "MinimumItemLevel": 1,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -4012,7 +4012,7 @@
   "Name": "of Ease III",
   "AffixType": "Suffix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -4035,7 +4035,7 @@
   "Name": "of Ease IV",
   "AffixType": "Suffix",
   "Tier": 4,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -4058,7 +4058,7 @@
   "Name": "of Ease V",
   "AffixType": "Suffix",
   "Tier": 5,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -4081,7 +4081,7 @@
   "Name": "of Ease VI",
   "AffixType": "Suffix",
   "Tier": 6,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -4104,7 +4104,7 @@
   "Name": "of Ease VII",
   "AffixType": "Suffix",
   "Tier": 7,
-  "MinimumItemLevel": 20,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -4127,7 +4127,7 @@
   "Name": "of Ease VIII",
   "AffixType": "Suffix",
   "Tier": 8,
-  "MinimumItemLevel": 24,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -4150,7 +4150,7 @@
   "Name": "of Ease IX",
   "AffixType": "Suffix",
   "Tier": 9,
-  "MinimumItemLevel": 28,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -4173,7 +4173,7 @@
   "Name": "of Ease X",
   "AffixType": "Suffix",
   "Tier": 10,
-  "MinimumItemLevel": 32,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",

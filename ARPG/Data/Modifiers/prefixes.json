@@ -29,7 +29,7 @@
   "Name": "Healthy II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -54,7 +54,7 @@
   "Name": "Healthy III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -79,7 +79,7 @@
   "Name": "Healthy IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -104,7 +104,7 @@
   "Name": "Healthy V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -129,7 +129,7 @@
   "Name": "Healthy VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -154,7 +154,7 @@
   "Name": "Healthy VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -179,7 +179,7 @@
   "Name": "Healthy VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -204,7 +204,7 @@
   "Name": "Healthy IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -229,7 +229,7 @@
   "Name": "Healthy X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -273,7 +273,7 @@
   "Name": "Brutal II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -292,7 +292,7 @@
   "Name": "Brutal III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -311,7 +311,7 @@
   "Name": "Brutal IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -330,7 +330,7 @@
   "Name": "Brutal V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -349,7 +349,7 @@
   "Name": "Brutal VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -368,7 +368,7 @@
   "Name": "Brutal VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -387,7 +387,7 @@
   "Name": "Brutal VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -406,7 +406,7 @@
   "Name": "Brutal IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -425,7 +425,7 @@
   "Name": "Brutal X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -463,7 +463,7 @@
   "Name": "Arcane II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -482,7 +482,7 @@
   "Name": "Arcane III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -501,7 +501,7 @@
   "Name": "Arcane IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -520,7 +520,7 @@
   "Name": "Arcane V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -539,7 +539,7 @@
   "Name": "Arcane VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -558,7 +558,7 @@
   "Name": "Arcane VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -577,7 +577,7 @@
   "Name": "Arcane VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -596,7 +596,7 @@
   "Name": "Arcane IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -615,7 +615,7 @@
   "Name": "Arcane X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff",
    "Helmet",
@@ -655,7 +655,7 @@
   "Name": "Armored II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -676,7 +676,7 @@
   "Name": "Armored III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -697,7 +697,7 @@
   "Name": "Armored IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -718,7 +718,7 @@
   "Name": "Armored V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -739,7 +739,7 @@
   "Name": "Armored VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -760,7 +760,7 @@
   "Name": "Armored VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -781,7 +781,7 @@
   "Name": "Armored VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -802,7 +802,7 @@
   "Name": "Armored IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -823,7 +823,7 @@
   "Name": "Armored X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -861,7 +861,7 @@
   "Name": "Swift II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -878,7 +878,7 @@
   "Name": "Swift III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -895,7 +895,7 @@
   "Name": "Swift IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -912,7 +912,7 @@
   "Name": "Swift V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -929,7 +929,7 @@
   "Name": "Swift VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -946,7 +946,7 @@
   "Name": "Swift VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -963,7 +963,7 @@
   "Name": "Swift VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -980,7 +980,7 @@
   "Name": "Swift IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -997,7 +997,7 @@
   "Name": "Swift X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Boots",
    "Amulet"
@@ -1037,7 +1037,7 @@
   "Name": "Mending II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1060,7 +1060,7 @@
   "Name": "Mending III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1083,7 +1083,7 @@
   "Name": "Mending IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1106,7 +1106,7 @@
   "Name": "Mending V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1129,7 +1129,7 @@
   "Name": "Mending VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1152,7 +1152,7 @@
   "Name": "Mending VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1175,7 +1175,7 @@
   "Name": "Mending VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1198,7 +1198,7 @@
   "Name": "Mending IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1221,7 +1221,7 @@
   "Name": "Mending X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -1260,7 +1260,7 @@
   "Name": "Jagged II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1276,7 +1276,7 @@
   "Name": "Jagged III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1292,7 +1292,7 @@
   "Name": "Jagged IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1308,7 +1308,7 @@
   "Name": "Jagged V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1324,7 +1324,7 @@
   "Name": "Jagged VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1340,7 +1340,7 @@
   "Name": "Jagged VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1356,7 +1356,7 @@
   "Name": "Jagged VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1372,7 +1372,7 @@
   "Name": "Jagged IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1388,7 +1388,7 @@
   "Name": "Jagged X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1420,7 +1420,7 @@
   "Name": "Searing II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1436,7 +1436,7 @@
   "Name": "Searing III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1452,7 +1452,7 @@
   "Name": "Searing IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1468,7 +1468,7 @@
   "Name": "Searing V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1484,7 +1484,7 @@
   "Name": "Searing VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1500,7 +1500,7 @@
   "Name": "Searing VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1516,7 +1516,7 @@
   "Name": "Searing VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1532,7 +1532,7 @@
   "Name": "Searing IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1548,7 +1548,7 @@
   "Name": "Searing X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1580,7 +1580,7 @@
   "Name": "Freezing II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1596,7 +1596,7 @@
   "Name": "Freezing III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1612,7 +1612,7 @@
   "Name": "Freezing IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1628,7 +1628,7 @@
   "Name": "Freezing V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1644,7 +1644,7 @@
   "Name": "Freezing VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1660,7 +1660,7 @@
   "Name": "Freezing VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1676,7 +1676,7 @@
   "Name": "Freezing VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1692,7 +1692,7 @@
   "Name": "Freezing IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1708,7 +1708,7 @@
   "Name": "Freezing X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1740,7 +1740,7 @@
   "Name": "Charged II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1756,7 +1756,7 @@
   "Name": "Charged III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1772,7 +1772,7 @@
   "Name": "Charged IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1788,7 +1788,7 @@
   "Name": "Charged V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1804,7 +1804,7 @@
   "Name": "Charged VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1820,7 +1820,7 @@
   "Name": "Charged VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1836,7 +1836,7 @@
   "Name": "Charged VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1852,7 +1852,7 @@
   "Name": "Charged IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1868,7 +1868,7 @@
   "Name": "Charged X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1900,7 +1900,7 @@
   "Name": "Venomous II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1916,7 +1916,7 @@
   "Name": "Venomous III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1932,7 +1932,7 @@
   "Name": "Venomous IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1948,7 +1948,7 @@
   "Name": "Venomous V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1964,7 +1964,7 @@
   "Name": "Venomous VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1980,7 +1980,7 @@
   "Name": "Venomous VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -1996,7 +1996,7 @@
   "Name": "Venomous VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2012,7 +2012,7 @@
   "Name": "Venomous IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2028,7 +2028,7 @@
   "Name": "Venomous X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2060,7 +2060,7 @@
   "Name": "Umbral II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2076,7 +2076,7 @@
   "Name": "Umbral III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2092,7 +2092,7 @@
   "Name": "Umbral IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2108,7 +2108,7 @@
   "Name": "Umbral V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2124,7 +2124,7 @@
   "Name": "Umbral VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2140,7 +2140,7 @@
   "Name": "Umbral VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2156,7 +2156,7 @@
   "Name": "Umbral VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2172,7 +2172,7 @@
   "Name": "Umbral IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2188,7 +2188,7 @@
   "Name": "Umbral X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2220,7 +2220,7 @@
   "Name": "Radiant II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2236,7 +2236,7 @@
   "Name": "Radiant III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2252,7 +2252,7 @@
   "Name": "Radiant IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2268,7 +2268,7 @@
   "Name": "Radiant V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2284,7 +2284,7 @@
   "Name": "Radiant VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2300,7 +2300,7 @@
   "Name": "Radiant VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2316,7 +2316,7 @@
   "Name": "Radiant VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2332,7 +2332,7 @@
   "Name": "Radiant IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2348,7 +2348,7 @@
   "Name": "Radiant X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -2380,7 +2380,7 @@
   "Name": "Blazing II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2396,7 +2396,7 @@
   "Name": "Blazing III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2412,7 +2412,7 @@
   "Name": "Blazing IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2428,7 +2428,7 @@
   "Name": "Blazing V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2444,7 +2444,7 @@
   "Name": "Blazing VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2460,7 +2460,7 @@
   "Name": "Blazing VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2476,7 +2476,7 @@
   "Name": "Blazing VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2492,7 +2492,7 @@
   "Name": "Blazing IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2508,7 +2508,7 @@
   "Name": "Blazing X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2540,7 +2540,7 @@
   "Name": "Chilling II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2556,7 +2556,7 @@
   "Name": "Chilling III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2572,7 +2572,7 @@
   "Name": "Chilling IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2588,7 +2588,7 @@
   "Name": "Chilling V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2604,7 +2604,7 @@
   "Name": "Chilling VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2620,7 +2620,7 @@
   "Name": "Chilling VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2636,7 +2636,7 @@
   "Name": "Chilling VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2652,7 +2652,7 @@
   "Name": "Chilling IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2668,7 +2668,7 @@
   "Name": "Chilling X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2700,7 +2700,7 @@
   "Name": "Sparking II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2716,7 +2716,7 @@
   "Name": "Sparking III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2732,7 +2732,7 @@
   "Name": "Sparking IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2748,7 +2748,7 @@
   "Name": "Sparking V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2764,7 +2764,7 @@
   "Name": "Sparking VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2780,7 +2780,7 @@
   "Name": "Sparking VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2796,7 +2796,7 @@
   "Name": "Sparking VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2812,7 +2812,7 @@
   "Name": "Sparking IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2828,7 +2828,7 @@
   "Name": "Sparking X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2860,7 +2860,7 @@
   "Name": "Corrosive II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2876,7 +2876,7 @@
   "Name": "Corrosive III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2892,7 +2892,7 @@
   "Name": "Corrosive IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2908,7 +2908,7 @@
   "Name": "Corrosive V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2924,7 +2924,7 @@
   "Name": "Corrosive VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2940,7 +2940,7 @@
   "Name": "Corrosive VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2956,7 +2956,7 @@
   "Name": "Corrosive VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2972,7 +2972,7 @@
   "Name": "Corrosive IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -2988,7 +2988,7 @@
   "Name": "Corrosive X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3020,7 +3020,7 @@
   "Name": "Shadowed II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3036,7 +3036,7 @@
   "Name": "Shadowed III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3052,7 +3052,7 @@
   "Name": "Shadowed IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3068,7 +3068,7 @@
   "Name": "Shadowed V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3084,7 +3084,7 @@
   "Name": "Shadowed VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3100,7 +3100,7 @@
   "Name": "Shadowed VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3116,7 +3116,7 @@
   "Name": "Shadowed VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3132,7 +3132,7 @@
   "Name": "Shadowed IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3148,7 +3148,7 @@
   "Name": "Shadowed X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3180,7 +3180,7 @@
   "Name": "Luminous II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3196,7 +3196,7 @@
   "Name": "Luminous III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3212,7 +3212,7 @@
   "Name": "Luminous IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3228,7 +3228,7 @@
   "Name": "Luminous V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3244,7 +3244,7 @@
   "Name": "Luminous VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3260,7 +3260,7 @@
   "Name": "Luminous VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3276,7 +3276,7 @@
   "Name": "Luminous VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3292,7 +3292,7 @@
   "Name": "Luminous IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3308,7 +3308,7 @@
   "Name": "Luminous X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3324,7 +3324,7 @@
   "Name": "Expanded",
   "AffixType": "Prefix",
   "Tier": 1,
-  "MinimumItemLevel": 3,
+  "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3365,7 +3365,7 @@
   "Name": "Occult II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3381,7 +3381,7 @@
   "Name": "Occult III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3397,7 +3397,7 @@
   "Name": "Occult IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3413,7 +3413,7 @@
   "Name": "Occult V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3429,7 +3429,7 @@
   "Name": "Occult VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3445,7 +3445,7 @@
   "Name": "Occult VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3461,7 +3461,7 @@
   "Name": "Occult VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3477,7 +3477,7 @@
   "Name": "Occult IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3493,7 +3493,7 @@
   "Name": "Occult X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace"
   ],
@@ -3525,7 +3525,7 @@
   "Name": "Eldritch II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3541,7 +3541,7 @@
   "Name": "Eldritch III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3557,7 +3557,7 @@
   "Name": "Eldritch IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3573,7 +3573,7 @@
   "Name": "Eldritch V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3589,7 +3589,7 @@
   "Name": "Eldritch VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3605,7 +3605,7 @@
   "Name": "Eldritch VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3621,7 +3621,7 @@
   "Name": "Eldritch VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3637,7 +3637,7 @@
   "Name": "Eldritch IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3653,7 +3653,7 @@
   "Name": "Eldritch X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Staff"
   ],
@@ -3694,7 +3694,7 @@
   "Name": "Sapphire II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 2,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3719,7 +3719,7 @@
   "Name": "Sapphire III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3744,7 +3744,7 @@
   "Name": "Sapphire IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 6,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3769,7 +3769,7 @@
   "Name": "Sapphire V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3794,7 +3794,7 @@
   "Name": "Sapphire VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 10,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3819,7 +3819,7 @@
   "Name": "Sapphire VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3844,7 +3844,7 @@
   "Name": "Sapphire VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 14,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3869,7 +3869,7 @@
   "Name": "Sapphire IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3894,7 +3894,7 @@
   "Name": "Sapphire X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 18,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
    "Staff",
@@ -3936,7 +3936,7 @@
   "Name": "Commanding II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 3,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3953,7 +3953,7 @@
   "Name": "Commanding III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 5,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3970,7 +3970,7 @@
   "Name": "Commanding IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 7,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -3987,7 +3987,7 @@
   "Name": "Commanding V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 9,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -4004,7 +4004,7 @@
   "Name": "Commanding VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 11,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -4021,7 +4021,7 @@
   "Name": "Commanding VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 13,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -4038,7 +4038,7 @@
   "Name": "Commanding VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 15,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -4055,7 +4055,7 @@
   "Name": "Commanding IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 17,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -4072,7 +4072,7 @@
   "Name": "Commanding X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 19,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "Staff"
@@ -4109,7 +4109,7 @@
   "Name": "Deflecting II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 1,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4129,7 +4129,7 @@
   "Name": "Deflecting III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4149,7 +4149,7 @@
   "Name": "Deflecting IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4169,7 +4169,7 @@
   "Name": "Deflecting V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4189,7 +4189,7 @@
   "Name": "Deflecting VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4209,7 +4209,7 @@
   "Name": "Deflecting VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 20,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4229,7 +4229,7 @@
   "Name": "Deflecting VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 24,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4249,7 +4249,7 @@
   "Name": "Deflecting IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 28,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4269,7 +4269,7 @@
   "Name": "Deflecting X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 32,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4309,7 +4309,7 @@
   "Name": "Shimmering II",
   "AffixType": "Prefix",
   "Tier": 2,
-  "MinimumItemLevel": 1,
+  "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4329,7 +4329,7 @@
   "Name": "Shimmering III",
   "AffixType": "Prefix",
   "Tier": 3,
-  "MinimumItemLevel": 4,
+  "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4349,7 +4349,7 @@
   "Name": "Shimmering IV",
   "AffixType": "Prefix",
   "Tier": 4,
-  "MinimumItemLevel": 8,
+  "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4369,7 +4369,7 @@
   "Name": "Shimmering V",
   "AffixType": "Prefix",
   "Tier": 5,
-  "MinimumItemLevel": 12,
+  "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4389,7 +4389,7 @@
   "Name": "Shimmering VI",
   "AffixType": "Prefix",
   "Tier": 6,
-  "MinimumItemLevel": 16,
+  "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4409,7 +4409,7 @@
   "Name": "Shimmering VII",
   "AffixType": "Prefix",
   "Tier": 7,
-  "MinimumItemLevel": 20,
+  "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4429,7 +4429,7 @@
   "Name": "Shimmering VIII",
   "AffixType": "Prefix",
   "Tier": 8,
-  "MinimumItemLevel": 24,
+  "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4449,7 +4449,7 @@
   "Name": "Shimmering IX",
   "AffixType": "Prefix",
   "Tier": 9,
-  "MinimumItemLevel": 28,
+  "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",
@@ -4469,7 +4469,7 @@
   "Name": "Shimmering X",
   "AffixType": "Prefix",
   "Tier": 10,
-  "MinimumItemLevel": 32,
+  "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Helmet",
    "BodyArmor",

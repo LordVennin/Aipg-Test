@@ -9,7 +9,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 15
+      "Armor": 10
     },
     "RequiredStrength": 8
   },
@@ -23,7 +23,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 30
+      "Armor": 20
     },
     "RequiredStrength": 8
   },
@@ -37,7 +37,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 10
+      "Armor": 7
     },
     "RequiredStrength": 8
   },
@@ -51,7 +51,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 10
+      "Armor": 7
     },
     "RequiredStrength": 8
   },
@@ -65,7 +65,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 5
+      "Armor": 4
     }
   },
   {
@@ -113,11 +113,11 @@
     "Category": "Helmet",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "Armor": 20
+      "Armor": 14
     },
     "RequiredStrength": 8
   },
@@ -127,11 +127,11 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "Armor": 38
+      "Armor": 26
     },
     "RequiredStrength": 8
   },
@@ -141,11 +141,11 @@
     "Category": "Gloves",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "Armor": 14
+      "Armor": 10
     },
     "RequiredStrength": 8
   },
@@ -155,11 +155,11 @@
     "Category": "Boots",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "Armor": 14
+      "Armor": 10
     },
     "RequiredStrength": 8
   },
@@ -169,11 +169,11 @@
     "Category": "Helmet",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "Armor": 32
+      "Armor": 22
     },
     "RequiredStrength": 14
   },
@@ -183,11 +183,11 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "Armor": 55
+      "Armor": 38
     },
     "RequiredStrength": 14
   },
@@ -197,11 +197,11 @@
     "Category": "Gloves",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "Armor": 22
+      "Armor": 15
     },
     "RequiredStrength": 14
   },
@@ -211,11 +211,11 @@
     "Category": "Boots",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "Armor": 22
+      "Armor": 15
     },
     "RequiredStrength": 14
   },
@@ -225,11 +225,11 @@
     "Category": "Helmet",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "DeflectionRating": 35
+      "DeflectionRating": 24
     },
     "RequiredDexterity": 8
   },
@@ -239,11 +239,11 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "DeflectionRating": 62
+      "DeflectionRating": 44
     },
     "RequiredDexterity": 8
   },
@@ -253,11 +253,11 @@
     "Category": "Gloves",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "DeflectionRating": 24
+      "DeflectionRating": 17
     },
     "RequiredDexterity": 8
   },
@@ -267,11 +267,11 @@
     "Category": "Boots",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "DeflectionRating": 24
+      "DeflectionRating": 17
     },
     "RequiredDexterity": 8
   },
@@ -281,11 +281,11 @@
     "Category": "Helmet",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "DeflectionRating": 52
+      "DeflectionRating": 36
     },
     "RequiredDexterity": 14
   },
@@ -295,11 +295,11 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "DeflectionRating": 90
+      "DeflectionRating": 62
     },
     "RequiredDexterity": 14
   },
@@ -309,11 +309,11 @@
     "Category": "Gloves",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "DeflectionRating": 38
+      "DeflectionRating": 26
     },
     "RequiredDexterity": 14
   },
@@ -323,11 +323,11 @@
     "Category": "Boots",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "DeflectionRating": 38
+      "DeflectionRating": 26
     },
     "RequiredDexterity": 14
   },
@@ -337,7 +337,7 @@
     "Category": "Helmet",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
@@ -351,7 +351,7 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
@@ -365,7 +365,7 @@
     "Category": "Gloves",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
@@ -379,7 +379,7 @@
     "Category": "Boots",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 2,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
@@ -393,7 +393,7 @@
     "Category": "Helmet",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
@@ -407,7 +407,7 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
@@ -421,7 +421,7 @@
     "Category": "Gloves",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
@@ -435,7 +435,7 @@
     "Category": "Boots",
     "InventoryWidth": 2,
     "InventoryHeight": 2,
-    "RequiredLevel": 6,
+    "RequiredLevel": 30,
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
@@ -449,12 +449,12 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 20,
     "BaseModifierLimit": 6,
     "DropWeight": 50,
     "BaseStats": {
-      "Armor": 33,
-      "DeflectionRating": 54
+      "Armor": 23,
+      "DeflectionRating": 37
     },
     "RequiredStrength": 8,
     "RequiredDexterity": 8
@@ -465,11 +465,11 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 20,
     "BaseModifierLimit": 6,
     "DropWeight": 50,
     "BaseStats": {
-      "Armor": 33,
+      "Armor": 23,
       "EnergyShield": 17
     },
     "RequiredStrength": 8,
@@ -481,11 +481,11 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 2,
+    "RequiredLevel": 20,
     "BaseModifierLimit": 6,
     "DropWeight": 50,
     "BaseStats": {
-      "DeflectionRating": 54,
+      "DeflectionRating": 37,
       "EnergyShield": 17
     },
     "RequiredDexterity": 8,

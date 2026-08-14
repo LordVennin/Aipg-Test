@@ -93,9 +93,9 @@ public struct ComputedStats
     public const float ResistanceCap = 75f;
     public const float BlockChanceCap = 75f;
 
-    /// <summary>Standard armor mitigation: armor / (armor + 60). Applied to physical hits
-    /// (Thrust, Blunt and Slash alike).</summary>
-    public readonly float PhysicalReduction => Armor / (Armor + 60f);
+    /// <summary>Armor mitigation applied to physical hits (Thrust/Blunt/Slash alike).
+    /// Computed in StatCalculator via ArmorBalance — the soft cap scales with level.</summary>
+    public float PhysicalReduction;
 
     public readonly float ResistanceFor(Skills.DamageKind kind) => kind switch
     {
@@ -235,6 +235,8 @@ public static class StatCalculator
         // Rating → initial chance (level-scaled with a hard cap); the per-hit descending
         // layers are generated from this by the combat code.
         s.DeflectionChance = Deflection.ChanceFromRating(s.DeflectionRating, character.Level);
+        // Armor's soft cap grows with level too (ArmorBalance centralizes the curve).
+        s.PhysicalReduction = ArmorBalance.PhysicalReduction(s.Armor, character.Level);
 
         // Blocking: chance comes entirely from gear (shields and their modifiers); a block
         // avoids one hit completely, then waits out a cooldown that recovery stats shorten.

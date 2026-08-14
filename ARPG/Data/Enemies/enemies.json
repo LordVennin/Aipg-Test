@@ -5,10 +5,10 @@
     "Level": 1,
     "MaxHealth": 35,
     "MoveSpeed": 2.6,
-    "Damage": 6,
+    "Damage": 8,
     "DamageTypes": {
-      "Blunt": 4,
-      "Acid": 3
+      "Blunt": 6,
+      "Acid": 4
     },
     "Resistances": {
       "Thrust": 0,
@@ -27,7 +27,7 @@
     "AggroRange": 8,
     "Ranged": false,
     "Radius": 0.38,
-    "XpReward": 18,
+    "XpReward": 11,
     "LootTableId": "default",
     "Color": "C04040",
     "SpriteStyle": "Zombie",
@@ -42,9 +42,9 @@
     "Level": 2,
     "MaxHealth": 24,
     "MoveSpeed": 2.2,
-    "Damage": 8,
+    "Damage": 11,
     "DamageTypes": {
-      "Acid": 8
+      "Acid": 11
     },
     "Resistances": {
       "Thrust": 0,
@@ -64,7 +64,7 @@
     "Ranged": true,
     "ProjectileSpeed": 7,
     "Radius": 0.36,
-    "XpReward": 26,
+    "XpReward": 16,
     "LootTableId": "default",
     "Color": "50B050",
     "SpriteStyle": "Ghoul"
@@ -75,10 +75,10 @@
     "Level": 4,
     "MaxHealth": 380,
     "MoveSpeed": 2.1,
-    "Damage": 12,
+    "Damage": 17,
     "DamageTypes": {
-      "Blunt": 9,
-      "Dark": 5
+      "Blunt": 13,
+      "Dark": 7
     },
     "Resistances": {
       "Thrust": 10,
@@ -97,9 +97,9 @@
     "AggroRange": 9,
     "Ranged": false,
     "Radius": 0.55,
-    "XpReward": 260,
+    "XpReward": 150,
     "SlamRadius": 2.4,
-    "SlamDamage": 16,
+    "SlamDamage": 22,
     "SlamCooldown": 5.5,
     "LootTableId": "boss",
     "Color": "8050B8",
@@ -115,10 +115,10 @@
     "Level": 3,
     "MaxHealth": 55,
     "MoveSpeed": 2.9,
-    "Damage": 9,
+    "Damage": 12,
     "DamageTypes": {
-      "Slash": 8,
-      "Dark": 2
+      "Slash": 11,
+      "Dark": 3
     },
     "Resistances": {
       "Thrust": 15,
@@ -141,7 +141,7 @@
     "AggroRange": 8,
     "Ranged": false,
     "Radius": 0.4,
-    "XpReward": 34,
+    "XpReward": 20,
     "LootTableId": "default",
     "Color": "B8BCC8",
     "SpriteStyle": "Skeleton"
