@@ -289,7 +289,25 @@ public class ClientWorld
             pr.Height += pr.HeightStep * step;
             pr.Traveled += step;
             if (pr.Traveled > pr.MaxRange + 2f)
+            {
                 Projectiles.Remove(pr.Id);
+                continue;
+            }
+            // Predicted ghosts stop on the first enemy they visually touch — the REAL
+            // hit is the server's call, but a cosmetic bolt gliding through a body
+            // reads as a pass-through bug.
+            if (pr.Ghost)
+            {
+                foreach (var e in Enemies.Values)
+                {
+                    if (MathF.Abs(e.Height - pr.Height) > 0.75f) continue;
+                    if (Vector2.Distance(pr.Position, e.Position) <= (e.Def?.Radius ?? 0.4f) + 0.25f)
+                    {
+                        Projectiles.Remove(pr.Id);
+                        break;
+                    }
+                }
+            }
         }
 
         for (int i = Effects.Count - 1; i >= 0; i--)

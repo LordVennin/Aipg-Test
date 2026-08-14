@@ -25,6 +25,16 @@ public class SkillTreeUI
     private const float UnitPx = 78f;   // tree layout units -> pixels
     private const int NodeRadius = 19;
 
+    // Drag-to-pan: hold the left button anywhere on the panel and drag. A press that
+    // never travels past the threshold is a CLICK (allocates on release), so panning
+    // and allocation share the button without stealing from each other.
+    private Vector2 _pan;
+    private bool _dragging;
+    private bool _dragMoved;
+    private Point _dragStartMouse;
+    private Vector2 _panAtDragStart;
+    private const int DragThresholdPx = 6;
+
     public SkillTreeUI(GameData data, GameClient client)
     {
         _data = data;
@@ -43,7 +53,7 @@ public class SkillTreeUI
     private Vector2 NodeScreen(PassiveNode node)
     {
         // The cluster is wider than tall; anchor it slightly below the panel center.
-        var center = new Vector2(_panelRect.Center.X, _panelRect.Y + _panelRect.Height * 0.42f);
+        var center = new Vector2(_panelRect.Center.X, _panelRect.Y + _panelRect.Height * 0.42f) + _pan;
         return center + new Vector2(node.X * UnitPx, node.Y * UnitPx * 0.85f);
     }
 
@@ -68,18 +78,38 @@ public class SkillTreeUI
             return;
         }
 
+        // Drag-to-pan; a short press-release without movement is an allocation click.
         if (input.MouseLeftPressed && _panelRect.Contains(input.MousePosition))
         {
-            foreach (var node in _data.PassiveTree.Nodes)
+            _dragging = true;
+            _dragMoved = false;
+            _dragStartMouse = input.MousePosition;
+            _panAtDragStart = _pan;
+        }
+        if (_dragging && input.MouseLeftDown)
+        {
+            var delta = new Vector2(input.MousePosition.X - _dragStartMouse.X,
+                input.MousePosition.Y - _dragStartMouse.Y);
+            if (delta.Length() > DragThresholdPx) _dragMoved = true;
+            if (_dragMoved) _pan = _panAtDragStart + delta;
+        }
+        if (_dragging && !input.MouseLeftDown)
+        {
+            if (!_dragMoved && _panelRect.Contains(input.MousePosition))
             {
-                var pos = NodeScreen(node);
-                if (Vector2.Distance(pos, input.MousePosition.ToVector2()) <= NodeRadius + 3 &&
-                    CanAllocate(character, node))
+                foreach (var node in _data.PassiveTree.Nodes)
                 {
-                    _client.RequestAllocatePassive(node.Id);
-                    break;
+                    var pos = NodeScreen(node);
+                    if (Vector2.Distance(pos, input.MousePosition.ToVector2()) <= NodeRadius + 3 &&
+                        CanAllocate(character, node))
+                    {
+                        _client.RequestAllocatePassive(node.Id);
+                        break;
+                    }
                 }
             }
+            _dragging = false;
+            _dragMoved = false;
         }
 
         if (_panelRect.Contains(input.MousePosition))
@@ -105,17 +135,25 @@ public class SkillTreeUI
             new Vector2(_panelRect.X + 14, _panelRect.Y + 34),
             points > 0 ? new Color(160, 240, 160) : new Color(160, 156, 145));
 
+        // Panned content clips coarsely to the panel so nodes never paint over other UI.
+        var view = new Rectangle(_panelRect.X + 6, _panelRect.Y + 30,
+            _panelRect.Width - 12, _panelRect.Height - 58);
+        bool InView(Vector2 v) => view.Contains((int)v.X, (int)v.Y);
+
         // Connections underneath the nodes: brighter when both ends are allocated.
         foreach (var pair in tree.Connections)
         {
             if (pair is not { Count: 2 } ||
                 !tree.ById.TryGetValue(pair[0], out var a) ||
                 !tree.ById.TryGetValue(pair[1], out var b)) continue;
+            var pa = NodeScreen(a);
+            var pb = NodeScreen(b);
+            if (!InView(pa) && !InView(pb)) continue;
             bool lit = character.AllocatedPassives.Contains(a.Id) &&
                        character.AllocatedPassives.Contains(b.Id);
             bool half = character.AllocatedPassives.Contains(a.Id) ||
                         character.AllocatedPassives.Contains(b.Id);
-            DrawLine(sb, NodeScreen(a), NodeScreen(b),
+            DrawLine(sb, pa, pb,
                 lit ? new Color(230, 200, 110) : half ? new Color(120, 110, 90) : new Color(64, 62, 70), lit ? 3 : 2);
         }
 
@@ -123,6 +161,7 @@ public class SkillTreeUI
         foreach (var node in tree.Nodes)
         {
             var pos = NodeScreen(node);
+            if (!InView(pos)) continue;
             bool allocated = character.AllocatedPassives.Contains(node.Id);
             bool allocatable = CanAllocate(character, node);
             bool hover = Vector2.Distance(pos, _lastMouse.ToVector2()) <= NodeRadius + 3;
@@ -148,7 +187,7 @@ public class SkillTreeUI
         }
 
         sb.DrawString(FontManager.Get(13),
-            "Click a highlighted node to allocate — perks apply instantly and persist with your character.",
+            "Click a highlighted node to allocate · drag anywhere to pan the tree.",
             new Vector2(_panelRect.X + 14, _panelRect.Bottom - 24), new Color(130, 126, 115));
 
         if (hovered != null) DrawTooltip(sb, hovered, character);
@@ -204,6 +243,8 @@ public class SkillTreeUI
             Stats.StatType.CriticalDamage => "% Critical Damage",
             Stats.StatType.ManaRegeneration => "% Mana Regeneration",
             Stats.StatType.LifeRegeneration => "Life per Second",
+            Stats.StatType.DeflectionRating => "Deflection Rating",
+            Stats.StatType.EnergyShield => "Energy Shield",
             _ => fx.Stat.ToString(),
         };
         return $"+{fx.Value:0.#} {name}";

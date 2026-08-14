@@ -206,8 +206,11 @@ public class GameClient
 
         // Ghost projectile: flies from the click; the authoritative spawn adopts its
         // progress on arrival. A short range cap makes rejected casts fizzle quietly.
+        // Casts the server will obviously refuse (not enough mana) spawn NO ghost —
+        // a bolt sailing through enemies with no server hit behind it reads as a bug.
         if (def.Archetype == Skills.SkillArchetype.Projectile)
         {
+            if (def.ManaCost > 0 && me.Mana < def.ManaCost - 0.5f) return;
             var ghost = new ClientProjectile
             {
                 Id = _nextGhostId--,

@@ -31,7 +31,8 @@
       "Armor": 14,
       "BlockChance": 15
     },
-    "SpriteColor": "9AA0A8"
+    "SpriteColor": "9AA0A8",
+    "RequiredStrength": 8
   },
   {
     "Id": "steel_tower_shield",
@@ -49,6 +50,7 @@
       "BlockChance": 18,
       "BlockCooldownRecovery": 10
     },
-    "SpriteColor": "6E747E"
+    "SpriteColor": "6E747E",
+    "RequiredStrength": 10
   }
 ]

@@ -540,9 +540,9 @@ public static class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 443, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
-        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 44,
-              "every full family has a tier X (44 tiered families reach tier 10)");
+        Check(data.Modifiers.Count == 453, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 45,
+              "every full family has a tier X (45 tiered families reach tier 10)");
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&
               data.Modifiers["of_ferocity"].StatAffected == Stats.StatType.CriticalDamage &&
               data.Modifiers["of_precision"].CompatibleItemCategories.All(c =>
@@ -1678,7 +1678,7 @@ public static class HeadlessNetTest
 
         Console.WriteLine("\n-- Passive skill tree --");
         var tree = data.PassiveTree;
-        Check(tree.Nodes.Count == 16 && tree.Nodes.Count(n => n.Start) == 1,
+        Check(tree.Nodes.Count == 19 && tree.Nodes.Count(n => n.Start) == 1,
               $"starter tree loaded ({tree.Nodes.Count} nodes, {tree.Nodes.Count(n => n.Start)} start)");
         Check(tree.Nodes.All(n => n.Effects.Count > 0) &&
               tree.Connections.All(c => c.Count == 2 && tree.ById.ContainsKey(c[0]) && tree.ById.ContainsKey(c[1])),
@@ -2429,6 +2429,95 @@ public static class HeadlessNetTest
         srvSum.RecomputeStats(data);
         clientB.SendDebugCommand("heal");
         Pump(0.4f);
+
+        Console.WriteLine("\n-- Armor sets, gear requirements & of Ease --");
+        // Pure sets exist for every defense type across the four armor slots, carrying
+        // ONLY their type's stat; hybrids pay for breadth with ~60% of each pure value.
+        bool PureSet(string[] ids, Stats.StatType stat) => ids.All(id =>
+            data.Items.TryGetValue(id, out var b) && b.BaseStats.Count == 1 &&
+            b.BaseStats.ContainsKey(stat));
+        Check(PureSet(new[] { "iron_cap", "iron_mail", "iron_gauntlets", "iron_greaves", "iron_plate" },
+                  Stats.StatType.Armor),
+              "a pure Armor set spans helmet/body/gloves/boots");
+        Check(PureSet(new[] { "hide_hood", "hide_tunic", "hide_gloves", "hide_boots", "hunters_jerkin" },
+                  Stats.StatType.DeflectionRating),
+              "a pure Deflection set spans helmet/body/gloves/boots");
+        Check(PureSet(new[] { "cloth_cowl", "cloth_robe", "cloth_wraps", "cloth_slippers", "apprentice_robe" },
+                  Stats.StatType.EnergyShield),
+              "a pure Energy Shield set spans helmet/body/gloves/boots");
+        float PureBody(string id, Stats.StatType st) => data.Items[id].BaseStats[st];
+        bool HybridWeaker(string id, Stats.StatType st, string pureId) =>
+            data.Items[id].BaseStats[st] >= PureBody(pureId, st) * 0.5f &&
+            data.Items[id].BaseStats[st] <= PureBody(pureId, st) * 0.7f;
+        Check(HybridWeaker("brigandine", Stats.StatType.Armor, "iron_plate") &&
+              HybridWeaker("brigandine", Stats.StatType.DeflectionRating, "hunters_jerkin") &&
+              HybridWeaker("battlemage_plate", Stats.StatType.EnergyShield, "apprentice_robe") &&
+              HybridWeaker("shadowweave_garb", Stats.StatType.DeflectionRating, "hunters_jerkin"),
+              "hybrid bodies carry ~60% of each pure stat");
+        Check(data.Items["iron_mace"].RequiredStrength == 8 &&
+              data.Items["heavy_war_mace"].RequiredStrength == 10 &&
+              data.Items["mystic_staff"].RequiredIntelligence == 8 &&
+              data.Items["arcane_staff"].RequiredIntelligence == 10 &&
+              data.Items["iron_kite_shield"].RequiredStrength == 8 &&
+              data.Items["hide_tunic"].RequiredDexterity == 8 &&
+              data.Items["cloth_robe"].RequiredIntelligence == 8 &&
+              data.Items["leather_hood"].RequiredStrength == 8,
+              "weapons, shields and armor carry baseline attribute requirements");
+
+        // "of Ease": a LOCAL suffix lowering the item's own requirements. Iron Plate
+        // (14 Str) with a 30% reduction needs ceil(14*0.7)=10 — met at base stats.
+        var easedPlate = new Items.ItemInstance { BaseItemId = "iron_plate", Rarity = Items.ItemRarity.Rare, ItemLevel = 5 };
+        easedPlate.EnsureSlotData();
+        easedPlate.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_ease", Value = 30 });
+        Check(easedPlate.EffectiveRequirement(data, data.Items["iron_plate"].RequiredStrength) == 10,
+              "of Ease lowers the item's own requirement (14 Str -> 10)");
+        Check(srvSum.Character.Inventory.TryAdd(data, easedPlate), "eased plate added to the bag");
+        var easedPlaced = srvSum.Character.Inventory.FindByInstance(easedPlate.InstanceId);
+        server.World.MoveItem(bId, ItemLocation.AtGrid(easedPlaced.X, easedPlaced.Y),
+            ItemLocation.AtEquip(Items.EquipSlot.BodyArmor));
+        Check(srvSum.Character.Equipment.GetValueOrDefault(Items.EquipSlot.BodyArmor)?.InstanceId == easedPlate.InstanceId,
+              "the server accepts the eased requirement it would otherwise refuse");
+        srvSum.Character.Equipment.Remove(Items.EquipSlot.BodyArmor);
+        srvSum.RecomputeStats(data);
+
+        Console.WriteLine("\n-- Swept projectile hits --");
+        // A projectile so fast it steps clean across a body in one tick must still
+        // connect: hits sweep the tick's segment instead of sampling the endpoint.
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+        var sweptPrey = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(1.0f, 0));
+        sweptPrey.Health = 200f;
+        sweptPrey.StunnedUntil = server.World.Time + 30f;
+        server.World.Projectiles[999999] = new ServerProjectile
+        {
+            Id = 999999,
+            FromPlayer = true,
+            OwnerId = bId,
+            SkillId = "fire_bolt",
+            Position = srvSum.Position,
+            Height = sweptPrey.Height,
+            Direction = new Vector2(1, 0),
+            Speed = 120f,          // 2 tiles per tick: endpoint sampling would miss
+            MaxRange = 2.5f,
+            MinDamage = 5f,
+            MaxDamage = 5f,
+            DamageKind = Skills.DamageKind.Fire,
+        };
+        Pump(0.2f);
+        Check(sweptPrey.Health < 199.9f,
+              $"tick-crossing projectiles still land their hit (hp {sweptPrey.Health:0.0})");
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        // Ghost gating: with no mana, no cosmetic ghost spawns (nothing to fly through
+        // enemies while the server rejects the real cast).
+        float manaSave = clientB.World.Me.Mana;
+        clientB.World.Me.Mana = 0f;
+        clientB.RequestUseSkill("fire_bolt", clientB.World.Me.Position + new Vector2(3f, 0));
+        Check(!clientB.World.Projectiles.Values.Any(pr => pr.Ghost),
+              "no ghost bolt spawns when the cast will be rejected for mana");
+        clientB.World.Me.Mana = manaSave;
+        Pump(0.5f);
 
         Console.WriteLine("\n-- Client-side cast prediction --");
         // The casting client gets INSTANT feedback (before any network round trip):

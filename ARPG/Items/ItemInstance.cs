@@ -31,6 +31,21 @@ public class ItemInstance
 
     public ItemBase GetBase(GameData data) => data.Items[BaseItemId];
 
+    /// <summary>This item's attribute requirement after its own LOCAL "reduced
+    /// requirements" rolls (the "of Ease" suffix; capped at 60%). A nonzero base
+    /// requirement never drops below 1.</summary>
+    public int EffectiveRequirement(GameData data, int baseRequirement)
+    {
+        if (baseRequirement <= 0) return 0;
+        float reduction = 0;
+        foreach (var roll in Modifiers)
+            if (data.Modifiers.TryGetValue(roll.ModifierId, out var def) &&
+                def.StatAffected == StatType.ReducedRequirements)
+                reduction += roll.Value;
+        reduction = MathF.Min(60f, reduction);
+        return Math.Max(1, (int)MathF.Ceiling(baseRequirement * (1f - reduction / 100f)));
+    }
+
     /// <summary>Flexible bonus slots from rolled ModifierLimit stats (the "Expanded" prefix);
     /// usable by either affix type, on top of the per-side caps.</summary>
     public int ModifierLimitBonus(GameData data)

@@ -165,15 +165,29 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
-    /// <summary>A skeletal minion sprite keyed by its summon skill: archers carry a short
-    /// bow, warriors a notched sword and a scrap shield. Shared bone body, cached per kind.</summary>
-    public static Texture2D GetSummonSprite(string skillId = null)
+    /// <summary>Walk-cycle frames for a skeletal minion, keyed by its summon skill:
+    /// frame 0 stands, frames 1/2 stride (alternating leg lift, body bob, arm swing).
+    /// Archers carry a short bow; warriors a scrap shield (their sword is drawn and
+    /// animated separately by the renderer).</summary>
+    public static Texture2D[] GetSummonFrames(string skillId = null)
     {
         if (_device == null) return null;
         bool warrior = skillId != null && skillId.Contains("warrior");
         string key = warrior ? "summon:skeleton_warrior" : "summon:skeleton_archer";
-        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+        if (_cache.TryGetValue(key, out var cached)) return cached;
+        var frames = new[]
+        {
+            DrawSummonFrame(warrior, 0), DrawSummonFrame(warrior, 1), DrawSummonFrame(warrior, 2),
+        };
+        _cache[key] = frames;
+        return frames;
+    }
 
+    /// <summary>Standing frame only (HUD cards and other static uses).</summary>
+    public static Texture2D GetSummonSprite(string skillId = null) => GetSummonFrames(skillId)?[0];
+
+    private static Texture2D DrawSummonFrame(bool warrior, int frame)
+    {
         const int w = 16, h = 22;
         var px = new Color[w * h];
         void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
@@ -184,25 +198,33 @@ public static class SpriteGen
         var boneDark = new Color(168, 162, 142);
         var socket = new Color(30, 28, 26);
 
+        // Stride: one leg lifts 2px while the other plants, the torso bobs 1px and
+        // the arms counter-swing 1px — a real gait instead of a glide.
+        int leftUp = frame == 1 ? 2 : 0;
+        int rightUp = frame == 2 ? 2 : 0;
+        int bob = frame == 0 ? 0 : 1;
+        int armSwing = frame == 1 ? 1 : frame == 2 ? -1 : 0;
+
         // Skull
-        Rect(5, 0, 10, 5, bone);
-        Set(5, 0, Color.Transparent); Set(10, 0, Color.Transparent);
-        Set(6, 2, socket); Set(9, 2, socket);
-        Rect(6, 4, 9, 4, boneDark);              // jaw shadow
+        Rect(5, 0 + bob, 10, 5 + bob, bone);
+        Set(5, 0 + bob, Color.Transparent); Set(10, 0 + bob, Color.Transparent);
+        Set(6, 2 + bob, socket); Set(9, 2 + bob, socket);
+        Rect(6, 4 + bob, 9, 4 + bob, boneDark);          // jaw shadow
         // Spine + ribcage
-        Set(7, 6, boneDark); Set(8, 6, boneDark);
-        Rect(5, 7, 10, 7, bone);
-        Rect(5, 9, 10, 9, bone);
-        Rect(5, 11, 10, 11, bone);
-        Set(7, 8, boneDark); Set(8, 8, boneDark);
-        Set(7, 10, boneDark); Set(8, 10, boneDark);
-        // Pelvis + legs
-        Rect(6, 12, 9, 13, boneDark);
-        Rect(5, 14, 6, 18, bone);
-        Rect(9, 14, 10, 18, bone);
-        Set(5, 19, boneDark); Set(6, 19, boneDark);
-        Set(9, 19, boneDark); Set(10, 19, boneDark);
-        Rect(4, 20, 6, 20, bone); Rect(9, 20, 11, 20, bone); // feet
+        Set(7, 6 + bob, boneDark); Set(8, 6 + bob, boneDark);
+        Rect(5, 7 + bob, 10, 7 + bob, bone);
+        Rect(5, 9 + bob, 10, 9 + bob, bone);
+        Rect(5, 11 + bob, 10, 11 + bob, bone);
+        Set(7, 8 + bob, boneDark); Set(8, 8 + bob, boneDark);
+        Set(7, 10 + bob, boneDark); Set(8, 10 + bob, boneDark);
+        // Pelvis + striding legs
+        Rect(6, 12 + bob, 9, 13 + bob, boneDark);
+        Rect(5, 14, 6, 18 - leftUp, bone);
+        Rect(9, 14, 10, 18 - rightUp, bone);
+        Set(5, 19 - leftUp, boneDark); Set(6, 19 - leftUp, boneDark);
+        Set(9, 19 - rightUp, boneDark); Set(10, 19 - rightUp, boneDark);
+        Rect(4 + leftUp / 2, 20 - leftUp, 6 + leftUp / 2, 20 - leftUp, bone);   // striding feet
+        Rect(9 - rightUp / 2, 20 - rightUp, 11 - rightUp / 2, 20 - rightUp, bone);
 
         if (warrior)
         {
@@ -210,30 +232,28 @@ public static class SpriteGen
             var shieldRim = new Color(140, 122, 88);
             // Sword arm reaching forward — the blade itself is NOT baked in: the
             // renderer draws GetBoneSword() in this hand and animates rest/chop.
-            Rect(11, 8, 13, 9, bone);
-            Set(13, 9, boneDark);
-            // Scrap shield strapped to the off arm
-            Rect(3, 8, 4, 10, bone);
-            Rect(1, 7, 3, 11, shield);
-            Set(1, 7, shieldRim); Set(3, 7, shieldRim);
-            Set(1, 11, shieldRim); Set(3, 11, shieldRim);
-            Set(2, 9, shieldRim);                          // boss stud
+            Rect(11 + armSwing, 8 + bob, 13 + armSwing, 9 + bob, bone);
+            Set(13 + armSwing, 9 + bob, boneDark);
+            // Scrap shield strapped to the off arm, swinging counter to the stride
+            Rect(3 - armSwing, 8 + bob, 4 - armSwing, 10 + bob, bone);
+            Rect(1 - armSwing, 7 + bob, 3 - armSwing, 11 + bob, shield);
+            Set(1 - armSwing, 7 + bob, shieldRim); Set(3 - armSwing, 7 + bob, shieldRim);
+            Set(1 - armSwing, 11 + bob, shieldRim); Set(3 - armSwing, 11 + bob, shieldRim);
+            Set(2 - armSwing, 9 + bob, shieldRim);         // boss stud
         }
         else
         {
             var bow = new Color(110, 78, 46);
             var stringC = new Color(200, 196, 180);
-            // Bow arm + short bow held to the right side
-            Rect(11, 8, 12, 9, bone);
-            for (int i = 0; i < 7; i++) Set(13 + (i is 0 or 6 ? 0 : 1), 5 + i, bow);
-            for (int i = 1; i < 6; i++) Set(13, 5 + i, stringC);
-            // Off arm
-            Rect(3, 8, 4, 10, bone);
+            // Bow arm + short bow held to the right side, riding the stride
+            Rect(11 + armSwing, 8 + bob, 12 + armSwing, 9 + bob, bone);
+            for (int i = 0; i < 7; i++) Set(13 + armSwing + (i is 0 or 6 ? 0 : 1), 5 + bob + i, bow);
+            for (int i = 1; i < 6; i++) Set(13 + armSwing, 5 + bob + i, stringC);
+            // Off arm counter-swings
+            Rect(3 - armSwing, 8 + bob, 4 - armSwing, 10 + bob, bone);
         }
 
-        var tex = BakeStrip(px, w, h);
-        _cache[key] = new[] { tex };
-        return tex;
+        return BakeStrip(px, w, h);
     }
 
     /// <summary>A slim arrow for skeleton archers: shaft, iron head, feather fletching.</summary>
@@ -1053,18 +1073,21 @@ public static class SpriteGen
         var clothDark = Shade(clothTint, 0.55f);
         var eye = new Color(120, 200, 255);          // cold sockets
 
-        int leftLegUp = frame == 1 ? 1 : 0;
-        int rightLegUp = frame == 2 ? 1 : 0;
-        int bob = frame == 1 ? 1 : 0;
+        // A marching gait with real amplitude: 2px leg lifts, a step bob on BOTH
+        // stride frames, and arm/plume counter-motion below so it reads at a glance.
+        int leftLegUp = frame == 1 ? 2 : 0;
+        int rightLegUp = frame == 2 ? 2 : 0;
+        int bob = frame == 0 ? 0 : 1;
+        int armSwing = frame == 1 ? 1 : frame == 2 ? -1 : 0;
 
-        // Bone legs with steel greave caps; a marching gait, more upright than a zombie.
+        // Bone legs with steel greave caps; striding feet shift under the lifted leg.
         c.Rect(9, 27, 3, 8 - leftLegUp, bone);
         c.Rect(14, 27, 3, 8 - rightLegUp, bone);
         c.Set(10, 29, boneDark); c.Set(15, 30, boneDark);   // knee joints
         c.Rect(9, 27, 3, 2, steelDark);                     // greave tops
         c.Rect(14, 27, 3, 2, steelDark);
-        c.Rect(8, 35 - leftLegUp, 4, 1, boneDark);          // feet
-        c.Rect(14, 35 - rightLegUp, 4, 1, boneDark);
+        c.Rect(8 + leftLegUp / 2, 35 - leftLegUp, 4, 1, boneDark);   // feet
+        c.Rect(14 - rightLegUp / 2, 35 - rightLegUp, 4, 1, boneDark);
 
         // Torso: breastplate over ribs, tabard hanging below the belt.
         int ty = 17 + bob;
@@ -1079,24 +1102,24 @@ public static class SpriteGen
         // Ribs peeking under the plate's arm gaps.
         c.Set(8, ty + 3, bone); c.Set(8, ty + 5, bone);
 
-        // Arms: bare bone. Leading arm reaches forward (the renderer puts the sword
-        // there); off arm hangs with a steel pauldron scrap.
+        // Arms: bare bone, counter-swinging the stride. Leading arm reaches forward
+        // (the renderer puts the sword there); off arm hangs with a pauldron scrap.
         int ay = 18 + bob;
-        c.Rect(16, ay, 5, 2, bone);                         // leading arm
-        c.Set(18, ay + 1, boneDark);
-        c.Rect(6, ay, 3, 2, steelDark);                     // pauldron scrap
-        c.Rect(6, ay + 2, 2, 4, bone);                      // hanging off arm
-        c.Set(6, ay + 6, boneDark);
+        c.Rect(16 + armSwing, ay, 5, 2, bone);              // leading arm
+        c.Set(18 + armSwing, ay + 1, boneDark);
+        c.Rect(6 - armSwing, ay, 3, 2, steelDark);          // pauldron scrap
+        c.Rect(6 - armSwing, ay + 2, 2, 4, bone);           // hanging off arm
+        c.Set(6 - armSwing, ay + 6, boneDark);
 
-        // Skull in an open-faced helm with a tint plume.
+        // Skull in an open-faced helm with a tint plume that sways with the march.
         int hy = 9 + bob;
         c.Rect(9, hy, 8, 8, bone);
         c.Rect(9, hy, 8, 2, steel);                         // helm brow
         c.Rect(8, hy, 1, 5, steel);                         // cheek guard left
         c.Rect(17, hy, 1, 5, steel);                        // cheek guard right
         c.Rect(9, hy - 1, 8, 1, steelLight);                // helm crown
-        c.Rect(12, hy - 3, 2, 2, cloth);                    // plume
-        c.Set(12, hy - 4, clothDark);
+        c.Rect(12 - armSwing, hy - 3, 2, 2, cloth);         // plume sway
+        c.Set(12 - armSwing, hy - 4, clothDark);
         c.Set(11, hy + 3, eye); c.Set(15, hy + 3, eye);     // glowing sockets
         c.Rect(10, hy + 6, 6, 1, boneDark);                 // jaw line
         c.Set(11, hy + 7, boneDark); c.Set(13, hy + 7, boneDark); c.Set(15, hy + 7, boneDark); // teeth

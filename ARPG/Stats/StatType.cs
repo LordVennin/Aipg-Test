@@ -29,6 +29,9 @@ public enum StatType
     /// <summary>INT defense: flat maximum Energy Shield (scaled by Intelligence),
     /// absorbed before life and recharging out of combat.</summary>
     EnergyShield,
+    /// <summary>LOCAL percent: reduces THIS item's own attribute requirements (the
+    /// "of Ease" suffix). Never aggregates into character stats.</summary>
+    ReducedRequirements,
     FireResistance,
     ColdResistance,
     LightningResistance,

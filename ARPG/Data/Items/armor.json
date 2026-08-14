@@ -10,7 +10,8 @@
     "DropWeight": 100,
     "BaseStats": {
       "Armor": 15
-    }
+    },
+    "RequiredStrength": 8
   },
   {
     "Id": "padded_vest",
@@ -23,7 +24,8 @@
     "DropWeight": 100,
     "BaseStats": {
       "Armor": 30
-    }
+    },
+    "RequiredStrength": 8
   },
   {
     "Id": "worn_gloves",
@@ -36,7 +38,8 @@
     "DropWeight": 100,
     "BaseStats": {
       "Armor": 10
-    }
+    },
+    "RequiredStrength": 8
   },
   {
     "Id": "sturdy_boots",
@@ -49,7 +52,8 @@
     "DropWeight": 100,
     "BaseStats": {
       "Armor": 10
-    }
+    },
+    "RequiredStrength": 8
   },
   {
     "Id": "rope_belt",
@@ -104,6 +108,76 @@
     }
   },
   {
+    "Id": "iron_cap",
+    "Name": "Iron Cap",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "Armor": 20
+    },
+    "RequiredStrength": 8
+  },
+  {
+    "Id": "iron_mail",
+    "Name": "Iron Mail",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "Armor": 38
+    },
+    "RequiredStrength": 8
+  },
+  {
+    "Id": "iron_gauntlets",
+    "Name": "Iron Gauntlets",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "Armor": 14
+    },
+    "RequiredStrength": 8
+  },
+  {
+    "Id": "iron_greaves",
+    "Name": "Iron Greaves",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "Armor": 14
+    },
+    "RequiredStrength": 8
+  },
+  {
+    "Id": "warplate_helm",
+    "Name": "Warplate Helm",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "Armor": 32
+    },
+    "RequiredStrength": 14
+  },
+  {
     "Id": "iron_plate",
     "Name": "Iron Plate",
     "Category": "BodyArmor",
@@ -111,11 +185,109 @@
     "InventoryHeight": 3,
     "RequiredLevel": 2,
     "BaseModifierLimit": 6,
-    "DropWeight": 60,
+    "DropWeight": 40,
     "BaseStats": {
       "Armor": 55
     },
     "RequiredStrength": 14
+  },
+  {
+    "Id": "warplate_gauntlets",
+    "Name": "Warplate Gauntlets",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "Armor": 22
+    },
+    "RequiredStrength": 14
+  },
+  {
+    "Id": "warplate_greaves",
+    "Name": "Warplate Greaves",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "Armor": 22
+    },
+    "RequiredStrength": 14
+  },
+  {
+    "Id": "hide_hood",
+    "Name": "Hide Hood",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "DeflectionRating": 35
+    },
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "hide_tunic",
+    "Name": "Hide Tunic",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "DeflectionRating": 62
+    },
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "hide_gloves",
+    "Name": "Hide Gloves",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "DeflectionRating": 24
+    },
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "hide_boots",
+    "Name": "Hide Boots",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "DeflectionRating": 24
+    },
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "hunters_hood",
+    "Name": "Hunter's Hood",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "DeflectionRating": 52
+    },
+    "RequiredDexterity": 14
   },
   {
     "Id": "hunters_jerkin",
@@ -125,11 +297,109 @@
     "InventoryHeight": 3,
     "RequiredLevel": 2,
     "BaseModifierLimit": 6,
-    "DropWeight": 60,
+    "DropWeight": 40,
     "BaseStats": {
       "DeflectionRating": 90
     },
     "RequiredDexterity": 14
+  },
+  {
+    "Id": "hunters_gloves",
+    "Name": "Hunter's Gloves",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "DeflectionRating": 38
+    },
+    "RequiredDexterity": 14
+  },
+  {
+    "Id": "hunters_treads",
+    "Name": "Hunter's Treads",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "DeflectionRating": 38
+    },
+    "RequiredDexterity": 14
+  },
+  {
+    "Id": "cloth_cowl",
+    "Name": "Cloth Cowl",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "EnergyShield": 10
+    },
+    "RequiredIntelligence": 8
+  },
+  {
+    "Id": "cloth_robe",
+    "Name": "Cloth Robe",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "EnergyShield": 19
+    },
+    "RequiredIntelligence": 8
+  },
+  {
+    "Id": "cloth_wraps",
+    "Name": "Cloth Wraps",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "EnergyShield": 7
+    },
+    "RequiredIntelligence": 8
+  },
+  {
+    "Id": "cloth_slippers",
+    "Name": "Cloth Slippers",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 70,
+    "BaseStats": {
+      "EnergyShield": 7
+    },
+    "RequiredIntelligence": 8
+  },
+  {
+    "Id": "silk_cowl",
+    "Name": "Silk Cowl",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "EnergyShield": 16
+    },
+    "RequiredIntelligence": 14
   },
   {
     "Id": "apprentice_robe",
@@ -139,9 +409,37 @@
     "InventoryHeight": 3,
     "RequiredLevel": 2,
     "BaseModifierLimit": 6,
-    "DropWeight": 60,
+    "DropWeight": 40,
     "BaseStats": {
       "EnergyShield": 28
+    },
+    "RequiredIntelligence": 14
+  },
+  {
+    "Id": "silk_wraps",
+    "Name": "Silk Wraps",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "EnergyShield": 12
+    },
+    "RequiredIntelligence": 14
+  },
+  {
+    "Id": "silk_slippers",
+    "Name": "Silk Slippers",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 6,
+    "BaseModifierLimit": 6,
+    "DropWeight": 40,
+    "BaseStats": {
+      "EnergyShield": 12
     },
     "RequiredIntelligence": 14
   },
@@ -153,10 +451,10 @@
     "InventoryHeight": 3,
     "RequiredLevel": 2,
     "BaseModifierLimit": 6,
-    "DropWeight": 60,
+    "DropWeight": 50,
     "BaseStats": {
-      "Armor": 30,
-      "DeflectionRating": 50
+      "Armor": 33,
+      "DeflectionRating": 54
     },
     "RequiredStrength": 8,
     "RequiredDexterity": 8
@@ -169,10 +467,10 @@
     "InventoryHeight": 3,
     "RequiredLevel": 2,
     "BaseModifierLimit": 6,
-    "DropWeight": 60,
+    "DropWeight": 50,
     "BaseStats": {
-      "Armor": 30,
-      "EnergyShield": 16
+      "Armor": 33,
+      "EnergyShield": 17
     },
     "RequiredStrength": 8,
     "RequiredIntelligence": 8
@@ -185,10 +483,10 @@
     "InventoryHeight": 3,
     "RequiredLevel": 2,
     "BaseModifierLimit": 6,
-    "DropWeight": 60,
+    "DropWeight": 50,
     "BaseStats": {
-      "DeflectionRating": 50,
-      "EnergyShield": 16
+      "DeflectionRating": 54,
+      "EnergyShield": 17
     },
     "RequiredDexterity": 8,
     "RequiredIntelligence": 8

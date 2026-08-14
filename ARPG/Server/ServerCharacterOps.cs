@@ -120,20 +120,24 @@ public partial class ServerWorld
                     return false;
                 }
                 // Attribute requirements check against CURRENT computed attributes
-                // (base + gear + passives) — server-authoritative like the level.
-                if (itemBase.RequiredStrength > p.Stats.Strength + 0.01f)
+                // (base + gear + passives) — server-authoritative like the level. The
+                // item's own "of Ease" rolls lower ITS requirements locally.
+                int reqStr = item.EffectiveRequirement(Data, itemBase.RequiredStrength);
+                int reqDex = item.EffectiveRequirement(Data, itemBase.RequiredDexterity);
+                int reqInt = item.EffectiveRequirement(Data, itemBase.RequiredIntelligence);
+                if (reqStr > p.Stats.Strength + 0.01f)
                 {
-                    error = $"Requires {itemBase.RequiredStrength} Strength.";
+                    error = $"Requires {reqStr} Strength.";
                     return false;
                 }
-                if (itemBase.RequiredDexterity > p.Stats.Dexterity + 0.01f)
+                if (reqDex > p.Stats.Dexterity + 0.01f)
                 {
-                    error = $"Requires {itemBase.RequiredDexterity} Dexterity.";
+                    error = $"Requires {reqDex} Dexterity.";
                     return false;
                 }
-                if (itemBase.RequiredIntelligence > p.Stats.Intelligence + 0.01f)
+                if (reqInt > p.Stats.Intelligence + 0.01f)
                 {
-                    error = $"Requires {itemBase.RequiredIntelligence} Intelligence.";
+                    error = $"Requires {reqInt} Intelligence.";
                     return false;
                 }
 
