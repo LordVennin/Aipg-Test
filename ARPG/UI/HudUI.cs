@@ -26,6 +26,10 @@ public class HudUI
 
     public void AddMessage(string text) => _messages.Insert(0, (text, 4f));
 
+    /// <summary>The summon skill the command key currently drives (set by PlayScreen
+    /// each frame; highlighted in the summon roster beside the mana orb).</summary>
+    public string FocusedSummonSkillId;
+
     public void Update(float dt)
     {
         for (int i = _messages.Count - 1; i >= 0; i--)
@@ -75,6 +79,53 @@ public class HudUI
         string manaText = $"{me.Mana:0}/{maxMana:0}";
         var manaSize = font.MeasureString(manaText);
         sb.DrawString(font, manaText, new Vector2(manaRect.Center.X - manaSize.X / 2, manaRect.Center.Y - manaSize.Y / 2), Color.White);
+
+        // --- summon roster (left of the mana orb): one card per learned summon skill ---
+        // with its living count / limit; the focused card (the one the command key
+        // drives, cycled with Tab) gets a lit border.
+        var summonSkills = character.Skills
+            .Where(s => _data.Skills.GetValueOrDefault(s.SkillId)?.Archetype == SkillArchetype.Summon)
+            .ToList();
+        if (summonSkills.Count > 0)
+        {
+            var countFont = FontManager.GetBold(13);
+            var hintFont2 = FontManager.Get(11);
+            int cardW = 44, cardH = 52, cardGap = 6;
+            int cx = manaRect.X - 14 - summonSkills.Count * (cardW + cardGap);
+            int cy = screen.Y - cardH - 20;
+            foreach (var learnedSummon in summonSkills)
+            {
+                var sDef = _data.Skills[learnedSummon.SkillId];
+                int active = _client.World.Summons.Values.Count(su =>
+                    su.OwnerId == _client.World.MyPlayerId && su.SkillId == learnedSummon.SkillId);
+                int limit = sDef.SummonLimit + _client.World.MyStats.SummonLimitBonus;
+                bool focused = learnedSummon.SkillId == FocusedSummonSkillId;
+                var card = new Rectangle(cx, cy, cardW, cardH);
+                sb.Draw(TextureGen.Pixel, card, new Color(18, 20, 26, 220));
+                var borderC = focused ? new Color(190, 225, 160) : new Color(70, 70, 60);
+                sb.Draw(TextureGen.Pixel, new Rectangle(card.X, card.Y, card.Width, 2), borderC);
+                sb.Draw(TextureGen.Pixel, new Rectangle(card.X, card.Bottom - 2, card.Width, 2), borderC);
+                sb.Draw(TextureGen.Pixel, new Rectangle(card.X, card.Y, 2, card.Height), borderC);
+                sb.Draw(TextureGen.Pixel, new Rectangle(card.Right - 2, card.Y, 2, card.Height), borderC);
+                var minTex = SpriteGen.GetSummonSprite(learnedSummon.SkillId);
+                if (minTex != null)
+                    sb.Draw(minTex, new Rectangle(card.Center.X - minTex.Width / 2 - 6,
+                        card.Y + 3, minTex.Width, minTex.Height + 8), Color.White);
+                string cnt = $"{active}/{limit}";
+                var cntSize = countFont.MeasureString(cnt);
+                sb.DrawString(countFont, cnt,
+                    new Vector2(card.Center.X - cntSize.X / 2, card.Bottom - 17),
+                    active > 0 ? new Color(180, 230, 180) : new Color(130, 126, 116));
+                cx += cardW + cardGap;
+            }
+            if (summonSkills.Count > 1)
+            {
+                string cycleHint = $"{input.Bindings[InputAction.CycleSummonFocus].Display()} switch";
+                sb.DrawString(hintFont2, cycleHint,
+                    new Vector2(manaRect.X - 14 - summonSkills.Count * (cardW + cardGap), cy - 14),
+                    new Color(140, 136, 124));
+            }
+        }
 
         // Character level + name above the orb
         var nameFont = FontManager.Get(14);

@@ -97,7 +97,8 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Skill Menu | `K` |
 | Character Sheet (defenses, resistances, skill DPS by damage type) | `C` |
 | Passive Skill Tree | `P` |
-| Command summons: rally to the cursor (aim near yourself to recall) | `` ` `` (backquote) |
+| Command summons: TAP to rally the focused pack at the cursor, HOLD to order it back to following (aiming near yourself also recalls) | `` ` `` (backquote) |
+| Cycle summon focus (which pack the command key drives) | `Tab` |
 | Interact: talk to NPCs / pick up items | `F` (or click an item's ground label) |
 | Debug menu | `F1` |
 | Pause / close panels / menu | `Escape` |
@@ -199,22 +200,33 @@ appears in its Skill Menu (`K`) detail pane, so you decide when (and whether) a
 skill advances instead of over-leveling it by accident. The server validates the
 spend like any other request.
 
-**Summons — Skeleton Archers**: a learnable `Summon`-archetype skill that is NOT
-cast from the hotbar. In the Skill Menu (`K`), summon skills show **`+` and `−`
-buttons** (in the list row and the detail pane) to raise or dismiss skeletons.
-Each summon costs **10 flat mana + 5% of your max mana** (the flat part grows
-per skill level while the archers' health and damage scale up), with a limit of
-2 at level 1. Archers follow their summoner, pick the nearest enemy in range with
-a clear line of fire and shoot arrows (kill credit and XP go to the summoner).
-They have health bars, take damage — enemies will turn on them, and enemy
-projectiles hit them first — and die; a dead archer **respawns free** near the
-summoner after the skill's respawn time (6s base, modifiable). The backquote
-key (`` ` ``) rallies the pack to the cursor: rallied archers march to the point
-before picking fights, hold it, and fight from there; aiming the command at
-yourself (or clearing it) returns them to following. Three new gear modifiers
-feed them through the regular stat pipeline: **Commanding** (% summon damage,
-prefix, helmets + staffs), **of Undeath** (% summon health, suffix, helmets +
-staffs) and **of Legions** (+1/+2 summon limit, suffix, helmets only).
+**Summons**: learnable `Summon`-archetype skills that are NOT cast from the
+hotbar. In the Skill Menu (`K`), summon skills show **`+` and `−` buttons** (in
+the list row and the detail pane) to raise or dismiss minions. Each summon costs
+**flat mana + 5% of your max mana** (the flat part grows per skill level while
+the minions' health and damage scale up), with a limit of 2 per skill at level 1.
+Two summon skills exist so the command systems have something to differentiate:
+- **Skeleton Archers** (10 base mana): hold position and shoot arrows at the
+  nearest enemy with a clear line of fire (kill credit and XP go to the summoner).
+- **Skeleton Warriors** (12 base mana, tougher, harder-hitting, slower respawn):
+  charge enemies and cut them down at arm's reach — a distinct sprite with a
+  notched sword and scrap shield.
+
+Minions have health bars and take damage — enemies turn on them and enemy
+projectiles hit them first — and a dead minion **respawns free** near the
+summoner after its skill's respawn time. Summons softly collide with each other
+(the same push-apart enemies use), so packs fan out instead of stacking into one
+sprite. A **summon roster** sits beside the mana orb: one card per learned summon
+skill with its living count / limit; `Tab` cycles which pack is FOCUSED (lit
+border). The backquote key (`` ` ``) commands the focused pack: **tap** to rally
+it at the cursor — rallied minions march to the point before picking fights,
+then hold it (rallied warriors still chase prey near their post, or they could
+never swing) — and **hold** the key to order it back to following you. Because
+rallies are stored PER SKILL server-side, archers can hold a ridge while the
+warriors hold a doorway. Three gear modifiers feed all summons through the
+regular stat pipeline: **Commanding** (% summon damage, prefix, helmets +
+staffs), **of Undeath** (% summon health, suffix, helmets + staffs) and **of
+Legions** (+1/+2 summon limit, suffix, helmets only).
 
 **Use time (global cast lockout)**: every skill declares a `UseTime` — a global
 lockout (enforced server-side, mirrored client-side on the hotbar) that stops the
@@ -317,6 +329,15 @@ carve (`CarveDemoTerrain`) with two plateau levels, a tall cliff wall, transitio
 inset into the cliff edges (a smooth ramp AND a stairs variant — the same tile data
 with a per-tile render style), and a bridge over a walkable corridor — the
 scaffolding a real generator can later replace tile by tile.
+
+**Water** is a second kind of impassable tile: unlike walls it has no height, so
+nothing can WALK onto it, but shots, sight lines and effects pass freely over the
+surface (and a bridge deck above water stays walkable). The generator floods a few
+noisy-ellipse ponds on open level-0 ground from their own seeded stream — never in
+the authored demo region, near the player spawn, or under walls/ramps/bridges/
+features — and enemy spawn points, dirt paths, clutter and the pathfinding flow
+field all steer around them. Ponds render as depth-shaded blue with shore foam on
+land edges and slow drifting glints.
 
 Terrain renders from runtime-baked isometric prism sprites (`TextureGen`): each
 wall/cliff column draws a top diamond plus two sheared side faces whose edges match
@@ -503,7 +524,7 @@ keyboard input; `summons` learns Skeleton Archers and raises a pack).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (275 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (291 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

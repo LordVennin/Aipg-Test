@@ -1999,7 +1999,7 @@ public static class HeadlessNetTest
 
         // Rally: the backquote command walks the pack to a marked point.
         var rallyPoint = srvSum.Position + new Vector2(0f, 4f);
-        clientB.RequestSummonRally(true, rallyPoint);
+        clientB.RequestSummonRally("summon_skeleton", true, rallyPoint);
         bool rallied = false;
         for (int i = 0; i < 30 && !rallied; i++)
         {
@@ -2008,9 +2008,10 @@ public static class HeadlessNetTest
                 .All(su => Vector2.Distance(su.Position, rallyPoint) < 1.6f);
         }
         Check(rallied, "rallied summons hold the marked point");
-        clientB.RequestSummonRally(false, default);
+        clientB.RequestSummonRally("summon_skeleton", false, default);
         Pump(0.3f);
-        Check(srvSum.SummonRally == null, "clearing the rally returns them to following");
+        Check(!srvSum.SummonRallies.ContainsKey("summon_skeleton"),
+              "clearing the rally returns them to following");
 
         // The - button dismisses one.
         clientB.RequestSummonAdjust("summon_skeleton", -1);
@@ -2047,6 +2048,118 @@ public static class HeadlessNetTest
         sumPrey.Health = 1f;
         clientB.SendDebugCommand("kill_nearby");
         Pump(0.4f);
+
+        Console.WriteLine("\n-- Skeleton warriors, per-skill rally, summon separation --");
+        clientB.RequestLearnSkill("summon_skeleton_warrior");
+        Pump(0.4f);
+        var warDef = data.Skills["summon_skeleton_warrior"];
+        Check(warDef.SummonMelee && warDef.Archetype == Skills.SkillArchetype.Summon,
+              "Skeleton Warriors are a melee summon skill");
+        srvSum.Mana = srvSum.Stats.MaxMana;
+        clientB.RequestSummonAdjust("summon_skeleton_warrior", +1);
+        Pump(0.3f);
+        srvSum.Mana = srvSum.Stats.MaxMana;
+        clientB.RequestSummonAdjust("summon_skeleton_warrior", +1);
+        Pump(0.3f);
+        var warriors = server.World.Summons.Values
+            .Where(su => su.OwnerId == bId && su.SkillId == "summon_skeleton_warrior").ToList();
+        Check(warriors.Count == 2 && warriors.All(su => su.Melee), "two melee warriors raised");
+        Check(clientA.World.Summons.Values.Count(su => su.SkillId == "summon_skeleton_warrior") == 2,
+              "warriors replicate with their skill id (distinct sprite)");
+
+        // Separation: stack the pair on one spot; the soft push must fan them out.
+        warriors[1].Position = warriors[0].Position;
+        Pump(0.8f);
+        float apart = Vector2.Distance(warriors[0].Position, warriors[1].Position);
+        Check(apart > 0.45f, $"summons push apart instead of stacking ({apart:0.00})");
+
+        // Melee: warriors close to arm's reach and swing (no arrow projectiles).
+        var warPrey = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(2.5f, 0));
+        warPrey.Health = 60f;
+        warPrey.StunnedUntil = server.World.Time + 60f;
+        bool bitten = false;
+        for (int i = 0; i < 50 && !bitten; i++)
+        {
+            Pump(0.2f);
+            bitten = warPrey.Dead || warPrey.Health < 59.9f;
+        }
+        Check(bitten, "warriors close to melee range and hit");
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.4f);
+
+        // Per-skill rallies: warriors hold a mark while the archers keep following.
+        srvSum.Mana = srvSum.Stats.MaxMana;
+        clientB.RequestSummonAdjust("summon_skeleton", +1);
+        Pump(0.3f);
+        var warRally = srvSum.Position + new Vector2(-4f, 0f);
+        clientB.RequestSummonRally("summon_skeleton_warrior", true, warRally);
+        Pump(0.3f);
+        Check(srvSum.SummonRallies.ContainsKey("summon_skeleton_warrior") &&
+              !srvSum.SummonRallies.ContainsKey("summon_skeleton"),
+              "rallies are stored per summon skill");
+        bool warHeld = false;
+        for (int i = 0; i < 30 && !warHeld; i++)
+        {
+            Pump(0.3f);
+            warHeld = server.World.Summons.Values
+                .Where(su => su.SkillId == "summon_skeleton_warrior")
+                .All(su => Vector2.Distance(su.Position, warRally) < 1.6f);
+        }
+        Check(warHeld, "rallied warriors hold their own mark");
+        var followArcher = server.World.Summons.Values.First(su => su.SkillId == "summon_skeleton");
+        Check(Vector2.Distance(followArcher.Position, srvSum.Position) < 3f,
+              "archers keep following while the warriors are rallied");
+        clientB.RequestSummonRally("", false, default);
+        Pump(0.3f);
+        Check(srvSum.SummonRallies.Count == 0, "an empty-skill command clears every rally");
+        foreach (var skl in new[] { "summon_skeleton", "summon_skeleton_warrior" })
+        {
+            clientB.RequestSummonAdjust(skl, -1);
+            clientB.RequestSummonAdjust(skl, -1);
+        }
+        Pump(0.4f);
+
+        Console.WriteLine("\n-- Water tiles --");
+        var wmap = server.World.Map;
+        var wTiles = new List<(int x, int y)>();
+        for (int wy = 0; wy < wmap.Height; wy++)
+            for (int wx = 0; wx < wmap.Width; wx++)
+                if (wmap.IsWater(wx, wy)) wTiles.Add((wx, wy));
+        Check(wTiles.Count >= 5, $"the generator floods ponds ({wTiles.Count} water tiles)");
+        Check(wTiles.All(t => !wmap.IsSolid(t.x, t.y)),
+              "water is its own impassable kind, not a wall");
+        // A water tile bordered by open level-0 land: walkers must be refused entry.
+        (int lx, int ly) land = (-1, -1);
+        (int x, int y) pondEdge = (-1, -1);
+        foreach (var (ax, ay) in wTiles)
+        {
+            foreach (var (dx, dy) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+            {
+                int nx = ax + dx, ny = ay + dy;
+                if (!wmap.IsWater(nx, ny) && !wmap.IsSolid(nx, ny) &&
+                    wmap.GroundLevel(nx, ny) == 0 && wmap.Ramp(nx, ny) == World.RampDirection.None)
+                {
+                    land = (nx, ny);
+                    pondEdge = (ax, ay);
+                    break;
+                }
+            }
+            if (land.lx >= 0) break;
+        }
+        Check(land.lx >= 0, "a pond has a walkable shore");
+        var pondCenter = new Vector2(pondEdge.x + 0.5f, pondEdge.y + 0.5f);
+        Check(wmap.SampleHeight(pondCenter, 0f) == null, "water offers no walkable surface");
+        var wader = new Vector2(land.lx + 0.5f, land.ly + 0.5f);
+        var inward = Vector2.Normalize(pondCenter - wader);
+        float wadeH = wmap.GroundHeightAt(wader);
+        for (int i = 0; i < 80; i++)
+            wader = wmap.MoveWithCollision(wader, inward * 0.08f, 0.3f, ref wadeH);
+        Check(!wmap.IsWater((int)MathF.Floor(wader.X), (int)MathF.Floor(wader.Y)),
+              "walkers cannot cross onto water");
+        Check(!wmap.ShotBlocked(new Vector2(land.lx + 0.5f, land.ly + 0.5f), 0.5f, pondCenter, 0.5f),
+              "shots fly freely over the pond surface");
+        Check(wmap.EnemySpawns.All(sp => !wmap.IsWater((int)sp.X, (int)sp.Y)),
+              "enemy spawn points avoid water");
 
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();

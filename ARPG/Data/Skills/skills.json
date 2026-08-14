@@ -194,7 +194,7 @@
  {
   "Id": "summon_skeleton",
   "Name": "Summon Skeleton Archers",
-  "Description": "Raise skeletal archers that follow you and pepper your enemies with arrows. Managed from this menu with + and - (they cost mana per summon); press ` to rally them to a point. Fallen archers rise again near you for free.",
+  "Description": "Raise skeletal archers that follow you and pepper your enemies with arrows. Managed from this menu with + and - (they cost mana per summon); tap ` to rally them to a point, hold ` to call them back. Fallen archers rise again near you for free.",
   "Tags": [
    "Spell",
    "Summon"
@@ -211,6 +211,30 @@
   "SummonDamage": 6,
   "SummonDamagePerLevel": 2.5,
   "SummonRespawnTime": 6,
+  "Cooldown": 0.5,
+  "UseTime": 0.35
+ },
+ {
+  "Id": "summon_skeleton_warrior",
+  "Name": "Summon Skeleton Warriors",
+  "Description": "Raise skeletal warriors that charge your enemies and cut them down at arm's reach. Managed from this menu with + and - (they cost mana per summon); tap ` to rally them to a point, hold ` to call them back. Fallen warriors rise again near you for free.",
+  "Tags": [
+   "Spell",
+   "Summon"
+  ],
+  "Archetype": "Summon",
+  "DamageKind": "Slash",
+  "UsesWeaponDamage": false,
+  "ManaCost": 12,
+  "ManaCostPerLevel": 6,
+  "ManaCostPctMax": 0.05,
+  "SummonLimit": 2,
+  "SummonHealth": 48,
+  "SummonHealthPerLevel": 18,
+  "SummonDamage": 8,
+  "SummonDamagePerLevel": 3,
+  "SummonRespawnTime": 8,
+  "SummonMelee": true,
   "Cooldown": 0.5,
   "UseTime": 0.35
  }

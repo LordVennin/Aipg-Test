@@ -117,7 +117,7 @@ public class WorldRenderer
         var rng = new Random(map.Seed ^ 0x50415448);
         bool Walkable(int tx, int ty) =>
             tx > 0 && ty > 0 && tx < map.Width - 1 && ty < map.Height - 1 &&
-            !map.IsSolid(tx, ty) && map.Ramp(tx, ty) == RampDirection.None &&
+            !map.IsSolid(tx, ty) && !map.IsWater(tx, ty) && map.Ramp(tx, ty) == RampDirection.None &&
             map.GroundLevel(tx, ty) == 0 && map.BridgeLevel(tx, ty) == 0;
         void Mark(int tx, int ty)
         {
@@ -187,7 +187,8 @@ public class WorldRenderer
                         _features.Add((x, y, wall, $"{style}:feature:{(n >> 16) % 2}"));
                     continue;
                 }
-                if (wall > 0 || map.Ramp(x, y) != RampDirection.None || map.BridgeLevel(x, y) > 0)
+                if (wall > 0 || map.Ramp(x, y) != RampDirection.None || map.BridgeLevel(x, y) > 0 ||
+                    map.IsWater(x, y))
                     continue;
                 if (_pathTiles.Contains(y * map.Width + x)) continue; // trails stay clear
                 if (roll < Theme.ClutterDensity)
@@ -244,6 +245,33 @@ public class WorldRenderer
                 var screen = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f));
                 if (screen.X < -80 || screen.X > camera.ScreenWidth + 80 ||
                     screen.Y < -80 || screen.Y > camera.ScreenHeight + 80) continue;
+                if (map.IsWater(x, y))
+                {
+                    // Water: deep-to-shallow blue by noise, with slow drifting glints.
+                    uint wn = TileHash(map.Seed, x, y);
+                    float depthN = GroundNoise(map.Seed ^ 0x0BADCAFE, x, y);
+                    var waterShade = LerpColor(new Color(24, 52, 92), new Color(38, 78, 122), depthN);
+                    sb.Draw(TextureGen.DiamondFlat, new Vector2((int)screen.X - 32, (int)screen.Y - 16), waterShade);
+                    // Shore foam: a light lip on edges that touch land.
+                    bool Shore(int nx, int ny) => !map.IsWater(nx, ny) && !map.IsSolid(nx, ny);
+                    var foam = new Color(150, 190, 210);
+                    if (Shore(x, y - 1)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 2, (int)screen.Y - 15, 6, 1), foam);
+                    if (Shore(x, y + 1)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 4, (int)screen.Y + 13, 6, 1), foam);
+                    if (Shore(x - 1, y)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 30, (int)screen.Y - 1, 5, 1), foam);
+                    if (Shore(x + 1, y)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X + 25, (int)screen.Y - 1, 5, 1), foam);
+                    // Two glints per tile, sliding slowly so the surface reads as liquid.
+                    int t = Environment.TickCount;
+                    for (int g = 0; g < 2; g++)
+                    {
+                        int phase = (int)((wn >> (g * 7)) & 1023);
+                        float drift = ((t / 90 + phase) % 40) / 40f;
+                        int gx = (int)(8 + ((wn >> (g * 11)) % 40) + drift * 8) % 56;
+                        int gy = (int)(4 + ((wn >> (g * 5)) % 22));
+                        sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + gx, (int)screen.Y - 16 + gy, 2, 1),
+                            new Color(120, 170, 205));
+                    }
+                    continue;
+                }
                 if (!organic)
                 {
                     var tint = ((x + y) & 1) == 0 ? floorA : floorB;
@@ -695,7 +723,7 @@ public class WorldRenderer
         {
             var pos = summon.Position;
             var screen = camera.WorldToScreen(pos, summon.Height);
-            var summonTex = SpriteGen.GetSummonSprite();
+            var summonTex = SpriteGen.GetSummonSprite(summon.SkillId);
             if (summonTex == null) continue;
             bool mine = summon.OwnerId == world.MyPlayerId;
             _sorted.Add((pos.X + pos.Y + summon.Height * 1.0f + 0.1f + UnderDeckBias(pos, summon.Height), batch =>

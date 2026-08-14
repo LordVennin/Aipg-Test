@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 15; // v15: summons, manual skill leveling
+    public const int ProtocolVersion = 16; // v16: per-skill rallies, warriors, water tiles
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }
