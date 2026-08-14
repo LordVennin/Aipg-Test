@@ -21,6 +21,9 @@ public class ClientPlayer
     public float MaxHealth;
     /// <summary>Current mana (server-authoritative; meaningful for the local player's orb).</summary>
     public float Mana;
+    /// <summary>Energy Shield: absorbed before life, replicated with health updates.</summary>
+    public float EnergyShield;
+    public float MaxEnergyShield;
     public bool Alive = true;
     public bool IsLocal;
     /// <summary>Latest round-trip ping in ms (from PlayerPings packets), for the player list.</summary>

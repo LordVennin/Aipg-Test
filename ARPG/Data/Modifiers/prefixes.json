@@ -4083,5 +4083,405 @@
   "MaximumValue": 44,
   "Weight": 100,
   "IsPercent": true
+ },
+ {
+  "Id": "deflecting",
+  "Name": "Deflecting I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 12,
+  "MaximumValue": 18,
+  "Weight": 100,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting2",
+  "Name": "Deflecting II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 21,
+  "MaximumValue": 31,
+  "Weight": 90,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting3",
+  "Name": "Deflecting III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 29,
+  "MaximumValue": 44,
+  "Weight": 80,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting4",
+  "Name": "Deflecting IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 38,
+  "MaximumValue": 57,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting5",
+  "Name": "Deflecting V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 47,
+  "MaximumValue": 70,
+  "Weight": 60,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting6",
+  "Name": "Deflecting VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 55,
+  "MaximumValue": 83,
+  "Weight": 50,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting7",
+  "Name": "Deflecting VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 64,
+  "MaximumValue": 96,
+  "Weight": 40,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting8",
+  "Name": "Deflecting VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 24,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 73,
+  "MaximumValue": 109,
+  "Weight": 30,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting9",
+  "Name": "Deflecting IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 28,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 81,
+  "MaximumValue": 122,
+  "Weight": 20,
+  "IsPercent": false
+ },
+ {
+  "Id": "deflecting10",
+  "Name": "Deflecting X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 32,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "deflection_prefix",
+  "StatAffected": "DeflectionRating",
+  "MinimumValue": 90,
+  "MaximumValue": 135,
+  "Weight": 10,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering",
+  "Name": "Shimmering I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 100,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering2",
+  "Name": "Shimmering II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 10,
+  "MaximumValue": 15,
+  "Weight": 90,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering3",
+  "Name": "Shimmering III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 14,
+  "MaximumValue": 20,
+  "Weight": 80,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering4",
+  "Name": "Shimmering IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 17,
+  "MaximumValue": 26,
+  "Weight": 70,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering5",
+  "Name": "Shimmering V",
+  "AffixType": "Prefix",
+  "Tier": 5,
+  "MinimumItemLevel": 12,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 21,
+  "MaximumValue": 32,
+  "Weight": 60,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering6",
+  "Name": "Shimmering VI",
+  "AffixType": "Prefix",
+  "Tier": 6,
+  "MinimumItemLevel": 16,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 25,
+  "MaximumValue": 37,
+  "Weight": 50,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering7",
+  "Name": "Shimmering VII",
+  "AffixType": "Prefix",
+  "Tier": 7,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 29,
+  "MaximumValue": 43,
+  "Weight": 40,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering8",
+  "Name": "Shimmering VIII",
+  "AffixType": "Prefix",
+  "Tier": 8,
+  "MinimumItemLevel": 24,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 32,
+  "MaximumValue": 49,
+  "Weight": 30,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering9",
+  "Name": "Shimmering IX",
+  "AffixType": "Prefix",
+  "Tier": 9,
+  "MinimumItemLevel": 28,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 36,
+  "MaximumValue": 54,
+  "Weight": 20,
+  "IsPercent": false
+ },
+ {
+  "Id": "shimmering10",
+  "Name": "Shimmering X",
+  "AffixType": "Prefix",
+  "Tier": 10,
+  "MinimumItemLevel": 32,
+  "CompatibleItemCategories": [
+   "Helmet",
+   "BodyArmor",
+   "Gloves",
+   "Boots",
+   "Belt"
+  ],
+  "ModifierGroup": "energy_shield_prefix",
+  "StatAffected": "EnergyShield",
+  "MinimumValue": 40,
+  "MaximumValue": 60,
+  "Weight": 10,
+  "IsPercent": false
  }
 ]

@@ -434,7 +434,15 @@ public class GameClient
             {
                 int id = r.GetInt();
                 float hp = r.GetFloat(), maxHp = r.GetFloat(), mana = r.GetFloat();
-                if (World.Players.TryGetValue(id, out var p)) { p.Health = hp; p.MaxHealth = maxHp; p.Mana = mana; }
+                float es = r.GetFloat(), maxEs = r.GetFloat();
+                if (World.Players.TryGetValue(id, out var p))
+                {
+                    p.Health = hp;
+                    p.MaxHealth = maxHp;
+                    p.Mana = mana;
+                    p.EnergyShield = es;
+                    p.MaxEnergyShield = maxEs;
+                }
                 break;
             }
 

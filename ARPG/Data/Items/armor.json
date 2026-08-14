@@ -8,7 +8,9 @@
     "RequiredLevel": 1,
     "BaseModifierLimit": 6,
     "DropWeight": 100,
-    "BaseStats": { "Armor": 15 }
+    "BaseStats": {
+      "Armor": 15
+    }
   },
   {
     "Id": "padded_vest",
@@ -19,7 +21,9 @@
     "RequiredLevel": 1,
     "BaseModifierLimit": 6,
     "DropWeight": 100,
-    "BaseStats": { "Armor": 30 }
+    "BaseStats": {
+      "Armor": 30
+    }
   },
   {
     "Id": "worn_gloves",
@@ -30,7 +34,9 @@
     "RequiredLevel": 1,
     "BaseModifierLimit": 6,
     "DropWeight": 100,
-    "BaseStats": { "Armor": 10 }
+    "BaseStats": {
+      "Armor": 10
+    }
   },
   {
     "Id": "sturdy_boots",
@@ -41,7 +47,9 @@
     "RequiredLevel": 1,
     "BaseModifierLimit": 6,
     "DropWeight": 100,
-    "BaseStats": { "Armor": 10 }
+    "BaseStats": {
+      "Armor": 10
+    }
   },
   {
     "Id": "rope_belt",
@@ -52,7 +60,9 @@
     "RequiredLevel": 1,
     "BaseModifierLimit": 6,
     "DropWeight": 100,
-    "BaseStats": { "Armor": 5 }
+    "BaseStats": {
+      "Armor": 5
+    }
   },
   {
     "Id": "bone_amulet",
@@ -63,7 +73,9 @@
     "RequiredLevel": 1,
     "BaseModifierLimit": 6,
     "DropWeight": 70,
-    "BaseStats": { "MaxHealth": 10 }
+    "BaseStats": {
+      "MaxHealth": 10
+    }
   },
   {
     "Id": "copper_ring",
@@ -74,7 +86,9 @@
     "RequiredLevel": 1,
     "BaseModifierLimit": 6,
     "DropWeight": 80,
-    "BaseStats": { "FireResistance": 5 }
+    "BaseStats": {
+      "FireResistance": 5
+    }
   },
   {
     "Id": "silver_ring",
@@ -85,6 +99,98 @@
     "RequiredLevel": 3,
     "BaseModifierLimit": 6,
     "DropWeight": 60,
-    "BaseStats": { "ColdResistance": 5 }
+    "BaseStats": {
+      "ColdResistance": 5
+    }
+  },
+  {
+    "Id": "iron_plate",
+    "Name": "Iron Plate",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 60,
+    "BaseStats": {
+      "Armor": 55
+    },
+    "RequiredStrength": 14
+  },
+  {
+    "Id": "hunters_jerkin",
+    "Name": "Hunter's Jerkin",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 60,
+    "BaseStats": {
+      "DeflectionRating": 90
+    },
+    "RequiredDexterity": 14
+  },
+  {
+    "Id": "apprentice_robe",
+    "Name": "Apprentice Robe",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 60,
+    "BaseStats": {
+      "EnergyShield": 28
+    },
+    "RequiredIntelligence": 14
+  },
+  {
+    "Id": "brigandine",
+    "Name": "Brigandine",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 60,
+    "BaseStats": {
+      "Armor": 30,
+      "DeflectionRating": 50
+    },
+    "RequiredStrength": 8,
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "battlemage_plate",
+    "Name": "Battlemage Plate",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 60,
+    "BaseStats": {
+      "Armor": 30,
+      "EnergyShield": 16
+    },
+    "RequiredStrength": 8,
+    "RequiredIntelligence": 8
+  },
+  {
+    "Id": "shadowweave_garb",
+    "Name": "Shadowweave Garb",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 2,
+    "BaseModifierLimit": 6,
+    "DropWeight": 60,
+    "BaseStats": {
+      "DeflectionRating": 50,
+      "EnergyShield": 16
+    },
+    "RequiredDexterity": 8,
+    "RequiredIntelligence": 8
   }
 ]

@@ -52,6 +52,12 @@ public class ItemBase
     public int InventoryHeight { get; set; } = 1;
     public int RequiredLevel { get; set; } = 1;
 
+    /// <summary>Attribute requirements to EQUIP (0 = none). Checked server-side against
+    /// the character's computed attributes and shown in tooltips like the level.</summary>
+    public int RequiredStrength { get; set; }
+    public int RequiredDexterity { get; set; }
+    public int RequiredIntelligence { get; set; }
+
     /// <summary>Base modifier capacity of items generated from this base. NOT a global constant —
     /// each item's effective limit = BaseModifierLimit + any ModifierLimit stat rolled on the item.</summary>
     public int BaseModifierLimit { get; set; } = 6;
