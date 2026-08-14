@@ -47,7 +47,7 @@ public static class Deflection
     public static float ChanceFromRating(float rating, int level)
     {
         if (rating <= 0f) return 0f;
-        float denom = rating + 20f + 8f * level;
+        float denom = rating + 30f + 14f * level;
         return MathF.Min(InitialChanceCap, 100f * rating / denom);
     }
 
@@ -70,6 +70,51 @@ public static class Deflection
                 mult *= 1f - ReductionPerLayer;
         return mult;
     }
+}
+
+/// <summary>Armor (the STR defense): physical mitigation with a soft cap whose
+/// denominator GROWS with character level — flat armor must keep growing to hold
+/// its reduction, exactly like Deflection's rating curve.</summary>
+public static class ArmorBalance
+{
+    public const float SoftCapBase = 40f;
+    public const float SoftCapPerLevel = 10f;
+
+    public static float PhysicalReduction(float armor, int level) =>
+        armor <= 0f ? 0f : armor / (armor + SoftCapBase + SoftCapPerLevel * level);
+}
+
+/// <summary>Character/skill XP awards: kills below your level pay less, scaling with
+/// the gap; everything centralized for the balance pass.</summary>
+public static class XpBalance
+{
+    /// <summary>Kills within this many levels of the player pay full XP.</summary>
+    public const int FullXpLevelGrace = 2;
+    /// <summary>XP lost per level the enemy sits below the grace window.</summary>
+    public const float PenaltyPerLevelBelow = 0.25f;
+    /// <summary>Grossly under-leveled kills still trickle this fraction.</summary>
+    public const float MinimumFactor = 0.1f;
+
+    public static float LevelFactor(int playerLevel, int enemyLevel)
+    {
+        int below = playerLevel - enemyLevel - FullXpLevelGrace;
+        if (below <= 0) return 1f;
+        return MathF.Max(MinimumFactor, 1f - PenaltyPerLevelBelow * below);
+    }
+}
+
+/// <summary>Enemy LEVEL scaling: any enemy type can be reused at a higher level (zone
+/// settings / spawner overrides) — health, damage and XP scale from the def's native
+/// level through these curves, so a "zombie" works in a late-game stage unchanged.</summary>
+public static class EnemyLevelScaling
+{
+    public const float HealthPerLevel = 0.16f;
+    public const float DamagePerLevel = 0.14f;
+    public const float XpPerLevel = 0.22f;
+
+    public static float Health(int levelsAboveDef) => 1f + HealthPerLevel * MathF.Max(0, levelsAboveDef);
+    public static float Damage(int levelsAboveDef) => 1f + DamagePerLevel * MathF.Max(0, levelsAboveDef);
+    public static float Xp(int levelsAboveDef) => 1f + XpPerLevel * MathF.Max(0, levelsAboveDef);
 }
 
 /// <summary>Energy Shield (the INT defense): absorbed before life; recharges after not

@@ -1,0 +1,130 @@
+# Balance Changes — pre-generation pass
+
+Every number here is data or a constant in `ARPG/Stats/Defense.cs` — nothing is
+buried in gameplay code. This file is the review list for the pass that preceded
+the generation/room-loop work.
+
+## XP & leveling
+
+| Change | Before | After |
+|---|---|---|
+| Gravebound Grunt XP | 18 | **11** |
+| Grave Spitter XP | 26 | **16** |
+| Barrow Knight XP | 34 | **20** |
+| The Gravelord XP | 260 | **150** |
+| Under-level kill penalty | none | **−25% XP per level** the enemy is more than **2 levels** below you, floor **10%** (`XpBalance`) |
+
+Example: a level 13 character killing a level 8 grunt gets 25% XP; a level 40
+character farming level-1 grunts gets the 10% floor.
+
+## Enemy level scaling (new system)
+
+`SpawnEnemy(..., level: N)`, plus `EnemyLevel` on every spawner/pack, spawns any
+enemy type above its native level. Per level above the def (`EnemyLevelScaling`):
+
+| Stat | Per level above native |
+|---|---|
+| Max health | **+16%** |
+| Damage | **+14%** |
+| XP reward | **+22%** |
+
+A level-11 "zombie" (native 1) has 2.6× health, 2.4× damage, 3.2× XP. This is
+the knob for reusing early enemies in late-game stages — set one number on the
+zone/spawner.
+
+## Enemy damage (up ~40%)
+
+| Enemy | Before | After |
+|---|---|---|
+| Grunt | 4 Blunt + 3 Acid | **6 Blunt + 4 Acid** |
+| Spitter | 8 Acid | **11 Acid** |
+| Barrow Knight | 8 Slash + 2 Dark | **11 Slash + 3 Dark** |
+| Gravelord | 9 Blunt + 5 Dark (slam 16) | **13 Blunt + 7 Dark (slam 22)** |
+
+## Deflection & Armor nerfs
+
+| Knob | Before | After |
+|---|---|---|
+| Deflection chance formula | `rating / (rating + 20 + 8·level)` | `rating / (rating + **30 + 14·level**)` |
+| Armor reduction formula | `armor / (armor + 60)` (flat) | `armor / (armor + **40 + 10·level**)` (level-scaled, `ArmorBalance`) |
+
+Both defenses now decay with level unless gear keeps up — a fresh character's
+20 rating is 29% initial chance at level 1 and ~3% at level 40.
+
+Gear values (roughly −30% across the board):
+
+| Piece | Before → After |
+|---|---|
+| Leather Hood / Padded Vest / Worn Gloves / Sturdy Boots / Rope Belt (Armor) | 15/30/10/10/5 → **10/20/7/7/4** |
+| Iron set (Armor) | 20/38/14/14 → **14/26/10/10** |
+| Warplate set (Armor) | 32/55/22/22 → **22/38/15/15** |
+| Hide set (Deflection) | 35/62/24/24 → **24/44/17/17** |
+| Hunter's set (Deflection) | 52/90/38/38 → **36/62/26/26** |
+| Cloth / Silk sets (Energy Shield) | unchanged (10/19/7/7 and 16/28/12/12) |
+| Hybrid bodies (~60% of pure tier-2) | Brigandine **23 Armor + 37 Defl** · Battlemage **23 Armor + 17 ES** · Shadowweave **37 Defl + 17 ES** |
+
+DEX still grants 2 rating per point — the harsher chance formula is the nerf.
+
+## Item level 1–100 stretch
+
+Modifier tiers (both prefixes.json and suffixes.json, every family):
+
+| Tier | Old min ilvl | New min ilvl |
+|---|---|---|
+| 1 | 1 | 1 |
+| 2 | 1 | **10** |
+| 3 | 4 | **20** |
+| 4 | 8 | **30** |
+| 5 | 12 | **40** |
+| 6 | 16 | **50** |
+| 7 | 20 | **60** |
+| 8 | 24 | **70** |
+| 9 | 28 | **80** |
+| 10 | 32 | **90** |
+
+Gear required levels:
+
+| Gear | Old | New |
+|---|---|---|
+| Starter armor (Leather/Padded/etc.) | 1 | 1 |
+| Tier-1 sets (Iron / Hide / Cloth) | 2 | **5** |
+| Hybrid bodies | 2 | **20** |
+| Tier-2 sets (Warplate / Hunter's / Silk) | 2–6 | **30** |
+| Wooden Club / Oak Staff / Buckler | 1 | 1 |
+| Iron Mace / Mystic Staff / Kite Shield | 4–5 | **15** |
+| Heavy War Mace / Arcane Staff / Tower Shield | 8–9 | **35** |
+
+(There is deliberately no gear past level 35 yet — new tiers slot into the
+40–100 band as zones for them exist. Attribute requirements unchanged: ~8 tier
+1, ~14 tier 2.) The F1 "give weapon/shield" debug commands now hand out gear
+the character can actually equip.
+
+## Fixes riding this pass (not number changes)
+
+- **Summon pathfinding**: summons route via flow fields — the owner's live
+  field when following, a one-shot BFS field from the rally point when rallied —
+  instead of naive point-chasing that wedged on walls.
+- **Aggro symmetry**: enemies aggro, chase and attack SUMMONS with the same
+  rules as players (nearest threat wins, same leash) — a pack fighting far from
+  its owner gets fought back, and summons no longer tank without retaliation
+  bugs when commanded outside the player's own aggro bubble.
+- **Summon scrolls**: Skeleton Warriors carry the `Melee` tag, Archers the
+  `Projectile` tag — melee/projectile Skill Scrolls attach and their effects
+  ride the summons' attacks (attack speed via the skill's cooldown ratio, extra
+  Multishot arrows, all on-hit ailment chances on both arrows and sword hits).
+
+## Suggested next balance targets (not changed yet)
+
+1. **Life regeneration**: flat regen rolls don't scale with level, but they're
+   what makes melee unkillable early — consider %-of-max regen values or a
+   "recent damage" gate like ES has.
+2. **Knockback stunlock**: repeated knockback keeps melee enemies out of swing
+   range permanently; diminishing knockback per recent hit would let the enemy
+   damage buff actually land.
+3. **Crit**: chance is capped (75) but crit damage stacks without limit —
+   fine now, watch it when tier 6+ suffixes come into play.
+4. **Boss slam** has no telegraph decal — with enemy damage up it may deserve
+   the wind-up treatment melee got.
+5. **Shop prices** don't scale with character level — gold inflates by mid-game.
+6. **ES recharge in combat**: 4s delay is generous while kiting; consider 5-6s
+   once the room loop makes disengaging harder.

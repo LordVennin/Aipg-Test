@@ -120,6 +120,10 @@ public class ServerEnemy
 {
     public int Id;
     public EnemyDefinition Def;
+    /// <summary>Effective level: the def's native level, or a spawner/zone override —
+    /// health/damage/XP scale up through EnemyLevelScaling, and XP awards compare
+    /// against this for the under-level kill penalty.</summary>
+    public int Level;
     public Vector2 Position;
     /// <summary>Surface height in elevation levels (see GameMap).</summary>
     public float Height;
@@ -246,6 +250,9 @@ public class EnemySpawner
 {
     public Vector2 Position;
     public string EnemyTypeId;
+    /// <summary>0 = the def's native level; otherwise spawn at this level (stats/XP
+    /// scale through EnemyLevelScaling — reuse any enemy type in late-game zones).</summary>
+    public int EnemyLevel;
     public int AliveEnemyId = -1;
     public float RespawnAt;
 }
@@ -260,6 +267,8 @@ public class PackSpawner
     public (string typeId, int count)[] Entries;
     /// <summary>Affixes applied to the FIRST spawned member (the leader). None = no elite.</summary>
     public EliteAffix LeaderAffixes;
+    /// <summary>0 = each def's native level; otherwise every member spawns at this level.</summary>
+    public int EnemyLevel;
     public float ScatterRadius = 1.4f;
     public float RespawnDelay = 45f;
     public readonly List<int> AliveIds = new();

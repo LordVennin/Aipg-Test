@@ -221,6 +221,8 @@ public partial class ServerWorld
     {
         Players.Remove(id);
         _flow.Remove(id);
+        foreach (var key in _rallyFields.Keys.Where(k => k.playerId == id).ToList())
+            _rallyFields.Remove(key);
     }
 
     /// <summary>Movement is client-computed for responsiveness; the server sanity-clamps it.
@@ -369,7 +371,7 @@ public partial class ServerWorld
                     if (Map.CircleHitsWall(pos, 0.4f)) pos = pack.Position;
                     var affixes = leaderPlaced ? EliteAffix.None : pack.LeaderAffixes;
                     leaderPlaced = true;
-                    var member = SpawnEnemy(typeId, pos, affixes, pi);
+                    var member = SpawnEnemy(typeId, pos, affixes, pi, pack.EnemyLevel);
                     pack.AliveIds.Add(member.Id);
                 }
         }
@@ -387,7 +389,7 @@ public partial class ServerWorld
             }
             if (Time >= spawner.RespawnAt && alive < MaxEnemies)
             {
-                var enemy = SpawnEnemy(spawner.EnemyTypeId, spawner.Position);
+                var enemy = SpawnEnemy(spawner.EnemyTypeId, spawner.Position, level: spawner.EnemyLevel);
                 spawner.AliveEnemyId = enemy.Id;
                 spawner.RespawnAt = 0;
                 alive++;
@@ -395,7 +397,8 @@ public partial class ServerWorld
         }
     }
 
-    public ServerEnemy SpawnEnemy(string typeId, Vector2 pos, EliteAffix affixes = EliteAffix.None, int packId = -1)
+    public ServerEnemy SpawnEnemy(string typeId, Vector2 pos, EliteAffix affixes = EliteAffix.None,
+        int packId = -1, int level = 0)
     {
         var def = Data.Enemies.GetValueOrDefault(typeId) ?? Data.Enemies.Values.First();
         var e = new ServerEnemy
@@ -406,7 +409,17 @@ public partial class ServerWorld
             MaxHealth = def.MaxHealth,
             Affixes = affixes,
             PackId = packId,
+            Level = level > 0 ? level : def.Level,
         };
+        // Level override: any enemy type can serve a later zone — its numbers scale
+        // from the def's native level through the central EnemyLevelScaling curves.
+        int levelsAbove = e.Level - def.Level;
+        if (levelsAbove > 0)
+        {
+            e.MaxHealth *= Stats.EnemyLevelScaling.Health(levelsAbove);
+            e.DamageScale *= Stats.EnemyLevelScaling.Damage(levelsAbove);
+            e.XpScale *= Stats.EnemyLevelScaling.Xp(levelsAbove);
+        }
         if (affixes.HasFlag(EliteAffix.Brutish))
         {
             e.MaxHealth *= 2.5f;
@@ -538,62 +551,65 @@ public partial class ServerWorld
             }
             if (Time < e.RecoverUntil) continue; // post-swing opening: punish window
 
-            // Summons soak aggression: an angry enemy with a minion in reach hits IT.
-            if (e.State is EnemyState.Chase or EnemyState.Attack)
-            {
-                var meat = NearestSummonNear(e.Position, e.Def.AttackRange, e.Height);
-                if (meat != null && Time >= e.AttackReadyAt)
-                {
-                    if (e.Def.Ranged)
-                    {
-                        e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
-                        SpawnEnemyProjectileAt(e, meat.Position, meat.Height);
-                    }
-                    else
-                    {
-                        StartEnemySwing(e, meat.Position, victimPlayerId: -1, victimSummonId: meat.Id);
-                    }
-                    continue;
-                }
-            }
-
-            // Aggro/chase run on PATH distance (flow field), so climbing a ramp no longer
-            // drops aggro — enemies path to the ramp and follow. Attacks stay strictly
-            // same-surface: nothing hits through a cliff face or a bridge deck.
+            // Aggro/chase run on PATH distance (flow field) for players, so climbing a
+            // ramp no longer drops aggro. SUMMONS are first-class targets with the SAME
+            // aggro rules (euclidean, same surface) — a skeleton pack fighting far from
+            // its owner gets fought back, exactly like a player would.
             var (target, pathDist) = FindTarget(e);
             float dist = target != null ? Vector2.Distance(e.Position, target.Position) : float.MaxValue;
             bool sameSurface = target != null && MathF.Abs(target.Height - e.Height) <= 0.75f;
+            var meat = NearestSummonNear(e.Position, e.Def.AggroRange * 1.5f, e.Height);
+            float meatDist = meat != null ? Vector2.Distance(e.Position, meat.Position) : float.MaxValue;
+            // Pursue whichever threat is closer once aggroed.
+            bool pursueMeat = meat != null && (target == null || meatDist < dist);
+
             switch (e.State)
             {
                 case EnemyState.Idle:
-                    if (target != null && pathDist <= e.Def.AggroRange)
+                    if ((target != null && pathDist <= e.Def.AggroRange) || meatDist <= e.Def.AggroRange)
                     {
                         e.State = EnemyState.Chase;
-                        e.TargetPlayerId = target.Id;
-                        AlertPack(e, target);
+                        e.TargetPlayerId = target?.Id ?? -1;
+                        if (target != null) AlertPack(e, target);
                     }
                     break;
 
                 case EnemyState.Chase:
-                    if (target == null || pathDist > e.Def.AggroRange * 1.5f)
+                    bool playerHeld = target != null && pathDist <= e.Def.AggroRange * 1.5f;
+                    bool meatHeld = meatDist <= e.Def.AggroRange * 1.5f;
+                    if (!playerHeld && !meatHeld)
                     {
                         e.State = EnemyState.Idle;
                         e.TargetPlayerId = -1;
                         break;
                     }
-                    e.TargetPlayerId = target.Id;
+                    e.TargetPlayerId = target?.Id ?? -1;
+                    if (pursueMeat && meatHeld)
+                    {
+                        if (meatDist <= e.Def.AttackRange)
+                        {
+                            e.State = EnemyState.Attack;
+                            break;
+                        }
+                        MoveEnemyToward(e, meat.Position, dt);
+                        break;
+                    }
                     if (dist <= e.Def.AttackRange && CanAttack(e, target, sameSurface))
                     {
                         e.State = EnemyState.Attack;
                         break;
                     }
-                    MoveEnemyToward(e, ChaseWaypoint(e, target), dt);
+                    if (playerHeld) MoveEnemyToward(e, ChaseWaypoint(e, target), dt);
+                    else if (meatHeld) MoveEnemyToward(e, meat.Position, dt);
                     break;
 
                 case EnemyState.Attack:
-                    if (target == null || dist > e.Def.AttackRange * 1.15f || !CanAttack(e, target, sameSurface))
+                    bool meatEngaged = meatDist <= e.Def.AttackRange * 1.15f;
+                    bool playerEngaged = target != null && dist <= e.Def.AttackRange * 1.15f &&
+                                         CanAttack(e, target, sameSurface);
+                    if (!meatEngaged && !playerEngaged)
                     {
-                        e.State = target == null ? EnemyState.Idle : EnemyState.Chase;
+                        e.State = target == null && meat == null ? EnemyState.Idle : EnemyState.Chase;
                         break;
                     }
                     // Boss ground slam: an AoE burst around the boss on its own timer,
@@ -619,10 +635,17 @@ public partial class ServerWorld
                     }
                     if (Time >= e.AttackReadyAt)
                     {
+                        // Strike whichever engaged threat is closer — summon or player.
+                        bool hitMeat = meatEngaged && (!playerEngaged || meatDist < dist);
                         if (e.Def.Ranged)
                         {
                             e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
-                            SpawnEnemyProjectile(e, target);
+                            if (hitMeat) SpawnEnemyProjectileAt(e, meat.Position, meat.Height);
+                            else SpawnEnemyProjectile(e, target);
+                        }
+                        else if (hitMeat)
+                        {
+                            StartEnemySwing(e, meat.Position, victimPlayerId: -1, victimSummonId: meat.Id);
                         }
                         else
                         {
@@ -784,14 +807,18 @@ public partial class ServerWorld
         return true;
     }
 
-    private void RecomputeFlow(ServerPlayer p, FlowField f)
+    private void RecomputeFlow(ServerPlayer p, FlowField f) =>
+        ComputeFlowFrom(NodeOf(p.Position, p.Height), f);
+
+    /// <summary>BFS a flow field from ANY start node (player positions each tick; rally
+    /// points once when set) — every stored Next points one hop back toward the start.</summary>
+    private void ComputeFlowFrom(int start, FlowField f)
     {
         int w = Map.Width, n = NodeCount;
         f.Dist ??= new ushort[n];
         f.Next ??= new int[n];
         Array.Fill(f.Dist, ushort.MaxValue);
         Array.Fill(f.Next, -1);
-        int start = NodeOf(p.Position, p.Height);
         if (start < 0) return;
         _flowQueue.Clear();
         f.Dist[start] = 0;
@@ -1393,6 +1420,10 @@ public partial class ServerWorld
     /// <summary>Rally command (backquote): send ONE summon skill's pack to a point, or
     /// clear its rally so it falls back to following the summoner. An empty skillId
     /// applies to every summon skill the player knows.</summary>
+    /// <summary>Per-(player, skill) rally flow fields, BFS'd ONCE when the rally is set
+    /// (the point never moves) so rallied summons path around walls instead of wedging.</summary>
+    private readonly Dictionary<(int playerId, string skillId), FlowField> _rallyFields = new();
+
     public void SummonRally(int playerId, string skillId, bool hasPoint, Vector2 point)
     {
         if (!Players.TryGetValue(playerId, out var p)) return;
@@ -1403,8 +1434,19 @@ public partial class ServerWorld
             : new List<string> { skillId };
         foreach (var id in targets)
         {
-            if (hasPoint) p.SummonRallies[id] = (point, Map.GroundHeightAt(point));
-            else p.SummonRallies.Remove(id);
+            if (hasPoint)
+            {
+                float h = Map.GroundHeightAt(point);
+                p.SummonRallies[id] = (point, h);
+                var field = new FlowField();
+                ComputeFlowFrom(NodeOf(point, h), field);
+                _rallyFields[(playerId, id)] = field;
+            }
+            else
+            {
+                p.SummonRallies.Remove(id);
+                _rallyFields.Remove((playerId, id));
+            }
         }
     }
 
@@ -1513,37 +1555,59 @@ public partial class ServerWorld
             {
                 if (Time >= s.AttackReadyAt)
                 {
-                    s.AttackReadyAt = Time + s.SwingTime;
+                    // Attached Skill Scrolls buff summon attacks: the summon skill's
+                    // EffectiveSkillStats carries scroll attack speed (via the cooldown
+                    // ratio), extra arrow projectiles, and every on-hit ailment chance.
+                    var learnedSum = owner.Character.GetSkill(s.SkillId);
+                    var defSum = Data.Skills.GetValueOrDefault(s.SkillId);
+                    var scrollStats = defSum != null && learnedSum != null
+                        ? SkillMath.Compute(Data, defSum, learnedSum.Level,
+                            learnedSum.ScrollDefinitions(Data), owner.Stats)
+                        : default;
+                    float speedMult = defSum is { Cooldown: > 0 } && scrollStats.Cooldown > 0
+                        ? scrollStats.Cooldown / defSum.Cooldown
+                        : 1f;
+                    s.AttackReadyAt = Time + s.SwingTime * MathF.Max(0.3f, speedMult);
                     var dir = (prey.Position - s.Position).NormalizedOrZero();
                     _events.SummonAttacked(s, dir);
                     if (s.Melee)
                     {
                         // Skeleton warrior swing: the full player-hit pipeline (mitigation,
-                        // kill credit/XP to the summoner), slashing damage.
+                        // kill credit/XP to the summoner, scroll ailments), slashing damage.
                         var comps = RollComponentList(s.Damage * 0.85f, s.Damage * 1.15f, DamageKind.Slash, null);
                         var (dmg, kind) = MitigateForEnemy(prey, comps);
                         HitEnemy(prey, dmg, s.OwnerId, s.SkillId, kind);
+                        if (!prey.Dead) ApplyAilments(prey, comps, dmg, scrollStats);
                     }
                     else
                     {
-                        var arrow = new ServerProjectile
+                        // Multishot scrolls fan extra arrows; every arrow carries the
+                        // scroll ailment stats for its impact roll.
+                        int arrowCount = Math.Max(1, scrollStats.ProjectileCount);
+                        for (int a = 0; a < arrowCount; a++)
                         {
-                            Id = _nextProjectileId++,
-                            FromPlayer = true,
-                            OwnerId = s.OwnerId,   // kill credit and XP go to the summoner
-                            SkillId = s.SkillId,
-                            SpriteOverride = "Arrow",
-                            Position = s.Position + dir * 0.4f,
-                            Height = s.Height,
-                            Direction = dir,
-                            Speed = 11f,
-                            MaxRange = ServerSummon.AttackRange + 1.5f,
-                            MinDamage = s.Damage * 0.85f,
-                            MaxDamage = s.Damage * 1.15f,
-                            DamageKind = DamageKind.Thrust,
-                        };
-                        Projectiles[arrow.Id] = arrow;
-                        _events.ProjectileSpawned(arrow);
+                            float spread = (a - (arrowCount - 1) * 0.5f) * 0.12f;
+                            var aDir = Rotate(dir, spread);
+                            var arrow = new ServerProjectile
+                            {
+                                Id = _nextProjectileId++,
+                                FromPlayer = true,
+                                OwnerId = s.OwnerId,   // kill credit and XP go to the summoner
+                                SkillId = s.SkillId,
+                                SpriteOverride = "Arrow",
+                                Position = s.Position + aDir * 0.4f,
+                                Height = s.Height,
+                                Direction = aDir,
+                                Speed = 11f,
+                                MaxRange = ServerSummon.AttackRange + 1.5f,
+                                MinDamage = s.Damage * 0.85f,
+                                MaxDamage = s.Damage * 1.15f,
+                                DamageKind = DamageKind.Thrust,
+                                Ailments = scrollStats,
+                            };
+                            Projectiles[arrow.Id] = arrow;
+                            _events.ProjectileSpawned(arrow);
+                        }
                     }
                 }
                 continue; // in fighting position: hold
@@ -1559,13 +1623,41 @@ public partial class ServerWorld
             float stop = rallied || prey != null ? 0.6f : 1.8f;
             if (distToTarget > stop)
             {
-                var dir = (moveTarget - s.Position).NormalizedOrZero();
+                // Path via flow fields instead of naive point-following: the owner's
+                // live field when heeling, the rally's one-shot field when rallied —
+                // summons route around walls and water like enemies do.
+                FlowField pathField = null;
+                if (moveTarget == goal)
+                {
+                    if (rallied) _rallyFields.TryGetValue((owner.Id, s.SkillId), out pathField);
+                    else _flow.TryGetValue(owner.Id, out pathField);
+                }
+                var waypoint = SummonWaypoint(s, moveTarget, pathField);
+                var dir = (waypoint - s.Position).NormalizedOrZero();
                 float h = s.Height;
                 s.Position = Map.MoveWithCollision(s.Position, dir * ServerSummon.MoveSpeed * dt,
                     ServerSummon.Radius, ref h);
                 s.Height = h;
             }
         }
+    }
+
+    /// <summary>Where a marching summon should head: straight at a visible same-surface
+    /// goal, else the center of the next flow-field tile toward it (mirrors ChaseWaypoint).</summary>
+    private Vector2 SummonWaypoint(ServerSummon s, Vector2 goal, FlowField field)
+    {
+        if (!Map.SegmentBlocked(s.Position, goal, s.Height + 0.5f))
+            return goal;
+        if (field?.Next != null)
+        {
+            int node = NodeOf(s.Position, s.Height);
+            if (node >= 0 && field.Next[node] >= 0)
+            {
+                int tile = field.Next[node] / 2;
+                return new Vector2(tile % Map.Width + 0.5f, tile / Map.Width + 0.5f);
+            }
+        }
+        return goal;
     }
 
     /// <summary>Soft push-apart between overlapping summons (same recipe as enemies),
@@ -1928,10 +2020,13 @@ public partial class ServerWorld
     {
         if (Players.TryGetValue(e.LastHitByPlayer, out var killer))
         {
-            bool changed = GrantCharacterXp(killer, e.Def.XpReward * e.XpScale);
+            // Under-level kills pay less, scaling with the gap (XpBalance centralizes it).
+            float xp = e.Def.XpReward * e.XpScale *
+                       Stats.XpBalance.LevelFactor(killer.Character.Level, e.Level);
+            bool changed = GrantCharacterXp(killer, xp);
             var skill = e.LastHitSkillId != null ? killer.Character.GetSkill(e.LastHitSkillId) : null;
             if (skill != null)
-                changed |= GrantSkillXp(killer, skill, e.Def.XpReward * e.XpScale);
+                changed |= GrantSkillXp(killer, skill, xp);
             if (changed) _events.CharacterChanged(killer);
         }
 

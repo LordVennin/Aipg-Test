@@ -383,7 +383,15 @@ public partial class ServerWorld
                     "give_staff" => ItemCategory.Staff,
                     _ => ItemCategory.Shield,
                 };
-                var itemBase = Data.Items.Values.Where(b => b.Category == category)
+                // Prefer bases the character can actually EQUIP (level + attributes) —
+                // a debug convenience that hands out unwearable gear helps nobody.
+                var pool = Data.Items.Values.Where(b => b.Category == category).ToList();
+                var wearable = pool.Where(b =>
+                    b.RequiredLevel <= p.Character.Level &&
+                    b.RequiredStrength <= p.Stats.Strength + 0.01f &&
+                    b.RequiredDexterity <= p.Stats.Dexterity + 0.01f &&
+                    b.RequiredIntelligence <= p.Stats.Intelligence + 0.01f).ToList();
+                var itemBase = (wearable.Count > 0 ? wearable : pool)
                     .OrderBy(_ => Guid.NewGuid()).FirstOrDefault();
                 if (itemBase != null)
                     changed = GiveItem(p, Loot.Generate(itemBase, 10, ItemRarity.Rare));
