@@ -656,16 +656,26 @@ public class WorldRenderer
                             }
                         }
                     }
+                    var bodyTint = EliteTint(e);
+                    if ((e.DebuffFlags & Server.EnemyDebuffs.Frozen) != 0)
+                        bodyTint = MultiplyTint(bodyTint, new Color(120, 170, 255)); // frozen solid: blue
+                    else if ((e.DebuffFlags & Server.EnemyDebuffs.Chilled) != 0)
+                        bodyTint = MultiplyTint(bodyTint, new Color(190, 215, 255)); // light chill frost
                     batch.Draw(tex, spriteRect, null,
-                        EliteTint(e), 0f, Vector2.Zero,
+                        bodyTint, 0f, Vector2.Zero,
                         e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
+                    DrawAilmentAuras(batch, e.DebuffFlags, spriteRect, e.Id);
                     barY = (int)screen.Y - h + 2;
                 }
                 else
                 {
                     EnemyHitRects.Add((new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size),
                         (int)size, (int)size), e.Id));
-                    DrawUnitToken(batch, screen, size, color);
+                    var tokenColor = (e.DebuffFlags & Server.EnemyDebuffs.Frozen) != 0
+                        ? MultiplyTint(color, new Color(120, 170, 255)) : color;
+                    DrawUnitToken(batch, screen, size, tokenColor);
+                    DrawAilmentAuras(batch, e.DebuffFlags,
+                        new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size), (int)size, (int)size), e.Id);
                     barY = (int)screen.Y - (int)size - 26;
                 }
                 if (_settings.ShowEnemyHealthBars)
@@ -705,6 +715,8 @@ public class WorldRenderer
             var color = p.IsLocal ? new Color(90, 170, 255) : new Color(110, 235, 140);
             if (!p.Alive) color = new Color(80, 80, 90);
             if (p.DodgeTimeLeft > 0) color = Color.Lerp(color, Color.White, 0.65f); // dash flash / i-frame hint
+            if ((p.DebuffFlags & Server.PlayerDebuffs.Frozen) != 0)
+                color = MultiplyTint(color, new Color(140, 180, 255)); // frozen: blue
             var name = p.Name ?? "?";
             _sorted.Add((pos.X + pos.Y + p.Height * 1.0f + 0.1f + UnderDeckBias(pos, p.Height), batch =>
             {
@@ -785,6 +797,9 @@ public class WorldRenderer
 
                 if (weaponBehind) DrawHands();
                 DrawUnitToken(batch, screen, 34f, color);
+                if ((p.DebuffFlags & Server.PlayerDebuffs.Shocked) != 0)
+                    DrawAilmentAuras(batch, Server.EnemyDebuffs.Shocked,
+                        new Rectangle((int)screen.X - 17, (int)screen.Y - 40, 34, 40), p.Id + 900);
                 if (!weaponBehind) DrawHands();
                 if (swinging) DrawSwingingWeapon();
                 if (weaponTex == null && offHandTex == null)
@@ -808,7 +823,7 @@ public class WorldRenderer
         {
             var screen = camera.WorldToScreen(pr.Position, pr.Height);
             var projDef = pr.SkillId != null ? _data.Skills.GetValueOrDefault(pr.SkillId) : null;
-            var projSprite = SpriteGen.GetProjectileSprite(projDef?.ProjectileSprite);
+            var projSprite = SpriteGen.GetProjectileSprite(pr.SpriteOverride ?? projDef?.ProjectileSprite);
             if (projSprite != null)
             {
                 // Named sprite (e.g. the ice spike shard), rotated along the flight path.
@@ -876,6 +891,63 @@ public class WorldRenderer
                                               screen.Y + MathF.Sin(ang) * dist * 0.5f - hgt);
                         batch.Draw(TextureGen.Pixel,
                             new Rectangle((int)pos.X, (int)pos.Y, size, size), rockShade * alpha);
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "firepatch")
+            {
+                // Scorched Earth: a flickering ring of ground fire with small flames
+                // dancing inside for the patch's whole 3-second life.
+                float radiusFp = fx.Radius * IsoCamera.HalfTileW * 2f;
+                long clock2 = Environment.TickCount64;
+                int seedFp = (int)(fx.Position.X * 311) ^ (int)(fx.Position.Y * 733);
+                float fade = fx.TimeLeft < 0.5f ? fx.TimeLeft / 0.5f : 1f;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - radiusFp), (int)(screen.Y - radiusFp / 2f),
+                            (int)(radiusFp * 2), (int)radiusFp),
+                        new Color(200, 80, 20) * (0.28f * fade));
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - radiusFp * 0.7f), (int)(screen.Y - radiusFp * 0.35f),
+                            (int)(radiusFp * 1.4f), (int)(radiusFp * 0.7f)),
+                        new Color(255, 140, 40) * (0.22f * fade));
+                    for (int i = 0; i < 8; i++)
+                    {
+                        float phase = ((clock2 + seedFp + i * 397) % 600) / 600f;
+                        float ang = (seedFp / 31 + i) * 0.785f + i;
+                        float dist = radiusFp * (0.2f + 0.65f * (((seedFp >> 3) + i * 97) % 100) / 100f);
+                        var basePos = new Vector2(screen.X + MathF.Cos(ang) * dist,
+                                                  screen.Y + MathF.Sin(ang) * dist * 0.5f);
+                        int fh = (int)(5 + 5 * (1f - phase));
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)basePos.X, (int)(basePos.Y - phase * 10), 3, fh),
+                            new Color(255, (byte)(120 + 100 * phase), 30) * ((1f - phase) * fade));
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "zap")
+            {
+                // Electrocute seize: a burst of jagged arcs around the frozen victim.
+                long clock3 = Environment.TickCount64;
+                int seedZ = (int)(clock3 / 60);
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 1.1f, batch =>
+                {
+                    var rngZ = new Random(seedZ * 17 + (int)(fx.Position.X * 100));
+                    float rPx = fx.Radius * IsoCamera.HalfTileW * 2f;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angA = (float)(rngZ.NextDouble() * Math.PI * 2);
+                        var a = new Vector2(screen.X + MathF.Cos(angA) * rPx * 0.4f,
+                                            screen.Y - 16 + MathF.Sin(angA) * rPx * 0.25f);
+                        var b = a + new Vector2(rngZ.Next(-14, 15), rngZ.Next(-12, 13));
+                        var mid = (a + b) / 2 + new Vector2(rngZ.Next(-6, 7), rngZ.Next(-6, 7));
+                        DrawScreenLine(batch, a, mid, new Color(255, 240, 140) * (1f - t), 2);
+                        DrawScreenLine(batch, mid, b, new Color(190, 225, 255) * (1f - t), 1);
                     }
                 }));
                 continue;
@@ -987,31 +1059,52 @@ public class WorldRenderer
             draw(sb);
 
         // --- drop name labels (screen space, on top) ---
-        // Labels de-overlap into stacked lists: each label shifts UP until it clears
-        // everything already placed, so dense loot piles read as a tidy column.
+        // Labels stack in WORLD-anchored cluster columns: drops are grouped by world
+        // proximity, each cluster gets ONE anchor (its most stable member), and every
+        // label sits at a fixed slot above that anchor. Layout depends only on world
+        // positions — never on per-frame screen rounding — so nothing jitters or
+        // reshuffles while the camera moves.
         var labelFont = FontManager.Get(13);
-        var placedLabels = new List<Rectangle>();
-        // Deterministic order: without the DropId tiebreak, drops sharing a sort key keep
-        // dictionary order — which reshuffles whenever anything spawns or is picked up,
-        // making dense stacks jitter as labels swap slots.
-        foreach (var drop in world.Drops.Values
-                     .OrderBy(d => d.Position.X + d.Position.Y).ThenBy(d => d.DropId))
+        var dropList = world.Drops.Values
+            .OrderBy(d => d.Position.X + d.Position.Y).ThenBy(d => d.DropId).ToList();
+        // Greedy world-space clustering: a drop joins the first cluster whose anchor
+        // is within ~1.6 tiles (label widths overlap comfortably inside that).
+        var clusterOf = new int[dropList.Count];
+        var clusterAnchors = new List<int>(); // index into dropList of each cluster's anchor
+        for (int i = 0; i < dropList.Count; i++)
         {
-            var screen = camera.WorldToScreen(drop.Position, drop.Height);
+            clusterOf[i] = -1;
+            for (int ci = 0; ci < clusterAnchors.Count; ci++)
+            {
+                var anchor = dropList[clusterAnchors[ci]];
+                if (System.Numerics.Vector2.Distance(dropList[i].Position, anchor.Position) <= 1.6f &&
+                    MathF.Abs(dropList[i].Height - anchor.Height) < 0.5f)
+                {
+                    clusterOf[i] = ci;
+                    break;
+                }
+            }
+            if (clusterOf[i] < 0)
+            {
+                clusterOf[i] = clusterAnchors.Count;
+                clusterAnchors.Add(i);
+            }
+        }
+        var slotInCluster = new int[clusterAnchors.Count];
+        for (int i = 0; i < dropList.Count; i++)
+        {
+            var drop = dropList[i];
+            var anchorDrop = dropList[clusterAnchors[clusterOf[i]]];
+            var anchorScreen = camera.WorldToScreen(anchorDrop.Position, anchorDrop.Height);
+            int slot = slotInCluster[clusterOf[i]]++;
+
             string label = drop.IsGold ? $"{drop.GoldAmount} Gold" : drop.Item.DisplayName(_data);
             if (!drop.IsGold && drop.Item.StackCount > 1) label += $" x{drop.Item.StackCount}";
             var labelColor = drop.IsGold ? new Color(240, 200, 90) : RarityColor(drop.Item.Rarity);
             var size = labelFont.MeasureString(label);
-            var rect = new Rectangle((int)(screen.X - size.X / 2) - 4, (int)(screen.Y - 30), (int)size.X + 8, (int)size.Y + 4);
-            for (int guard = 0; guard < 24; guard++)
-            {
-                bool collides = false;
-                foreach (var placed in placedLabels)
-                    if (rect.Intersects(placed)) { collides = true; break; }
-                if (!collides) break;
-                rect.Y -= rect.Height + 1; // climb the stack
-            }
-            placedLabels.Add(rect);
+            var rect = new Rectangle((int)(anchorScreen.X - size.X / 2) - 4,
+                (int)(anchorScreen.Y - 30) - slot * 22, (int)size.X + 8, (int)size.Y + 4);
+
             bool hovered = drop.DropId == HoveredDropId;
             sb.Draw(TextureGen.Pixel, rect, hovered ? new Color(58, 48, 20, 230) : new Color(0, 0, 0, 170));
             if (hovered)
@@ -1064,16 +1157,79 @@ public class WorldRenderer
         }
     }
 
+    private static Color MultiplyTint(Color a, Color b) => new(
+        a.R * b.R / 255, a.G * b.G / 255, a.B * b.B / 255, a.A);
+
+    /// <summary>Animated ailment overlays around an entity sprite, driven purely by the
+    /// replicated debuff flags: rising flames (ignite), crackling sparks (electrocute),
+    /// rising bubbles (poison) and falling drips (bleed). Deterministic per entity id.</summary>
+    private static void DrawAilmentAuras(SpriteBatch batch, byte flags, Rectangle spriteRect, int entityId)
+    {
+        if (flags == 0) return;
+        long clock = Environment.TickCount64;
+
+        if ((flags & Server.EnemyDebuffs.Burning) != 0)
+            for (int i = 0; i < 3; i++)
+            {
+                float phase = ((clock + entityId * 331 + i * 421) % 700) / 700f;
+                int fx2 = spriteRect.X + 4 + (entityId * 17 + i * 29) % Math.Max(1, spriteRect.Width - 10);
+                int fy = spriteRect.Bottom - 6 - (int)(phase * (spriteRect.Height + 6));
+                int size = phase < 0.6f ? 4 : 3;
+                batch.Draw(TextureGen.Pixel, new Rectangle(fx2, fy, size, size),
+                    new Color(255, (byte)(140 + 80 * phase), 40) * (1f - phase * 0.7f));
+            }
+
+        if ((flags & Server.EnemyDebuffs.Shocked) != 0)
+        {
+            var rng = new Random((int)(clock / 90) * 31 + entityId);
+            for (int i = 0; i < 2; i++)
+            {
+                var a = new Vector2(spriteRect.X + rng.Next(spriteRect.Width),
+                                    spriteRect.Y + rng.Next(spriteRect.Height));
+                var b = a + new Vector2(rng.Next(-9, 10), rng.Next(-7, 8));
+                var mid = (a + b) / 2 + new Vector2(rng.Next(-4, 5), rng.Next(-4, 5));
+                DrawScreenLine(batch, a, mid, new Color(255, 240, 140), 1);
+                DrawScreenLine(batch, mid, b, new Color(200, 230, 255), 1);
+            }
+        }
+
+        if ((flags & Server.EnemyDebuffs.Poisoned) != 0)
+            for (int i = 0; i < 3; i++)
+            {
+                float phase = ((clock + entityId * 173 + i * 533) % 900) / 900f;
+                int bx = spriteRect.X + 3 + (entityId * 23 + i * 41) % Math.Max(1, spriteRect.Width - 8);
+                int by = spriteRect.Bottom - 4 - (int)(phase * (spriteRect.Height * 0.8f));
+                int size = 2 + (i % 2);
+                batch.Draw(TextureGen.Circle32, new Rectangle(bx, by, size + 2, size + 2),
+                    new Color(120, 230, 90) * (0.8f - phase * 0.6f));
+            }
+
+        if ((flags & Server.EnemyDebuffs.Bleeding) != 0)
+            for (int i = 0; i < 2; i++)
+            {
+                float phase = ((clock + entityId * 257 + i * 613) % 800) / 800f;
+                int bx = spriteRect.X + 5 + (entityId * 31 + i * 53) % Math.Max(1, spriteRect.Width - 10);
+                int by = spriteRect.Y + spriteRect.Height / 3 + (int)(phase * spriteRect.Height * 0.7f);
+                batch.Draw(TextureGen.Pixel, new Rectangle(bx, by, 2, 3),
+                    new Color(200, 40, 35) * (1f - phase * 0.5f));
+            }
+    }
+
     /// <summary>Row of tiny per-debuff icons centered above an enemy's head — one icon
     /// per active flag in Server.EnemyDebuffs order.</summary>
     private static void DrawDebuffIcons(SpriteBatch sb, byte flags, int centerX, int y)
     {
         if (flags == 0) return;
-        var kinds = new string[3];
+        var kinds = new string[8];
         int count = 0;
         if ((flags & Server.EnemyDebuffs.Stunned) != 0) kinds[count++] = "stun";
         if ((flags & Server.EnemyDebuffs.Burning) != 0) kinds[count++] = "burn";
         if ((flags & Server.EnemyDebuffs.Slowed) != 0) kinds[count++] = "slow";
+        if ((flags & Server.EnemyDebuffs.Frozen) != 0) kinds[count++] = "frozen";
+        else if ((flags & Server.EnemyDebuffs.Chilled) != 0) kinds[count++] = "chill";
+        if ((flags & Server.EnemyDebuffs.Shocked) != 0) kinds[count++] = "shock";
+        if ((flags & Server.EnemyDebuffs.Poisoned) != 0) kinds[count++] = "poison";
+        if ((flags & Server.EnemyDebuffs.Bleeding) != 0) kinds[count++] = "bleed";
 
         const int iconSize = 13, gap = 2;
         int totalW = count * iconSize + (count - 1) * gap;

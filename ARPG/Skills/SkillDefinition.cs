@@ -118,6 +118,22 @@ public class SkillDefinition
     /// queues the strike; the client delays the impact visuals to match. 0 = instant.</summary>
     public float WindupTime { get; set; }
 
+    // ------------------------------------------------------------------ ailments
+    /// <summary>Base chance (0..1) a hit ignites: fire DoT scaling off the hit's damage.</summary>
+    public float IgniteChance { get; set; }
+    /// <summary>Multiplier on ignite DoT strength for this skill (1 = baseline).</summary>
+    public float IgniteMagnitude { get; set; } = 1f;
+    /// <summary>Base chance (0..1) a hit chills: builds chill magnitude from the hit's damage.</summary>
+    public float ChillChance { get; set; }
+    /// <summary>Multiplier on chill buildup for this skill (1 = baseline).</summary>
+    public float ChillMagnitude { get; set; } = 1f;
+    /// <summary>Base chance (0..1) a hit electrocutes: 6s of periodic freeze-in-place rolls.</summary>
+    public float ElectrocuteChance { get; set; }
+    /// <summary>Multiplier on poison DoT strength for this skill (1 = baseline).</summary>
+    public float PoisonMagnitude { get; set; } = 1f;
+    /// <summary>Multiplier on bleed DoT strength for this skill (1 = baseline).</summary>
+    public float BleedMagnitude { get; set; } = 1f;
+
     /// <summary>Flat damage added per point of Armor on equipped SHIELDS (Shield Bash:
     /// heavier shields hit harder). 0 for skills that don't scale with shields.</summary>
     public float ShieldArmorScaling { get; set; }
@@ -151,6 +167,10 @@ public enum ScrollStat
     ProjectileSpeedMultiplier,
     RangeMultiplier,
     IgniteChance,         // 0..1 chance to ignite (fire damage over time)
+    PoisonChance,         // 0..1 chance a melee hit poisons (phys+dark+acid DoT)
+    BleedChance,          // 0..1 chance a melee hit bleeds (physical DoT)
+    ShatterShards,        // cold projectiles burst into this many shards behind the target
+    FirePatch,            // fire projectiles leave a burning ground circle on hit
 }
 
 /// <summary>

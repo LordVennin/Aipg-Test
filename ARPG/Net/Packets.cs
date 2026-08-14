@@ -66,6 +66,8 @@ public enum PacketType : byte
     NpcInfo,
     /// <summary>A merchant's stock for THIS player: per slot the item, price and sold flag.</summary>
     ShopStock,
+    /// <summary>A world visual effect: kind ("zap", "firepatch"), position, radius, duration, height.</summary>
+    WorldEffect,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

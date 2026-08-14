@@ -36,6 +36,12 @@ public enum StatType
     CriticalChance,
     CriticalDamage,
 
+    // Percent-increased ailment magnitudes (ignite/poison/bleed DoT strength, chill buildup)
+    IgniteMagnitude,
+    ChillMagnitude,
+    PoisonMagnitude,
+    BleedMagnitude,
+
     // Weapon-local stats
     MinPhysicalDamage,
     MaxPhysicalDamage,

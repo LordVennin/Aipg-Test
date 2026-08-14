@@ -22,6 +22,18 @@ public static class EnemyDebuffs
     public const byte Stunned = 1 << 0;
     public const byte Burning = 1 << 1;
     public const byte Slowed = 1 << 2;
+    public const byte Chilled = 1 << 3;
+    public const byte Frozen = 1 << 4;   // blue tint, no movement or attacks
+    public const byte Shocked = 1 << 5;  // electrocuted: periodic freeze rolls + sparks
+    public const byte Poisoned = 1 << 6;
+    public const byte Bleeding = 1 << 7;
+}
+
+/// <summary>Player debuff bitmask replicated in PlayerStates (ailments affect players too).</summary>
+public static class PlayerDebuffs
+{
+    public const byte Frozen = 1 << 0;
+    public const byte Shocked = 1 << 1;
 }
 
 /// <summary>Authoritative player state held by the server (host).</summary>
@@ -51,6 +63,13 @@ public class ServerPlayer
     /// <summary>Global skill lockout: no skill may be used before this server time
     /// (set to now + the last-used skill's UseTime).</summary>
     public float GlobalSkillReadyAt;
+
+    // Ailments on players (electrocute's periodic freeze affects players too).
+    public float FrozenUntil;
+    public float ElectrocutedUntil;
+    public float NextShockRollAt;
+    /// <summary>Position pinned while frozen — movement updates are rejected against it.</summary>
+    public Vector2 FrozenAt;
 
     /// <summary>Last health value broadcast to clients (throttles regen sync spam).</summary>
     public float LastSyncedHealth;
@@ -111,12 +130,33 @@ public class ServerEnemy
     public float XpScale = 1f;
     public float SlamReadyAt;         // boss ground-slam cooldown gate
 
-    // Ignite (burning damage over time) bookkeeping. Burn ticks apply every frame but
-    // damage events/health updates are batched via the accumulator to avoid packet spam.
+    // Damage-over-time ailments. Ticks apply every frame but damage events/health
+    // updates are batched via accumulators to avoid packet spam.
     public float BurnDps;
     public float BurnTimeLeft;
     public float BurnAccum;
     public float BurnEmitTimer;
+    public float PoisonDps;
+    public float PoisonTimeLeft;
+    public float PoisonAccum;
+    public float PoisonEmitTimer;
+    public float BleedDps;
+    public float BleedTimeLeft;
+    public float BleedAccum;
+    public float BleedEmitTimer;
+
+    // Chill/freeze: magnitude 0..cap builds from chilling hits and decays constantly;
+    // at the cap each further hit can freeze outright.
+    public float ChillMagnitude;
+    public float FrozenUntil;
+
+    // Electrocute: while active, a periodic roll can freeze the enemy in place briefly.
+    public float ElectrocutedUntil;
+    public float NextShockRollAt;
+
+    /// <summary>Fire exposure stacks (Scorched Earth patches): each entry is the server
+    /// time the stack expires; active stacks each shred 1% fire resistance (max 25).</summary>
+    public readonly List<float> FireExposure = new();
 
     // Kill credit for XP and skill XP.
     public int LastHitByPlayer = -1;
@@ -150,6 +190,12 @@ public class ServerProjectile
     public float CritDamage;
     /// <summary>Typed added-damage components carried by the projectile (spell adds).</summary>
     public List<DamageComponent> Added;
+    /// <summary>Full skill stats snapshot for ailment rolls on impact (chances and
+    /// magnitudes already folded with the caster's increases at cast time).</summary>
+    public EffectiveSkillStats Ailments;
+    /// <summary>Sprite name override (shatter shards use "IceShard" instead of the
+    /// parent skill's sprite). Null = the skill definition's ProjectileSprite.</summary>
+    public string SpriteOverride;
 }
 
 /// <summary>An ItemInstance or gold pile lying in the world. Generated once by the host.</summary>

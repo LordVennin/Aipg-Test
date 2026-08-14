@@ -106,7 +106,7 @@
  {
   "Id": "fire_bolt",
   "Name": "Fire Bolt",
-  "Description": "Launch a searing bolt of flame toward the cursor.",
+  "Description": "Launch a searing bolt of flame toward the cursor with a chance to set enemies ablaze.",
   "Tags": [
    "Spell",
    "Projectile",
@@ -122,7 +122,8 @@
   "ProjectileSpeed": 11,
   "ProjectileCount": 1,
   "ManaCost": 5,
-  "UseTime": 0.4
+  "UseTime": 0.4,
+  "IgniteChance": 0.3
  },
  {
   "Id": "arcane_burst",
@@ -148,7 +149,7 @@
  {
   "Id": "ice_spike",
   "Name": "Ice Spike",
-  "Description": "Hurl a jagged spike of ice toward the cursor, dealing cold damage.",
+  "Description": "Launch a crystalline shard that pierces the cold into its target \u2014 chilling hits build up toward a deep freeze.",
   "Tags": [
    "Spell",
    "Projectile",
@@ -165,12 +166,13 @@
   "ProjectileCount": 1,
   "ManaCost": 6,
   "ProjectileSprite": "IceSpike",
-  "UseTime": 0.4
+  "UseTime": 0.4,
+  "ChillChance": 0.8
  },
  {
   "Id": "chain_lightning",
   "Name": "Chain Lightning",
-  "Description": "Loose a bolt of lightning that instantly strikes a nearby enemy and leaps between targets. Added projectiles grant extra jumps.",
+  "Description": "An instant bolt that leaps between nearby enemies. Electrocuted victims seize up under the current for seconds after.",
   "Tags": [
    "Spell",
    "Projectile",
@@ -186,6 +188,7 @@
   "Radius": 3.2,
   "ProjectileCount": 3,
   "ManaCost": 8,
-  "UseTime": 0.5
+  "UseTime": 0.5,
+  "ElectrocuteChance": 0.5
  }
 ]

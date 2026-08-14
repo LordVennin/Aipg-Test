@@ -37,6 +37,8 @@ public class ClientPlayer
     public Vector2 SwingDir = new(1, 0);
     /// <summary>0 = horizontal swipe, 1 = overhead slam (Slam-tagged skills).</summary>
     public byte SwingKind;
+    /// <summary>Ailment flags from PlayerStates (Server.PlayerDebuffs: Frozen, Shocked).</summary>
+    public byte DebuffFlags;
     /// <summary>Main-hand weapon base id (from PlayerAppearance packets), for held-weapon rendering.</summary>
     public string WeaponBaseId;
     /// <summary>Off-hand item base id (usually a shield), rendered in the other hand.</summary>
@@ -98,6 +100,8 @@ public class ClientProjectile
     public float Traveled;
     /// <summary>Height change per tile traveled (overlook shots arc to their target).</summary>
     public float HeightStep;
+    /// <summary>Sprite name override (shatter shards); null = the skill's sprite.</summary>
+    public string SpriteOverride;
 }
 
 /// <summary>A friendly NPC (the test merchant): stationary, interacted with via the pickup key.</summary>

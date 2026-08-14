@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 13; // v13: skill-effect phases, dialogue shop, passive tree
+    public const int ProtocolVersion = 14; // v14: ailments (chill/freeze, electrocute, poison, bleed), world effects
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

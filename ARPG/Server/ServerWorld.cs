@@ -38,6 +38,8 @@ public interface IServerEvents
     void EnemySlammed(ServerEnemy e, float radius);
     /// <summary>This player's current merchant stock (sent on shop open and after a buy).</summary>
     void ShopStockFor(ServerPlayer p, int npcId, IReadOnlyList<ShopEntry> stock);
+    /// <summary>A one-shot or timed world visual ("zap" bursts, "firepatch" ground fire).</summary>
+    void WorldEffect(string kind, Vector2 position, float radius, float duration, float height);
 }
 
 /// <summary>One merchant stock slot as offered to a specific player.</summary>
@@ -210,6 +212,12 @@ public partial class ServerWorld
         pos.Y = Math.Clamp(pos.Y, 0, Map.Height);
         // Sanity: accept the client's position/height only if a surface actually exists
         // there near the claimed height — the SERVER's sampled value becomes canonical.
+        if (Time < p.FrozenUntil)
+        {
+            p.Facing = facing.NormalizedOrZero() == Vector2.Zero ? p.Facing : facing;
+            p.Position = p.FrozenAt; // frozen in place: movement is rejected
+            return;
+        }
         if (Map.SampleHeight(pos, height) is { } surface &&
             !Map.CircleBlocked(pos, ServerPlayer.Radius * 0.7f, surface))
         {
@@ -225,6 +233,7 @@ public partial class ServerWorld
     {
         Time += dt;
         UpdateWindups();
+        TickFirePatches();
         TickEnemies(dt);
         TickProjectiles(dt);
         TickSpawners();
@@ -235,6 +244,17 @@ public partial class ServerWorld
     {
         foreach (var p in Players.Values)
         {
+            // Electrocuted players roll the same periodic freeze-in-place as enemies.
+            if (p.Alive && Time < p.ElectrocutedUntil && Time >= p.NextShockRollAt)
+            {
+                p.NextShockRollAt = Time + ShockRollInterval;
+                if (_rng.NextDouble() < ShockFreezeChance)
+                {
+                    p.FrozenUntil = MathF.Max(p.FrozenUntil, Time + ShockFreezeDuration);
+                    p.FrozenAt = p.Position;
+                    _events.WorldEffect("zap", p.Position, 0.7f, 0.45f, p.Height);
+                }
+            }
             if (!p.Alive)
             {
                 p.RespawnTimer -= dt;
@@ -414,26 +434,44 @@ public partial class ServerWorld
         {
             if (e.Dead) { Enemies.Remove(e.Id); continue; }
 
-            // Burning (ignite) damage over time. Per-frame ticks are applied silently and
-            // batched into one damage event / health update every half second.
-            if (e.BurnTimeLeft > 0)
+            // Damage-over-time ailments (ignite/poison/bleed). Per-frame ticks apply
+            // silently and batch into one damage event / health update every half second.
+            bool TickDot(ref float timeLeft, ref float dps, ref float accum, ref float emit, DamageKind kind)
             {
-                e.BurnTimeLeft -= dt;
-                float tick = e.BurnDps * dt;
-                e.BurnAccum += tick;
-                e.BurnEmitTimer += dt;
-                DamageEnemy(e, tick, e.LastHitByPlayer, e.LastHitSkillId, DamageKind.Fire, emitEvents: false);
-                if (e.Dead) continue;
-                if (e.BurnEmitTimer >= 0.5f && e.BurnAccum >= 1f)
+                if (timeLeft <= 0) { dps = 0; return false; }
+                timeLeft -= dt;
+                float tick = dps * dt;
+                accum += tick;
+                emit += dt;
+                DamageEnemy(e, tick, e.LastHitByPlayer, e.LastHitSkillId, kind, emitEvents: false);
+                if (e.Dead) return true;
+                if (emit >= 0.5f && accum >= 1f)
                 {
-                    _events.DamageDealt(false, e.Id, e.BurnAccum, DamageKind.Fire, e.Position);
+                    _events.DamageDealt(false, e.Id, accum, kind, e.Position);
                     _events.EnemyHealthChanged(e);
-                    e.BurnAccum = 0;
-                    e.BurnEmitTimer = 0;
+                    accum = 0;
+                    emit = 0;
+                }
+                return false;
+            }
+            if (TickDot(ref e.BurnTimeLeft, ref e.BurnDps, ref e.BurnAccum, ref e.BurnEmitTimer, DamageKind.Fire)) continue;
+            if (TickDot(ref e.PoisonTimeLeft, ref e.PoisonDps, ref e.PoisonAccum, ref e.PoisonEmitTimer, DamageKind.Acid)) continue;
+            if (TickDot(ref e.BleedTimeLeft, ref e.BleedDps, ref e.BleedAccum, ref e.BleedEmitTimer, DamageKind.Blunt)) continue;
+
+            // Chill decays constantly; electrocute rolls a freeze-in-place every 2s.
+            if (e.ChillMagnitude > 0)
+                e.ChillMagnitude = MathF.Max(0f, e.ChillMagnitude - ChillDecayPerSecond * dt);
+            if (Time < e.ElectrocutedUntil && Time >= e.NextShockRollAt)
+            {
+                e.NextShockRollAt = Time + ShockRollInterval;
+                if (_rng.NextDouble() < ShockFreezeChance)
+                {
+                    e.FrozenUntil = MathF.Max(e.FrozenUntil, Time + ShockFreezeDuration);
+                    _events.WorldEffect("zap", e.Position, 0.7f, 0.45f, e.Height);
                 }
             }
 
-            if (Time < e.StunnedUntil) continue; // stunned: no movement, no attacks
+            if (Time < e.StunnedUntil || Time < e.FrozenUntil) continue; // no movement, no attacks
 
             // Aggro/chase run on PATH distance (flow field), so climbing a ramp no longer
             // drops aggro — enemies path to the ramp and follow. Attacks stay strictly
@@ -511,6 +549,8 @@ public partial class ServerWorld
     {
         var dir = (target - e.Position).NormalizedOrZero();
         float slowMult = Time < e.SlowedUntil ? 0.5f : 1f;
+        // Chill slows movement proportionally to its magnitude (up to 50% at the cap).
+        slowMult *= 1f - 0.5f * (e.ChillMagnitude / ChillMaxMagnitude);
         var delta = dir * e.Def.MoveSpeed * e.SpeedScale * slowMult * dt;
         e.Position = Map.MoveWithCollision(e.Position, delta, e.Def.Radius, ref e.Height);
     }
@@ -754,8 +794,15 @@ public partial class ServerWorld
                         var comps = RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
                         ApplyCritRoll(comps, pr.CritChance, pr.CritDamage);
                         var (dmg, hitKind) = MitigateForEnemy(e, comps);
-                        bool ignite = pr.IgniteChance > 0 && _rng.NextDouble() < pr.IgniteChance;
-                        HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind, ignite);
+                        HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind);
+                        ApplyAilments(e, comps, dmg, pr.Ailments);
+                        // Scroll of Shattering: cold projectiles burst into small shards
+                        // that continue BEHIND the struck enemy in a shotgun spread.
+                        if (pr.Ailments.ShatterShards > 0)
+                            SpawnShatterShards(pr, e);
+                        // Scroll of Scorched Earth: fire projectiles scorch the ground.
+                        if (pr.Ailments.FirePatch)
+                            SpawnFirePatch(e.Position, e.Height, MathF.Max(2f, dmg * 0.2f), pr.OwnerId, pr.SkillId);
                         RemoveProjectile(pr, pr.Position);
                         break;
                     }
@@ -792,6 +839,9 @@ public partial class ServerWorld
         var learned = p.Character.GetSkill(skillId);
         var def = Data.Skills.GetValueOrDefault(skillId);
         if (learned == null || def == null) return;
+
+        // Frozen solid (chill freeze / electrocute paralysis): no actions at all.
+        if (Time < p.FrozenUntil) return;
 
         // Global use-time lockout: you cannot dump the whole hotbar in one frame —
         // every cast locks ALL skills for its UseTime (small tolerance for jitter).
@@ -934,8 +984,9 @@ public partial class ServerWorld
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
                 foreach (var e in EnemiesNear(effectPoint, stats.Radius, p.Height))
                 {
-                    var (dmg, kind) = RollSkillHit(e, stats);
-                    HitEnemy(e, dmg * chargeMult, playerId, skillId, kind, RollIgnite(stats));
+                    var (dmg, kind) = RollSkillHit(e, stats, out var comps);
+                    HitEnemy(e, dmg * chargeMult, playerId, skillId, kind);
+                    ApplyAilments(e, comps, dmg * chargeMult, stats);
                     if (e.Dead) continue;
                     if (def.Knockback > 0)
                     {
@@ -961,8 +1012,9 @@ public partial class ServerWorld
                     .FirstOrDefault();
                 if (victim != null)
                 {
-                    var (vDmg, vKind) = RollSkillHit(victim, stats);
-                    HitEnemy(victim, vDmg * chargeMult, playerId, skillId, vKind, RollIgnite(stats));
+                    var (vDmg, vKind) = RollSkillHit(victim, stats, out var vComps);
+                    HitEnemy(victim, vDmg * chargeMult, playerId, skillId, vKind);
+                    ApplyAilments(victim, vComps, vDmg * chargeMult, stats);
                     if (!victim.Dead && def.Knockback > 0)
                     {
                         var push = (victim.Position - p.Position).NormalizedOrZero();
@@ -980,7 +1032,7 @@ public partial class ServerWorld
                 effectPoint = p.Position;
                 foreach (var e in EnemiesNear(p.Position, stats.Radius, p.Height))
                 {
-                    { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
+                    { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind); ApplyAilments(e, comps, dmg, stats); }
                     if (!e.Dead && RollStun(def))
                         e.StunnedUntil = Time + def.StunDuration *
                             (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.3f : 1f);
@@ -1018,6 +1070,7 @@ public partial class ServerWorld
                         CritChance = stats.CritChance,
                         CritDamage = stats.CritDamage,
                         Added = stats.Added,
+                        Ailments = stats,
                     };
                     Projectiles[pr.Id] = pr;
                     _events.ProjectileSpawned(pr);
@@ -1028,7 +1081,7 @@ public partial class ServerWorld
             {
                 effectPoint = ClampToRange(p.Position, target, stats.Range);
                 foreach (var e in EnemiesNear(effectPoint, stats.Radius, p.Height))
-                    { var (dmg, kind) = RollSkillHit(e, stats); HitEnemy(e, dmg, playerId, skillId, kind, RollIgnite(stats)); }
+                    { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind); ApplyAilments(e, comps, dmg, stats); }
                 break;
             }
             case SkillArchetype.ChainLightning:
@@ -1050,8 +1103,9 @@ public partial class ServerWorld
                 {
                     hitIds.Add(current.Id);
                     chainPoints.Add(current.Position);
-                    var (dmg, kind) = RollSkillHit(current, stats);
-                    HitEnemy(current, dmg, playerId, skillId, kind, RollIgnite(stats));
+                    var (dmg, kind) = RollSkillHit(current, stats, out var comps);
+                    HitEnemy(current, dmg, playerId, skillId, kind);
+                    ApplyAilments(current, comps, dmg, stats);
                     var from = current.Position;
                     current = Enemies.Values
                         .Where(e => !e.Dead && !hitIds.Contains(e.Id) &&
@@ -1077,6 +1131,7 @@ public partial class ServerWorld
     public void RequestDodge(int playerId, Vector2 direction)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        if (Time < p.FrozenUntil) return;         // frozen in place
         if (Time < p.NextDodgeAt - 0.05f) return; // still on cooldown — reject silently
         var dir = direction.NormalizedOrZero();
         if (dir == Vector2.Zero) dir = p.Facing;
@@ -1085,8 +1140,180 @@ public partial class ServerWorld
         _events.PlayerDodged(p, dir, p.Stats.DodgeDistance, p.Stats.DodgeDuration);
     }
 
-    private bool RollIgnite(in EffectiveSkillStats stats) =>
-        stats.IgniteChance > 0 && _rng.NextDouble() < stats.IgniteChance;
+    // ------------------------------------------------------------------ ailments
+
+    public const float ChillMaxMagnitude = 100f;   // modifiers can raise this later
+    private const float ChillDecayPerSecond = 12f;
+    private const float FreezeChanceAtCap = 0.35f;
+    private const float FreezeDuration = 1.4f;
+    private const float ElectrocuteDuration = 6f;  // base "shock" duration
+    private const float ShockRollInterval = 2f;
+    private const float ShockFreezeChance = 0.45f;
+    private const float ShockFreezeDuration = 0.8f;
+
+    /// <summary>Roll every ailment of a landed hit. `comps` are the hit's typed components
+    /// AFTER the crit roll but BEFORE mitigation (poison/bleed scale off what was swung,
+    /// per type); `dealtTotal` is the post-mitigation damage (ignite/chill scale off what
+    /// actually landed).</summary>
+    private void ApplyAilments(ServerEnemy e, List<(DamageKind kind, float amount)> comps,
+        float dealtTotal, in EffectiveSkillStats stats)
+    {
+        if (e.Dead || dealtTotal <= 0) return;
+
+        // Ignite: fire DoT, 80% of the hit over 4 seconds, scaled by magnitudes.
+        if (stats.IgniteChance > 0 && _rng.NextDouble() < stats.IgniteChance)
+        {
+            e.BurnDps = MathF.Max(e.BurnDps, dealtTotal * 0.8f / 4f * stats.IgniteMagnitude);
+            e.BurnTimeLeft = 4f;
+        }
+
+        // Chill: buildup proportional to the hit's share of the enemy's max life. At the
+        // cap, every further chilling hit can freeze outright (blue tint, no actions).
+        if (stats.ChillChance > 0 && _rng.NextDouble() < stats.ChillChance)
+        {
+            float gain = 100f * (dealtTotal / MathF.Max(1f, e.MaxHealth)) * 2.5f * stats.ChillMagnitude;
+            e.ChillMagnitude = MathF.Min(ChillMaxMagnitude, e.ChillMagnitude + gain);
+            if (e.ChillMagnitude >= ChillMaxMagnitude - 0.01f &&
+                _rng.NextDouble() < FreezeChanceAtCap)
+            {
+                float dur = FreezeDuration * (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.4f : 1f);
+                e.FrozenUntil = MathF.Max(e.FrozenUntil, Time + dur);
+            }
+        }
+
+        // Electrocute: for the next 6s, a roll every 2s can freeze the target in place
+        // with a crackle of electricity.
+        if (stats.ElectrocuteChance > 0 && _rng.NextDouble() < stats.ElectrocuteChance)
+        {
+            if (Time >= e.ElectrocutedUntil) e.NextShockRollAt = Time + ShockRollInterval;
+            e.ElectrocutedUntil = MathF.Max(e.ElectrocutedUntil, Time + ElectrocuteDuration);
+        }
+
+        // Poison: DoT off the physical + dark + acid portions swung, 60% over 4s.
+        if (stats.PoisonChance > 0 && _rng.NextDouble() < stats.PoisonChance)
+        {
+            float basis = comps.Where(c => DamageKinds.IsPhysical(c.kind) ||
+                                           c.kind is DamageKind.Dark or DamageKind.Acid)
+                               .Sum(c => c.amount);
+            if (basis > 0)
+            {
+                e.PoisonDps = MathF.Max(e.PoisonDps, basis * 0.6f / 4f * stats.PoisonMagnitude);
+                e.PoisonTimeLeft = 4f;
+            }
+        }
+
+        // Bleed: physical only, but scales better (90% over 4s).
+        if (stats.BleedChance > 0 && _rng.NextDouble() < stats.BleedChance)
+        {
+            float basis = comps.Where(c => DamageKinds.IsPhysical(c.kind)).Sum(c => c.amount);
+            if (basis > 0)
+            {
+                e.BleedDps = MathF.Max(e.BleedDps, basis * 0.9f / 4f * stats.BleedMagnitude);
+                e.BleedTimeLeft = 4f;
+            }
+        }
+    }
+
+    /// <summary>Active Scorched Earth fire-resistance shred stacks (expired ones pruned).</summary>
+    public int FireExposureStacks(ServerEnemy e)
+    {
+        e.FireExposure.RemoveAll(t => t <= Time);
+        return e.FireExposure.Count;
+    }
+
+    /// <summary>A burning ground circle left by Scorched Earth fire projectiles: ticks
+    /// fire damage and stacks -1% fire resistance per second (5s per stack, max 25).</summary>
+    private class FirePatchArea
+    {
+        public Vector2 Position;
+        public float Height;
+        public float ExpiresAt;
+        public float Dps;
+        public int OwnerId;
+        public string SkillId;
+        public float NextTickAt;
+        public float NextStackAt;
+    }
+
+    private readonly List<FirePatchArea> _firePatches = new();
+    public int ActiveFirePatches => _firePatches.Count;
+    public const float FirePatchRadius = 1.2f;
+    public const float FirePatchDuration = 3f;
+    public const int FireExposureMaxStacks = 25;
+    private const float FireExposureStackLife = 5f;
+
+    private void SpawnFirePatch(Vector2 pos, float height, float dps, int ownerId, string skillId)
+    {
+        _firePatches.Add(new FirePatchArea
+        {
+            Position = pos, Height = height, ExpiresAt = Time + FirePatchDuration,
+            Dps = dps, OwnerId = ownerId, SkillId = skillId,
+            NextTickAt = Time + 0.5f, NextStackAt = Time + 1f,
+        });
+        _events.WorldEffect("firepatch", pos, FirePatchRadius, FirePatchDuration, height);
+    }
+
+    /// <summary>Scroll of Shattering: 5 small ice shards continue behind the struck enemy
+    /// in a random shotgun spread at 20% of the parent's damage. Shards never re-shatter
+    /// (added-projectile scrolls deliberately cannot raise the count).</summary>
+    private void SpawnShatterShards(ServerProjectile parent, ServerEnemy hit)
+    {
+        var childStats = parent.Ailments;
+        childStats.ShatterShards = 0;
+        childStats.FirePatch = false;
+        int count = 5;
+        for (int i = 0; i < count; i++)
+        {
+            float spread = ((float)_rng.NextDouble() - 0.5f) * 1.2f; // ~±34 degrees
+            var dir = Rotate(parent.Direction, spread);
+            var shard = new ServerProjectile
+            {
+                Id = _nextProjectileId++,
+                FromPlayer = true,
+                OwnerId = parent.OwnerId,
+                SkillId = parent.SkillId,
+                SpriteOverride = "IceShard",
+                Position = hit.Position + dir * (hit.Def.Radius + 0.25f),
+                Height = parent.Height,
+                Direction = dir,
+                Speed = 9f,
+                MaxRange = 3.5f,
+                HeightStep = 0f,
+                MinDamage = parent.MinDamage * 0.2f,
+                MaxDamage = parent.MaxDamage * 0.2f,
+                DamageKind = DamageKind.Cold,
+                CritChance = parent.CritChance,
+                CritDamage = parent.CritDamage,
+                Ailments = childStats,
+            };
+            Projectiles[shard.Id] = shard;
+            _events.ProjectileSpawned(shard);
+        }
+    }
+
+    private void TickFirePatches()
+    {
+        for (int i = _firePatches.Count - 1; i >= 0; i--)
+        {
+            var fp = _firePatches[i];
+            if (Time >= fp.ExpiresAt) { _firePatches.RemoveAt(i); continue; }
+            bool tick = Time >= fp.NextTickAt;
+            bool stack = Time >= fp.NextStackAt;
+            if (!tick && !stack) continue;
+            if (tick) fp.NextTickAt = Time + 0.5f;
+            if (stack) fp.NextStackAt = Time + 1f;
+            foreach (var e in EnemiesNear(fp.Position, FirePatchRadius, fp.Height))
+            {
+                if (tick)
+                {
+                    var (dmg, kind) = MitigateForEnemy(e, new List<(DamageKind, float)> { (DamageKind.Fire, fp.Dps * 0.5f) });
+                    DamageEnemy(e, dmg, fp.OwnerId, fp.SkillId, kind);
+                }
+                if (stack && !e.Dead && FireExposureStacks(e) < FireExposureMaxStacks)
+                    e.FireExposure.Add(Time + FireExposureStackLife);
+            }
+        }
+    }
 
     private bool RollStun(SkillDefinition def) =>
         def.StunDuration > 0 && _rng.NextDouble() < def.StunChance;
@@ -1130,8 +1357,12 @@ public partial class ServerWorld
     /// strike, then apply the enemy's per-type resistances/weaknesses (negative
     /// resistance = extra damage).</summary>
     private (float total, DamageKind dominant) RollSkillHit(ServerEnemy target, in EffectiveSkillStats stats)
+        => RollSkillHit(target, stats, out _);
+
+    private (float total, DamageKind dominant) RollSkillHit(ServerEnemy target, in EffectiveSkillStats stats,
+        out List<(DamageKind kind, float amount)> comps)
     {
-        var comps = RollComponentList(stats.MinDamage, stats.MaxDamage, stats.DamageKind, stats.Added);
+        comps = RollComponentList(stats.MinDamage, stats.MaxDamage, stats.DamageKind, stats.Added);
         ApplyCritRoll(comps, stats.CritChance, stats.CritDamage);
         return MitigateForEnemy(target, comps);
     }
@@ -1154,6 +1385,7 @@ public partial class ServerWorld
         foreach (var (kind, amount) in components)
         {
             float resist = Math.Clamp((e.Def.Resistances?.GetValueOrDefault(kind) ?? 0f) + e.BonusResist, -300f, 100f);
+            if (kind == DamageKind.Fire) resist -= FireExposureStacks(e); // Scorched Earth shred
             float dmg = amount * (1f - resist / 100f);
             total += dmg;
             if (dmg > dominantAmount) { dominantAmount = dmg; dominant = kind; }
@@ -1193,15 +1425,8 @@ public partial class ServerWorld
         return list;
     }
 
-    private void HitEnemy(ServerEnemy e, float damage, int byPlayer, string skillId, DamageKind kind, bool ignite)
-    {
-        if (ignite)
-        {
-            e.BurnDps = MathF.Max(e.BurnDps, damage * 0.4f / 3f);
-            e.BurnTimeLeft = 3f;
-        }
-        DamageEnemy(e, damage, byPlayer, skillId, kind);
-    }
+    private void HitEnemy(ServerEnemy e, float damage, int byPlayer, string skillId, DamageKind kind)
+        => DamageEnemy(e, damage, byPlayer, skillId, kind);
 
     private void DamageEnemy(ServerEnemy e, float damage, int byPlayer, string skillId,
         DamageKind kind = DamageKind.Blunt, bool emitEvents = true)

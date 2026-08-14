@@ -322,9 +322,11 @@ public class GameClient
                     var pos = r.GetVec2();
                     var facing = r.GetVec2();
                     float height = r.GetFloat();
-                    if (id == World.MyPlayerId) continue; // local player is predicted locally
+                    byte pFlags = r.GetByte();
                     if (World.Players.TryGetValue(id, out var p))
                     {
+                        p.DebuffFlags = pFlags; // ailments apply to the local player too
+                        if (id == World.MyPlayerId) continue; // position is predicted locally
                         p.NetTarget = pos;
                         p.Facing = facing;
                         p.NetTargetHeight = height;
@@ -371,6 +373,16 @@ public class GameClient
                         Item = Json.Load<ItemInstance>(r.GetString()),
                     });
                 ShopStockReceived?.Invoke(npcId, stock);
+                break;
+            }
+            case PacketType.WorldEffect:
+            {
+                string wfKind = r.GetString();
+                var wfPos = r.GetVec2();
+                float wfRadius = r.GetFloat();
+                float wfDuration = r.GetFloat();
+                float wfHeight = r.GetFloat();
+                World.AddEffect(wfPos, wfRadius, wfDuration, wfKind, wfHeight);
                 break;
             }
             case PacketType.ChainEffect:
@@ -480,6 +492,8 @@ public class GameClient
                 pr.Speed = r.GetFloat();
                 pr.MaxRange = r.GetFloat();
                 pr.HeightStep = r.GetFloat();
+                pr.SpriteOverride = r.GetString();
+                if (pr.SpriteOverride.Length == 0) pr.SpriteOverride = null;
                 World.Projectiles[pr.Id] = pr;
                 break;
             }

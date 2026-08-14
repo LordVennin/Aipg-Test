@@ -416,6 +416,10 @@ public class GameServer : IServerEvents
             w.PutVec2(p.Position);
             w.PutVec2(p.Facing);
             w.Put(p.Height);
+            byte pFlags = 0;
+            if (World.Time < p.FrozenUntil) pFlags |= PlayerDebuffs.Frozen;
+            if (World.Time < p.ElectrocutedUntil) pFlags |= PlayerDebuffs.Shocked;
+            w.Put(pFlags);
         }
         Broadcast(w, DeliveryMethod.Unreliable);
     }
@@ -436,6 +440,11 @@ public class GameServer : IServerEvents
             if (World.Time < e.StunnedUntil) debuffs |= EnemyDebuffs.Stunned;
             if (e.BurnTimeLeft > 0) debuffs |= EnemyDebuffs.Burning;
             if (World.Time < e.SlowedUntil) debuffs |= EnemyDebuffs.Slowed;
+            if (e.ChillMagnitude > 5f) debuffs |= EnemyDebuffs.Chilled;
+            if (World.Time < e.FrozenUntil) debuffs |= EnemyDebuffs.Frozen;
+            if (World.Time < e.ElectrocutedUntil) debuffs |= EnemyDebuffs.Shocked;
+            if (e.PoisonTimeLeft > 0) debuffs |= EnemyDebuffs.Poisoned;
+            if (e.BleedTimeLeft > 0) debuffs |= EnemyDebuffs.Bleeding;
             w.Put(debuffs);
             w.Put(e.Height);
         }
@@ -512,6 +521,18 @@ public class GameServer : IServerEvents
         w.Put(p.Speed);
         w.Put(p.MaxRange);
         w.Put(p.HeightStep);
+        w.Put(p.SpriteOverride ?? "");
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void WorldEffect(string kind, Vector2 position, float radius, float duration, float height)
+    {
+        var w = Packets.Make(PacketType.WorldEffect);
+        w.Put(kind);
+        w.PutVec2(position);
+        w.Put(radius);
+        w.Put(duration);
+        w.Put(height);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

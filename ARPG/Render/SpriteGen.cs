@@ -124,6 +124,7 @@ public static class SpriteGen
         var tex = key switch
         {
             "IceSpike" => DrawIceSpike(),
+            "IceShard" => DrawIceShard(),
             _ => null,
         };
         if (tex == null) return null;
@@ -154,6 +155,34 @@ public static class SpriteGen
         Set(3, 1, iceDark); Set(4, 1, ice); Set(4, 2, ice);
         Set(5, 7, iceDark); Set(6, 7, ice);
         Set(1, 4, iceDark);
+
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>A stubby splinter of ice for Shattering shards — deliberately distinct
+    /// from the Ice Spike: shorter, angular, with a frosted glassy edge.</summary>
+    private static Texture2D DrawIceShard()
+    {
+        const int w = 11, h = 7;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+
+        var glass = new Color(190, 235, 255);
+        var glassDeep = new Color(110, 170, 235);
+        var edge = new Color(70, 120, 200);
+        var glint = Color.White;
+
+        // Chunky angular splinter: a broken-off wedge, thick then snapping to a point.
+        for (int x = 1; x <= 9; x++)
+        {
+            int hw = x <= 3 ? 2 : x <= 6 ? 1 : 0;
+            for (int y = 3 - hw; y <= 3 + hw; y++)
+                Set(x, y, y == 3 ? glass : y < 3 ? glassDeep : edge);
+        }
+        // Fracture notch at the back and a glint near the tip.
+        Set(1, 2, edge); Set(0, 3, edge); Set(1, 4, Color.Transparent);
+        Set(8, 3, glint); Set(9, 3, glint);
+        Set(4, 1, glassDeep); Set(5, 5, edge);
 
         return BakeStrip(px, w, h);
     }
@@ -194,6 +223,65 @@ public static class SpriteGen
                 Set(1 + i, 4 + i, blueDark); Set(7 - i, 4 + i, blueDark);
             }
             Set(4, 4, blue); Set(4, 7, blueDark);
+        }
+        else if (kind == "chill")
+        {
+            // Six-armed snowflake.
+            var ice = new Color(160, 215, 250);
+            var iceDark = new Color(90, 150, 220);
+            for (int i = 0; i < 9; i++) { Set(4, i, ice); Set(i, 4, ice); }
+            for (int i = 1; i < 8; i++) { Set(i, i, iceDark); Set(8 - i, i, iceDark); }
+            Set(4, 4, Color.White);
+        }
+        else if (kind == "frozen")
+        {
+            // Solid ice crystal: pale diamond with a bright core.
+            var ice = new Color(150, 200, 250);
+            var iceDeep = new Color(80, 130, 220);
+            for (int y = 0; y < 9; y++)
+            {
+                int half = 4 - Math.Abs(y - 4);
+                for (int x = 4 - half; x <= 4 + half; x++)
+                    Set(x, y, x == 4 - half || x == 4 + half ? iceDeep : ice);
+            }
+            Set(4, 4, Color.White); Set(4, 3, new Color(220, 240, 255));
+        }
+        else if (kind == "shock")
+        {
+            // Jagged yellow lightning bolt.
+            var bolt = new Color(255, 235, 110);
+            var boltDark = new Color(210, 170, 40);
+            Set(5, 0, bolt); Set(4, 1, bolt); Set(4, 2, bolt); Set(3, 3, bolt);
+            Set(3, 4, bolt); Set(5, 4, boltDark); Set(4, 4, bolt);
+            Set(5, 5, bolt); Set(4, 6, bolt); Set(4, 7, boltDark); Set(3, 8, bolt);
+        }
+        else if (kind == "poison")
+        {
+            // Green droplet with bubbles.
+            var venom = new Color(120, 220, 80);
+            var venomDark = new Color(60, 150, 40);
+            Set(4, 0, venomDark); Set(4, 1, venom);
+            for (int y = 2; y <= 6; y++)
+            {
+                int half = y <= 4 ? (y - 1) / 2 + 1 : 6 - y + 1;
+                for (int x = 4 - half; x <= 4 + half; x++) Set(x, y, venom);
+            }
+            Set(3, 3, new Color(200, 255, 170)); Set(4, 7, venomDark);
+            Set(1, 7, venomDark); Set(7, 6, venomDark);
+        }
+        else if (kind == "bleed")
+        {
+            // Deep red drop with a falling drip.
+            var blood = new Color(210, 50, 45);
+            var bloodDark = new Color(140, 25, 25);
+            Set(4, 0, bloodDark); Set(4, 1, blood);
+            for (int y = 2; y <= 5; y++)
+            {
+                int half = y <= 3 ? y - 1 : 5 - y + 1;
+                for (int x = 4 - half; x <= 4 + half; x++) Set(x, y, blood);
+            }
+            Set(3, 2, new Color(255, 150, 140));
+            Set(4, 6, bloodDark); Set(4, 8, bloodDark);
         }
         else // burn
         {
