@@ -944,15 +944,27 @@ public partial class ServerWorld
                 RemoveProjectile(pr, next);
                 continue;
             }
+            var prevPos = pr.Position;
             pr.Position = next;
             pr.Height = nextHeight;
+
+            // Hit tests are SWEPT along this tick's segment, not sampled at the endpoint —
+            // a fast projectile can otherwise step clean across a small target and
+            // visibly "pass through" it.
+            static float SegmentDistance(Vector2 a, Vector2 b, Vector2 point)
+            {
+                var ab = b - a;
+                float lenSq = ab.LengthSquared();
+                float t = lenSq < 0.000001f ? 0f : Math.Clamp(Vector2.Dot(point - a, ab) / lenSq, 0f, 1f);
+                return Vector2.Distance(a + ab * t, point);
+            }
 
             if (pr.FromPlayer)
             {
                 foreach (var e in Enemies.Values)
                 {
                     if (e.Dead || MathF.Abs(e.Height - pr.Height) > 0.75f) continue;
-                    if (Vector2.Distance(pr.Position, e.Position) <= e.Def.Radius + 0.25f)
+                    if (SegmentDistance(prevPos, pr.Position, e.Position) <= e.Def.Radius + 0.25f)
                     {
                         var comps = RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
                         ApplyCritRoll(comps, pr.CritChance, pr.CritDamage);
@@ -977,7 +989,7 @@ public partial class ServerWorld
                 foreach (var s2 in Summons.Values)
                 {
                     if (MathF.Abs(s2.Height - pr.Height) > 0.75f) continue;
-                    if (Vector2.Distance(pr.Position, s2.Position) <= ServerSummon.Radius + 0.25f)
+                    if (SegmentDistance(prevPos, pr.Position, s2.Position) <= ServerSummon.Radius + 0.25f)
                     {
                         DamageSummon(s2, Roll(pr.MinDamage, pr.MaxDamage));
                         RemoveProjectile(pr, pr.Position);
@@ -990,7 +1002,7 @@ public partial class ServerWorld
                 {
                     if (!p.Alive || MathF.Abs(p.Height - pr.Height) > 0.75f) continue;
                     if (Time < p.InvulnerableUntil) continue; // dodging players are passed through
-                    if (Vector2.Distance(pr.Position, p.Position) <= ServerPlayer.Radius + 0.25f)
+                    if (SegmentDistance(prevPos, pr.Position, p.Position) <= ServerPlayer.Radius + 0.25f)
                     {
                         DamagePlayerTyped(p, RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added),
                             attackHit: pr.AttackHit);

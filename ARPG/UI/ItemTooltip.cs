@@ -160,14 +160,21 @@ public static class ItemTooltip
             if (item.Locked)
                 lines.Add(new Line("SEALED — cannot be modified", new Color(230, 110, 200)));
         }
-        // Requirements: level plus any attribute demands, on one clear line.
+        // Requirements: level plus any attribute demands (after the item's own "of
+        // Ease" reductions), on one clear line.
         var reqs = new List<string>();
         if (itemBase.RequiredLevel > 1) reqs.Add($"Level {itemBase.RequiredLevel}");
-        if (itemBase.RequiredStrength > 0) reqs.Add($"{itemBase.RequiredStrength} Str");
-        if (itemBase.RequiredDexterity > 0) reqs.Add($"{itemBase.RequiredDexterity} Dex");
-        if (itemBase.RequiredIntelligence > 0) reqs.Add($"{itemBase.RequiredIntelligence} Int");
+        int rStr = item.EffectiveRequirement(data, itemBase.RequiredStrength);
+        int rDex = item.EffectiveRequirement(data, itemBase.RequiredDexterity);
+        int rInt = item.EffectiveRequirement(data, itemBase.RequiredIntelligence);
+        bool reduced = rStr < itemBase.RequiredStrength || rDex < itemBase.RequiredDexterity ||
+                       rInt < itemBase.RequiredIntelligence;
+        if (rStr > 0) reqs.Add($"{rStr} Str");
+        if (rDex > 0) reqs.Add($"{rDex} Dex");
+        if (rInt > 0) reqs.Add($"{rInt} Int");
         if (reqs.Count > 0)
-            lines.Add(new Line($"Requires: {string.Join(", ", reqs)}", new Color(220, 170, 130)));
+            lines.Add(new Line($"Requires: {string.Join(", ", reqs)}{(reduced ? "  (reduced)" : "")}",
+                new Color(220, 170, 130)));
         if (totalDeflection > 0)
         {
             foreach (var dLine in WrapText(

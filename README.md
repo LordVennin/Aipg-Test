@@ -308,7 +308,11 @@ ARPG/
   authoritative projectile ADOPTS on arrival — it inherits the ghost's flight progress
   so nothing snaps backwards. Damage, hits, cooldown enforcement and what every OTHER
   player sees remain fully server-side; a rejected cast just shows a swing that hits
-  nothing, and an unconfirmed ghost fizzles within a second.
+  nothing, and an unconfirmed ghost fizzles within a second. Ghosts never spawn for
+  casts the client already knows will fail (no mana), and they stop on the first
+  enemy they visually touch — while server-side projectile hits sweep each tick's
+  full travel segment, so even very fast bolts can never step across a body and
+  "pass through" it.
 - **Delivery**: player/enemy position snapshots go unreliable at 20/10 Hz (newest wins);
   everything that matters (joins, spawns, deaths, health, loot, character state) goes
   `ReliableOrdered`.
@@ -432,12 +436,14 @@ validated server-side like any other request.
 
 ### Passive skill tree
 
-`P` opens a PoE-style passive tree. One point per character level past the first;
+`P` opens a PoE-style passive tree — click-drag anywhere on the panel to PAN
+around it (a press that doesn't move still allocates). One point per character
+level past the first;
 nodes allocate outward from the start node ("Adventurer's Spark"), each adding
 stats through the SAME StatCollection pipeline as item modifiers — any existing
 stat works as a perk with zero extra code. Allocation is server-validated
 (existence, adjacency, unspent points) and persists in the character save. The
-starter cluster is deliberately tiny (16 perks in three branches: melee, defense,
+starter cluster is deliberately tiny (19 perks in three branches: melee, defense,
 caster) — the SYSTEM is the point, and class-specific starting trees can replace
 `Data/SkillTree/tree.json` later without code changes.
 
@@ -482,15 +488,22 @@ Three defense families hang off them:
   recharges at a %-of-maximum rate. A cyan bar caps the health orb when a build
   has any.
 
-Armor bases now cover all six defensive identities — Iron Plate (Armor),
-Hunter's Jerkin (Deflection), Apprentice Robe (Energy Shield), Brigandine
-(Armor+Deflection), Battlemage Plate (Armor+ES) and Shadowweave Garb
-(Deflection+ES) — and bases can demand **character level, Strength, Dexterity
-and/or Intelligence** to equip. Requirements are enforced server-side (attributes
-from OTHER equipped gear count) and shown in tooltips, which also display
-pre-summed Deflection/ES totals and a short explainer of how Deflection's
-descending checks work. The character sheet lists attributes, Armor with its
-physical reduction, Deflection Rating with the initial chance, and Energy Shield.
+Armor comes in SETS per defense identity, two tiers each, every piece carrying
+ONLY its type's stat: **Ironbound → Warplate** (Armor, STR), **Hide → Hunter's**
+(Deflection, DEX) and **Cloth → Silk** (Energy Shield, INT) across
+helmet/body/gloves/boots, plus three hybrid bodies — Brigandine (Armor+Deflection),
+Battlemage Plate (Armor+ES), Shadowweave Garb (Deflection+ES) — that pay for
+covering two defenses by carrying **~60% of each pure stat**. Gear demands
+attributes as a BASELINE: maces and shields want Strength, staffs Intelligence,
+Armor pieces Strength, Deflection pieces Dexterity, ES pieces Intelligence
+(tier 1 ≈ 8, tier 2 ≈ 14), alongside character level. Requirements are enforced
+server-side (attributes from OTHER equipped gear count) and shown in tooltips —
+and the **of Ease** suffix locally reduces ITS item's attribute requirements by a
+rolled percent (capped 60%), displayed pre-reduced and marked "(reduced)".
+Tooltips also show pre-summed Deflection/ES totals and a short explainer of how
+Deflection's descending checks work. The character sheet lists attributes, Armor
+with its physical reduction, Deflection Rating with the initial chance, and
+Energy Shield.
 
 ### Telegraphed enemy melee (wind-up → whiff or hit → recovery)
 
@@ -604,7 +617,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (326 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (336 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

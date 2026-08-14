@@ -16,6 +16,9 @@
   {"Id": "iron_will", "Name": "Iron Will", "Description": "Raw strength of arm and back.",
    "X": -2.8, "Y": 0.2,
    "Effects": [{"Stat": "Strength", "Value": 8}]},
+  {"Id": "mountain_heart", "Name": "Mountain Heart", "Description": "Strength enough to wear the mountain.",
+   "X": -4.2, "Y": 1.5,
+   "Effects": [{"Stat": "Strength", "Value": 8}]},
   {"Id": "bulwark", "Name": "Bulwark", "Description": "Plate sits like a second skin.",
    "X": -4.2, "Y": 0.6,
    "Effects": [{"Stat": "Armor", "Value": 20}]},
@@ -31,6 +34,9 @@
    "Effects": [{"Stat": "MovementSpeed", "Value": 5}]},
   {"Id": "nimble", "Name": "Nimble", "Description": "Quick hands, quicker feet.",
    "X": -1.4, "Y": 3.1,
+   "Effects": [{"Stat": "Dexterity", "Value": 8}]},
+  {"Id": "wind_dancer", "Name": "Wind Dancer", "Description": "Grace beyond training.",
+   "X": -2.6, "Y": 4.4,
    "Effects": [{"Stat": "Dexterity", "Value": 8}]},
   {"Id": "sidestep", "Name": "Sidestep", "Description": "Blows keep missing by a hair.",
    "X": -2.8, "Y": 3.6,
@@ -48,16 +54,19 @@
   {"Id": "keen_mind", "Name": "Keen Mind", "Description": "A sharper, deeper intellect.",
    "X": 2.8, "Y": 0.2,
    "Effects": [{"Stat": "Intelligence", "Value": 8}]},
+  {"Id": "deep_thought", "Name": "Deep Thought", "Description": "An intellect that spans libraries.",
+   "X": 4.2, "Y": 1.5,
+   "Effects": [{"Stat": "Intelligence", "Value": 8}]},
   {"Id": "aether_veil", "Name": "Aether Veil", "Description": "A humming shell of force.",
    "X": 4.2, "Y": 0.6,
    "Effects": [{"Stat": "EnergyShield", "Value": 15}]}
  ],
  "Connections": [
   ["root", "brawn"], ["brawn", "heavy_hands"], ["heavy_hands", "executioner"],
-  ["brawn", "iron_will"], ["iron_will", "bulwark"],
+  ["brawn", "iron_will"], ["iron_will", "bulwark"], ["iron_will", "mountain_heart"],
   ["root", "vitality"], ["vitality", "stone_skin"], ["stone_skin", "fleet_foot"],
-  ["stone_skin", "nimble"], ["nimble", "sidestep"],
+  ["stone_skin", "nimble"], ["nimble", "sidestep"], ["nimble", "wind_dancer"],
   ["root", "focus"], ["focus", "clear_mind"], ["clear_mind", "arcanist"],
-  ["focus", "keen_mind"], ["keen_mind", "aether_veil"]
+  ["focus", "keen_mind"], ["keen_mind", "aether_veil"], ["keen_mind", "deep_thought"]
  ]
 }

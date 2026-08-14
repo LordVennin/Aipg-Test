@@ -802,10 +802,16 @@ public class WorldRenderer
         {
             var pos = summon.Position;
             var screen = camera.WorldToScreen(pos, summon.Height);
-            var summonTex = SpriteGen.GetSummonSprite(summon.SkillId);
-            if (summonTex == null) continue;
+            var summonFrames = SpriteGen.GetSummonFrames(summon.SkillId);
+            if (summonFrames == null) continue;
             bool mine = summon.OwnerId == world.MyPlayerId;
             bool isWarrior = summon.SkillId != null && summon.SkillId.Contains("warrior");
+            // Walk cycle: stand / left stride / stand / right stride on a 4-beat gait.
+            bool striding = NumVec2.Distance(summon.Position, summon.NetTarget) > 0.06f;
+            int gaitBeat = (int)((animClock / 150 + summon.Id * 3) % 4);
+            var summonTex = striding
+                ? summonFrames[gaitBeat switch { 1 => 1, 3 => 2, _ => 0 }]
+                : summonFrames[0];
 
             // Attack animation (SummonAttack events): warriors lurch and chop their
             // drawn sword; archers recoil from the bow release. Plus a light walk bob
@@ -830,9 +836,6 @@ public class WorldRenderer
                 sumOff = isWarrior
                     ? strikeDir * (4.5f * (1f - attackT))   // sword lurch, settling back
                     : -strikeDir * (3f * (1f - attackT));   // bow recoil
-            bool walking = NumVec2.Distance(summon.Position, summon.NetTarget) > 0.06f;
-            if (walking && attackT < 0f)
-                sumOff.Y += MathF.Sin(animClock * 0.014f + summon.Id * 1.7f) * 1.5f;
 
             _sorted.Add((pos.X + pos.Y + summon.Height * 1.0f + 0.1f + UnderDeckBias(pos, summon.Height), batch =>
             {
@@ -957,7 +960,11 @@ public class WorldRenderer
                             2f + 0.3f * chop, SpriteEffects.None, 0f);
                         return;
                     }
-                    float ang = aimAng - 1.25f + 2.5f * st;
+                    // The sweep mirrors with the aim: rightward swings arc clockwise,
+                    // leftward swings counter-clockwise, so the follow-through always
+                    // trails the swipe instead of playing backwards.
+                    float sweep = swingIso.X >= 0 ? -1.25f + 2.5f * st : 1.25f - 2.5f * st;
+                    float ang = aimAng + sweep;
                     var hand = screen + new Vector2(MathF.Cos(ang), MathF.Sin(ang) * 0.6f) * 20f + new Vector2(0, -12);
                     batch.Draw(weaponTex, hand, null, Color.White, ang,
                         new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
