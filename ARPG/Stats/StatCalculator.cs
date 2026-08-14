@@ -137,6 +137,13 @@ public static class StatCalculator
             }
         }
 
+        // 1b) Allocated passive tree nodes contribute through the SAME pool as item
+        // modifiers, so every existing stat works in the tree with no extra plumbing.
+        foreach (var nodeId in character.AllocatedPassives)
+            if (data.PassiveTree.ById.TryGetValue(nodeId, out var node))
+                foreach (var fx in node.Effects)
+                    total.Add(fx.Stat, fx.Value);
+
         // 2) Temporary effects (buffs/debuffs) merge into the same pool.
         if (temporaryEffects != null) total.AddAll(temporaryEffects);
 

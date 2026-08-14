@@ -163,6 +163,7 @@ public class HudUI
         var hintFont = FontManager.Get(12);
         string hints = $"{input.Bindings[InputAction.Inventory].Display()} Inventory · " +
                        $"{input.Bindings[InputAction.SkillMenu].Display()} Skills · " +
+                       $"{input.Bindings[InputAction.SkillTree].Display()} Tree · " +
                        $"{input.Bindings[InputAction.Interact].Display()} Pickup · " +
                        $"{input.Bindings[InputAction.DebugMenu].Display()} Debug · " +
                        $"{input.Bindings[InputAction.Pause].Display()} Menu";

@@ -1632,6 +1632,85 @@ public static class HeadlessNetTest
         Check(new Core.GameSettings().ZoneThemeId == "forest",
               "forest is the default zone theme");
 
+        Console.WriteLine("\n-- Slam wind-up follows the caster --");
+        // The hit resolves from the caster's position AT LANDING TIME: moving during the
+        // wind-up moves the impact (visuals ride the phase-2 broadcast to the same point).
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+        var srvMove = server.World.Players[bId];
+        var farTarget = server.World.SpawnEnemy("grunt", srvMove.Position + new Vector2(1.2f, 0));
+        farTarget.Health = 500f;
+        farTarget.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        srvMove.Mana = srvMove.Stats.MaxMana;
+        srvMove.SkillReadyAt.Clear();
+        srvMove.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("mace_strike", farTarget.Position);
+        Pump(0.1f); // cast accepted, wind-up running
+        clientB.World.Me.Position = new Vector2(13.5f, 17.5f); // known-open corridor, far from the target
+        clientB.World.Me.Height = 0f;
+        Pump(0.6f); // wind-up lands from the NEW position — the old target is out of reach
+        Check(farTarget.Health >= 499.9f,
+              $"the slam lands where the caster IS, not where the cast started (hp {farTarget.Health:0})");
+        farTarget.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        Console.WriteLine("\n-- Passive skill tree --");
+        var tree = data.PassiveTree;
+        Check(tree.Nodes.Count == 10 && tree.Nodes.Count(n => n.Start) == 1,
+              $"starter tree loaded ({tree.Nodes.Count} nodes, {tree.Nodes.Count(n => n.Start)} start)");
+        Check(tree.Nodes.All(n => n.Effects.Count > 0) &&
+              tree.Connections.All(c => c.Count == 2 && tree.ById.ContainsKey(c[0]) && tree.ById.ContainsKey(c[1])),
+              "every node has effects and every connection joins real nodes");
+        Check(tree.Neighbors("root").Count == 3 && tree.Neighbors("arcanist").Contains("clear_mind"),
+              "adjacency works in both directions");
+
+        var srvTreeChar = server.World.Players[bId].Character;
+        srvTreeChar.AllocatedPassives.Clear();
+        int treePoints = Skills.PassiveTree.PointsForLevel(srvTreeChar.Level);
+        Check(treePoints >= 2, $"leveled character has passive points ({treePoints} at level {srvTreeChar.Level})");
+
+        // A disconnected node is refused; the start node is not.
+        clientB.RequestAllocatePassive("arcanist");
+        Pump(0.4f);
+        Check(!srvTreeChar.AllocatedPassives.Contains("arcanist"),
+              "allocation refuses nodes not connected to anything allocated");
+        float hpBeforeTree = server.World.Players[bId].Stats.MaxHealth;
+        clientB.RequestAllocatePassive("root");
+        Pump(0.4f);
+        Check(srvTreeChar.AllocatedPassives.Contains("root"),
+              "the start node allocates first");
+        Check(server.World.Players[bId].Stats.MaxHealth > hpBeforeTree + 9f,
+              $"allocated passives change stats immediately (+{server.World.Players[bId].Stats.MaxHealth - hpBeforeTree:0} max life)");
+
+        // Outward growth: brawn borders root, so it allocates; double-allocation is refused.
+        float physBefore = server.World.Players[bId].Stats.PhysicalDamageIncrease;
+        clientB.RequestAllocatePassive("brawn");
+        clientB.RequestAllocatePassive("brawn");
+        Pump(0.4f);
+        Check(srvTreeChar.AllocatedPassives.Count(id => id == "brawn") == 1 &&
+              server.World.Players[bId].Stats.PhysicalDamageIncrease >= physBefore + 7.9f,
+              "adjacent nodes allocate once and add their % physical damage");
+
+        // Exhausting the point pool blocks further allocation.
+        int fill = Skills.PassiveTree.PointsForLevel(srvTreeChar.Level) - srvTreeChar.AllocatedPassives.Count;
+        for (int i = 0; i < fill; i++) srvTreeChar.AllocatedPassives.Add($"_test_filler_{i}");
+        clientB.RequestAllocatePassive("vitality");
+        Pump(0.4f);
+        Check(!srvTreeChar.AllocatedPassives.Contains("vitality"),
+              "allocation is refused with no points left");
+        srvTreeChar.AllocatedPassives.RemoveAll(id => id.StartsWith("_test_filler_"));
+
+        // Allocations persist through the save serialization round-trip.
+        var savedJson = Json.SaveCompact(srvTreeChar);
+        var reloaded = Json.Load<Sim.CharacterData>(savedJson);
+        Check(reloaded.AllocatedPassives.Contains("root") && reloaded.AllocatedPassives.Contains("brawn"),
+              "allocated passives persist in the character save");
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

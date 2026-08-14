@@ -44,6 +44,10 @@ public class InventoryUI
     public bool EnchantModeActive => _pendingScrollId != null;
     public void CancelEnchantMode() => _pendingScrollId = null;
 
+    /// <summary>Sell mode (set while a merchant shop is open): left-clicking a BAG item
+    /// sells it instead of starting a drag. Cleared by PlayScreen when the shop closes.</summary>
+    public Action<ItemInstance> SellClickHandler;
+
     public InventoryUI(GameData data, GameClient client, DragState drag)
     {
         _data = data;
@@ -128,6 +132,15 @@ public class InventoryUI
                 _pendingScrollId = null; // one application per arm; clicking elsewhere cancels
                 return;
             }
+        }
+
+        // --- shop sell mode: clicking a bag item sells it (no drag) ---
+        if (SellClickHandler != null && !_drag.Active && !_pendingScrollId.HasValue &&
+            input.MouseLeftPressed && hoveredPlaced != null)
+        {
+            input.MouseCapturedByUI = true;
+            SellClickHandler(hoveredPlaced.Item);
+            return;
         }
 
         // --- start drag ---
@@ -281,8 +294,12 @@ public class InventoryUI
         }
 
         var hint = FontManager.Get(12);
-        sb.DrawString(hint, "drag to move/equip · right-click quick equip · right-click a Scroll, then click an item",
-            new Vector2(_panelRect.X + 12, _panelRect.Bottom - 22), new Color(120, 116, 104));
+        sb.DrawString(hint,
+            SellClickHandler != null
+                ? "SELLING — click a bag item to sell it to the merchant"
+                : "drag to move/equip · right-click quick equip · right-click a Scroll, then click an item",
+            new Vector2(_panelRect.X + 12, _panelRect.Bottom - 22),
+            SellClickHandler != null ? new Color(240, 200, 90) : new Color(120, 116, 104));
 
         // Armed Enchanting Scroll follows the cursor.
         if (_pendingScrollId.HasValue)

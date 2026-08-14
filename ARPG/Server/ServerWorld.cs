@@ -23,8 +23,10 @@ public interface IServerEvents
     void WorldItemRemoved(WorldItem item, int pickedUpByPlayerId);
     void CharacterChanged(ServerPlayer p);
     /// <summary>effectPoint is the server-computed impact/effect location — clients must
-    /// render the effect at exactly this point (no client-side recomputation).</summary>
-    void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint);
+    /// render the effect at exactly this point (no client-side recomputation). phase:
+    /// 0 = instant cast (animation + effects), 1 = wind-up started (animation only),
+    /// 2 = wind-up landed (impact effects at the REAL point, no animation restart).</summary>
+    void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint, byte phase = 0);
     /// <summary>A chain-lightning path (caster, then each victim in hit order) so clients
     /// can draw the bolt between the exact chain points.</summary>
     void ChainEffect(string skillId, List<Vector2> points, float height);
@@ -866,11 +868,11 @@ public partial class ServerWorld
                 ExecuteAt = Time + def.WindupTime,
             });
             _events.SkillUsed(p, skillId,
-                SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range));
+                SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range), phase: 1);
             return;
         }
 
-        ResolveSkill(p, skillId, def, stats, target, targetHeight, chargeMult, announce: true);
+        ResolveSkill(p, skillId, def, stats, target, targetHeight, chargeMult, phase: 0);
     }
 
     /// <summary>A cast whose hit is still winding up (Mace Slam's delayed impact).</summary>
@@ -905,16 +907,16 @@ public partial class ServerWorld
             if (w.TargetEnemyId >= 0 && Enemies.TryGetValue(w.TargetEnemyId, out var aimed) && !aimed.Dead)
                 target = aimed.Position;
             ResolveSkill(caster, w.SkillId, def, w.Stats, target, w.TargetHeight, w.ChargeMult,
-                announce: false);
+                phase: 2);
         }
     }
 
     /// <summary>The actual hit resolution for a cast (immediately for normal skills, after
-    /// the wind-up for queued ones). `announce` controls the SkillUsed broadcast — wind-up
-    /// casts already announced at cast time.</summary>
+    /// the wind-up for queued ones). `phase` rides the SkillUsed broadcast: 0 = instant
+    /// cast, 2 = a wind-up landing (the animation already played from the phase-1 cast).</summary>
     private void ResolveSkill(ServerPlayer p, string skillId, SkillDefinition def,
         EffectiveSkillStats stats, Vector2 target, float targetHeight, float chargeMult,
-        bool announce)
+        byte phase)
     {
         int playerId = p.Id;
 
@@ -1067,7 +1069,7 @@ public partial class ServerWorld
             }
         }
 
-        if (announce) _events.SkillUsed(p, skillId, effectPoint);
+        _events.SkillUsed(p, skillId, effectPoint, phase);
     }
 
     /// <summary>Server-authoritative dodge: validates the cooldown and applies i-frames.

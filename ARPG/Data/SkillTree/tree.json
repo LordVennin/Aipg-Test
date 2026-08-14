@@ -1,0 +1,42 @@
+{
+ "Nodes": [
+  {"Id": "root", "Name": "Adventurer's Spark", "Description": "Where every journey begins.",
+   "X": 0, "Y": 0, "Start": true,
+   "Effects": [{"Stat": "MaxHealth", "Value": 10}]},
+
+  {"Id": "brawn", "Name": "Brawn", "Description": "Hit harder with every weapon.",
+   "X": -1.4, "Y": -0.7,
+   "Effects": [{"Stat": "PhysicalDamage", "Value": 8}]},
+  {"Id": "heavy_hands", "Name": "Heavy Hands", "Description": "Swing faster.",
+   "X": -2.8, "Y": -1.1,
+   "Effects": [{"Stat": "AttackSpeed", "Value": 6}]},
+  {"Id": "executioner", "Name": "Executioner", "Description": "Critical strikes cut deeper.",
+   "X": -4.2, "Y": -1.5,
+   "Effects": [{"Stat": "CriticalDamage", "Value": 15}]},
+
+  {"Id": "vitality", "Name": "Vitality", "Description": "Thicker blood, longer life.",
+   "X": 0, "Y": 1.3,
+   "Effects": [{"Stat": "MaxHealth", "Value": 14}]},
+  {"Id": "stone_skin", "Name": "Stone Skin", "Description": "Shrug off blows.",
+   "X": 0, "Y": 2.6,
+   "Effects": [{"Stat": "Armor", "Value": 12}]},
+  {"Id": "fleet_foot", "Name": "Fleet Foot", "Description": "Move quicker.",
+   "X": 0, "Y": 3.9,
+   "Effects": [{"Stat": "MovementSpeed", "Value": 5}]},
+
+  {"Id": "focus", "Name": "Focus", "Description": "Spells strike with greater force.",
+   "X": 1.4, "Y": -0.7,
+   "Effects": [{"Stat": "SpellDamage", "Value": 8}]},
+  {"Id": "clear_mind", "Name": "Clear Mind", "Description": "A deeper well of mana.",
+   "X": 2.8, "Y": -1.1,
+   "Effects": [{"Stat": "MaximumMana", "Value": 12}]},
+  {"Id": "arcanist", "Name": "Arcanist", "Description": "Weave spells faster.",
+   "X": 4.2, "Y": -1.5,
+   "Effects": [{"Stat": "CastSpeed", "Value": 8}]}
+ ],
+ "Connections": [
+  ["root", "brawn"], ["brawn", "heavy_hands"], ["heavy_hands", "executioner"],
+  ["root", "vitality"], ["vitality", "stone_skin"], ["stone_skin", "fleet_foot"],
+  ["root", "focus"], ["focus", "clear_mind"], ["clear_mind", "arcanist"]
+ ]
+}

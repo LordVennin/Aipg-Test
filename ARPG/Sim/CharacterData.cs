@@ -53,6 +53,9 @@ public class CharacterData
     /// <summary>Stock slot indices already purchased at ShopLevel (they stay sold out).</summary>
     public List<int> ShopSoldSlots { get; set; } = new();
 
+    /// <summary>Allocated passive tree node ids (validated server-side on allocation).</summary>
+    public List<string> AllocatedPassives { get; set; } = new();
+
     public float XpToNextLevel() => 40f + 25f * Level;
 
     public LearnedSkill GetSkill(string skillId) => Skills.FirstOrDefault(s => s.SkillId == skillId);

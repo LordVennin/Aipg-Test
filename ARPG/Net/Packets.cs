@@ -28,6 +28,8 @@ public enum PacketType : byte
     ShopBuyRequest,
     /// <summary>Sell an inventory item to the merchant (item instance id).</summary>
     ShopSellRequest,
+    /// <summary>Allocate a passive tree node (node id). Server-validated.</summary>
+    AllocatePassiveRequest,
 
     // Server -> Client
     JoinAccept,

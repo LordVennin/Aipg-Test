@@ -28,6 +28,7 @@ public class PlayScreen : IScreen
     private readonly InventoryUI _inventory;
     private readonly SkillMenuUI _skillMenu;
     private readonly CharacterSheetUI _characterSheet;
+    private readonly SkillTreeUI _skillTree;
     private readonly ShopUI _shop;
     private readonly DebugUI _debug;
     private readonly DragState _drag = new();
@@ -52,6 +53,9 @@ public class PlayScreen : IScreen
     private bool _devDropScrolls;
     /// <summary>ARPG_DEVUI=shop: walk-free shop open shortly after joining (GUI automation).</summary>
     private bool _devOpenShop;
+    /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
+    /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
+    private bool _lmbClaimedByUI;
     /// <summary>Client-side cooldown estimates per skill (server still validates).</summary>
     private readonly Dictionary<string, float> _cooldownEnds = new();
     /// <summary>Client-side mirror of the server's global use-time lockout.</summary>
@@ -80,7 +84,22 @@ public class PlayScreen : IScreen
         _inventory = new InventoryUI(game.Data, client, _drag);
         _skillMenu = new SkillMenuUI(game.Data, client, _drag);
         _characterSheet = new CharacterSheetUI(game.Data, client);
-        _shop = new ShopUI(game.Data, client);
+        _skillTree = new SkillTreeUI(game.Data, client);
+        _shop = new ShopUI(game.Data, client, _inventory);
+        // Entering the shop opens the bag in sell mode beside it; closing ends selling.
+        _shop.ModeChanged += mode =>
+        {
+            if (mode == ShopUI.ShopMode.Shop)
+            {
+                _inventory.Open = true;
+                _inventory.SellClickHandler = item => _client.RequestShopSell(item.InstanceId);
+            }
+            else
+            {
+                _inventory.SellClickHandler = null;
+                if (mode == ShopUI.ShopMode.Closed) _inventory.Open = false;
+            }
+        };
         _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
 
         // Dev convenience (like --sp): ARPG_DEVUI=debug[,skills][,inventory] opens
@@ -94,6 +113,8 @@ public class PlayScreen : IScreen
             if (devUi.Contains("inventory")) _inventory.Open = true;
             if (devUi.Contains("drops")) _devDropScrolls = true;
             if (devUi.Contains("shop")) _devOpenShop = true;
+            if (devUi.Contains("shopgrid")) _shop.DevAutoGrid = true;
+            if (devUi.Contains("tree")) _skillTree.Open = true;
         }
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
@@ -173,6 +194,7 @@ public class PlayScreen : IScreen
         _inventory.Layout(uiScreen);
         _skillMenu.Layout(uiScreen);
         _characterSheet.Layout(uiScreen);
+        _skillTree.Layout(uiScreen);
         _shop.Layout(uiScreen);
 
         if (_client.Status != ClientStatus.InGame)
@@ -224,9 +246,11 @@ public class PlayScreen : IScreen
         }
         if (input.WasActionPressed(InputAction.Pause))
         {
-            if (_inventory.Open || _skillMenu.Open || _debug.Open || _characterSheet.Open || _shop.Open)
+            if (_inventory.Open || _skillMenu.Open || _debug.Open || _characterSheet.Open ||
+                _skillTree.Open || _shop.Open)
             {
-                _inventory.Open = _skillMenu.Open = _debug.Open = _characterSheet.Open = _shop.Open = false;
+                _inventory.Open = _skillMenu.Open = _debug.Open = _characterSheet.Open = _skillTree.Open = false;
+                _shop.Close();
                 _inventory.CancelEnchantMode();
             }
             else
@@ -240,12 +264,14 @@ public class PlayScreen : IScreen
         if (input.WasActionPressed(InputAction.Inventory)) _inventory.Open = !_inventory.Open;
         if (input.WasActionPressed(InputAction.SkillMenu)) _skillMenu.Open = !_skillMenu.Open;
         if (input.WasActionPressed(InputAction.CharacterSheet)) _characterSheet.Open = !_characterSheet.Open;
+        if (input.WasActionPressed(InputAction.SkillTree)) _skillTree.Open = !_skillTree.Open;
         if (input.WasActionPressed(InputAction.DebugMenu)) _debug.Open = !_debug.Open;
 
         // --- UI updates first: they claim the mouse before world input runs ---
         _debug.Update(input);
         _skillMenu.Update(input);
         _characterSheet.Update(input);
+        _skillTree.Update(input);
         _shop.Update(input);
         _inventory.Update(input);
 
@@ -255,11 +281,16 @@ public class PlayScreen : IScreen
             var mouse = input.MousePosition;
             bool handled = _skillMenu.TryDropAt(mouse) || _inventory.TryDropAt(mouse) ||
                            _debug.Contains(mouse) || _characterSheet.Contains(mouse) ||
-                           _shop.Contains(mouse);
+                           _skillTree.Contains(mouse) || _shop.Contains(mouse);
             if (!handled)
                 _client.RequestDropItem(_drag.Item.InstanceId); // released over the world: drop it
             _drag.Clear();
         }
+
+        // A UI-consumed click stays consumed for as long as the button is held, so
+        // closing a panel with the X never leaks into a primary attack.
+        if (input.MouseCapturedByUI && input.MouseLeftDown) _lmbClaimedByUI = true;
+        else if (!input.MouseLeftDown) _lmbClaimedByUI = false;
 
         bool mouseFree = !input.MouseCapturedByUI && !_drag.Active;
 
@@ -332,7 +363,7 @@ public class PlayScreen : IScreen
                 me.Facing = NumVec2.Normalize(facing);
 
             // --- skills (chargeable skills fire on RELEASE, scaled by held time) ---
-            HandleHotbarSlot(0, input.IsActionDown(InputAction.PrimaryAttack) && mouseFree, mouseWorld);
+            HandleHotbarSlot(0, input.IsActionDown(InputAction.PrimaryAttack) && mouseFree && !_lmbClaimedByUI, mouseWorld);
             HandleHotbarSlot(1, input.IsActionDown(InputAction.Skill1), mouseWorld);
             HandleHotbarSlot(2, input.IsActionDown(InputAction.Skill2), mouseWorld);
             HandleHotbarSlot(3, input.IsActionDown(InputAction.Skill3), mouseWorld);
@@ -584,6 +615,7 @@ public class PlayScreen : IScreen
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
         _skillMenu.Draw(sb, _game.Input);
         _characterSheet.Draw(sb);
+        _skillTree.Draw(sb);
         _shop.Draw(sb, screen);
         _inventory.Draw(sb, _game.Input);
         _debug.Draw(sb);
