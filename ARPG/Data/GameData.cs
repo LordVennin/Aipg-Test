@@ -106,6 +106,15 @@ public class LootTable
     public Dictionary<ItemCategory, int> CategoryWeights { get; set; } = new();
 }
 
+/// <summary>An NPC type (Data/Npcs/*.json): name and dialogue lines. Merchants get their
+/// shop behavior from code; the data file only carries flavor.</summary>
+public class NpcDefinition
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public List<string> Dialogue { get; set; } = new();
+}
+
 /// <summary>
 /// All loaded game content. Content lives in JSON files under Data/ and is loaded once at
 /// startup; adding items/affixes/skills/scrolls requires no code changes.
@@ -118,6 +127,7 @@ public class GameData
     public Dictionary<string, ScrollDefinition> Scrolls { get; } = new();
     public Dictionary<string, EnemyDefinition> Enemies { get; } = new();
     public Dictionary<string, LootTable> LootTables { get; } = new();
+    public Dictionary<string, NpcDefinition> Npcs { get; } = new();
     /// <summary>Zone visual themes in file order (Data/Zones/themes.json).</summary>
     public List<ZoneTheme> ZoneThemes { get; } = new();
 
@@ -142,6 +152,8 @@ public class GameData
             data.Enemies[enemy.Id] = enemy;
         foreach (var table in LoadAll<LootTable>(Path.Combine(dataDir, "LootTables")))
             data.LootTables[table.Id] = table;
+        foreach (var npc in LoadAll<NpcDefinition>(Path.Combine(dataDir, "Npcs")))
+            data.Npcs[npc.Id] = npc;
 
         data.ZoneThemes.AddRange(LoadAll<ZoneTheme>(Path.Combine(dataDir, "Zones")));
 

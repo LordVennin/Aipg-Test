@@ -1,3 +1,4 @@
+using System.Numerics;
 using ARPG.Inventory;
 using ARPG.Items;
 using ARPG.Net;
@@ -463,5 +464,126 @@ public partial class ServerWorld
         if (p.Character.Inventory.TryAdd(Data, item)) return true;
         SpawnDrop(item, p.Position);
         return false;
+    }
+
+    // ------------------------------------------------------------------ merchant shop
+
+    public const int ShopSlotCount = 6;
+    private const int ShopBuyMarkup = 2;   // buy price = item value x2
+    private const float ShopInteractRange = 3f;
+
+    /// <summary>Deterministic string hash (FNV-1a). string.GetHashCode is randomized per
+    /// process, which would reroll every shop each session — never use it for seeds.</summary>
+    private static int StableHash(string s)
+    {
+        unchecked
+        {
+            uint h = 2166136261;
+            foreach (char ch in s ?? "") { h ^= ch; h *= 16777619; }
+            return (int)h;
+        }
+    }
+
+    private static Guid DeterministicGuid(int seed, int slot)
+    {
+        var bytes = new byte[16];
+        unchecked
+        {
+            uint a = (uint)seed, b = (uint)(seed * 31 + slot * 101 + 7);
+            for (int i = 0; i < 16; i += 4)
+            {
+                a = a * 1664525 + 1013904223 + b;
+                b ^= a >> 13;
+                bytes[i] = (byte)a; bytes[i + 1] = (byte)(a >> 8);
+                bytes[i + 2] = (byte)(a >> 16); bytes[i + 3] = (byte)(a >> 24);
+            }
+        }
+        return new Guid(bytes);
+    }
+
+    /// <summary>
+    /// The merchant's stock for THIS player: seeded by (character name, character level),
+    /// so every player sees their own shop, it rerolls exactly once per level-up, and
+    /// leaving/rejoining a session never rerolls it (no shop-scumming with friends).
+    /// </summary>
+    public List<ShopEntry> GetShopStock(ServerPlayer p)
+    {
+        var c = p.Character;
+        if (c.ShopLevel != c.Level)
+        {
+            c.ShopLevel = c.Level;
+            c.ShopSoldSlots.Clear();
+            _events.CharacterChanged(p);
+        }
+        int seed = StableHash(c.Name) ^ unchecked(c.Level * (int)0x9E3779B1);
+        var gen = new LootGenerator(Data, new Random(seed));
+        var table = Data.GetLootTable("default");
+        var stock = new List<ShopEntry>();
+        for (int slot = 0; slot < ShopSlotCount; slot++)
+        {
+            // Last slot is always a rare — the "window piece" worth saving for.
+            var item = gen.GenerateEquipment(table, c.Level,
+                slot == ShopSlotCount - 1 ? ItemRarity.Rare : null);
+            if (item == null) continue;
+            item.InstanceId = DeterministicGuid(seed, slot); // stable identity per (player, level, slot)
+            stock.Add(new ShopEntry
+            {
+                Slot = slot,
+                Item = item,
+                Price = Math.Max(1, item.GoldValue(Data) * ShopBuyMarkup),
+                Sold = c.ShopSoldSlots.Contains(slot),
+            });
+        }
+        return stock;
+    }
+
+    private ServerNpc ShopNpcInRange(ServerPlayer p, int npcId)
+    {
+        var npc = Npcs.FirstOrDefault(n => n.Id == npcId);
+        if (npc == null) return null;
+        return Vector2.Distance(npc.Position, p.Position) <= ShopInteractRange ? npc : null;
+    }
+
+    public void ShopOpen(int playerId, int npcId)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        var npc = ShopNpcInRange(p, npcId);
+        if (npc == null) return;
+        _events.ShopStockFor(p, npcId, GetShopStock(p));
+    }
+
+    public void ShopBuy(int playerId, int npcId, int slot)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        if (ShopNpcInRange(p, npcId) == null) return;
+        var entry = GetShopStock(p).FirstOrDefault(e => e.Slot == slot);
+        if (entry == null || entry.Sold) return;
+        var c = p.Character;
+        if (c.Gold < entry.Price)
+        {
+            _events.MessageFor(p, "Not enough gold.");
+            return;
+        }
+        if (!c.Inventory.TryAdd(Data, entry.Item))
+        {
+            _events.MessageFor(p, "Your inventory is full.");
+            return;
+        }
+        c.Gold -= entry.Price;
+        c.ShopSoldSlots.Add(slot);
+        _events.CharacterChanged(p);
+        _events.ShopStockFor(p, npcId, GetShopStock(p));
+    }
+
+    public void ShopSell(int playerId, Guid itemInstanceId)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        if (Npcs.All(n => Vector2.Distance(n.Position, p.Position) > ShopInteractRange)) return;
+        var c = p.Character;
+        var placed = c.Inventory.FindByInstance(itemInstanceId);
+        if (placed == null) return;
+        c.Inventory.Remove(itemInstanceId);
+        c.Gold += Math.Max(1, placed.Item.GoldValue(Data));
+        _events.CharacterChanged(p);
     }
 }

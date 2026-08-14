@@ -114,6 +114,10 @@ public class SkillDefinition
     /// scales damage, knockback and lunge distance.</summary>
     public bool Chargeable { get; set; }
 
+    /// <summary>Seconds between the cast and the hit landing (slam wind-up). The server
+    /// queues the strike; the client delays the impact visuals to match. 0 = instant.</summary>
+    public float WindupTime { get; set; }
+
     /// <summary>Flat damage added per point of Armor on equipped SHIELDS (Shield Bash:
     /// heavier shields hit harder). 0 for skills that don't scale with shields.</summary>
     public float ShieldArmorScaling { get; set; }

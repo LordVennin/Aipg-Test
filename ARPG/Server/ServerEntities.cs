@@ -191,3 +191,14 @@ public class PackSpawner
     public readonly List<int> AliveIds = new();
     public float RespawnAt;
 }
+
+/// <summary>A friendly, stationary NPC (the test merchant). Not a combat entity — enemies
+/// ignore it entirely; players interact with the pickup key when in range.</summary>
+public class ServerNpc
+{
+    public int Id;
+    /// <summary>NpcDefinition id ("merchant").</summary>
+    public string TypeId;
+    public Vector2 Position;
+    public float Height;
+}

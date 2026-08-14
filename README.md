@@ -96,7 +96,7 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Inventory | `I` |
 | Skill Menu | `K` |
 | Character Sheet (defenses, resistances, skill DPS by damage type) | `C` |
-| Interact / pick up nearest item | `F` (or click an item's ground label) |
+| Interact: talk to NPCs / pick up items | `F` (or click an item's ground label) |
 | Debug menu | `F1` |
 | Pause / close panels / menu | `Escape` |
 
@@ -144,15 +144,23 @@ replicate as snapshot flags and render as tiny per-debuff icons above the enemy'
 head.
 
 **Skills**: *Mace Strike* (fast swing that hits EVERY enemy in its arc with light
-knockback, free), *Mace Slam* (mace-only ground slam at the aimed point: heavy
-knockback, a 60% chance to Slow survivors for 2.5s, an overhead slam animation and
-a cracked-earth impact overlay that fades — tagged `Slam`, higher mana cost),
+knockback, free — no impact circle, the weapon swing IS the visual), *Mace Slam*
+(mace-only ground slam at the aimed point: a 0.35s WIND-UP before the hit lands —
+the overhead animation stretches to match — then heavy knockback, a 60% chance to
+Slow survivors for 2.5s, a cracked-earth impact overlay and a burst of dust and
+terrain-colored rock debris that pops up and settles — tagged `Slam`, higher mana
+cost),
 Ground Slam, Shield Bash, Fire Bolt, Arcane Burst, *Ice Spike* (a cold projectile
 with its own crystalline shard sprite) and *Chain Lightning* (an instant blue-white
 bolt that strikes the enemy nearest the aim and leaps between nearby targets — the
 exact chain path is broadcast so every client draws the same jagged, flickering
 bolt; Multishot scrolls add extra jumps; the tan-gold palette is reserved for
 future light damage). Melee strikes animate the actual held weapon sweeping an arc.
+
+**Attack damage**: attack skills deal a PERCENT of your equipped weapon's damage
+(PoE2-style — shown as "N% of weapon" in the Skill Menu), never flat skill damage
+on top; spells keep their own base-damage progression, and Shield Bash adds its
+shield-armor bonus on top of its weapon percent.
 
 **Use time (global cast lockout)**: every skill declares a `UseTime` — a global
 lockout (enforced server-side, mirrored client-side on the hotbar) that stops the
@@ -315,7 +323,20 @@ laid out deterministically from the seed (identical on every client). Four theme
 ship: **Forsaken Graveyard** (default), **Sunken Tomb**, **Scorched Bluffs** and
 **Mirewood**. The hosted zone is chosen in Options → Gameplay ("Zone: ..."), or
 forced with the `ARPG_THEME` environment variable; the planned hub/teleporter
-will assign one per destination zone.
+will assign one per destination zone. **Mirewood (forest) is the default zone.**
+
+### The merchant (test shop)
+
+**Weaver the Peddler** sets up camp a few tiles from the player spawn. Walk up
+and press the pickup key (`F`) to talk — a random dialogue line and a shop panel
+open. The stock is PER PLAYER and deterministic: seeded from (character name,
+character level), so every player sees their own six items (the last is always a
+rare), the shop rerolls exactly once per level-up, and leaving/rejoining a
+session never rerolls it — no shop-scumming by hopping between friends' games.
+Purchases mark the slot SOLD for the rest of the level (persisted on the
+character save). Buy price is twice the item's gold value; selling an inventory
+item (click it in the right column) pays its base value. All transactions are
+validated server-side like any other request.
 
 ### Enemy pathfinding (flow fields)
 
@@ -406,13 +427,14 @@ computed stats. All commands execute server-side like any other request.
 
 Dev conveniences for automated/headless sessions: `--sp` starts straight into
 single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
-`ARPG_DEVUI=debug[,skills][,inventory][,drops]` opens panels at startup
-(`drops` scatters one of every scroll shortly after joining, for loot-UI work).
+`ARPG_DEVUI=debug[,skills][,inventory][,drops][,shop]` opens panels at startup
+(`drops` scatters one of every scroll shortly after joining, for loot-UI work;
+`shop` opens the merchant shop without needing keyboard input).
 
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (190 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (211 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

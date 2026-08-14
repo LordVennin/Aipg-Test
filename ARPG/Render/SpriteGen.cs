@@ -54,6 +54,66 @@ public static class SpriteGen
         return tex;
     }
 
+    /// <summary>Friendly NPC sprites (the test merchant). Cached per type id.</summary>
+    public static Texture2D GetNpcSprite(string typeId)
+    {
+        if (_device == null || string.IsNullOrEmpty(typeId)) return null;
+        string key = "npc:" + typeId;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+        var tex = DrawMerchant();
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    /// <summary>A hooded peddler: earthy robe, gold trim, a bulging satchel at the hip.</summary>
+    private static Texture2D DrawMerchant()
+    {
+        const int w = 20, h = 28;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var robe = new Color(96, 74, 56);
+        var robeDark = new Color(72, 55, 42);
+        var trim = new Color(212, 178, 90);
+        var hood = new Color(82, 62, 48);
+        var skin = new Color(224, 188, 152);
+        var eyes = new Color(40, 32, 26);
+        var satchel = new Color(140, 100, 60);
+        var strap = new Color(60, 46, 36);
+
+        // Robe body: widens toward the hem.
+        for (int y = 10; y <= 26; y++)
+        {
+            int half = 3 + (y - 10) * 3 / 16; // 3..6
+            Rect(9 - half, y, 10 + half, y, robe);
+            Set(9 - half, y, robeDark);
+            Set(10 + half, y, robeDark);
+        }
+        Rect(3, 26, 16, 27, robeDark);            // hem shadow
+        Rect(3, 25, 16, 25, trim);                // gold hem trim
+        // Hood: rounded cap over the head, face opening in front.
+        Rect(6, 2, 13, 9, hood);
+        Set(6, 2, Color.Transparent); Set(13, 2, Color.Transparent);
+        Rect(7, 1, 12, 1, hood);
+        Rect(8, 5, 11, 8, skin);                  // face
+        Set(8, 6, eyes); Set(11, 6, eyes);        // eyes
+        Rect(6, 9, 13, 10, robeDark);             // hood drape onto shoulders
+        Rect(9, 11, 10, 24, trim);                // front trim stripe
+        // Arms folded into sleeves.
+        Rect(4, 12, 6, 16, robeDark);
+        Rect(13, 12, 15, 16, robeDark);
+        Rect(6, 15, 13, 16, robe);                // hands tucked across
+        // Satchel on the right hip with a shoulder strap.
+        for (int i = 0; i < 10; i++) Set(6 + i / 2, 10 + i, strap);
+        Rect(13, 18, 17, 23, satchel);
+        Rect(13, 18, 17, 18, strap);
+        Set(15, 20, trim);                        // buckle glint
+
+        return BakeStrip(px, w, h);
+    }
+
     /// <summary>Named projectile sprites (SkillDefinition.ProjectileSprite), drawn pointing
     /// RIGHT; the renderer rotates them along the flight direction. Cached per name.</summary>
     public static Texture2D GetProjectileSprite(string key)

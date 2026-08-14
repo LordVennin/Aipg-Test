@@ -28,6 +28,7 @@ public class PlayScreen : IScreen
     private readonly InventoryUI _inventory;
     private readonly SkillMenuUI _skillMenu;
     private readonly CharacterSheetUI _characterSheet;
+    private readonly ShopUI _shop;
     private readonly DebugUI _debug;
     private readonly DragState _drag = new();
 
@@ -49,6 +50,8 @@ public class PlayScreen : IScreen
     private float _clientTime;
     /// <summary>ARPG_DEVUI=drops: scatter one of every scroll shortly after joining.</summary>
     private bool _devDropScrolls;
+    /// <summary>ARPG_DEVUI=shop: walk-free shop open shortly after joining (GUI automation).</summary>
+    private bool _devOpenShop;
     /// <summary>Client-side cooldown estimates per skill (server still validates).</summary>
     private readonly Dictionary<string, float> _cooldownEnds = new();
     /// <summary>Client-side mirror of the server's global use-time lockout.</summary>
@@ -77,6 +80,7 @@ public class PlayScreen : IScreen
         _inventory = new InventoryUI(game.Data, client, _drag);
         _skillMenu = new SkillMenuUI(game.Data, client, _drag);
         _characterSheet = new CharacterSheetUI(game.Data, client);
+        _shop = new ShopUI(game.Data, client);
         _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
 
         // Dev convenience (like --sp): ARPG_DEVUI=debug[,skills][,inventory] opens
@@ -89,6 +93,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("skills")) _skillMenu.Open = true;
             if (devUi.Contains("inventory")) _inventory.Open = true;
             if (devUi.Contains("drops")) _devDropScrolls = true;
+            if (devUi.Contains("shop")) _devOpenShop = true;
         }
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
@@ -141,6 +146,11 @@ public class PlayScreen : IScreen
             _devDropScrolls = false;
             _client.SendDebugCommand("drop_scrolls");
         }
+        if (_devOpenShop && _clientTime > 2f && _client.World.Npcs.Count > 0)
+        {
+            _devOpenShop = false;
+            _client.RequestShopOpen(_client.World.Npcs.Values.First().Id);
+        }
 
         // The server (when hosting) runs on its OWN thread with a fixed timestep — the
         // render thread only drives the client, which talks to it over loopback UDP.
@@ -163,6 +173,7 @@ public class PlayScreen : IScreen
         _inventory.Layout(uiScreen);
         _skillMenu.Layout(uiScreen);
         _characterSheet.Layout(uiScreen);
+        _shop.Layout(uiScreen);
 
         if (_client.Status != ClientStatus.InGame)
         {
@@ -213,9 +224,9 @@ public class PlayScreen : IScreen
         }
         if (input.WasActionPressed(InputAction.Pause))
         {
-            if (_inventory.Open || _skillMenu.Open || _debug.Open || _characterSheet.Open)
+            if (_inventory.Open || _skillMenu.Open || _debug.Open || _characterSheet.Open || _shop.Open)
             {
-                _inventory.Open = _skillMenu.Open = _debug.Open = _characterSheet.Open = false;
+                _inventory.Open = _skillMenu.Open = _debug.Open = _characterSheet.Open = _shop.Open = false;
                 _inventory.CancelEnchantMode();
             }
             else
@@ -235,6 +246,7 @@ public class PlayScreen : IScreen
         _debug.Update(input);
         _skillMenu.Update(input);
         _characterSheet.Update(input);
+        _shop.Update(input);
         _inventory.Update(input);
 
         // --- finish drags ---
@@ -242,7 +254,8 @@ public class PlayScreen : IScreen
         {
             var mouse = input.MousePosition;
             bool handled = _skillMenu.TryDropAt(mouse) || _inventory.TryDropAt(mouse) ||
-                           _debug.Contains(mouse) || _characterSheet.Contains(mouse);
+                           _debug.Contains(mouse) || _characterSheet.Contains(mouse) ||
+                           _shop.Contains(mouse);
             if (!handled)
                 _client.RequestDropItem(_drag.Item.InstanceId); // released over the world: drop it
             _drag.Clear();
@@ -338,6 +351,8 @@ public class PlayScreen : IScreen
                     }
             if (input.WasActionPressed(InputAction.Interact))
             {
+                var npcNear = _client.World.Npcs.Values
+                    .FirstOrDefault(n => NumVec2.Distance(me.Position, n.Position) <= 3f);
                 if (_renderer.HoveredDropId != Guid.Empty &&
                     _client.World.Drops.TryGetValue(_renderer.HoveredDropId, out var targeted))
                 {
@@ -345,6 +360,10 @@ public class PlayScreen : IScreen
                         _client.RequestPickup(targeted.DropId);
                     else
                         _pickupTargetId = targeted.DropId; // walk over, then grab it
+                }
+                else if (npcNear != null && !_shop.Open)
+                {
+                    _client.RequestShopOpen(npcNear.Id); // shop opens when the stock arrives
                 }
                 else
                 {
@@ -408,6 +427,7 @@ public class PlayScreen : IScreen
                 TryUseHotbarSkill(slot, target, charge);
             }
             else if (down && _chargingSlot < 0 && _clientTime >= _globalReadyEnd &&
+                     MeetsEquipmentGates(def) &&
                      !(_cooldownEnds.TryGetValue(skillId, out float r) && _clientTime < r))
             {
                 _chargingSlot = slot;
@@ -416,6 +436,17 @@ public class PlayScreen : IScreen
             return;
         }
         if (down) TryUseHotbarSkill(slot, target, 0f);
+    }
+
+    /// <summary>Client mirror of the server's equipment gates (shield/weapon category), so
+    /// we never predict a lunge or start a charge for a cast the server will reject.</summary>
+    private bool MeetsEquipmentGates(SkillDefinition def)
+    {
+        if (def.RequiresShield && !_client.World.MyStats.HasShield) return false;
+        if (def.RequiredWeapon.HasValue &&
+            _client.World.MyCharacter?.MainHand?.GetBase(_game.Data)?.Category != def.RequiredWeapon.Value)
+            return false;
+        return true;
     }
 
     private void TryUseHotbarSkill(int slot, NumVec2 target, float charge)
@@ -429,6 +460,12 @@ public class PlayScreen : IScreen
         var learned = character.GetSkill(skillId);
         var def = _game.Data.Skills.GetValueOrDefault(skillId);
         if (learned == null || def == null) return;
+
+        // Mirror the server's equipment gates: without them the client would predict
+        // the lunge/cooldown for a cast the server is about to reject (e.g. Shield
+        // Bash scooting you forward with no shield equipped).
+        if (!MeetsEquipmentGates(def)) return;
+
         var stats = SkillMath.Compute(_game.Data, def, learned.Level, learned.ScrollDefinitions(_game.Data), _client.World.MyStats);
         _cooldownEnds[skillId] = _clientTime + stats.Cooldown;
         _globalReadyEnd = _clientTime + def.UseTime;
@@ -547,6 +584,7 @@ public class PlayScreen : IScreen
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
         _skillMenu.Draw(sb, _game.Input);
         _characterSheet.Draw(sb);
+        _shop.Draw(sb, screen);
         _inventory.Draw(sb, _game.Input);
         _debug.Draw(sb);
 

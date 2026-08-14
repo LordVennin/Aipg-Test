@@ -187,7 +187,11 @@ public class SkillMenuUI
 
         // Computed stats (same math the server uses)
         var stats = SkillMath.Compute(_data, selDef, sel.Level, sel.ScrollDefinitions(_data), _client.World.MyStats);
-        string statLine1 = $"Damage {stats.MinDamage:0}-{stats.MaxDamage:0} ({stats.DamageKind})   Cooldown {stats.Cooldown:0.00}s";
+        // Attacks are pure weapon scaling (PoE-style): show the % so the source is obvious.
+        string weaponPct = selDef.UsesWeaponDamage
+            ? $"  ({(selDef.WeaponDamageMultiplier + selDef.WeaponDamageMultiplierPerLevel * (sel.Level - 1)) * 100:0}% of weapon)"
+            : "";
+        string statLine1 = $"Damage {stats.MinDamage:0}-{stats.MaxDamage:0} ({stats.DamageKind}){weaponPct}   Cooldown {stats.Cooldown:0.00}s";
         string statLine2 = $"Range {stats.Range:0.0}" +
                            (stats.Radius > 0 ? $"   Radius {stats.Radius:0.0}" : "") +
                            (selDef.Archetype == SkillArchetype.Projectile ? $"   Projectiles {stats.ProjectileCount}" : "") +

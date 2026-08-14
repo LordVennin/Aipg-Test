@@ -1,0 +1,14 @@
+{
+ "Id": "merchant",
+ "Name": "Weaver the Peddler",
+ "Dialogue": [
+  "Ah, a customer! Mind the wolves on your way out.",
+  "Everything's for sale. Except the cart. Don't ask about the cart.",
+  "Found most of this in the woods. Finders keepers, that's the law out here.",
+  "Gold up front. I've been stiffed by nicer faces than yours.",
+  "That mace? Barely used. Previous owner didn't need it anymore. Or anything else.",
+  "If you die out there, I'm reselling whatever you drop. No offense.",
+  "The forest gets meaner every season. Good for business, bad for everything else.",
+  "Special price for you today. Same as yesterday's special price."
+ ]
+}
