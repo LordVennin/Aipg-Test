@@ -1967,8 +1967,9 @@ public static class HeadlessNetTest
         Pump(0.4f);
         Check(server.World.Summons.Values.Count(su => su.OwnerId == bId) == 1,
               "the Skill Menu + button raises a skeleton");
-        Check(MathF.Abs(manaBeforeSummon - srvSum.Mana - expectedCost) < 3f, // regen creeps back during the pump
-              $"summoning spent the mana ({manaBeforeSummon:0} -> {srvSum.Mana:0})");
+        Check(MathF.Abs(srvSum.ManaReserved - expectedCost) < 0.01f &&
+              srvSum.Mana <= srvSum.Stats.MaxMana - expectedCost + 0.5f,
+              $"summoning RESERVES maximum mana ({srvSum.ManaReserved:0.0} held, pool {manaBeforeSummon:0} -> {srvSum.Mana:0})");
         clientB.RequestSummonAdjust("summon_skeleton", +1);
         Pump(0.4f);
         clientB.RequestSummonAdjust("summon_skeleton", +1); // over the limit: refused
@@ -2014,8 +2015,9 @@ public static class HeadlessNetTest
             respawned = server.World.Summons.Values.Count(su => su.OwnerId == bId) == 2;
         }
         Check(respawned, $"dead archers freely respawn after {sumDef.SummonRespawnTime:0}s");
-        Check(srvSum.Mana >= manaBeforeDeath - 1f, // free respawn: mana only regens, never drops
-              "the respawn costs no mana");
+        Check(srvSum.Mana >= manaBeforeDeath - 1f && // free respawn: no extra mana taken...
+              MathF.Abs(srvSum.ManaReserved - expectedCost * 2f) < 0.1f, // ...the reservation persists
+              $"the free respawn keeps the reservation, costs nothing ({srvSum.ManaReserved:0.0} held)");
 
         // Rally: the backquote command walks the pack to a marked point.
         var rallyPoint = srvSum.Position + new Vector2(0f, 4f);
@@ -2038,6 +2040,8 @@ public static class HeadlessNetTest
         Pump(0.4f);
         Check(server.World.Summons.Values.Count(su => su.OwnerId == bId) == 1,
               "the Skill Menu - button dismisses a skeleton");
+        Check(MathF.Abs(srvSum.ManaReserved - expectedCost) < 0.1f,
+              $"dismissal RELEASES the reservation ({srvSum.ManaReserved:0.0} still held by the survivor)");
 
         // Gear scaling: summon damage/health % and +limit modifiers exist and apply.
         Check(data.Modifiers["commanding"].StatAffected == Stats.StatType.SummonDamage &&
@@ -2313,9 +2317,14 @@ public static class HeadlessNetTest
         attrChar.Equipment[Items.EquipSlot.BodyArmor] =
             new Items.ItemInstance { BaseItemId = "hunters_jerkin", Rarity = Items.ItemRarity.Normal };
         var defStats = Stats.StatCalculator.Compute(data, attrChar);
-        float expectRating = 62 + 30 + defStats.Dexterity * Stats.AttributeBalance.DeflectionRatingPerDexterity;
+        // DEX multiplies GEAR rating by a small percent — bare dexterity grants nothing.
+        float expectRating = (62 + 30) *
+                             (1f + defStats.Dexterity * Stats.AttributeBalance.DeflectionPctPerDexterity / 100f);
         Check(MathF.Abs(defStats.DeflectionRating - expectRating) < 0.01f,
-              $"deflection rating aggregates across equipped pieces + dexterity ({defStats.DeflectionRating:0})");
+              $"deflection rating aggregates gear and scales slightly with dexterity ({defStats.DeflectionRating:0})");
+        var bareDex = new Sim.CharacterData();
+        Check(Stats.StatCalculator.Compute(data, bareDex).DeflectionRating < 0.01f,
+              "dexterity alone grants NO deflection without gear");
         Check(defStats.DeflectionChance > 0 &&
               defStats.DeflectionChance <= Stats.Deflection.InitialChanceCap &&
               MathF.Abs(defStats.DeflectionChance -
@@ -2612,6 +2621,26 @@ public static class HeadlessNetTest
         lastWarrior.Position = srvSum.Position + new Vector2(1f, 0);
         lastWarrior.Height = srvSum.Height;
         Pump(0.5f);
+
+        // LIVE-combat regression: summons must fight an UNSTUNNED enemy that is
+        // actively chasing and swinging back (every earlier combat test pinned its
+        // target, which would hide a real-play regression).
+        srvSum.Mana = srvSum.Stats.MaxMana;
+        clientB.RequestSummonAdjust("summon_skeleton", +1);
+        Pump(0.4f);
+        var liveFoe = server.World.SpawnEnemy("bone_knight", srvSum.Position + new Vector2(2.5f, 0));
+        liveFoe.Health = 300f;
+        bool liveFoeHurt = false;
+        for (int i = 0; i < 80 && !liveFoeHurt; i++)
+        {
+            Pump(0.15f);
+            liveFoeHurt = liveFoe.Dead || liveFoe.Health < 299.9f;
+        }
+        Check(liveFoeHurt, "summons fight a LIVE (unstunned, fighting-back) enemy");
+        liveFoe.Health = 0.1f;
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.4f);
 
         // Scroll support: summon skills carry Melee/Projectile tags so melee/projectile
         // scrolls ATTACH, and their effects ride the summons' attacks.

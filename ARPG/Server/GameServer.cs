@@ -523,6 +523,7 @@ public class GameServer : IServerEvents
         w.Put(p.Mana);
         w.Put(p.EnergyShield);
         w.Put(p.Stats.MaxEnergyShield);
+        w.Put(p.ManaReserved);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

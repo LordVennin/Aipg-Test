@@ -263,7 +263,7 @@ public class SkillMenuUI
                         (1f + _client.World.MyStats.SummonHealthIncrease / 100f);
             float sDmg = (selDef.SummonDamage + selDef.SummonDamagePerLevel * (sel.Level - 1)) *
                          (1f + _client.World.MyStats.SummonDamageIncrease / 100f);
-            sb.DrawString(font, $"Summoned {active} / {limit}   Cost {cost:0} mana each   Respawn {selDef.SummonRespawnTime:0}s",
+            sb.DrawString(font, $"Summoned {active} / {limit}   Reserves {cost:0} max mana each   Respawn {selDef.SummonRespawnTime:0}s",
                 new Vector2(x, y), new Color(200, 230, 200));
             y += 20;
             string minion = selDef.SummonMelee ? "warrior" : "archer";

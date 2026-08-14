@@ -1233,6 +1233,83 @@ public class WorldRenderer
                 continue;
             }
 
+            if (fx.Kind == "burstcharge")
+            {
+                // Arcane Burst's charge-up: a shrinking violet ring with sparks spiraling
+                // INTO the focus — the inverse of the detonation, telegraphing the area.
+                float chargeT = t;
+                float ringPx = fx.Radius * 2f * IsoCamera.HalfTileW * (1.15f - 0.75f * chargeT);
+                var ringCol = new Color(150, 90, 235) * (0.35f + 0.5f * chargeT);
+                long spinClock = Environment.TickCount64;
+                var fxPos = fx.Position;
+                float fxHeight = fx.Height;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    for (int seg2 = 0; seg2 < 14; seg2++)
+                    {
+                        float a2 = seg2 / 14f * MathF.Tau;
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(a2) * ringPx) - 1,
+                            (int)(screen.Y + MathF.Sin(a2) * ringPx * 0.5f) - 1, 3, 2), ringCol);
+                    }
+                    for (int sp = 0; sp < 5; sp++)
+                    {
+                        float ang2 = spinClock * 0.006f + sp * 1.256f;
+                        float rr = ringPx * (1f - chargeT * 0.85f) * (0.55f + 0.09f * sp);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(ang2) * rr) - 1,
+                            (int)(screen.Y + MathF.Sin(ang2) * rr * 0.5f) - 8 - 1, 2, 2),
+                            new Color(220, 190, 255) * (0.5f + 0.5f * chargeT));
+                    }
+                    // Brightening core as the detonation nears.
+                    int core = (int)(6 + 10 * chargeT);
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)screen.X - core / 2, (int)screen.Y - 8 - core / 2, core, core),
+                        new Color(200, 150, 255) * (0.35f + 0.6f * chargeT));
+                }));
+                continue;
+            }
+            if (fx.Kind == "burst")
+            {
+                // Detonation: a bright core flash, TWO expanding rings and radial sparks —
+                // reads as a real explosion instead of a growing purple puddle.
+                float bfade = 1f - t;
+                float outerPx = fx.Radius * 2f * IsoCamera.HalfTileW * (0.35f + 0.75f * t);
+                float innerPx = outerPx * 0.6f;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    for (int ring = 0; ring < 2; ring++)
+                    {
+                        float rp = ring == 0 ? outerPx : innerPx;
+                        var rc = (ring == 0 ? new Color(170, 90, 255) : new Color(225, 190, 255)) * bfade;
+                        for (int seg2 = 0; seg2 < 18; seg2++)
+                        {
+                            float a2 = seg2 / 18f * MathF.Tau;
+                            batch.Draw(TextureGen.Pixel, new Rectangle(
+                                (int)(screen.X + MathF.Cos(a2) * rp) - 1,
+                                (int)(screen.Y + MathF.Sin(a2) * rp * 0.5f) - 1, 3, 2), rc);
+                        }
+                    }
+                    // Radial sparks flung outward, decelerating.
+                    for (int sp = 0; sp < 8; sp++)
+                    {
+                        float ang2 = sp * 0.785f + 0.4f;
+                        float rr = outerPx * (0.5f + 0.55f * t);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(ang2) * rr) - 1,
+                            (int)(screen.Y + MathF.Sin(ang2) * rr * 0.5f) - 6 - 1, 2, 2),
+                            new Color(235, 210, 255) * bfade);
+                    }
+                    // Core flash, collapsing fast.
+                    int core = (int)(26 * (1f - t * t));
+                    if (core > 2)
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)screen.X - core / 2, (int)screen.Y - 8 - core / 2, core, core),
+                            new Color(240, 220, 255) * (bfade * 0.9f));
+                }));
+                continue;
+            }
+
             float radiusPx = fx.Radius * 2f * IsoCamera.HalfTileW * (0.4f + 0.6f * t);
             byte alpha = (byte)(180 * (1f - t));
             var color = fx.Kind switch

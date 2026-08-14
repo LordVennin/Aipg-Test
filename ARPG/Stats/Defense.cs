@@ -14,8 +14,9 @@ public static class AttributeBalance
     public const float LifePerStrength = 0.5f;
     public const float PhysicalPctPer10Strength = 2f;
 
-    // Dexterity: light-armor defense and mobility.
-    public const float DeflectionRatingPerDexterity = 2f;
+    // Dexterity: light-armor defense and mobility. DEX SCALES gear deflection by a
+    // small percent instead of granting flat rating — no gear, no free defense.
+    public const float DeflectionPctPerDexterity = 0.4f;
     public const float MovementPctPer10Dexterity = 0.5f;
 
     // Intelligence: mana and Energy Shield.
@@ -77,8 +78,8 @@ public static class Deflection
 /// its reduction, exactly like Deflection's rating curve.</summary>
 public static class ArmorBalance
 {
-    public const float SoftCapBase = 40f;
-    public const float SoftCapPerLevel = 10f;
+    public const float SoftCapBase = 60f;
+    public const float SoftCapPerLevel = 12f;
 
     public static float PhysicalReduction(float armor, int level) =>
         armor <= 0f ? 0f : armor / (armor + SoftCapBase + SoftCapPerLevel * level);

@@ -9,7 +9,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 10
+      "Armor": 8
     },
     "RequiredStrength": 8
   },
@@ -23,7 +23,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 20
+      "Armor": 15
     },
     "RequiredStrength": 8
   },
@@ -37,7 +37,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 7
+      "Armor": 5
     },
     "RequiredStrength": 8
   },
@@ -51,7 +51,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 7
+      "Armor": 5
     },
     "RequiredStrength": 8
   },
@@ -65,7 +65,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 100,
     "BaseStats": {
-      "Armor": 4
+      "Armor": 3
     }
   },
   {
@@ -117,7 +117,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "Armor": 14
+      "Armor": 10
     },
     "RequiredStrength": 8
   },
@@ -131,7 +131,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "Armor": 26
+      "Armor": 19
     },
     "RequiredStrength": 8
   },
@@ -145,7 +145,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "Armor": 10
+      "Armor": 7
     },
     "RequiredStrength": 8
   },
@@ -159,7 +159,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 70,
     "BaseStats": {
-      "Armor": 10
+      "Armor": 7
     },
     "RequiredStrength": 8
   },
@@ -173,7 +173,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "Armor": 22
+      "Armor": 16
     },
     "RequiredStrength": 14
   },
@@ -187,7 +187,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "Armor": 38
+      "Armor": 28
     },
     "RequiredStrength": 14
   },
@@ -201,7 +201,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "Armor": 15
+      "Armor": 11
     },
     "RequiredStrength": 14
   },
@@ -215,7 +215,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 40,
     "BaseStats": {
-      "Armor": 15
+      "Armor": 11
     },
     "RequiredStrength": 14
   },
@@ -453,7 +453,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 50,
     "BaseStats": {
-      "Armor": 23,
+      "Armor": 17,
       "DeflectionRating": 37
     },
     "RequiredStrength": 8,
@@ -469,7 +469,7 @@
     "BaseModifierLimit": 6,
     "DropWeight": 50,
     "BaseStats": {
-      "Armor": 23,
+      "Armor": 17,
       "EnergyShield": 17
     },
     "RequiredStrength": 8,

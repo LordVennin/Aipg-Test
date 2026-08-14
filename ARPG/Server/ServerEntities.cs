@@ -84,6 +84,11 @@ public class ServerPlayer
     public float Mana;
     public float LastSyncedMana;
 
+    /// <summary>Total maximum mana RESERVED by living/awaiting-respawn summons —
+    /// the usable pool is Stats.MaxMana - ManaReserved (recomputed by the world
+    /// whenever summons change).</summary>
+    public float ManaReserved;
+
     /// <summary>Current Energy Shield: absorbs damage before life, recharges after
     /// EnergyShieldBalance.RechargeDelay seconds without taking damage.</summary>
     public float EnergyShield;
@@ -289,6 +294,9 @@ public class ServerSummon
     public float MaxHealth;
     public float Damage;
     public float AttackReadyAt;
+    /// <summary>Maximum mana this minion RESERVES on its summoner while it exists
+    /// (captured at summon time; survives free respawns; released on dismissal).</summary>
+    public float ManaReserved;
     /// <summary>Melee summons close to arm's reach and swing; ranged ones hold and shoot.</summary>
     public bool Melee;
     /// <summary>Attack reach and swing time, set at spawn from the summon's profile.</summary>

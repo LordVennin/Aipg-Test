@@ -438,6 +438,7 @@ public class GameClient
                 int id = r.GetInt();
                 float hp = r.GetFloat(), maxHp = r.GetFloat(), mana = r.GetFloat();
                 float es = r.GetFloat(), maxEs = r.GetFloat();
+                float manaReserved = r.GetFloat();
                 if (World.Players.TryGetValue(id, out var p))
                 {
                     p.Health = hp;
@@ -445,6 +446,7 @@ public class GameClient
                     p.Mana = mana;
                     p.EnergyShield = es;
                     p.MaxEnergyShield = maxEs;
+                    p.ManaReserved = manaReserved;
                 }
                 break;
             }
@@ -753,6 +755,12 @@ public class GameClient
                             ? Vector2.Normalize(swingDir)
                             : swingCaster.Facing;
                     }
+
+                    // Wind-up CASTS telegraph at the target: a gathering-energy charge
+                    // effect fills the wind-up (Arcane Burst's charge-up).
+                    if (phase == 1 && def.Archetype == Skills.SkillArchetype.AreaBurst)
+                        World.AddEffect(effectPoint, MathF.Max(0.9f, def.Radius * 0.8f),
+                            MathF.Max(0.2f, def.WindupTime), "burstcharge", effectHeight);
 
                     if (phase != 1) // impact visuals come with the landing, never the wind-up
                         switch (def.Archetype)
