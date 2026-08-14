@@ -652,6 +652,34 @@ public class WorldRenderer
             var color = ParseColor(def?.Color, new Color(190, 60, 60));
             float size = (def?.Radius ?? 0.4f) * 90f;
             var frames = SpriteGen.GetEnemyFrames(def);
+
+            // Telegraphed melee swing animation (EnemyAttack events): phase 1 leans the
+            // body back through the wind-up; phase 2 lurches it along the strike for a
+            // beat. The world-space strike direction is projected into screen space so
+            // the lean/lurch reads correctly in iso.
+            Vector2 strikeDir = Vector2.Zero;
+            Vector2 animOff = Vector2.Zero;
+            float windupT = -1f, swingT = -1f;
+            const float SwingAnimDur = 0.24f;
+            if (e.AttackAnimPhase != 0 && (e.AttackDir.X != 0f || e.AttackDir.Y != 0f))
+            {
+                var tip = camera.WorldToScreen(pos + e.AttackDir * 0.6f, e.Height);
+                var sd = new Vector2(tip.X - screen.X, tip.Y - screen.Y);
+                if (sd.LengthSquared() > 0.001f) sd.Normalize();
+                strikeDir = sd;
+                float elapsed = (animClock - e.AttackAnimAtMs) / 1000f;
+                float windupDur = MathF.Max(0.12f, def?.AttackWindup ?? 0.4f);
+                if (e.AttackAnimPhase == 1)
+                {
+                    windupT = Math.Clamp(elapsed / windupDur, 0f, 1f);
+                    animOff = -strikeDir * (4.5f * windupT * windupT); // ease into the crouch
+                }
+                else if (e.AttackAnimPhase == 2 && elapsed < SwingAnimDur)
+                {
+                    swingT = elapsed / SwingAnimDur;
+                    animOff = strikeDir * (7f * (1f - swingT));        // lurch, then settle
+                }
+            }
             _sorted.Add((pos.X + pos.Y + e.Height * 1.0f + 0.1f + UnderDeckBias(pos, e.Height), batch =>
             {
                 int barY;
@@ -663,7 +691,8 @@ public class WorldRenderer
                     var tex = frames[frame];
                     int scale = e.IsBoss ? 3 : 2; // the boss reads bigger at a glance
                     int w = tex.Width * scale, h = tex.Height * scale;
-                    var spriteRect = new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 6, w, h);
+                    var spriteRect = new Rectangle((int)(screen.X + animOff.X) - w / 2,
+                        (int)(screen.Y + animOff.Y) - h + 6, w, h);
                     EnemyHitRects.Add((spriteRect, e.Id));
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size / 4), (int)size, (int)(size / 2)),
@@ -689,10 +718,60 @@ public class WorldRenderer
                         bodyTint = MultiplyTint(bodyTint, new Color(120, 170, 255)); // frozen solid: blue
                     else if ((e.DebuffFlags & Server.EnemyDebuffs.Chilled) != 0)
                         bodyTint = MultiplyTint(bodyTint, new Color(190, 215, 255)); // light chill frost
+                    if (windupT > 0.55f) // the last stretch of a wind-up flashes as the final tell
+                        bodyTint = LerpColor(bodyTint, new Color(255, 236, 200), (windupT - 0.55f) * 0.9f);
                     batch.Draw(tex, spriteRect, null,
                         bodyTint, 0f, Vector2.Zero,
                         e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
                     DrawAilmentAuras(batch, e.DebuffFlags, spriteRect, e.Id);
+
+                    // Sword-style enemies (Barrow Knight) carry a visible blade: rested
+                    // at their side, raised high through a wind-up, chopped through the
+                    // strike direction on the swing.
+                    if (def?.AttackStyle == "sword")
+                    {
+                        var sword = SpriteGen.GetBoneSword();
+                        if (sword != null)
+                        {
+                            float dirSign = e.FacingLeft ? -1f : 1f;
+                            var hand = new Vector2(screen.X + animOff.X + dirSign * 9,
+                                screen.Y + animOff.Y - 15);
+                            float angle;
+                            if (windupT >= 0f)
+                            {
+                                float baseAng = MathF.Atan2(strikeDir.Y, strikeDir.X);
+                                angle = baseAng - 2.1f + 0.25f * windupT; // raised behind the shoulder
+                            }
+                            else if (swingT >= 0f)
+                            {
+                                float baseAng = MathF.Atan2(strikeDir.Y, strikeDir.X);
+                                float sweep = 1f - (1f - swingT) * (1f - swingT); // fast then settle
+                                angle = baseAng + MathHelper.Lerp(-2.1f, 1.0f, sweep);
+                            }
+                            else
+                            {
+                                angle = e.FacingLeft ? MathF.PI - 0.7f : 0.7f; // lowered at rest
+                            }
+                            batch.Draw(sword, hand, null, Color.White, angle,
+                                new Vector2(1f, 2.5f), 2f, SpriteEffects.None, 0f);
+                        }
+                    }
+                    else if (swingT >= 0f && swingT < 1f)
+                    {
+                        // Lunge-style swing (zombies, the boss): raking claw streaks that
+                        // fly along the strike and fade.
+                        float ang = MathF.Atan2(strikeDir.Y, strikeDir.X);
+                        var perp = new Vector2(-strikeDir.Y, strikeDir.X);
+                        var baseP = new Vector2(screen.X + animOff.X, screen.Y + animOff.Y - 14) +
+                                    strikeDir * (10f + 16f * swingT);
+                        var streakCol = new Color(238, 232, 214) * (1f - swingT);
+                        for (int k = -1; k <= 1; k++)
+                        {
+                            var p0 = baseP + perp * (k * 5f);
+                            batch.Draw(TextureGen.Pixel, p0, null, streakCol, ang,
+                                new Vector2(0f, 0.5f), new Vector2(13f, 1.5f), SpriteEffects.None, 0f);
+                        }
+                    }
                     barY = (int)screen.Y - h + 2;
                 }
                 else

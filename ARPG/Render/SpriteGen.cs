@@ -26,6 +26,11 @@ public static class SpriteGen
         {
             "Zombie" => new[] { DrawZombie(tint, def.Id, 0), DrawZombie(tint, def.Id, 1), DrawZombie(tint, def.Id, 2) },
             "Ghoul" => new[] { DrawGhoul(tint, def.Id, 0), DrawGhoul(tint, def.Id, 1) },
+            "Skeleton" => new[]
+            {
+                DrawSkeletonKnight(tint, def.Id, 0), DrawSkeletonKnight(tint, def.Id, 1),
+                DrawSkeletonKnight(tint, def.Id, 2),
+            },
             _ => null,
         };
         _cache[def.Id] = frames;
@@ -1033,6 +1038,105 @@ public static class SpriteGen
         }
 
         return c.Bake(_device);
+    }
+
+    /// <summary>An armored skeleton knight: bone frame under a dented breastplate and
+    /// open-faced helm, tattered tabard in the enemy's tint. The sword is NOT part of the
+    /// body sprite — the renderer draws GetBoneSword() in its hand and animates the raise
+    /// and chop from EnemyAttack events.</summary>
+    private static Texture2D DrawSkeletonKnight(Color clothTint, string seedKey, int frame)
+    {
+        var c = new Canvas();
+        var rng = new Random(seedKey.GetHashCode() & int.MaxValue);
+
+        var bone = new Color(224, 218, 198);
+        var boneDark = Shade(bone, 0.68f);
+        var steel = new Color(150, 154, 166);
+        var steelLight = new Color(190, 194, 205);
+        var steelDark = Shade(steel, 0.6f);
+        var cloth = Shade(clothTint, 0.9f);
+        var clothDark = Shade(clothTint, 0.55f);
+        var eye = new Color(120, 200, 255);          // cold sockets
+
+        int leftLegUp = frame == 1 ? 1 : 0;
+        int rightLegUp = frame == 2 ? 1 : 0;
+        int bob = frame == 1 ? 1 : 0;
+
+        // Bone legs with steel greave caps; a marching gait, more upright than a zombie.
+        c.Rect(9, 27, 3, 8 - leftLegUp, bone);
+        c.Rect(14, 27, 3, 8 - rightLegUp, bone);
+        c.Set(10, 29, boneDark); c.Set(15, 30, boneDark);   // knee joints
+        c.Rect(9, 27, 3, 2, steelDark);                     // greave tops
+        c.Rect(14, 27, 3, 2, steelDark);
+        c.Rect(8, 35 - leftLegUp, 4, 1, boneDark);          // feet
+        c.Rect(14, 35 - rightLegUp, 4, 1, boneDark);
+
+        // Torso: breastplate over ribs, tabard hanging below the belt.
+        int ty = 17 + bob;
+        c.Rect(8, ty, 10, 7, steel);
+        c.Rect(8, ty, 10, 1, steelLight);                   // collar shine
+        c.Rect(16, ty, 2, 7, steelDark);                    // side shade
+        c.Set(10 + rng.Next(5), ty + 2 + rng.Next(3), steelDark); // dent
+        c.Set(9 + rng.Next(6), ty + 1 + rng.Next(4), steelDark);  // dent
+        c.Rect(8, ty + 7, 10, 1, clothDark);                // belt
+        c.Rect(10, ty + 8, 6, 3 - bob, cloth);              // tabard
+        c.Set(11 + rng.Next(4), ty + 9, Color.Transparent); // tattered hem
+        // Ribs peeking under the plate's arm gaps.
+        c.Set(8, ty + 3, bone); c.Set(8, ty + 5, bone);
+
+        // Arms: bare bone. Leading arm reaches forward (the renderer puts the sword
+        // there); off arm hangs with a steel pauldron scrap.
+        int ay = 18 + bob;
+        c.Rect(16, ay, 5, 2, bone);                         // leading arm
+        c.Set(18, ay + 1, boneDark);
+        c.Rect(6, ay, 3, 2, steelDark);                     // pauldron scrap
+        c.Rect(6, ay + 2, 2, 4, bone);                      // hanging off arm
+        c.Set(6, ay + 6, boneDark);
+
+        // Skull in an open-faced helm with a tint plume.
+        int hy = 9 + bob;
+        c.Rect(9, hy, 8, 8, bone);
+        c.Rect(9, hy, 8, 2, steel);                         // helm brow
+        c.Rect(8, hy, 1, 5, steel);                         // cheek guard left
+        c.Rect(17, hy, 1, 5, steel);                        // cheek guard right
+        c.Rect(9, hy - 1, 8, 1, steelLight);                // helm crown
+        c.Rect(12, hy - 3, 2, 2, cloth);                    // plume
+        c.Set(12, hy - 4, clothDark);
+        c.Set(11, hy + 3, eye); c.Set(15, hy + 3, eye);     // glowing sockets
+        c.Rect(10, hy + 6, 6, 1, boneDark);                 // jaw line
+        c.Set(11, hy + 7, boneDark); c.Set(13, hy + 7, boneDark); c.Set(15, hy + 7, boneDark); // teeth
+
+        return c.Bake(_device);
+    }
+
+    /// <summary>The Barrow Knight's notched bone-hilted blade, drawn pointing RIGHT with
+    /// the grip at the left edge; the renderer rotates it through raise and chop arcs.</summary>
+    public static Texture2D GetBoneSword()
+    {
+        if (_device == null) return null;
+        if (_cache.TryGetValue("weapon:bone_sword", out var cached)) return cached[0];
+        const int w = 18, h = 5;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        var blade = new Color(184, 188, 198);
+        var bladeDark = new Color(126, 130, 142);
+        var boneHilt = new Color(210, 202, 180);
+        var wrap = new Color(96, 78, 56);
+        // Grip + bone crossguard.
+        Set(0, 2, wrap); Set(1, 2, wrap); Set(2, 2, wrap);
+        Set(3, 1, boneHilt); Set(3, 2, boneHilt); Set(3, 3, boneHilt);
+        // Blade with edge shading, a notch, and a tapered tip.
+        for (int x = 4; x <= 15; x++)
+        {
+            Set(x, 1, blade);
+            Set(x, 2, x % 4 == 3 ? bladeDark : blade);
+            Set(x, 3, bladeDark);
+        }
+        Set(9, 1, Color.Transparent);         // notch bitten out of the edge
+        Set(16, 2, blade); Set(17, 2, bladeDark); // tip
+        var tex = BakeStrip(px, w, h);
+        _cache["weapon:bone_sword"] = new[] { tex };
+        return tex;
     }
 
     // ------------------------------------------------------------------ enchanting scrolls

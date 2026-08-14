@@ -438,6 +438,31 @@ pillar walls on flat ground). Attacks remain strictly same-surface, so nothing h
 through a cliff face or a bridge deck. Fields recompute a few times a second per
 player (~4k nodes), cheap enough for much larger generated maps later.
 
+### Telegraphed enemy melee (wind-up → whiff or hit → recovery)
+
+Melee enemies no longer deal instant "contact" damage. When an attack comes off
+cooldown the enemy COMMITS to a swing: it stops, locks a strike direction, and
+winds up for a data-driven `AttackWindup` (~0.35-0.55s). Only when the wind-up
+lands does the server re-check reach and the swing's `AttackArc` — if you dashed
+or strafed out (or your dodge i-frames cover the impact), the attack **whiffs**
+outright. A short `AttackRecovery` pause after every swing leaves a punish
+window, attack cooldowns get ±12% jitter so packs don't swing in unison, and a
+stun or freeze mid-wind-up cancels the swing entirely (the cooldown stays spent,
+so interrupts genuinely deny hits). Enemies attacking your summons use the same
+telegraph. The commitment style is per-enemy (`AttackStyle`):
+- **"lunge"** (zombies, the boss): the direction LOCKS at wind-up start —
+  strafing beats them; whiffing is their character.
+- **"sword"** (the new **Barrow Knight**, an armored skeleton with its own
+  Skeleton sprite style and a drawn bone blade): tracks its victim until just
+  before impact — only a real dash escapes it.
+
+Clients animate from `EnemyAttack` events (phase 1 = wind-up, phase 2 = swing):
+the body leans back through the wind-up and flashes brighter in its last stretch
+as the final tell, then lurches along the strike. Lunge attackers rake glowing
+claw streaks; sword knights carry a visible blade that rests at their side,
+raises behind the shoulder during the wind-up, and chops through the strike
+direction — all transform-based on the procedural sprites, no new frames.
+
 ### Loot flow (why items are identical on every peer)
 
 ```
@@ -516,15 +541,16 @@ computed stats. All commands execute server-side like any other request.
 
 Dev conveniences for automated/headless sessions: `--sp` starts straight into
 single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
-`ARPG_DEVUI=debug[,skills][,inventory][,drops][,shop][,shopgrid][,tree][,summons]`
+`ARPG_DEVUI=debug[,skills][,inventory][,drops][,shop][,shopgrid][,tree][,summons][,knight]`
 opens panels at startup (`drops` scatters one of every scroll shortly after
 joining, for loot-UI work; `shop` opens the merchant shop without needing
-keyboard input; `summons` learns Skeleton Archers and raises a pack).
+keyboard input; `summons` learns the summon skills and raises a pack; `knight`
+spawns a Barrow Knight beside the player for attack-animation work).
 
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (291 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (299 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

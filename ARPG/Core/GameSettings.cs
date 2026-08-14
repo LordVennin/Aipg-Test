@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 16; // v16: per-skill rallies, warriors, water tiles
+    public const int ProtocolVersion = 17; // v17: telegraphed enemy attacks (EnemyAttack events)
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }
