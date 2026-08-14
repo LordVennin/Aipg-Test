@@ -7,12 +7,23 @@ namespace ARPG.Stats;
 /// <summary>Fully resolved character stats, computed in one place from all sources.</summary>
 public struct ComputedStats
 {
+    // Primary attributes (base + gear + passives + effects), pre-derived.
+    public float Strength;
+    public float Dexterity;
+    public float Intelligence;
     public float MaxHealth;
     public float LifeRegeneration;       // health per second
     public float MaxMana;                // level-based pool + flat modifiers
     public float ManaRegeneration;       // mana per second (level-based, scaled by % mods)
     public float MovementSpeed;          // tiles per second
     public float Armor;
+    /// <summary>Aggregated DEX defense rating from ALL equipped pieces + dexterity.</summary>
+    public float DeflectionRating;
+    /// <summary>Initial Deflection Chance derived from the rating (level-scaled, capped);
+    /// descending layers are generated from it per incoming Attack.</summary>
+    public float DeflectionChance;
+    /// <summary>Maximum Energy Shield (flat gear ES scaled by Intelligence).</summary>
+    public float MaxEnergyShield;
     public float FireResistance;         // percent, capped
     public float ColdResistance;
     public float LightningResistance;
@@ -158,15 +169,31 @@ public static class StatCalculator
         // 2) Temporary effects (buffs/debuffs) merge into the same pool.
         if (temporaryEffects != null) total.AddAll(temporaryEffects);
 
+        // 2b) Primary attributes resolve FIRST; their derived bonuses (AttributeBalance —
+        // the one place those conversions live) then feed the stats below.
+        float strength = AttributeBalance.BaseAttribute + total.Get(StatType.Strength);
+        float dexterity = AttributeBalance.BaseAttribute + total.Get(StatType.Dexterity);
+        float intelligence = AttributeBalance.BaseAttribute + total.Get(StatType.Intelligence);
+
         var s = new ComputedStats
         {
-            MaxHealth = BaseMaxHealth + HealthPerCharLevel * (character.Level - 1) + total.Get(StatType.MaxHealth),
+            Strength = strength,
+            Dexterity = dexterity,
+            Intelligence = intelligence,
+            MaxHealth = BaseMaxHealth + HealthPerCharLevel * (character.Level - 1) + total.Get(StatType.MaxHealth)
+                        + strength * AttributeBalance.LifePerStrength,
             LifeRegeneration = total.Get(StatType.LifeRegeneration),
-            MaxMana = BaseMaxMana + ManaPerCharLevel * (character.Level - 1) + total.Get(StatType.MaximumMana),
+            MaxMana = BaseMaxMana + ManaPerCharLevel * (character.Level - 1) + total.Get(StatType.MaximumMana)
+                      + intelligence * AttributeBalance.ManaPerIntelligence,
             ManaRegeneration = (BaseManaRegen + ManaRegenPerCharLevel * (character.Level - 1))
                                * (1f + total.Get(StatType.ManaRegeneration) / 100f),
-            MovementSpeed = BaseMoveSpeed * (1f + total.Get(StatType.MovementSpeed) / 100f),
+            MovementSpeed = BaseMoveSpeed * (1f + (total.Get(StatType.MovementSpeed)
+                            + dexterity / 10f * AttributeBalance.MovementPctPer10Dexterity) / 100f),
             Armor = total.Get(StatType.Armor),
+            DeflectionRating = total.Get(StatType.DeflectionRating)
+                               + dexterity * AttributeBalance.DeflectionRatingPerDexterity,
+            MaxEnergyShield = total.Get(StatType.EnergyShield)
+                              * (1f + intelligence / 10f * AttributeBalance.EnergyShieldPctPer10Intelligence / 100f),
             FireResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.FireResistance)),
             ColdResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.ColdResistance)),
             LightningResistance = MathF.Min(ComputedStats.ResistanceCap, total.Get(StatType.LightningResistance)),
@@ -202,6 +229,12 @@ public static class StatCalculator
             SummonHealthIncrease = total.Get(StatType.SummonHealth),
             SummonLimitBonus = (int)total.Get(StatType.SummonLimit),
         };
+
+        // Strength's melee-physical benefit rides the existing percent-increased pool.
+        s.PhysicalDamageIncrease += strength / 10f * AttributeBalance.PhysicalPctPer10Strength;
+        // Rating → initial chance (level-scaled with a hard cap); the per-hit descending
+        // layers are generated from this by the combat code.
+        s.DeflectionChance = Deflection.ChanceFromRating(s.DeflectionRating, character.Level);
 
         // Blocking: chance comes entirely from gear (shields and their modifiers); a block
         // avoids one hit completely, then waits out a cooldown that recovery stats shorten.

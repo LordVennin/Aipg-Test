@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 18; // v18: summon attack animation events
+    public const int ProtocolVersion = 19; // v19: attributes + energy shield in health sync
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

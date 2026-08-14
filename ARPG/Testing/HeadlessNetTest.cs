@@ -540,9 +540,9 @@ public static class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 393, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
-        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 39,
-              "every full family has a tier X (39 tiered families reach tier 10)");
+        Check(data.Modifiers.Count == 443, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 44,
+              "every full family has a tier X (44 tiered families reach tier 10)");
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&
               data.Modifiers["of_ferocity"].StatAffected == Stats.StatType.CriticalDamage &&
               data.Modifiers["of_precision"].CompatibleItemCategories.All(c =>
@@ -1396,7 +1396,7 @@ public static class HeadlessNetTest
             srvMulti.SkillReadyAt.Clear();
             srvMulti.GlobalSkillReadyAt = 0;
             clientB.RequestUseSkill("mace_strike", pack3[0].Position);
-            Pump(0.3f);
+            Pump(0.6f); // past the slam's 0.35s wind-up, so THIS cast's roll is judged
             slowed = pack3.Any(g => g.SlowedUntil > server.World.Time);
         }
         Check(slowed, "Mace Slam slows survivors");
@@ -1678,7 +1678,7 @@ public static class HeadlessNetTest
 
         Console.WriteLine("\n-- Passive skill tree --");
         var tree = data.PassiveTree;
-        Check(tree.Nodes.Count == 10 && tree.Nodes.Count(n => n.Start) == 1,
+        Check(tree.Nodes.Count == 16 && tree.Nodes.Count(n => n.Start) == 1,
               $"starter tree loaded ({tree.Nodes.Count} nodes, {tree.Nodes.Count(n => n.Start)} start)");
         Check(tree.Nodes.All(n => n.Effects.Count > 0) &&
               tree.Connections.All(c => c.Count == 2 && tree.ById.ContainsKey(c[0]) && tree.ById.ContainsKey(c[1])),
@@ -2280,6 +2280,153 @@ public static class HeadlessNetTest
         Check(kWound && srvSum.Health < hpKnight - 0.5f,
               "Barrow Knights wind up and land sword blows");
         clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.4f);
+
+        Console.WriteLine("\n-- Attributes & derived stats --");
+        // Pure StatCalculator checks: base attributes, and each attribute's centralized
+        // derived contributions (AttributeBalance is the only place they live).
+        var attrChar = new Sim.CharacterData();
+        var attrBase = Stats.StatCalculator.Compute(data, attrChar);
+        Check(MathF.Abs(attrBase.Strength - Stats.AttributeBalance.BaseAttribute) < 0.01f &&
+              MathF.Abs(attrBase.Dexterity - Stats.AttributeBalance.BaseAttribute) < 0.01f &&
+              MathF.Abs(attrBase.Intelligence - Stats.AttributeBalance.BaseAttribute) < 0.01f,
+              "every character starts at the base attribute values");
+        var strHelm = new Items.ItemInstance { BaseItemId = "leather_hood", Rarity = Items.ItemRarity.Rare };
+        strHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_the_bear", Value = 20 });
+        attrChar.Equipment[Items.EquipSlot.Helmet] = strHelm;
+        var strStats = Stats.StatCalculator.Compute(data, attrChar);
+        Check(MathF.Abs(strStats.Strength - (attrBase.Strength + 20)) < 0.01f,
+              "gear attribute rolls flow through the stat pipeline (+20 Strength)");
+        Check(MathF.Abs(strStats.MaxHealth - attrBase.MaxHealth - 20 * Stats.AttributeBalance.LifePerStrength) < 0.01f,
+              "Strength grants maximum Life at the centralized rate");
+        strHelm.Modifiers.Clear();
+        strHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_the_owl", Value = 20 });
+        var intStats = Stats.StatCalculator.Compute(data, attrChar);
+        Check(MathF.Abs(intStats.MaxMana - attrBase.MaxMana - 20 * Stats.AttributeBalance.ManaPerIntelligence) < 0.01f,
+              "Intelligence grants maximum Mana at the centralized rate");
+
+        // Deflection aggregation: ALL equipped pieces + dexterity pool into ONE rating.
+        strHelm.Modifiers.Clear();
+        strHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "deflecting", Value = 30 });
+        attrChar.Equipment[Items.EquipSlot.BodyArmor] =
+            new Items.ItemInstance { BaseItemId = "hunters_jerkin", Rarity = Items.ItemRarity.Normal };
+        var defStats = Stats.StatCalculator.Compute(data, attrChar);
+        float expectRating = 90 + 30 + defStats.Dexterity * Stats.AttributeBalance.DeflectionRatingPerDexterity;
+        Check(MathF.Abs(defStats.DeflectionRating - expectRating) < 0.01f,
+              $"deflection rating aggregates across equipped pieces + dexterity ({defStats.DeflectionRating:0})");
+        Check(defStats.DeflectionChance > 0 &&
+              defStats.DeflectionChance <= Stats.Deflection.InitialChanceCap &&
+              MathF.Abs(defStats.DeflectionChance -
+                        Stats.Deflection.ChanceFromRating(defStats.DeflectionRating, attrChar.Level)) < 0.01f,
+              $"rating converts to a capped initial chance via the central formula ({defStats.DeflectionChance:0.0}%)");
+        Check(MathF.Abs(defStats.PhysicalReduction - defStats.Armor / (defStats.Armor + 60f)) < 0.001f,
+              "armor mitigation formula holds (armor / (armor + 60))");
+
+        Console.WriteLine("\n-- Deflection layer mechanics --");
+        var layers = Stats.Deflection.Layers(50f).ToList();
+        Check(layers.Count == 4 && layers.SequenceEqual(new[] { 50f, 35f, 20f, 5f }),
+              $"descending layers generate until the next would be 0 ({string.Join("/", layers)})");
+        // Scripted rolls: fail, success, fail, success — every layer is attempted
+        // independently, failures never stop later checks, successes stack
+        // multiplicatively on the REMAINING damage.
+        var script = new Queue<double>(new[] { 0.99, 0.30, 0.99, 0.01 });
+        int rollsMade = 0;
+        double NextRoll() { rollsMade++; return script.Dequeue(); }
+        float mult = Stats.Deflection.RollDamageMultiplier(50f, NextRoll);
+        Check(rollsMade == 4, "ALL layers roll independently (a failed roll does not stop later ones)");
+        Check(MathF.Abs(100f * mult - 64f) < 0.01f,
+              $"fail/success/fail/success on 100 damage leaves 64 ({100f * mult:0.##})");
+        var allPass = new Queue<double>(new[] { 0.0, 0.0, 0.0, 0.0 });
+        float mult2 = Stats.Deflection.RollDamageMultiplier(50f, () => allPass.Dequeue());
+        Check(MathF.Abs(mult2 - MathF.Pow(0.8f, 4)) < 0.0001f,
+              "every success multiplies the remaining damage by 0.8");
+
+        Console.WriteLine("\n-- Equipment attribute requirements --");
+        // iron_plate demands 14 Strength; a fresh character has 10 — the server refuses.
+        var plate = new Items.ItemInstance { BaseItemId = "iron_plate", Rarity = Items.ItemRarity.Normal, ItemLevel = 5 };
+        plate.EnsureSlotData();
+        srvSum.Character.Level = Math.Max(srvSum.Character.Level, 2);
+        Check(srvSum.Character.Inventory.TryAdd(data, plate), "test plate added to the bag");
+        var platePlaced = srvSum.Character.Inventory.FindByInstance(plate.InstanceId);
+        server.World.MoveItem(bId, ItemLocation.AtGrid(platePlaced.X, platePlaced.Y),
+            ItemLocation.AtEquip(Items.EquipSlot.BodyArmor));
+        Check(srvSum.Character.Equipment.GetValueOrDefault(Items.EquipSlot.BodyArmor)?.InstanceId != plate.InstanceId,
+              "the server refuses gear whose Strength requirement is unmet");
+        // A +20 Strength helmet satisfies it: attributes from OTHER gear count.
+        var bearHelm = new Items.ItemInstance { BaseItemId = "leather_hood", Rarity = Items.ItemRarity.Rare };
+        bearHelm.EnsureSlotData();
+        bearHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_the_bear", Value = 20 });
+        var oldHelm = srvSum.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Helmet);
+        srvSum.Character.Equipment[Items.EquipSlot.Helmet] = bearHelm;
+        srvSum.RecomputeStats(data);
+        platePlaced = srvSum.Character.Inventory.FindByInstance(plate.InstanceId);
+        server.World.MoveItem(bId, ItemLocation.AtGrid(platePlaced.X, platePlaced.Y),
+            ItemLocation.AtEquip(Items.EquipSlot.BodyArmor));
+        Check(srvSum.Character.Equipment.GetValueOrDefault(Items.EquipSlot.BodyArmor)?.InstanceId == plate.InstanceId,
+              "meeting the requirement through other gear's attributes allows the equip");
+
+        Console.WriteLine("\n-- Energy Shield --");
+        // Battlemage Plate (Armor + ES hybrid, 8 Str / 8 Int — met at base 10s).
+        var esPlate = new Items.ItemInstance { BaseItemId = "battlemage_plate", Rarity = Items.ItemRarity.Normal };
+        srvSum.Character.Equipment[Items.EquipSlot.BodyArmor] = esPlate;
+        srvSum.RecomputeStats(data);
+        Check(srvSum.Stats.MaxEnergyShield > 15f,
+              $"hybrid base grants Energy Shield scaled by Intelligence ({srvSum.Stats.MaxEnergyShield:0.0})");
+        srvSum.EnergyShield = srvSum.Stats.MaxEnergyShield;
+        clientB.SendDebugCommand("heal");
+        Pump(0.3f);
+        float esHpBefore = srvSum.Health;
+        float esBefore = srvSum.EnergyShield;
+        var esBiter = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(1.0f, 0));
+        bool esAbsorbed = false;
+        for (int i = 0; i < 80 && !esAbsorbed; i++)
+        {
+            Pump(0.1f);
+            esAbsorbed = srvSum.EnergyShield < esBefore - 0.1f;
+        }
+        Check(esAbsorbed && srvSum.Health >= esHpBefore - 0.01f,
+              $"Energy Shield absorbs the hit before life (ES {srvSum.EnergyShield:0.0}, hp intact)");
+        Check(MathF.Abs(srvSum.LastDamagedAt - server.World.Time) < 3f,
+              "taking damage stamps the recharge-delay timer");
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.4f);
+        // Recharge: silent inside the delay window, then refills at the configured rate.
+        srvSum.EnergyShield = 5f;
+        srvSum.LastDamagedAt = server.World.Time; // as if just hit: reset the delay
+        Pump(Stats.EnergyShieldBalance.RechargeDelay * 0.5f);
+        Check(srvSum.EnergyShield <= 5.01f, "no recharge before the delay has passed");
+        Pump(Stats.EnergyShieldBalance.RechargeDelay * 0.6f + 0.5f);
+        Check(srvSum.EnergyShield > 5.5f, $"recharge starts after the delay ({srvSum.EnergyShield:0.0})");
+        float esMid = srvSum.EnergyShield;
+        Pump(6f);
+        Check(srvSum.EnergyShield >= MathF.Min(srvSum.Stats.MaxEnergyShield, esMid) &&
+              srvSum.EnergyShield >= srvSum.Stats.MaxEnergyShield - 0.1f,
+              "recharge refills to full at the configured rate");
+        Pump(0.3f);
+        Check(MathF.Abs((clientB.World.Me?.EnergyShield ?? -1) - srvSum.EnergyShield) < 1.5f &&
+              clientA.World.Players[bId].MaxEnergyShield > 15f,
+              "Energy Shield and its maximum replicate to every client");
+
+        // Attack-vs-spell tagging is data-driven: a spell-flagged projectile is never
+        // deflectable, the default stays a deflectable Attack.
+        data.Enemies["spitter"].ProjectileIsSpell = true;
+        var spellSpitter = server.World.SpawnEnemy("spitter", srvSum.Position + new Vector2(4f, 0));
+        Server.ServerProjectile spellGlob = null;
+        for (int i = 0; i < 60 && spellGlob == null; i++)
+        {
+            Pump(0.1f);
+            spellGlob = server.World.Projectiles.Values.FirstOrDefault(pr => !pr.FromPlayer);
+        }
+        Check(spellGlob is { AttackHit: false },
+              "spell-flagged enemy projectiles are marked non-deflectable (data-driven)");
+        data.Enemies["spitter"].ProjectileIsSpell = false;
+        clientB.SendDebugCommand("kill_nearby");
+        // Restore B's gear so later sections see the old state.
+        if (oldHelm != null) srvSum.Character.Equipment[Items.EquipSlot.Helmet] = oldHelm;
+        else srvSum.Character.Equipment.Remove(Items.EquipSlot.Helmet);
+        srvSum.Character.Equipment.Remove(Items.EquipSlot.BodyArmor);
+        srvSum.RecomputeStats(data);
         clientB.SendDebugCommand("heal");
         Pump(0.4f);
 

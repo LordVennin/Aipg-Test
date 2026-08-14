@@ -43,6 +43,9 @@ public class EnemyDefinition
     public float AggroRange { get; set; } = 8f;
     public bool Ranged { get; set; }
     public float ProjectileSpeed { get; set; } = 8f;
+    /// <summary>Marks a ranged enemy's projectile as a SPELL rather than an Attack —
+    /// spell projectiles can never be Deflected. Data-driven per enemy type.</summary>
+    public bool ProjectileIsSpell { get; set; }
     public float Radius { get; set; } = 0.4f;    // collision/visual size in tiles
     public float XpReward { get; set; } = 20;
     /// <summary>Ground-slam AoE attack (bosses): radius in tiles, 0 = no slam.</summary>

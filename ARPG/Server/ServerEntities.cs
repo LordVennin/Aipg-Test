@@ -84,6 +84,13 @@ public class ServerPlayer
     public float Mana;
     public float LastSyncedMana;
 
+    /// <summary>Current Energy Shield: absorbs damage before life, recharges after
+    /// EnergyShieldBalance.RechargeDelay seconds without taking damage.</summary>
+    public float EnergyShield;
+    public float LastSyncedEnergyShield;
+    /// <summary>Server time of the last damage taken (any hit resets the ES recharge delay).</summary>
+    public float LastDamagedAt = -999f;
+
     public const float Radius = 0.35f;
     public const float PickupRange = 2.0f;
 
@@ -92,6 +99,7 @@ public class ServerPlayer
         Stats = StatCalculator.Compute(data, Character);
         if (Health > Stats.MaxHealth) Health = Stats.MaxHealth;
         if (Mana > Stats.MaxMana) Mana = Stats.MaxMana;
+        if (EnergyShield > Stats.MaxEnergyShield) EnergyShield = Stats.MaxEnergyShield;
     }
 }
 
@@ -201,6 +209,9 @@ public class ServerProjectile
     public float MinDamage;
     public float MaxDamage;
     public DamageKind DamageKind;
+    /// <summary>True when this projectile is a direct ATTACK (deflectable by the DEX
+    /// defense); enemy defs mark spell-like projectiles false. Data-driven.</summary>
+    public bool AttackHit = true;
     public float IgniteChance;
     /// <summary>Critical strike stats carried by player projectiles, rolled at impact.</summary>
     public float CritChance;

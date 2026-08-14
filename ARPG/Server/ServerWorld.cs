@@ -209,8 +209,10 @@ public partial class ServerWorld
         p.RecomputeStats(Data);
         p.Health = p.Stats.MaxHealth;
         p.Mana = p.Stats.MaxMana;
+        p.EnergyShield = p.Stats.MaxEnergyShield;
         p.LastSyncedHealth = p.Health;
         p.LastSyncedMana = p.Mana;
+        p.LastSyncedEnergyShield = p.EnergyShield;
         Players[id] = p;
         return p;
     }
@@ -284,6 +286,7 @@ public partial class ServerWorld
                     p.Height = Map.GroundHeightAt(Map.PlayerSpawn);
                     p.Health = p.Stats.MaxHealth;
                     p.Mana = p.Stats.MaxMana;
+                    p.EnergyShield = p.Stats.MaxEnergyShield;
                     p.LastSyncedHealth = p.Health;
                     _events.PlayerRespawned(p);
                 }
@@ -315,6 +318,19 @@ public partial class ServerWorld
             {
                 p.Mana = MathF.Min(p.Stats.MaxMana, p.Mana + p.Stats.ManaRegeneration * dt);
                 if (MathF.Abs(p.Mana - p.LastSyncedMana) >= 1f || p.Mana >= p.Stats.MaxMana)
+                    resourceChanged = true;
+            }
+            // Energy Shield recharge: kicks in after RechargeDelay seconds without taking
+            // damage (any hit resets the timer), refilling at a %-of-max rate. All the
+            // knobs live in EnergyShieldBalance for the balance pass.
+            if (p.Stats.MaxEnergyShield > 0 && p.EnergyShield < p.Stats.MaxEnergyShield &&
+                Time - p.LastDamagedAt >= Stats.EnergyShieldBalance.RechargeDelay)
+            {
+                p.EnergyShield = MathF.Min(p.Stats.MaxEnergyShield,
+                    p.EnergyShield + p.Stats.MaxEnergyShield *
+                    Stats.EnergyShieldBalance.RechargePctPerSecond / 100f * dt);
+                if (MathF.Abs(p.EnergyShield - p.LastSyncedEnergyShield) >= 1f ||
+                    p.EnergyShield >= p.Stats.MaxEnergyShield)
                     resourceChanged = true;
             }
             if (resourceChanged)
@@ -591,8 +607,9 @@ public partial class ServerWorld
                             if (!victim.Alive || Time < victim.InvulnerableUntil) continue;
                             if (MathF.Abs(victim.Height - e.Height) > 0.75f) continue;
                             if (Vector2.Distance(victim.Position, e.Position) > e.Def.SlamRadius) continue;
+                            // A ground slam is an AoE, not a direct Attack — never deflectable.
                             DamagePlayerTyped(victim, new List<(DamageKind, float)>
-                                { (DamageKind.Blunt, e.Def.SlamDamage * e.DamageScale) });
+                                { (DamageKind.Blunt, e.Def.SlamDamage * e.DamageScale) }, attackHit: false);
                             var away = (victim.Position - e.Position).NormalizedOrZero();
                             float kh = victim.Height;
                             victim.Position = Map.MoveWithCollision(victim.Position, away * 1.6f, ServerPlayer.Radius, ref kh);
@@ -905,6 +922,7 @@ public partial class ServerWorld
             MinDamage = primary.Value * 0.8f * e.DamageScale,
             MaxDamage = primary.Value * 1.2f * e.DamageScale,
             DamageKind = primary.Key,
+            AttackHit = !e.Def.ProjectileIsSpell,
             Added = extra.Count > 0 ? extra : null,
         };
         Projectiles[pr.Id] = pr;
@@ -974,7 +992,8 @@ public partial class ServerWorld
                     if (Time < p.InvulnerableUntil) continue; // dodging players are passed through
                     if (Vector2.Distance(pr.Position, p.Position) <= ServerPlayer.Radius + 0.25f)
                     {
-                        DamagePlayerTyped(p, RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added));
+                        DamagePlayerTyped(p, RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added),
+                            attackHit: pr.AttackHit);
                         RemoveProjectile(pr, pr.Position);
                         break;
                     }
@@ -1963,7 +1982,11 @@ public partial class ServerWorld
         _events.CharacterChanged(p);
     }
 
-    private void DamagePlayerTyped(ServerPlayer p, List<(DamageKind kind, float amount)> components)
+    /// <summary>Apply a typed hit to a player. `attackHit` marks a direct Attack (enemy
+    /// melee swings and attack projectiles) — the only damage Deflection may run
+    /// against. Spells, DoTs, ground effects and slams pass attackHit: false.</summary>
+    private void DamagePlayerTyped(ServerPlayer p, List<(DamageKind kind, float amount)> components,
+        bool attackHit = true)
     {
         if (!p.Alive) return;
         if (Time < p.InvulnerableUntil) return; // dodge i-frames (server-authoritative)
@@ -1980,10 +2003,29 @@ public partial class ServerWorld
 
         var (damage, kind) = MitigateForPlayer(p, components);
 
+        // Deflection (DEX defense): direct Attack hits — regardless of their damage
+        // composition — run descending independent checks; each success deflects a
+        // fraction of the REMAINING hit. Never applies to non-Attack damage.
+        if (attackHit && p.Stats.DeflectionChance > 0f)
+            damage *= Stats.Deflection.RollDamageMultiplier(p.Stats.DeflectionChance, _rng.NextDouble);
+
         damage = MathF.Max(0.5f, damage);
+        float totalHit = damage; // the floating number shows the WHOLE hit, ES + life
+
+        // Energy Shield absorbs before life. ANY damage taken (even fully absorbed)
+        // resets the recharge delay.
+        p.LastDamagedAt = Time;
+        if (p.EnergyShield > 0f)
+        {
+            float absorbed = MathF.Min(p.EnergyShield, damage);
+            p.EnergyShield -= absorbed;
+            p.LastSyncedEnergyShield = p.EnergyShield;
+            damage -= absorbed;
+        }
+
         p.Health -= damage;
         p.LastSyncedHealth = p.Health;
-        _events.DamageDealt(true, p.Id, damage, kind, p.Position);
+        _events.DamageDealt(true, p.Id, totalHit, kind, p.Position);
         if (p.Health <= 0)
         {
             p.Health = 0;

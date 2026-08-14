@@ -93,18 +93,25 @@ public static class ItemTooltip
         if (bs.TryGetValue(StatType.WeaponRange, out float range))
             baseLines.Add(new Line($"Weapon Range: {range:0.0}", white));
 
-        // Armor is shown pre-calculated: base + all +Armor modifiers rolled on the item,
-        // so players never have to sum it themselves (mirrors the weapon damage line).
-        float armorFromMods = item.Modifiers.Sum(roll =>
-            data.Modifiers.GetValueOrDefault(roll.ModifierId)?.StatAffected == StatType.Armor ? roll.Value : 0f);
-        float totalArmor = bs.GetValueOrDefault(StatType.Armor) + armorFromMods;
+        // Defensive totals are shown pre-calculated: base + all matching modifiers rolled
+        // on the item, so players never sum them (mirrors the weapon damage line).
+        float ModTotal(StatType t) => item.Modifiers.Sum(roll =>
+            data.Modifiers.GetValueOrDefault(roll.ModifierId)?.StatAffected == t ? roll.Value : 0f);
+        float totalArmor = bs.GetValueOrDefault(StatType.Armor) + ModTotal(StatType.Armor);
         if (totalArmor > 0)
             baseLines.Add(new Line($"Armor: {totalArmor:0}", white));
+        float totalDeflection = bs.GetValueOrDefault(StatType.DeflectionRating) + ModTotal(StatType.DeflectionRating);
+        if (totalDeflection > 0)
+            baseLines.Add(new Line($"Deflection Rating: {totalDeflection:0}", new Color(150, 220, 150)));
+        float totalEs = bs.GetValueOrDefault(StatType.EnergyShield) + ModTotal(StatType.EnergyShield);
+        if (totalEs > 0)
+            baseLines.Add(new Line($"Energy Shield: {totalEs:0}", new Color(140, 200, 240)));
 
         foreach (var (stat, value) in bs)
         {
             if (stat is StatType.MinPhysicalDamage or StatType.MaxPhysicalDamage
-                or StatType.BaseAttackSpeed or StatType.WeaponRange or StatType.Armor) continue;
+                or StatType.BaseAttackSpeed or StatType.WeaponRange or StatType.Armor
+                or StatType.DeflectionRating or StatType.EnergyShield) continue;
             baseLines.Add(new Line(DescribeBaseStat(stat, value), white));
         }
         if (baseLines.Count > 0)
@@ -153,8 +160,21 @@ public static class ItemTooltip
             if (item.Locked)
                 lines.Add(new Line("SEALED — cannot be modified", new Color(230, 110, 200)));
         }
-        if (itemBase.RequiredLevel > 1)
-            lines.Add(new Line($"Required Level: {itemBase.RequiredLevel}", gray));
+        // Requirements: level plus any attribute demands, on one clear line.
+        var reqs = new List<string>();
+        if (itemBase.RequiredLevel > 1) reqs.Add($"Level {itemBase.RequiredLevel}");
+        if (itemBase.RequiredStrength > 0) reqs.Add($"{itemBase.RequiredStrength} Str");
+        if (itemBase.RequiredDexterity > 0) reqs.Add($"{itemBase.RequiredDexterity} Dex");
+        if (itemBase.RequiredIntelligence > 0) reqs.Add($"{itemBase.RequiredIntelligence} Int");
+        if (reqs.Count > 0)
+            lines.Add(new Line($"Requires: {string.Join(", ", reqs)}", new Color(220, 170, 130)));
+        if (totalDeflection > 0)
+        {
+            foreach (var dLine in WrapText(
+                "Deflection: incoming Attacks run repeated checks at descending chances; " +
+                "each success deflects 20% of the remaining damage.", 46))
+                lines.Add(new Line(dLine, new Color(130, 160, 130)));
+        }
         lines.Add(new Line($"Item Level: {item.ItemLevel}", gray));
         if (itemBase.Category != ItemCategory.SkillScroll)
             lines.Add(new Line($"Value: {item.GoldValue(data)} gold", new Color(240, 200, 90)));
@@ -187,6 +207,11 @@ public static class ItemTooltip
     private static string DescribeBaseStat(StatType stat, float value) => stat switch
     {
         StatType.Armor => $"Armor: {value:0}",
+        StatType.DeflectionRating => $"Deflection Rating: {value:0}",
+        StatType.EnergyShield => $"Energy Shield: {value:0}",
+        StatType.Strength => $"+{value:0} Strength",
+        StatType.Dexterity => $"+{value:0} Dexterity",
+        StatType.Intelligence => $"+{value:0} Intelligence",
         StatType.BlockChance => $"Block Chance: {value:0}%",
         StatType.BlockCooldownRecovery => $"+{value:0}% Block Cooldown Recovery",
         StatType.SpellDamage => $"+{value:0}% Spell Damage",

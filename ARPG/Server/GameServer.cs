@@ -521,6 +521,8 @@ public class GameServer : IServerEvents
         w.Put(p.Health);
         w.Put(p.Stats.MaxHealth);
         w.Put(p.Mana);
+        w.Put(p.EnergyShield);
+        w.Put(p.Stats.MaxEnergyShield);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

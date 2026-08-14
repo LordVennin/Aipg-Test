@@ -437,7 +437,7 @@ nodes allocate outward from the start node ("Adventurer's Spark"), each adding
 stats through the SAME StatCollection pipeline as item modifiers — any existing
 stat works as a perk with zero extra code. Allocation is server-validated
 (existence, adjacency, unspent points) and persists in the character save. The
-starter cluster is deliberately tiny (10 perks in three branches: melee, defense,
+starter cluster is deliberately tiny (16 perks in three branches: melee, defense,
 caster) — the SYSTEM is the point, and class-specific starting trees can replace
 `Data/SkillTree/tree.json` later without code changes.
 
@@ -451,6 +451,46 @@ breaks aggro: enemies route to the ramp or stairs and follow you up (and around
 pillar walls on flat ground). Attacks remain strictly same-surface, so nothing hits
 through a cliff face or a bridge deck. Fields recompute a few times a second per
 player (~4k nodes), cheap enough for much larger generated maps later.
+
+### Attributes & the three defense families
+
+**Strength, Dexterity and Intelligence** are ordinary stats in the pipeline —
+they come from gear rolls (of the Bear / Fox / Owl suffixes), passive nodes and
+any future effect, and every derived conversion lives in ONE place
+(`Stats/Defense.cs` → `AttributeBalance`; all numbers are placeholders until the
+balance pass):
+- **STR** → maximum Life + % physical damage.
+- **DEX** → Deflection Rating + a little movement speed.
+- **INT** → maximum Mana + % Energy Shield.
+
+Three defense families hang off them:
+- **Armor (STR)** — the existing reliable physical mitigation
+  (`armor / (armor + 60)`), unchanged.
+- **Deflection (DEX)** — every equipped piece contributes to ONE aggregated
+  character **Deflection Rating** (pieces are never rolled separately), converted
+  by a central level-scaled formula into a capped INITIAL chance. Each incoming
+  direct **Attack** hit — regardless of its damage composition — then runs
+  descending INDEPENDENT checks (initial, −15%, −30%, ... while above zero); a
+  failed check never stops later ones, and every success deflects **20% of the
+  remaining damage** (multiplicative: two successes on 100 → 64). Spells, DoTs,
+  ground effects and slams are never deflected — the distinction is data-driven
+  (enemy defs can flag projectiles as spells). Gear scales the RATING, not the
+  per-layer strength.
+- **Energy Shield (INT)** — a separate pool absorbed before Life, replicated in
+  multiplayer alongside health. After `EnergyShieldBalance.RechargeDelay` seconds
+  without taking damage (ANY damage resets the timer, even fully absorbed), it
+  recharges at a %-of-maximum rate. A cyan bar caps the health orb when a build
+  has any.
+
+Armor bases now cover all six defensive identities — Iron Plate (Armor),
+Hunter's Jerkin (Deflection), Apprentice Robe (Energy Shield), Brigandine
+(Armor+Deflection), Battlemage Plate (Armor+ES) and Shadowweave Garb
+(Deflection+ES) — and bases can demand **character level, Strength, Dexterity
+and/or Intelligence** to equip. Requirements are enforced server-side (attributes
+from OTHER equipped gear count) and shown in tooltips, which also display
+pre-summed Deflection/ES totals and a short explainer of how Deflection's
+descending checks work. The character sheet lists attributes, Armor with its
+physical reduction, Deflection Rating with the initial chance, and Energy Shield.
 
 ### Telegraphed enemy melee (wind-up → whiff or hit → recovery)
 
@@ -564,7 +604,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (304 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (326 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

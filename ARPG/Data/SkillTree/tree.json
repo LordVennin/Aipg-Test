@@ -13,6 +13,12 @@
   {"Id": "executioner", "Name": "Executioner", "Description": "Critical strikes cut deeper.",
    "X": -4.2, "Y": -1.5,
    "Effects": [{"Stat": "CriticalDamage", "Value": 15}]},
+  {"Id": "iron_will", "Name": "Iron Will", "Description": "Raw strength of arm and back.",
+   "X": -2.8, "Y": 0.2,
+   "Effects": [{"Stat": "Strength", "Value": 8}]},
+  {"Id": "bulwark", "Name": "Bulwark", "Description": "Plate sits like a second skin.",
+   "X": -4.2, "Y": 0.6,
+   "Effects": [{"Stat": "Armor", "Value": 20}]},
 
   {"Id": "vitality", "Name": "Vitality", "Description": "Thicker blood, longer life.",
    "X": 0, "Y": 1.3,
@@ -23,6 +29,12 @@
   {"Id": "fleet_foot", "Name": "Fleet Foot", "Description": "Move quicker.",
    "X": 0, "Y": 3.9,
    "Effects": [{"Stat": "MovementSpeed", "Value": 5}]},
+  {"Id": "nimble", "Name": "Nimble", "Description": "Quick hands, quicker feet.",
+   "X": -1.4, "Y": 3.1,
+   "Effects": [{"Stat": "Dexterity", "Value": 8}]},
+  {"Id": "sidestep", "Name": "Sidestep", "Description": "Blows keep missing by a hair.",
+   "X": -2.8, "Y": 3.6,
+   "Effects": [{"Stat": "DeflectionRating", "Value": 60}]},
 
   {"Id": "focus", "Name": "Focus", "Description": "Spells strike with greater force.",
    "X": 1.4, "Y": -0.7,
@@ -32,11 +44,20 @@
    "Effects": [{"Stat": "MaximumMana", "Value": 12}]},
   {"Id": "arcanist", "Name": "Arcanist", "Description": "Weave spells faster.",
    "X": 4.2, "Y": -1.5,
-   "Effects": [{"Stat": "CastSpeed", "Value": 8}]}
+   "Effects": [{"Stat": "CastSpeed", "Value": 8}]},
+  {"Id": "keen_mind", "Name": "Keen Mind", "Description": "A sharper, deeper intellect.",
+   "X": 2.8, "Y": 0.2,
+   "Effects": [{"Stat": "Intelligence", "Value": 8}]},
+  {"Id": "aether_veil", "Name": "Aether Veil", "Description": "A humming shell of force.",
+   "X": 4.2, "Y": 0.6,
+   "Effects": [{"Stat": "EnergyShield", "Value": 15}]}
  ],
  "Connections": [
   ["root", "brawn"], ["brawn", "heavy_hands"], ["heavy_hands", "executioner"],
+  ["brawn", "iron_will"], ["iron_will", "bulwark"],
   ["root", "vitality"], ["vitality", "stone_skin"], ["stone_skin", "fleet_foot"],
-  ["root", "focus"], ["focus", "clear_mind"], ["clear_mind", "arcanist"]
+  ["stone_skin", "nimble"], ["nimble", "sidestep"],
+  ["root", "focus"], ["focus", "clear_mind"], ["clear_mind", "arcanist"],
+  ["focus", "keen_mind"], ["keen_mind", "aether_veil"]
  ]
 }

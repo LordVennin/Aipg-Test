@@ -64,6 +64,19 @@ public class HudUI
         var hpSize = font.MeasureString(hpText);
         sb.DrawString(font, hpText, new Vector2(orbRect.Center.X - hpSize.X / 2, orbRect.Center.Y - hpSize.Y / 2), Color.White);
 
+        // Energy Shield: a cyan bar capping the health orb (only when the build has any).
+        float maxEs = _client.World.MyStats.MaxEnergyShield;
+        if (maxEs > 0)
+        {
+            float esFrac = Math.Clamp(me.EnergyShield / maxEs, 0f, 1f);
+            var esBar = new Rectangle(orbRect.X, orbRect.Y - 10, orbRect.Width, 6);
+            sb.Draw(TextureGen.Pixel, esBar, new Color(14, 30, 40, 220));
+            sb.Draw(TextureGen.Pixel, new Rectangle(esBar.X, esBar.Y, (int)(esBar.Width * esFrac), esBar.Height),
+                new Color(90, 200, 235));
+            sb.DrawString(FontManager.Get(11), $"{me.EnergyShield:0}/{maxEs:0}",
+                new Vector2(esBar.Right + 6, esBar.Y - 3), new Color(140, 210, 235));
+        }
+
         // --- mana orb (bottom right) ---
         float maxMana = _client.World.MyStats.MaxMana;
         var manaRect = new Rectangle(screen.X - orbSize - 18, screen.Y - orbSize - 18, orbSize, orbSize);

@@ -71,6 +71,23 @@ public class CharacterSheetUI
         sb.DrawString(title, $"Character — {character.Name}  (Level {character.Level})", new Vector2(x, y), header);
         y += 34;
 
+        // ------------------------------------------------ attributes
+        sb.DrawString(FontManager.GetBold(16), "Attributes", new Vector2(x, y), new Color(220, 190, 140));
+        y += 24;
+        var attrs = new (string name, float val, Color c)[]
+        {
+            ("Strength", stats.Strength, new Color(230, 140, 120)),
+            ("Dexterity", stats.Dexterity, new Color(140, 220, 140)),
+            ("Intelligence", stats.Intelligence, new Color(140, 170, 240)),
+        };
+        for (int i = 0; i < attrs.Length; i++)
+        {
+            var pos = new Vector2(x + i * 155, y);
+            sb.DrawString(font, attrs[i].name, pos, attrs[i].c);
+            sb.DrawString(FontManager.GetBold(15), $"{attrs[i].val:0}", pos + new Vector2(100, 0), value);
+        }
+        y += 27;
+
         // ------------------------------------------------ defenses
         sb.DrawString(FontManager.GetBold(16), "Defenses", new Vector2(x, y), new Color(150, 200, 150));
         y += 24;
@@ -86,10 +103,28 @@ public class CharacterSheetUI
         StatLine("Maximum Mana", $"{me?.Mana ?? 0:0} / {stats.MaxMana:0}");
         StatLine("Mana Regeneration", $"+{stats.ManaRegeneration:0.#}/s");
         StatLine("Armor", $"{stats.Armor:0}  ({stats.PhysicalReduction:P0} physical reduction)");
+        StatLine("Deflection", stats.DeflectionRating > 0
+            ? $"{stats.DeflectionRating:0} rating  ({stats.DeflectionChance:0}% initial chance)"
+            : "—");
+        StatLine("Energy Shield", stats.MaxEnergyShield > 0
+            ? $"{me?.EnergyShield ?? 0:0} / {stats.MaxEnergyShield:0}"
+            : "—");
         StatLine("Block Chance", stats.BlockChance > 0
             ? $"{stats.BlockChance:0}%  (recovers in {stats.BlockCooldown:0.0}s)"
             : "—");
         StatLine("Movement Speed", $"{stats.MovementSpeed:0.0} tiles/s");
+        if (stats.DeflectionRating > 0)
+        {
+            sb.DrawString(FontManager.Get(12),
+                "Deflection: each incoming Attack runs repeated checks at descending chances" +
+                $" (-{Stats.Deflection.ChanceStepPercent:0}% per check);",
+                new Vector2(x, y), new Color(130, 150, 130));
+            y += 16;
+            sb.DrawString(FontManager.Get(12),
+                $"every success deflects {Stats.Deflection.ReductionPerLayer:P0} of the remaining damage.",
+                new Vector2(x, y), new Color(130, 150, 130));
+            y += 18;
+        }
         y += 4;
 
         // Resistances in two columns, colored per type.

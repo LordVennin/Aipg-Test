@@ -119,6 +119,23 @@ public partial class ServerWorld
                     error = $"Requires character level {itemBase.RequiredLevel}.";
                     return false;
                 }
+                // Attribute requirements check against CURRENT computed attributes
+                // (base + gear + passives) — server-authoritative like the level.
+                if (itemBase.RequiredStrength > p.Stats.Strength + 0.01f)
+                {
+                    error = $"Requires {itemBase.RequiredStrength} Strength.";
+                    return false;
+                }
+                if (itemBase.RequiredDexterity > p.Stats.Dexterity + 0.01f)
+                {
+                    error = $"Requires {itemBase.RequiredDexterity} Dexterity.";
+                    return false;
+                }
+                if (itemBase.RequiredIntelligence > p.Stats.Intelligence + 0.01f)
+                {
+                    error = $"Requires {itemBase.RequiredIntelligence} Intelligence.";
+                    return false;
+                }
 
                 // Hand rules: a two-handed weapon occupies both hands.
                 if (slot == EquipSlot.OffHand &&

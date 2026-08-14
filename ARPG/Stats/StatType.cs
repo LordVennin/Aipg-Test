@@ -10,12 +10,25 @@ namespace ARPG.Stats;
 /// </summary>
 public enum StatType
 {
+    // Primary attributes (flat). Derived bonuses (life per STR, mana per INT, ...) are
+    // resolved centrally in AttributeBalance/StatCalculator — sources only ever add the
+    // raw attribute.
+    Strength,
+    Dexterity,
+    Intelligence,
+
     // Flat character stats
     MaxHealth,
     LifeRegeneration, // health per second
     MaximumMana,      // flat added to the level-based mana pool
     ManaRegeneration, // percent-increased over the level-based base regen
     Armor,
+    /// <summary>DEX defense: all equipped pieces aggregate into ONE character rating,
+    /// converted to an initial Deflection Chance by Deflection.ChanceFromRating.</summary>
+    DeflectionRating,
+    /// <summary>INT defense: flat maximum Energy Shield (scaled by Intelligence),
+    /// absorbed before life and recharging out of combat.</summary>
+    EnergyShield,
     FireResistance,
     ColdResistance,
     LightningResistance,

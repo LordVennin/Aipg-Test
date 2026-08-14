@@ -149,6 +149,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("shop")) _devOpenShop = true;
             if (devUi.Contains("shopgrid")) _shop.DevAutoGrid = true;
             if (devUi.Contains("tree")) _skillTree.Open = true;
+            if (devUi.Contains("sheet")) _characterSheet.Open = true;
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
             if (devUi.Contains("knight")) _devSpawnKnights = true;
         }
