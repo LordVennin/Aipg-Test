@@ -2161,6 +2161,79 @@ public static class HeadlessNetTest
         Check(wmap.EnemySpawns.All(sp => !wmap.IsWater((int)sp.X, (int)sp.Y)),
               "enemy spawn points avoid water");
 
+        Console.WriteLine("\n-- Telegraphed enemy melee --");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn + new Vector2(0f, 3f);
+        clientB.World.Me.Height = 0f;
+        Pump(0.4f);
+        float hpCalm = srvSum.Health;
+        var lunger = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(1.0f, 0));
+        bool sawWindup = false, animSeen = false;
+        for (int i = 0; i < 60 && !sawWindup; i++)
+        {
+            Pump(0.05f);
+            sawWindup = lunger.Winding;
+            animSeen |= clientB.World.Enemies.TryGetValue(lunger.Id, out var ceB) && ceB.AttackAnimPhase >= 1;
+        }
+        Check(sawWindup && srvSum.Health >= hpCalm - 0.01f,
+              "melee enemies wind up before any damage lands");
+        for (int i = 0; i < 10 && !animSeen; i++)
+        {
+            Pump(0.05f);
+            animSeen |= clientB.World.Enemies.TryGetValue(lunger.Id, out var ceB2) && ceB2.AttackAnimPhase >= 1;
+        }
+        Check(animSeen, "clients receive the wind-up event for the attack animation");
+        for (int i = 0; i < 40 && srvSum.Health >= hpCalm - 0.5f; i++) Pump(0.1f);
+        Check(srvSum.Health < hpCalm - 0.5f, "the swing lands after the wind-up");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.4f);
+
+        // Dodge i-frames through the impact: the committed swing must WHIFF.
+        float hpWhiff = srvSum.Health;
+        var whiffer = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(1.0f, 0));
+        bool wound2 = false;
+        for (int i = 0; i < 60 && !wound2; i++) { Pump(0.05f); wound2 = whiffer.Winding; }
+        Check(wound2, "a second grunt commits to a swing");
+        srvSum.InvulnerableUntil = server.World.Time + 3f;
+        for (int i = 0; i < 40 && whiffer.Winding; i++) Pump(0.05f);
+        Pump(0.2f);
+        Check(srvSum.Health >= hpWhiff - 0.01f, "dodge i-frames make the committed swing whiff");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        srvSum.InvulnerableUntil = 0f;
+        Pump(0.4f);
+
+        // A stun mid-wind-up cancels the swing outright (the cooldown stays spent).
+        float hpStun = srvSum.Health;
+        var stunnee = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(1.0f, 0));
+        bool wound3 = false;
+        for (int i = 0; i < 60 && !wound3; i++) { Pump(0.05f); wound3 = stunnee.Winding; }
+        stunnee.StunnedUntil = server.World.Time + 3f;
+        Pump(0.8f);
+        Check(wound3 && !stunnee.Winding && srvSum.Health >= hpStun - 0.01f,
+              "a stun mid-wind-up cancels the swing entirely");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.4f);
+
+        // Barrow Knight: sword-style (tracks its victim), Skeleton sprite, lands blows.
+        var knightDef = data.Enemies["bone_knight"];
+        Check(knightDef.AttackStyle == "sword" && knightDef.AttackTracks &&
+              knightDef.SpriteStyle == "Skeleton" && !knightDef.Ranged,
+              "the Barrow Knight is a sword-tracking melee skeleton");
+        float hpKnight = srvSum.Health;
+        var knight = server.World.SpawnEnemy("bone_knight", srvSum.Position + new Vector2(1.1f, 0));
+        bool kWound = false;
+        for (int i = 0; i < 60 && !kWound; i++) { Pump(0.05f); kWound |= knight.Winding; }
+        for (int i = 0; i < 60 && srvSum.Health >= hpKnight - 0.5f; i++) Pump(0.1f);
+        Check(kWound && srvSum.Health < hpKnight - 0.5f,
+              "Barrow Knights wind up and land sword blows");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.4f);
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

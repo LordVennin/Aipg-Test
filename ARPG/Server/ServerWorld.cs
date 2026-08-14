@@ -36,6 +36,8 @@ public interface IServerEvents
     void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false);
     /// <summary>A boss ground-slam burst, for the AoE visual on all clients.</summary>
     void EnemySlammed(ServerEnemy e, float radius);
+    /// <summary>Telegraphed melee swing: phase 1 = wind-up started, 2 = swing resolved.</summary>
+    void EnemyAttacked(ServerEnemy e, byte phase, Vector2 dir);
     /// <summary>This player's current merchant stock (sent on shop open and after a buy).</summary>
     void ShopStockFor(ServerPlayer p, int npcId, IReadOnlyList<ShopEntry> stock);
     /// <summary>A one-shot or timed world visual ("zap" bursts, "firepatch" ground fire).</summary>
@@ -91,7 +93,7 @@ public partial class ServerWorld
         Loot = new LootGenerator(data, _rng);
 
         // A few roaming spawners on the open ground for ambient danger...
-        var types = new[] { "grunt", "spitter" };
+        var types = new[] { "grunt", "spitter", "bone_knight" };
         for (int i = 0; i < Math.Min(4, Map.EnemySpawns.Count); i++)
             Spawners.Add(new EnemySpawner
             {
@@ -124,6 +126,12 @@ public partial class ServerWorld
             Position = new Vector2(8.2f, 12.5f),
             Entries = new[] { ("spitter", 1), ("grunt", 2) },
             LeaderAffixes = EliteAffix.Swift,
+        });
+        Packs.Add(new PackSpawner // knight patrol in the far southeast, away from the spawn
+        {
+            Position = new Vector2(36.5f, 36.5f),
+            Entries = new[] { ("bone_knight", 2) },
+            ScatterRadius = 1.2f,
         });
         Packs.Add(new PackSpawner // overlook: spitters on plateau A's south rim
         {
@@ -480,7 +488,37 @@ public partial class ServerWorld
                 }
             }
 
-            if (Time < e.StunnedUntil || Time < e.FrozenUntil) continue; // no movement, no attacks
+            if (Time < e.StunnedUntil || Time < e.FrozenUntil)
+            {
+                // A stun or freeze mid-wind-up cancels the swing outright (the cooldown
+                // was already committed at wind-up start, so interrupts genuinely deny
+                // the hit instead of merely delaying it).
+                e.Winding = false;
+                continue; // no movement, no attacks
+            }
+
+            // Committed to a telegraphed swing: stand still until it resolves. Sword
+            // wielders keep re-aiming at their victim until just before impact; lunge
+            // attackers locked their direction at wind-up start (strafing beats them).
+            if (e.Winding)
+            {
+                if (e.Def.AttackTracks && Time < e.WindupUntil - 0.08f)
+                {
+                    Vector2? aim = null;
+                    if (e.WindupSummonId >= 0 && Summons.TryGetValue(e.WindupSummonId, out var trackS))
+                        aim = trackS.Position;
+                    else if (e.WindupPlayerId >= 0 && Players.TryGetValue(e.WindupPlayerId, out var trackP) && trackP.Alive)
+                        aim = trackP.Position;
+                    if (aim.HasValue)
+                    {
+                        var newDir = (aim.Value - e.Position).NormalizedOrZero();
+                        if (newDir != Vector2.Zero) e.WindupDir = newDir;
+                    }
+                }
+                if (Time >= e.WindupUntil) ResolveEnemySwing(e);
+                continue;
+            }
+            if (Time < e.RecoverUntil) continue; // post-swing opening: punish window
 
             // Summons soak aggression: an angry enemy with a minion in reach hits IT.
             if (e.State is EnemyState.Chase or EnemyState.Attack)
@@ -488,11 +526,15 @@ public partial class ServerWorld
                 var meat = NearestSummonNear(e.Position, e.Def.AttackRange, e.Height);
                 if (meat != null && Time >= e.AttackReadyAt)
                 {
-                    e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
                     if (e.Def.Ranged)
+                    {
+                        e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
                         SpawnEnemyProjectileAt(e, meat.Position, meat.Height);
+                    }
                     else
-                        DamageSummon(meat, RollEnemyDamage(e).Sum(c => c.amount));
+                    {
+                        StartEnemySwing(e, meat.Position, victimPlayerId: -1, victimSummonId: meat.Id);
+                    }
                     continue;
                 }
             }
@@ -558,15 +600,87 @@ public partial class ServerWorld
                     }
                     if (Time >= e.AttackReadyAt)
                     {
-                        e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
                         if (e.Def.Ranged)
+                        {
+                            e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
                             SpawnEnemyProjectile(e, target);
+                        }
                         else
-                            DamagePlayerTyped(target, RollEnemyDamage(e));
+                        {
+                            StartEnemySwing(e, target.Position, victimPlayerId: target.Id, victimSummonId: -1);
+                        }
                     }
                     break;
             }
         }
+    }
+
+    /// <summary>Commit a melee enemy to a telegraphed swing: the cooldown is spent NOW
+    /// (so a stun that cancels the wind-up truly denies the hit), the direction locks
+    /// toward the victim, and clients get the phase-1 event to play the wind-up
+    /// animation. Cooldowns get ±12% jitter so packs don't swing in unison.</summary>
+    private void StartEnemySwing(ServerEnemy e, Vector2 at, int victimPlayerId, int victimSummonId)
+    {
+        e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale *
+                          (0.88f + (float)_rng.NextDouble() * 0.24f);
+        e.WindupDir = (at - e.Position).NormalizedOrZero();
+        if (e.WindupDir == Vector2.Zero) e.WindupDir = new Vector2(1, 0);
+        e.WindupPlayerId = victimPlayerId;
+        e.WindupSummonId = victimSummonId;
+        if (e.Def.AttackWindup <= 0f)
+        {
+            // Legacy instant hit (data can opt out of the telegraph).
+            _events.EnemyAttacked(e, 2, e.WindupDir);
+            e.Winding = true; // ResolveEnemySwing clears it and applies recovery
+            ResolveEnemySwing(e, announce: false);
+            return;
+        }
+        e.Winding = true;
+        e.WindupUntil = Time + e.Def.AttackWindup;
+        _events.EnemyAttacked(e, 1, e.WindupDir);
+    }
+
+    /// <summary>The wind-up lands: re-check reach and arc NOW. Whoever is nearest inside
+    /// the swing (summons soak before players; dodge i-frames pass through) takes the
+    /// hit — an empty arc is a clean whiff, which is what makes dodging feel real.</summary>
+    private void ResolveEnemySwing(ServerEnemy e, bool announce = true)
+    {
+        e.Winding = false;
+        e.RecoverUntil = Time + e.Def.AttackRecovery;
+        if (announce) _events.EnemyAttacked(e, 2, e.WindupDir);
+
+        float reach = e.Def.AttackRange * 1.25f;
+        float cosHalfArc = MathF.Cos(e.Def.AttackArc * 0.5f * MathF.PI / 180f);
+        bool InArc(Vector2 vpos)
+        {
+            var to = vpos - e.Position;
+            float d = to.Length();
+            if (d > reach) return false;
+            if (d < 0.2f) return true; // standing inside the enemy: always caught
+            return Vector2.Dot(to / d, e.WindupDir) >= cosHalfArc;
+        }
+
+        ServerPlayer hitPlayer = null;
+        ServerSummon hitSummon = null;
+        float bestDist = float.MaxValue;
+        foreach (var v in Players.Values)
+        {
+            if (!v.Alive || Time < v.InvulnerableUntil) continue; // dodge i-frames win
+            if (MathF.Abs(v.Height - e.Height) > 0.75f) continue;
+            if (!InArc(v.Position)) continue;
+            float d = Vector2.Distance(v.Position, e.Position);
+            if (d < bestDist) { bestDist = d; hitPlayer = v; }
+        }
+        foreach (var s in Summons.Values)
+        {
+            if (MathF.Abs(s.Height - e.Height) > 0.75f) continue;
+            if (!InArc(s.Position)) continue;
+            float d = Vector2.Distance(s.Position, e.Position);
+            if (d < bestDist) { bestDist = d; hitSummon = s; hitPlayer = null; }
+        }
+        if (hitSummon != null) DamageSummon(hitSummon, RollEnemyDamage(e).Sum(c => c.amount));
+        else if (hitPlayer != null) DamagePlayerTyped(hitPlayer, RollEnemyDamage(e));
+        // else: whiff — the dodge worked.
     }
 
     private void MoveEnemyToward(ServerEnemy e, Vector2 target, float dt)

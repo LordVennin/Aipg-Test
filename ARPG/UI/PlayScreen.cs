@@ -55,6 +55,8 @@ public class PlayScreen : IScreen
     private bool _devOpenShop;
     /// <summary>ARPG_DEVUI=summons: learn the skeleton archers and raise a pack (GUI automation).</summary>
     private bool _devLearnSummons, _devRaiseSummons;
+    /// <summary>ARPG_DEVUI=knight: spawn Barrow Knights next to the player (GUI automation).</summary>
+    private bool _devSpawnKnights;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     private bool _lmbClaimedByUI;
@@ -148,6 +150,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("shopgrid")) _shop.DevAutoGrid = true;
             if (devUi.Contains("tree")) _skillTree.Open = true;
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
+            if (devUi.Contains("knight")) _devSpawnKnights = true;
         }
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
@@ -217,6 +220,11 @@ public class PlayScreen : IScreen
             _client.RequestSummonAdjust("summon_skeleton_warrior", +1);
             _client.RequestSummonAdjust("summon_skeleton", +1);
             _client.RequestSummonAdjust("summon_skeleton", +1);
+        }
+        if (_devSpawnKnights && _clientTime > 9f)
+        {
+            _devSpawnKnights = false;
+            _client.SendDebugCommand("spawn_enemy", "bone_knight");
         }
 
         // The server (when hosting) runs on its OWN thread with a fixed timestep — the

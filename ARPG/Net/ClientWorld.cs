@@ -67,6 +67,13 @@ public class ClientEnemy
     /// tinting, bar size and the hover display name.</summary>
     public byte EliteFlags;
 
+    // Telegraphed melee swing animation (EnemyAttack events): 1 = winding up,
+    // 2 = swing resolved. The renderer animates from the phase timestamp; stale
+    // phases simply stop drawing once their duration has elapsed.
+    public byte AttackAnimPhase;
+    public Vector2 AttackDir;
+    public long AttackAnimAtMs;
+
     /// <summary>Display name with elite prefixes ("Brutish Gravebound Grunt").</summary>
     public string DisplayName
     {

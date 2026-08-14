@@ -481,6 +481,15 @@ public class GameServer : IServerEvents
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void EnemyAttacked(ServerEnemy e, byte phase, System.Numerics.Vector2 dir)
+    {
+        var w = Packets.Make(PacketType.EnemyAttack);
+        w.Put(e.Id);
+        w.Put(phase);
+        w.PutVec2(dir);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void EnemyHealthChanged(ServerEnemy e)
     {
         var w = Packets.Make(PacketType.EnemyHealth);

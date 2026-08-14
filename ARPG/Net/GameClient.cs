@@ -375,6 +375,20 @@ public class GameClient
                 World.AddEffect(at, radius, 0.45f, "slam", height);
                 break;
             }
+            case PacketType.EnemyAttack:
+            {
+                int id = r.GetInt();
+                byte phase = r.GetByte();
+                var dir = r.GetVec2();
+                if (World.Enemies.TryGetValue(id, out var e))
+                {
+                    e.AttackAnimPhase = phase;
+                    e.AttackDir = dir;
+                    e.AttackAnimAtMs = Environment.TickCount64;
+                    if (MathF.Abs(dir.X) > 0.05f) e.FacingLeft = dir.X < 0; // face the swing
+                }
+                break;
+            }
             case PacketType.NpcInfo:
             {
                 var npc = new ClientNpc { Id = r.GetInt(), TypeId = r.GetString() };

@@ -26,6 +26,20 @@ public class EnemyDefinition
     public Dictionary<DamageKind, float> Resistances { get; set; } = new();
     public float AttackRange { get; set; } = 1.2f;
     public float AttackCooldown { get; set; } = 1.5f;
+    /// <summary>Melee telegraph: seconds of wind-up between committing to a swing and it
+    /// landing (0 = legacy instant hit). The victim can leave the arc — the swing whiffs.</summary>
+    public float AttackWindup { get; set; } = 0.4f;
+    /// <summary>Pause after a swing resolves before the enemy moves or attacks again.</summary>
+    public float AttackRecovery { get; set; } = 0.25f;
+    /// <summary>Swing arc in degrees around the committed direction; the victim must
+    /// still be inside it (and in reach) when the wind-up lands.</summary>
+    public float AttackArc { get; set; } = 110f;
+    /// <summary>Client animation and commitment style: "lunge" (claws; direction LOCKS at
+    /// wind-up start — strafing beats it) or "sword" (a drawn blade; tracks its victim
+    /// until just before impact — only a real dash escapes).</summary>
+    public string AttackStyle { get; set; } = "lunge";
+    /// <summary>Sword-style swings track their victim through the wind-up.</summary>
+    public bool AttackTracks => AttackStyle == "sword";
     public float AggroRange { get; set; } = 8f;
     public bool Ranged { get; set; }
     public float ProjectileSpeed { get; set; } = 8f;

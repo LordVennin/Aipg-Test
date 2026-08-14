@@ -121,6 +121,17 @@ public class ServerEnemy
     public EnemyState State = EnemyState.Idle;
     public float AttackReadyAt;
     public int TargetPlayerId = -1;
+
+    // Telegraphed melee swing: while Winding, the enemy stands committed to a swing
+    // along WindupDir that resolves when the clock passes WindupUntil. Sword-style
+    // enemies keep re-aiming WindupDir at their victim until just before impact.
+    public bool Winding;
+    public float WindupUntil;
+    public Vector2 WindupDir;
+    public int WindupPlayerId = -1;
+    public int WindupSummonId = -1;
+    /// <summary>Post-swing pause: no movement or new swings until this passes.</summary>
+    public float RecoverUntil;
     /// <summary>While the server clock is below this, the enemy neither moves nor attacks.</summary>
     public float StunnedUntil;
     /// <summary>While the server clock is below this, the enemy moves at reduced speed.</summary>

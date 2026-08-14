@@ -30,7 +30,11 @@
     "XpReward": 18,
     "LootTableId": "default",
     "Color": "C04040",
-    "SpriteStyle": "Zombie"
+    "SpriteStyle": "Zombie",
+    "AttackWindup": 0.5,
+    "AttackRecovery": 0.25,
+    "AttackArc": 120,
+    "AttackStyle": "lunge"
   },
   {
     "Id": "spitter",
@@ -99,6 +103,47 @@
     "SlamCooldown": 5.5,
     "LootTableId": "boss",
     "Color": "8050B8",
-    "SpriteStyle": "Zombie"
+    "SpriteStyle": "Zombie",
+    "AttackWindup": 0.55,
+    "AttackRecovery": 0.35,
+    "AttackArc": 130,
+    "AttackStyle": "lunge"
+  },
+  {
+    "Id": "bone_knight",
+    "Name": "Barrow Knight",
+    "Level": 3,
+    "MaxHealth": 55,
+    "MoveSpeed": 2.9,
+    "Damage": 9,
+    "DamageTypes": {
+      "Slash": 8,
+      "Dark": 2
+    },
+    "Resistances": {
+      "Thrust": 15,
+      "Blunt": 0,
+      "Slash": 10,
+      "Fire": 0,
+      "Cold": 0,
+      "Lightning": 0,
+      "Acid": 0,
+      "Dark": 30,
+      "Light": -20,
+      "Arcane": 0
+    },
+    "AttackRange": 1.4,
+    "AttackCooldown": 1.7,
+    "AttackWindup": 0.35,
+    "AttackRecovery": 0.3,
+    "AttackArc": 100,
+    "AttackStyle": "sword",
+    "AggroRange": 8,
+    "Ranged": false,
+    "Radius": 0.4,
+    "XpReward": 34,
+    "LootTableId": "default",
+    "Color": "B8BCC8",
+    "SpriteStyle": "Skeleton"
   }
 ]
