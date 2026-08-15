@@ -152,7 +152,8 @@ replicate as snapshot flags and render as tiny per-debuff icons above the enemy'
 head.
 
 **Skills**: *Mace Strike* (fast swing that hits EVERY enemy in a player-centered
-~140° arc within its range — point-blank enemies are always caught, and the swing
+frontal sweep matching the visible swing (a hair past 180°, with a little reach
+forgiveness) — point-blank enemies are always caught, and the swing
 can never reach past range+bodies — with light knockback, free; no impact circle,
 the weapon swing IS the visual), *Mace Slam*
 (mace-only ground slam at the aimed point: a 0.35s WIND-UP before the hit lands —
@@ -479,10 +480,12 @@ JoinAccept next to the seed). A theme carries the full terrain palette (floors,
 cliffs, walls, ramps, bridge, background), a clutter style and density, a chance
 for 1-level wall tiles to render as themed FEATURES on their base block (crypts,
 columns, rock spires, small trees) — and it can SHAPE GENERATION itself: the
-forest grows large multi-tile trees, generated as solid 2x2 two-level wall
-columns from their own seeded stream (base layout stays identical across themes
-for a given seed), so collision, pathfinding avoidance and line-of-sight blocking
-come free while the renderer draws one big canopy sprite per tree. Forest ground
+forest grows large trees from their own seeded stream (base layout stays
+identical across themes for a given seed). Only each tree's TRUNK tile is solid
+(one two-level column for collision, pathfinding avoidance and line-of-sight);
+the rest of the 2x2 footprint is ordinary walkable ground the canopy sprite
+merely overhangs, so players and enemies slip beneath the foliage (the occlusion
+reveal keeps your own character visible under it). Forest ground
 uses an ORGANIC floor: per-tile shades hashed from the seed on gridless tiles
 with speckles, replacing the checkerboard. Clutter is non-colliding decoration
 laid out deterministically from the seed (identical on every client). Four themes
@@ -705,7 +708,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (414 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (415 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

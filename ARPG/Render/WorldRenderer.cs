@@ -393,26 +393,65 @@ public class WorldRenderer
                 // geometry matches diamond edges exactly, so overdraw between neighbors is
                 // seamless instead of jagged.
                 var tileFeature = map.Feature(x, y);
-                if (tileFeature != TileFeature.None)
+                if (tileFeature == TileFeature.BigTreeRoot)
                 {
-                    // Multi-tile generated feature (forest big tree): the wall data
-                    // supplies collision/LOS; the ROOT tile draws one large sprite
-                    // anchored at the 2x2 footprint's center instead of blocks.
-                    if (tileFeature == TileFeature.BigTreeRoot)
+                    // Big tree: only the TRUNK tile is solid; the canopy sprite hangs
+                    // over the (walkable) footprint around it. Anchored at the trunk
+                    // tile at ITS elevation, and on raised ground the terrace top +
+                    // cliff faces still draw beneath — a tree on a terrace used to
+                    // leave a black hole where its ground never rendered.
+                    var tex = SpriteGen.GetPropSprite($"forest:bigtree:{(TileHash(map.Seed, x, y) >> 5) % 4}");
+                    if (tex != null)
                     {
-                        var tex = SpriteGen.GetPropSprite($"forest:bigtree:{(TileHash(map.Seed, x, y) >> 5) % 4}");
-                        if (tex != null)
+                        var center = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f), ground);
+                        int tw = tex.Width * 2, th = tex.Height * 2;
+                        var dest = new Rectangle((int)center.X - tw / 2, (int)center.Y - th + 10, tw, th);
+                        float tdepth = x + y + 1 + ground * 1.0f + 0.02f; // occupant of the trunk tile
+                        float tfade = OccluderFade(tdepth, dest);
+                        _sorted.Add((tdepth, batch => batch.Draw(tex, dest, Color.White * tfade)));
+                    }
+                    if (ground > 0)
+                    {
+                        // The terrace under the trunk: same top palette as elevated
+                        // ground, plus earth faces where the edge is exposed.
+                        int trPx = ground * hpx;
+                        int trLift = ground * 11;
+                        float trN = GroundNoise(map.Seed, x, y);
+                        var trBase = organic
+                            ? LerpColor(_floorD, _floorC, trN)
+                            : _elevTop;
+                        var trTop = new Color(
+                            Math.Min(255, trBase.R + trLift), Math.Min(255, trBase.G + trLift), Math.Min(255, trBase.B + trLift));
+                        bool TrExposed(int nx, int ny) =>
+                            !map.IsSolid(nx, ny) &&
+                            (map.GroundLevel(nx, ny) < ground || map.Ramp(nx, ny) != RampDirection.None);
+                        if (TrExposed(x + 1, y) || TrExposed(x, y + 1))
                         {
-                            var center = camera.WorldToScreen(new NumVec2(x + 1f, y + 1f));
-                            int tw = tex.Width * 2, th = tex.Height * 2;
-                            var dest = new Rectangle((int)center.X - tw / 2, (int)center.Y - th + 10, tw, th);
-                            float tdepth = x + y + 2 + 0.002f; // occupant of the footprint center
-                            float tfade = OccluderFade(tdepth, dest);
-                            _sorted.Add((tdepth, batch => batch.Draw(tex, dest, Color.White * tfade)));
+                            float trFaceDepth = x + y + 1 + ground * 0.001f;
+                            float trFade = OccluderFade(trFaceDepth,
+                                new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - trPx, 64, trPx + 16));
+                            var trLip = new Color(
+                                (int)(trTop.R * 0.94f), (int)(trTop.G * 0.94f), (int)(trTop.B * 0.94f)) * trFade;
+                            var trEarth = (organic ? Color.White : _cliffFace) * trFade;
+                            _sorted.Add((trFaceDepth, batch =>
+                            {
+                                batch.Draw(organic ? TextureGen.GetEarthFaces(ground) : TextureGen.GetPrismFaces(ground),
+                                    new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - trPx), trEarth);
+                                if (organic)
+                                    batch.Draw(TextureGen.GetLipBand(),
+                                        new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - trPx), trLip);
+                            }));
                         }
+                        float trTopDepth = x + y + ground * 0.6f;
+                        var trTint = trTop * OccluderFade(trTopDepth,
+                            new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx, 64, 32));
+                        _sorted.Add((trTopDepth, batch =>
+                            batch.Draw(organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid,
+                                new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx), trTint)));
                     }
                     continue;
                 }
+                // BigTreePart tiles are plain walkable ground now — render normally.
 
                 if (wall > 0)
                 {
