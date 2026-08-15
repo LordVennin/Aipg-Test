@@ -2116,7 +2116,11 @@ public static class HeadlessNetTest
               MathF.Abs(srvSum.ManaReserved - expectedCost * 2f) < 0.1f, // ...the reservation persists
               $"the free respawn keeps the reservation, costs nothing ({srvSum.ManaReserved:0.0} held)");
 
-        // Rally: the backquote command walks the pack to a marked point.
+        // Rally: the backquote command walks the pack to a marked point. Clear the
+        // practice target first — marching summons now stop to fight bodies in their
+        // path, and this check measures the MARCH.
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
         var rallyPoint = srvSum.Position + new Vector2(0f, 4f);
         clientB.RequestSummonRally("summon_skeleton", true, rallyPoint);
         bool rallied = false;
@@ -2139,6 +2143,35 @@ public static class HeadlessNetTest
               "the Skill Menu - button dismisses a skeleton");
         Check(MathF.Abs(srvSum.ManaReserved - expectedCost) < 0.1f,
               $"dismissal RELEASES the reservation ({srvSum.ManaReserved:0.0} still held by the survivor)");
+
+        // Leveling a summon skill raises its reservation price — including for minions
+        // ALREADY out (the bug: only future summons repriced).
+        float reservedBefore = srvSum.ManaReserved;
+        sumLearned.Experience = Skills.SkillMath.XpToNextLevel(sumLearned.Level);
+        clientB.RequestLevelSkill("summon_skeleton");
+        Pump(0.4f);
+        float repricedCost = server.World.SummonManaCost(srvSum, sumDef, sumLearned.Level);
+        Check(sumLearned.Level == 2 && MathF.Abs(srvSum.ManaReserved - repricedCost) < 0.1f &&
+              srvSum.ManaReserved > reservedBefore + sumDef.ManaCostPerLevel - 0.6f,
+              $"leveling a summon skill reprices the LIVE reservation ({reservedBefore:0.0} -> {srvSum.ManaReserved:0.0})");
+
+        // A summon marching to a rally point behind an enemy that physically blocks the
+        // way attacks the blocker instead of shoving against it forever.
+        var rallyArcher = server.World.Summons.Values.First(su => su.OwnerId == bId);
+        rallyArcher.Position = srvSum.Position + new Vector2(2f, 0f);
+        rallyArcher.Height = srvSum.Height;
+        var blocker = server.World.SpawnEnemy("grunt", rallyArcher.Position + new Vector2(0.9f, 0f));
+        blocker.Health = 999f;
+        blocker.StunnedUntil = server.World.Time + 60f;
+        clientB.RequestSummonRally("summon_skeleton", true, rallyArcher.Position + new Vector2(9f, 0f));
+        float blockerHpBefore = blocker.Health;
+        Pump(3.0f);
+        Check(blocker.Health < blockerHpBefore - 0.1f,
+              $"a rally-blocked summon fights the body in its way (blocker hp {blocker.Health:0.0})");
+        clientB.RequestSummonRally("summon_skeleton", false, default);
+        blocker.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.4f);
 
         // Gear scaling: summon damage/health % and +limit modifiers exist and apply.
         Check(data.Modifiers["commanding"].StatAffected == Stats.StatType.SummonDamage &&
@@ -2983,37 +3016,85 @@ public static class HeadlessNetTest
               $"skill levels raise mana cost ({costL1:0.0} -> {costL3:0.0} at level 3)");
         Check(MathF.Abs(costScrolled - fbDef.ManaCost * (1f + Skills.SkillMath.ManaCostPerScrollPct)) < 0.05f,
               $"an attached Skill Scroll raises mana cost ({costL1:0.0} -> {costScrolled:0.0})");
+        Check(data.Skills["fire_bolt"].ManaCost == 6 && data.Skills["ice_spike"].ManaCost == 5 &&
+              data.Skills["chain_lightning"].ManaCost == 9,
+              "starter spell base costs trimmed (6/5/9) to offset per-level scaling");
+        Check(data.Skills["summon_skeleton"].SummonHealth == 40 &&
+              data.Skills["summon_skeleton_warrior"].SummonHealth == 58,
+              "both summons gained +10 base health");
 
-        Console.WriteLine("\n-- Potion flasks (restore over time) --");
+        Console.WriteLine("\n-- Loot: base-level window + flask drops --");
+        // Past the window, outleveled bases stop dropping: at ilvl 30 nothing under
+        // RequiredLevel 5 (leather hoods, wooden clubs) may appear. When the window
+        // would empty the pool entirely (very high ilvl vs current data), generation
+        // falls back to the full pool rather than dropping nothing.
+        {
+            var windowGen = new Items.LootGenerator(data, new Random(4242));
+            var windowTable = data.GetLootTable("default");
+            int windowRolls = 0, trashRolls = 0, flaskRolls = 0, badFlasks = 0;
+            for (int i = 0; i < 300; i++)
+            {
+                var rolled = windowGen.GenerateEquipment(windowTable, itemLevel: 30);
+                if (rolled == null) continue;
+                windowRolls++;
+                var rolledBase = data.Items[rolled.BaseItemId];
+                if (rolledBase.RequiredLevel < 30 - Items.LootGenerator.BaseLevelWindow) trashRolls++;
+                if (rolledBase.Category == Items.ItemCategory.Flask)
+                {
+                    flaskRolls++;
+                    if (rolled.Rarity != Items.ItemRarity.Normal ||
+                        rolled.FlaskCharges != rolledBase.FlaskChargesMax) badFlasks++;
+                }
+            }
+            Check(windowRolls > 100 && trashRolls == 0,
+                  $"ilvl-30 drops never fall below the base-level window ({windowRolls} rolls)");
+            Check(flaskRolls > 0 && badFlasks == 0,
+                  $"flasks drop as loot: always Normal rarity, always full ({flaskRolls} rolled)");
+            Check(windowGen.GenerateEquipment(windowTable, itemLevel: 100) != null,
+                  "an over-window ilvl falls back to the full pool instead of dropping nothing");
+        }
+
+        Console.WriteLine("\n-- Potion flasks (equipped ITEMS, restore over time) --");
         clientB.SendDebugCommand("kill_nearby");
         Pump(0.3f);
         var srvPot = server.World.Players[clientB.World.MyPlayerId];
+        var hpFlaskItem = srvPot.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Flask1);
+        var mpFlaskItem = srvPot.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Flask2);
+        var hpFlaskBase = hpFlaskItem?.GetBase(data);
+        var mpFlaskBase = mpFlaskItem?.GetBase(data);
+        Check(hpFlaskBase is { Category: Items.ItemCategory.Flask, FlaskHeal: > 0 } &&
+              mpFlaskBase is { Category: Items.ItemCategory.Flask, FlaskMana: > 0 },
+              "new characters carry the starter flask pair as equipped items");
         srvPot.InvulnerableUntil = server.World.Time + 12f; // measure the sip undisturbed
         srvPot.Health = srvPot.Stats.MaxHealth * 0.3f;
-        srvPot.HealthPotionCharges = 2;
+        hpFlaskItem.FlaskCharges = 2;
         srvPot.PotionHealUntil = 0;
+        float potHpBefore = srvPot.Health;
         clientB.RequestUsePotion(0);
         Pump(0.25f);
-        Check(srvPot.HealthPotionCharges == 1, "drinking the health flask consumes a charge");
-        Check(srvPot.Health < srvPot.Stats.MaxHealth * 0.45f,
-              $"the heal is a SIP, not a burst (hp {srvPot.Health / srvPot.Stats.MaxHealth:P0} just after)");
+        Check(hpFlaskItem.FlaskCharges == 1, "drinking the health flask spends one of the ITEM's charges");
+        Check(srvPot.Health - potHpBefore < hpFlaskBase.FlaskHeal * 0.35f,
+              $"the heal is a SIP, not a burst (+{srvPot.Health - potHpBefore:0.0} hp just after)");
         Pump(4.2f);
-        Check(srvPot.Health > srvPot.Stats.MaxHealth * 0.62f,
-              $"~40% of max health restored over the duration (hp {srvPot.Health / srvPot.Stats.MaxHealth:P0})");
+        Check(srvPot.Health - potHpBefore >
+                  MathF.Min(hpFlaskBase.FlaskHeal * 0.8f, srvPot.Stats.MaxHealth * 0.6f),
+              $"the flask's stated heal lands over its duration (+{srvPot.Health - potHpBefore:0.0} of {hpFlaskBase.FlaskHeal:0})");
         float potCeiling = MathF.Max(0f, srvPot.Stats.MaxMana - srvPot.ManaReserved);
         srvPot.Mana = potCeiling * 0.1f;
         srvPot.LastSyncedMana = srvPot.Mana;
-        srvPot.ManaPotionCharges = 1;
+        mpFlaskItem.FlaskCharges = 1;
         float potManaBefore = srvPot.Mana;
         clientB.RequestUsePotion(1);
         Pump(2.0f);
-        Check(srvPot.ManaPotionCharges == 0 &&
-              srvPot.Mana > potManaBefore + srvPot.Stats.ManaRegeneration * 2f + potCeiling * 0.12f,
-              $"the mana flask refills noticeably faster than regen alone ({potManaBefore:0} -> {srvPot.Mana:0})");
+        Check(mpFlaskItem.FlaskCharges == 0 &&
+              srvPot.Mana > potManaBefore + srvPot.Stats.ManaRegeneration * 2f + mpFlaskBase.FlaskMana * 0.25f,
+              $"the mana flask restores noticeably faster than regen alone ({potManaBefore:0} -> {srvPot.Mana:0})");
         clientB.RequestUsePotion(1); // empty: refused with a message, charges stay 0
         Pump(0.3f);
-        Check(srvPot.ManaPotionCharges == 0, "an empty flask refuses the drink");
-        srvPot.HealthPotionCharges = 0;
+        Check(mpFlaskItem.FlaskCharges == 0, "an empty flask refuses the drink");
+        // Charges NEVER regenerate: a kill leaves the empty bottles empty (the sanctum
+        // fountain is the only refill).
+        hpFlaskItem.FlaskCharges = 0;
         srvPot.InvulnerableUntil = server.World.Time + 8f;
         var potGrunt = server.World.SpawnEnemy("grunt", srvPot.Position + new Vector2(1.1f, 0));
         potGrunt.Health = 1f;
@@ -3023,8 +3104,8 @@ public static class HeadlessNetTest
         srvPot.GlobalSkillReadyAt = 0;
         clientB.RequestUseSkill("basic_strike", potGrunt.Position);
         Pump(0.4f);
-        Check(potGrunt.Dead && srvPot.HealthPotionCharges >= 1,
-              $"kills refill the flasks ({srvPot.HealthPotionCharges} charge(s) back)");
+        Check(potGrunt.Dead && hpFlaskItem.FlaskCharges == 0 && mpFlaskItem.FlaskCharges == 0,
+              "kills do NOT refill flasks (fountain-only economy)");
 
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
         // The campaign's run maps grow tall-grass patches (on terraces too) and stay
@@ -3051,14 +3132,20 @@ public static class HeadlessNetTest
                       dressMap.ExitDoor + new Vector2(-1.2f, 0)),
                   "tall grass never blocks the corridor (still walkable end to end)");
             // Reachability guarantee across several seeds: stairs never lead into (or
-            // hide) pockets you can't actually walk to.
-            int strandedTotal = 0;
-            foreach (int rSeed in new[] { 424242, 987654, 1337, 20260815 })
-                strandedTotal += new World.GameMap(rSeed,
-                    data.ZoneThemes.First(t => t.Id == "forest"), World.MapKind.Forest)
-                    .CountUnreachableWalkable();
+            // hide) pockets you can't actually walk to. And no ORPHAN stairs — a ramp
+            // embedded in flat ground whose ascent side climbs to nothing.
+            int strandedTotal = 0, orphanTotal = 0;
+            foreach (int rSeed in new[] { 424242, 987654, 1337, 20260815, 555001, 90210 })
+            {
+                var seedMap = new World.GameMap(rSeed,
+                    data.ZoneThemes.First(t => t.Id == "forest"), World.MapKind.Forest);
+                strandedTotal += seedMap.CountUnreachableWalkable();
+                orphanTotal += seedMap.CountOrphanRamps();
+            }
             Check(strandedTotal == 0,
-                  $"every walkable tile on run maps is reachable from spawn ({strandedTotal} stranded over 4 seeds)");
+                  $"every walkable tile on run maps is reachable from spawn ({strandedTotal} stranded over 6 seeds)");
+            Check(orphanTotal == 0,
+                  $"no staircases to nowhere generate ({orphanTotal} orphan ramps over 6 seeds)");
         }
 
         Console.WriteLine("\n-- Campaign: hub sanctum --");
@@ -3139,6 +3226,29 @@ public static class HeadlessNetTest
         Check(campA.World.MyCharacter.GetSkill("ice_spike") == null &&
               campA.World.MyCharacter.Gold == 25,
               "a second skill at 25 gold is refused (75g each)");
+
+        // The fountain: charges never regenerate, so the hub basin is the refill.
+        // Out of reach it refuses; beside it, every carried flask fills back up.
+        var fountainAt = campServer.World.Map.FountainSpot;
+        Check(fountainAt != Vector2.Zero, "the hub sanctum has a fountain");
+        var srvCampA = campServer.World.Players[campA.World.MyPlayerId];
+        var campHpFlask = srvCampA.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Flask1);
+        var campMpFlask = srvCampA.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Flask2);
+        Check(campHpFlask != null && campMpFlask != null, "campaign characters carry the flask pair");
+        campHpFlask.FlaskCharges = 0;
+        campMpFlask.FlaskCharges = 1;
+        campA.World.Me.Position = fountainAt + new Vector2(8f, 0);
+        CPump(0.4f);
+        campA.RequestUseFountain();
+        CPump(0.4f);
+        Check(campHpFlask.FlaskCharges == 0, "the fountain is out of reach from across the room");
+        campA.World.Me.Position = fountainAt + new Vector2(1.2f, 0);
+        CPump(0.4f);
+        campA.RequestUseFountain();
+        CPump(0.4f);
+        Check(campHpFlask.FlaskCharges == campHpFlask.GetBase(data).FlaskChargesMax &&
+              campMpFlask.FlaskCharges == campMpFlask.GetBase(data).FlaskChargesMax,
+              "the sanctum fountain refills every carried flask");
 
         Console.WriteLine("\n-- Campaign: the run door --");
         var hubDoor = campServer.World.Map.ExitDoor;

@@ -179,26 +179,45 @@ public class HudUI
         }
 
         // --- potion flasks: health beside the health orb, mana beside the mana orb ---
-        // The bottle's fill IS the charge count (discrete thirds); the border pulses
-        // while the restore-over-time tick is running. Charges refill from kills.
-        void DrawFlask(int fx0, int fy0, bool healthKind, int charges, float secondsLeft, string keyHint)
+        // The bottles ARE the equipped flask ITEMS: fill = the item's remaining charges
+        // (never regenerates — the sanctum fountain refills), border pulses while the
+        // restore tick runs. No flask equipped draws a dimmed empty bottle.
+        (int charges, int max) EquippedFlaskCharges(bool healthKind)
         {
+            foreach (var slot in new[] { Items.EquipSlot.Flask1, Items.EquipSlot.Flask2 })
+            {
+                var it = character.Equipment.GetValueOrDefault(slot);
+                var b = it?.GetBase(_data);
+                if (b is not { Category: Items.ItemCategory.Flask }) continue;
+                if (healthKind ? b.FlaskHeal <= 0 : b.FlaskMana <= 0) continue;
+                return (it.FlaskCharges, Math.Max(1, b.FlaskChargesMax));
+            }
+            return (0, 0); // none equipped
+        }
+        void DrawFlask(int fx0, int fy0, bool healthKind, float secondsLeft, string keyHint)
+        {
+            var (charges, maxCharges) = EquippedFlaskCharges(healthKind);
+            bool equipped = maxCharges > 0;
             const int fw = 26, fh = 40;
             var body = new Rectangle(fx0, fy0 + 8, fw, fh - 8);
             var neck = new Rectangle(fx0 + fw / 2 - 5, fy0, 10, 10);
-            sb.Draw(TextureGen.Pixel, body, new Color(26, 30, 40, 235));
-            sb.Draw(TextureGen.Pixel, neck, new Color(26, 30, 40, 235));
+            var glass = equipped ? new Color(26, 30, 40, 235) : new Color(22, 24, 30, 160);
+            sb.Draw(TextureGen.Pixel, body, glass);
+            sb.Draw(TextureGen.Pixel, neck, glass);
             var liquid = healthKind ? new Color(198, 52, 52) : new Color(66, 108, 226);
             int inner = body.Height - 6;
-            int fillH = (int)(inner * charges / (float)ARPG.Stats.PotionBalance.MaxCharges);
-            if (fillH > 0)
-                sb.Draw(TextureGen.Pixel,
-                    new Rectangle(body.X + 3, body.Bottom - 3 - fillH, body.Width - 6, fillH), liquid);
-            for (int c = 1; c < ARPG.Stats.PotionBalance.MaxCharges; c++)
-                sb.Draw(TextureGen.Pixel,
-                    new Rectangle(body.X + 3, body.Bottom - 3 - inner * c / ARPG.Stats.PotionBalance.MaxCharges,
-                        body.Width - 6, 1), new Color(0, 0, 0, 120));
-            var borderC = new Color(90, 88, 70);
+            if (equipped)
+            {
+                int fillH = inner * charges / maxCharges;
+                if (fillH > 0)
+                    sb.Draw(TextureGen.Pixel,
+                        new Rectangle(body.X + 3, body.Bottom - 3 - fillH, body.Width - 6, fillH), liquid);
+                for (int c = 1; c < maxCharges; c++)
+                    sb.Draw(TextureGen.Pixel,
+                        new Rectangle(body.X + 3, body.Bottom - 3 - inner * c / maxCharges,
+                            body.Width - 6, 1), new Color(0, 0, 0, 120));
+            }
+            var borderC = equipped ? new Color(90, 88, 70) : new Color(60, 58, 50);
             if (secondsLeft > 0)
                 borderC = Color.Lerp(borderC,
                     healthKind ? new Color(255, 130, 115) : new Color(150, 180, 255),
@@ -214,11 +233,9 @@ public class HudUI
                 new Vector2(fx0 + fw / 2f - hSize.X / 2, fy0 + fh + 2), new Color(150, 146, 132));
         }
         DrawFlask(orbRect.Right + 8, orbRect.Bottom - 56, healthKind: true,
-            me.HealthPotionCharges, me.PotionHealSecondsLeft,
-            input.Bindings[InputAction.HealthPotion].Display());
+            me.PotionHealSecondsLeft, input.Bindings[InputAction.HealthPotion].Display());
         DrawFlask(manaRect.X - 34, manaRect.Bottom - 56, healthKind: false,
-            me.ManaPotionCharges, me.PotionManaSecondsLeft,
-            input.Bindings[InputAction.ManaPotion].Display());
+            me.PotionManaSecondsLeft, input.Bindings[InputAction.ManaPotion].Display());
 
         // Character level + name above the orb
         var nameFont = FontManager.Get(14);

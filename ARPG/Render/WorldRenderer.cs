@@ -1054,6 +1054,30 @@ public class WorldRenderer
         DrawDoor(world.Map.ExitDoor, exit: true);
         DrawDoor(world.Map.EntryDoor, exit: false);
 
+        // The sanctum fountain (hub only): flask refills between runs.
+        if (world.Map.FountainSpot != System.Numerics.Vector2.Zero)
+        {
+            var fPos = world.Map.FountainSpot;
+            float fHeight = world.Map.GroundHeightAt(fPos);
+            var fScreen = camera.WorldToScreen(fPos, fHeight);
+            var fountainTex = SpriteGen.GetFountain();
+            if (fountainTex != null)
+                _sorted.Add((fPos.X + fPos.Y + fHeight * 1.0f + 0.1f, batch =>
+                {
+                    int w = fountainTex.Width * 2, h = fountainTex.Height * 2;
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(fScreen.X - 22), (int)(fScreen.Y - 9), 44, 18),
+                        new Color(0, 0, 0, 80));
+                    batch.Draw(fountainTex,
+                        new Rectangle((int)fScreen.X - w / 2, (int)fScreen.Y - h + 8, w, h), Color.White);
+                    // Soft blue shimmer at the basin.
+                    float shimmer = 0.20f + 0.10f * MathF.Sin(Environment.TickCount64 * 0.003f);
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)fScreen.X - 20, (int)fScreen.Y - 12, 40, 16),
+                        new Color(90, 150, 240) * shimmer);
+                }));
+        }
+
         foreach (var p in world.Players.Values)
         {
             var pos = p.Position;
@@ -1717,6 +1741,16 @@ public class WorldRenderer
                 var cSize = labelFont.MeasureString(cHint);
                 sb.DrawString(labelFont, cHint,
                     new Vector2(cScreen.X - cSize.X / 2, cScreen.Y - 48), new Color(255, 226, 130));
+            }
+            if (world.Map.FountainSpot != System.Numerics.Vector2.Zero &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.FountainSpot) <= 2.4f)
+            {
+                var fnScreen = camera.WorldToScreen(world.Map.FountainSpot,
+                    world.Map.GroundHeightAt(world.Map.FountainSpot));
+                const string fnHint = "F  Refill flasks";
+                var fnSize = labelFont.MeasureString(fnHint);
+                sb.DrawString(labelFont, fnHint,
+                    new Vector2(fnScreen.X - fnSize.X / 2, fnScreen.Y - 64), new Color(150, 200, 255));
             }
         }
 

@@ -83,6 +83,21 @@ public class CharacterData
         if (data.Items.ContainsKey("oak_staff"))
             c.Inventory.TryAdd(data, MakeNormal("oak_staff"));
 
+        // The starter flask pair, full. Charges never regenerate — the sanctum
+        // fountain refills them between runs.
+        if (data.Items.TryGetValue("minor_health_flask", out var hpFlaskBase))
+        {
+            var hpFlask = MakeNormal("minor_health_flask");
+            hpFlask.FlaskCharges = hpFlaskBase.FlaskChargesMax;
+            c.Equipment[EquipSlot.Flask1] = hpFlask;
+        }
+        if (data.Items.TryGetValue("minor_mana_flask", out var mpFlaskBase))
+        {
+            var mpFlask = MakeNormal("minor_mana_flask");
+            mpFlask.FlaskCharges = mpFlaskBase.FlaskChargesMax;
+            c.Equipment[EquipSlot.Flask2] = mpFlask;
+        }
+
         if (data.Skills.ContainsKey("basic_strike"))
         {
             c.Skills.Add(new LearnedSkill { SkillId = "basic_strike" });

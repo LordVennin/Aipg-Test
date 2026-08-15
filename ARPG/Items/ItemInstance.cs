@@ -29,6 +29,10 @@ public class ItemInstance
     /// <summary>Stack size for stackable items (Enchanting Scrolls); 1 for everything else.</summary>
     public int StackCount { get; set; } = 1;
 
+    /// <summary>Flasks only: charges left in the bottle. Charges never regenerate —
+    /// the sanctum fountain refills them (and every flask fills on session join).</summary>
+    public int FlaskCharges { get; set; }
+
     public ItemBase GetBase(GameData data) => data.Items[BaseItemId];
 
     /// <summary>This item's attribute requirement after its own LOCAL "reduced

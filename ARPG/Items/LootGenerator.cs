@@ -80,6 +80,7 @@ public class LootGenerator
         var itemBase = PickEquipmentBase(table, itemLevel);
         if (itemBase == null) return null;
         var rarity = forcedRarity ?? RollRarity(table);
+        if (itemBase.Category == ItemCategory.Flask) rarity = ItemRarity.Normal; // no mods on flasks
         return Generate(itemBase, itemLevel, rarity);
     }
 
@@ -97,6 +98,7 @@ public class LootGenerator
             BaseModifierLimit = itemBase.BaseModifierLimit,
             MaxPrefixes = maxPrefixes,
             MaxSuffixes = maxSuffixes,
+            FlaskCharges = itemBase.FlaskChargesMax, // dropped flasks come full
         };
 
         int desired = forcedModifierCount ?? rarity switch
@@ -196,10 +198,18 @@ public class LootGenerator
         };
     }
 
+    /// <summary>Trash filter: bases whose required level sits more than this many levels
+    /// below the drop's item level stop appearing — late zones drop CURRENT gear, not
+    /// leather hoods. (Falls back to the full pool if the window would empty it.)</summary>
+    public const int BaseLevelWindow = 25;
+
     private ItemBase PickEquipmentBase(LootTable table, int itemLevel)
     {
+        int ilvl = Math.Max(1, itemLevel);
         var candidates = _data.Items.Values.Where(b =>
-            b.IsEquippable && b.RequiredLevel <= Math.Max(1, itemLevel)).ToList();
+            b.IsEquippable && b.RequiredLevel <= ilvl).ToList();
+        var current = candidates.Where(b => b.RequiredLevel >= ilvl - BaseLevelWindow).ToList();
+        if (current.Count > 0) candidates = current;
         return WeightedPick(candidates, b =>
         {
             int catWeight = table.CategoryWeights.GetValueOrDefault(b.Category, 100);

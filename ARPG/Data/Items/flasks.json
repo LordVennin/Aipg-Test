@@ -1,0 +1,62 @@
+[
+  {
+    "Id": "minor_health_flask",
+    "Name": "Minor Health Flask",
+    "Category": "Flask",
+    "InventoryWidth": 1,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 0,
+    "DropWeight": 100,
+    "BaseGoldValue": 6,
+    "FlaskHeal": 55,
+    "FlaskChargesMax": 3,
+    "FlaskDuration": 4,
+    "Description": "A stoppered draught of red vitality. Sipped over seconds, never gulped."
+  },
+  {
+    "Id": "minor_mana_flask",
+    "Name": "Minor Mana Flask",
+    "Category": "Flask",
+    "InventoryWidth": 1,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 0,
+    "DropWeight": 100,
+    "BaseGoldValue": 6,
+    "FlaskMana": 45,
+    "FlaskChargesMax": 3,
+    "FlaskDuration": 4,
+    "Description": "Blue glimmer in glass. The well refills as fast as you can sip it."
+  },
+  {
+    "Id": "greater_health_flask",
+    "Name": "Greater Health Flask",
+    "Category": "Flask",
+    "InventoryWidth": 1,
+    "InventoryHeight": 2,
+    "RequiredLevel": 14,
+    "BaseModifierLimit": 0,
+    "DropWeight": 70,
+    "BaseGoldValue": 30,
+    "FlaskHeal": 120,
+    "FlaskChargesMax": 3,
+    "FlaskDuration": 4,
+    "Description": "A deeper red, a deeper draught."
+  },
+  {
+    "Id": "greater_mana_flask",
+    "Name": "Greater Mana Flask",
+    "Category": "Flask",
+    "InventoryWidth": 1,
+    "InventoryHeight": 2,
+    "RequiredLevel": 14,
+    "BaseModifierLimit": 0,
+    "DropWeight": 70,
+    "BaseGoldValue": 30,
+    "FlaskMana": 95,
+    "FlaskChargesMax": 3,
+    "FlaskDuration": 4,
+    "Description": "Enough bottled aether to argue with a storm."
+  }
+]

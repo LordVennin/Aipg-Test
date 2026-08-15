@@ -16,6 +16,8 @@ public enum ItemCategory
     Ring,
     SkillScroll,
     EnchantScroll,
+    /// <summary>Potion flasks: equippable restore-over-time drinkables (two flask slots).</summary>
+    Flask,
 }
 
 public enum ItemRarity
@@ -37,6 +39,8 @@ public enum EquipSlot
     Ring2,
     MainHand,
     OffHand,
+    Flask1,
+    Flask2,
 }
 
 /// <summary>
@@ -85,6 +89,14 @@ public class ItemBase
     /// <summary>Maximum stack size in one inventory slot (1 = not stackable).</summary>
     public int MaxStack { get; set; } = 1;
 
+    // Flask stats (Category == Flask): the drink restores this much over FlaskDuration
+    // seconds (one of Heal/Mana per flask), from a supply of FlaskChargesMax charges.
+    // Charges do NOT regenerate — the sanctum fountain refills them.
+    public float FlaskHeal { get; set; }
+    public float FlaskMana { get; set; }
+    public int FlaskChargesMax { get; set; } = 3;
+    public float FlaskDuration { get; set; } = 4f;
+
     /// <summary>Accent color (RRGGBB hex) for the procedural held-weapon sprite
     /// (mace head metal / staff orb). Falls back to a per-category default.</summary>
     public string SpriteColor { get; set; }
@@ -95,8 +107,9 @@ public class ItemBase
     /// <summary>Items rendered in the character's hands (weapons and shields).</summary>
     public bool IsHandheld => IsWeapon || Category == ItemCategory.Shield;
     public bool IsEquippable => Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll);
-    /// <summary>Categories that can receive prefix/suffix modifiers (enchantable gear).</summary>
-    public bool IsEnchantable => IsEquippable;
+    /// <summary>Categories that can receive prefix/suffix modifiers (enchantable gear).
+    /// Flasks carry only their base stats for now.</summary>
+    public bool IsEnchantable => IsEquippable && Category != ItemCategory.Flask;
 
     /// <summary>Which equipment slots this category may occupy. Adding a new weapon category only
     /// requires extending this mapping and the data files — no inventory/skill system changes.</summary>
@@ -113,6 +126,7 @@ public class ItemBase
         ItemCategory.Belt => new[] { EquipSlot.Belt },
         ItemCategory.Amulet => new[] { EquipSlot.Amulet },
         ItemCategory.Ring => new[] { EquipSlot.Ring1, EquipSlot.Ring2 },
+        ItemCategory.Flask => new[] { EquipSlot.Flask1, EquipSlot.Flask2 },
         _ => Array.Empty<EquipSlot>(),
     };
 }

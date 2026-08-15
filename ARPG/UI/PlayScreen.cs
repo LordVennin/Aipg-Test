@@ -514,6 +514,8 @@ public class PlayScreen : IScreen
                     .FirstOrDefault(c => !c.Opened && NumVec2.Distance(me.Position, c.Position) <= 2.2f);
                 bool doorNear = _client.World.Map.ExitDoor != NumVec2.Zero &&
                                 NumVec2.Distance(me.Position, _client.World.Map.ExitDoor) <= 2.4f;
+                bool fountainNear = _client.World.Map.FountainSpot != NumVec2.Zero &&
+                                    NumVec2.Distance(me.Position, _client.World.Map.FountainSpot) <= 2.4f;
                 if (_renderer.HoveredDropId != Guid.Empty &&
                     _client.World.Drops.TryGetValue(_renderer.HoveredDropId, out var targeted))
                 {
@@ -529,6 +531,10 @@ public class PlayScreen : IScreen
                 else if (chestNear != null)
                 {
                     _client.RequestOpenChest(chestNear.Id);
+                }
+                else if (fountainNear)
+                {
+                    _client.RequestUseFountain();
                 }
                 else if (npcNear != null && !_shop.Open && !_trainer.Open)
                 {

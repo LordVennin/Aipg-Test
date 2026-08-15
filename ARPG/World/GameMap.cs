@@ -88,6 +88,8 @@ public class GameMap
     public Vector2 BossSpot { get; private set; }
     /// <summary>Friendly NPC stations (hub: gear merchant first, skill trainer second).</summary>
     public List<Vector2> NpcSpots { get; } = new();
+    /// <summary>The flask-refill fountain basin (hub only; zero elsewhere).</summary>
+    public Vector2 FountainSpot { get; private set; }
 
     /// <summary>The zone theme this map was GENERATED with. Themes are decided before
     /// generation and replicated to clients (JoinAccept), because they shape the map
@@ -497,6 +499,7 @@ public class GameMap
 
         PlayerSpawn = new Vector2(5.5f, Height / 2f);
         ExitDoor = new Vector2(Width - 2.5f, Height / 2f);
+        FountainSpot = new Vector2(10.5f, Height / 2f); // mid-room, on the walk to the door
         NpcSpots.Add(new Vector2(Width * 0.62f, 3.6f));           // gear merchant, north side
         NpcSpots.Add(new Vector2(Width * 0.62f, Height - 3.6f));  // skill trainer, south side
         ChestSpots.Add(new Vector2(2.6f, 3.5f));
@@ -671,7 +674,70 @@ public class GameMap
                     _feature[i] = 0;
                 }
 
+        CleanOrphanRamps();
         ConnectStrandedAreas();
+    }
+
+    /// <summary>
+    /// Remove orphan stairs: later passes (boss arena, spawn pocket, ponds, the
+    /// corridor fallback) can flatten the terrace a stair used to climb, leaving a
+    /// stray staircase embedded in flat ground. A ramp is only kept when its ascent
+    /// side actually reaches walkable ground one level up AND its low side is
+    /// walkable ground at the ramp's own level.
+    /// </summary>
+    private void CleanOrphanRamps()
+    {
+        bool WalkableAt(int x, int y, int level)
+        {
+            if (x < 1 || y < 1 || x >= Width - 1 || y >= Height - 1) return false;
+            int i = Idx(x, y);
+            return _wall[i] == 0 && _water[i] == 0 && _ramp[i] == 0 && _ground[i] == level;
+        }
+        for (int y = 1; y < Height - 1; y++)
+            for (int x = 1; x < Width - 1; x++)
+            {
+                int i = Idx(x, y);
+                if (_ramp[i] == 0) continue;
+                var (dx, dy) = (RampDirection)_ramp[i] switch
+                {
+                    RampDirection.PlusX => (1, 0),
+                    RampDirection.MinusX => (-1, 0),
+                    RampDirection.PlusY => (0, 1),
+                    _ => (0, -1),
+                };
+                int g = _ground[i];
+                if (WalkableAt(x + dx, y + dy, g + 1) && WalkableAt(x - dx, y - dy, g)) continue;
+                _ramp[i] = 0;
+                _rampStyle[i] = 0;
+            }
+    }
+
+    /// <summary>Ramps whose ascent side does NOT reach walkable ground one level up —
+    /// the "staircase to nowhere" the cleanup pass exists to prevent. Should be zero
+    /// after generation (ConnectStrandedAreas only carves ramps whose ascent side is
+    /// checked walkable ground+1 by construction). Test hook.</summary>
+    public int CountOrphanRamps()
+    {
+        int orphans = 0;
+        for (int y = 1; y < Height - 1; y++)
+            for (int x = 1; x < Width - 1; x++)
+            {
+                int i = Idx(x, y);
+                if (_ramp[i] == 0) continue;
+                var (dx, dy) = (RampDirection)_ramp[i] switch
+                {
+                    RampDirection.PlusX => (1, 0),
+                    RampDirection.MinusX => (-1, 0),
+                    RampDirection.PlusY => (0, 1),
+                    _ => (0, -1),
+                };
+                int nx = x + dx, ny = y + dy;
+                if (nx < 1 || ny < 1 || nx >= Width - 1 || ny >= Height - 1) { orphans++; continue; }
+                int ni = Idx(nx, ny);
+                if (_wall[ni] != 0 || _water[ni] != 0 || _ground[ni] != _ground[i] + 1)
+                    orphans++;
+            }
+        return orphans;
     }
 
     /// <summary>

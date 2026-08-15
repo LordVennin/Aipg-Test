@@ -63,9 +63,8 @@ public class ServerPlayer
     /// <summary>Blocking goes on cooldown after each successful block (server-authoritative).</summary>
     public float NextBlockReadyAt;
 
-    // Potion flasks (PotionBalance): restore-over-time, charges refill from kills.
-    public int HealthPotionCharges = ARPG.Stats.PotionBalance.StartCharges;
-    public int ManaPotionCharges = ARPG.Stats.PotionBalance.StartCharges;
+    // Flask drinking in progress: restore-over-time windows fed by the equipped
+    // flask ITEMS' stats (charges live on the items themselves).
     public float PotionHealUntil;
     public float PotionHealPerSec;
     public float PotionManaUntil;
