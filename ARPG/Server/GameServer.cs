@@ -265,6 +265,9 @@ public class GameServer : IServerEvents
             case PacketType.PotionRequest:
                 World.UsePotion(playerId, r.GetByte());
                 break;
+            case PacketType.UseFountainRequest:
+                World.UseFountain(playerId);
+                break;
         }
     }
 
@@ -600,8 +603,6 @@ public class GameServer : IServerEvents
         w.Put(p.EnergyShield);
         w.Put(p.Stats.MaxEnergyShield);
         w.Put(p.ManaReserved);
-        w.Put((byte)p.HealthPotionCharges);
-        w.Put((byte)p.ManaPotionCharges);
         w.Put(MathF.Max(0f, p.PotionHealUntil - World.Time));
         w.Put(MathF.Max(0f, p.PotionManaUntil - World.Time));
         Broadcast(w, DeliveryMethod.ReliableOrdered);

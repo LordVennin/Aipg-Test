@@ -435,42 +435,84 @@ public partial class ServerWorld
             TransitionTo(MapIndex >= 3 ? 0 : MapIndex + 1);
     }
 
-    /// <summary>Drink a potion flask (0 = health, 1 = mana): consumes a charge and
-    /// starts a restore-over-TIME tick — an ARPG sip, not an instant heal. Refused
-    /// while the same flask is already working or when there's nothing to restore.</summary>
+    /// <summary>The equipped flask ITEM matching the requested kind (health or mana)
+    /// that still has charges. Checks both flask slots so the pair can be arranged
+    /// either way round.</summary>
+    private (ItemInstance item, ItemBase itemBase) EquippedFlask(ServerPlayer p, bool health)
+    {
+        foreach (var slot in new[] { EquipSlot.Flask1, EquipSlot.Flask2 })
+        {
+            var it = p.Character.Equipment.GetValueOrDefault(slot);
+            var b = it?.GetBase(Data);
+            if (b is not { Category: ItemCategory.Flask }) continue;
+            if (health ? b.FlaskHeal <= 0 : b.FlaskMana <= 0) continue;
+            if (it.FlaskCharges <= 0) continue;
+            return (it, b);
+        }
+        return (null, null);
+    }
+
+    /// <summary>Drink an equipped flask (0 = health, 1 = mana): consumes one of the
+    /// ITEM's charges and starts a restore-over-TIME tick — an ARPG sip, not an
+    /// instant heal. Charges never regenerate; the sanctum fountain refills them.</summary>
     public void UsePotion(int playerId, byte kind)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
         if (kind == 0)
         {
             if (Time < p.PotionHealUntil) return; // already drinking
-            if (p.HealthPotionCharges <= 0)
+            var (flask, fb) = EquippedFlask(p, health: true);
+            if (flask == null)
             {
-                _events.MessageFor(p, "Your health flask is empty — kills refill it.");
+                _events.MessageFor(p, "No health flask ready — refill at the sanctum fountain.");
                 return;
             }
             if (p.Health >= p.Stats.MaxHealth - 0.5f) return; // nothing to heal
-            p.HealthPotionCharges--;
-            p.PotionHealUntil = Time + Stats.PotionBalance.HealDuration;
-            p.PotionHealPerSec = p.Stats.MaxHealth * Stats.PotionBalance.HealPct /
-                                 Stats.PotionBalance.HealDuration;
+            flask.FlaskCharges--;
+            p.PotionHealUntil = Time + fb.FlaskDuration;
+            p.PotionHealPerSec = fb.FlaskHeal / fb.FlaskDuration;
         }
         else
         {
             if (Time < p.PotionManaUntil) return;
-            if (p.ManaPotionCharges <= 0)
+            var (flask, fb) = EquippedFlask(p, health: false);
+            if (flask == null)
             {
-                _events.MessageFor(p, "Your mana flask is empty — kills refill it.");
+                _events.MessageFor(p, "No mana flask ready — refill at the sanctum fountain.");
                 return;
             }
             float ceiling = MathF.Max(0f, p.Stats.MaxMana - p.ManaReserved);
             if (p.Mana >= ceiling - 0.5f) return;
-            p.ManaPotionCharges--;
-            p.PotionManaUntil = Time + Stats.PotionBalance.ManaDuration;
-            p.PotionManaPerSec = ceiling * Stats.PotionBalance.ManaPct /
-                                 Stats.PotionBalance.ManaDuration;
+            flask.FlaskCharges--;
+            p.PotionManaUntil = Time + fb.FlaskDuration;
+            p.PotionManaPerSec = fb.FlaskMana / fb.FlaskDuration;
         }
+        _events.CharacterChanged(p);
         _events.PlayerHealthChanged(p);
+    }
+
+    /// <summary>The sanctum fountain: refills every flask the player carries (equipped
+    /// or bagged) back to full. Hub only, and only when standing beside the basin.</summary>
+    public void UseFountain(int playerId)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        if (Map.Kind != MapKind.Hub) return;
+        if (Vector2.Distance(p.Position, Map.FountainSpot) > 2.6f) return;
+        bool refilled = false;
+        foreach (var it in p.Character.Equipment.Values
+                     .Concat(p.Character.Inventory.Items.Select(pl => pl.Item)))
+        {
+            if (it?.GetBase(Data) is not { Category: ItemCategory.Flask } fb) continue;
+            if (it.FlaskCharges < fb.FlaskChargesMax) { it.FlaskCharges = fb.FlaskChargesMax; refilled = true; }
+        }
+        if (refilled)
+        {
+            _events.MessageFor(p, "The fountain's water restores your flasks.");
+            _events.CharacterChanged(p);
+            _events.WorldEffect("hit", Map.FountainSpot, 0.6f, 0.4f, p.Height);
+        }
+        else
+            _events.MessageFor(p, "Your flasks are already full.");
     }
 
     /// <summary>Open a hub chest: the lid pops for everyone and the starter gear inside
@@ -516,6 +558,27 @@ public partial class ServerWorld
         // Migrate items from older saves: derive per-side slot caps and stack counts.
         foreach (var placed in character.Inventory.Items) placed.Item.EnsureSlotData();
         foreach (var equipped in character.Equipment.Values) equipped?.EnsureSlotData();
+        // Flask migration + session top-up: pre-flask saves get the starter pair, and
+        // every carried flask starts the session FULL (mid-session refills come only
+        // from the sanctum fountain).
+        bool hasAnyFlask =
+            character.Equipment.Values.Any(it => it?.GetBase(Data)?.Category == ItemCategory.Flask) ||
+            character.Inventory.Items.Any(pl => pl.Item.GetBase(Data)?.Category == ItemCategory.Flask);
+        if (!hasAnyFlask && Data.Items.ContainsKey("minor_health_flask"))
+        {
+            character.Equipment[EquipSlot.Flask1] = new ItemInstance
+            {
+                BaseItemId = "minor_health_flask", ItemLevel = 1, Rarity = ItemRarity.Normal,
+            };
+            character.Equipment[EquipSlot.Flask2] = new ItemInstance
+            {
+                BaseItemId = "minor_mana_flask", ItemLevel = 1, Rarity = ItemRarity.Normal,
+            };
+        }
+        foreach (var it in character.Equipment.Values
+                     .Concat(character.Inventory.Items.Select(pl => pl.Item)))
+            if (it?.GetBase(Data) is { Category: ItemCategory.Flask } fb)
+                it.FlaskCharges = fb.FlaskChargesMax;
         var p = new ServerPlayer
         {
             Id = id,
@@ -2065,10 +2128,13 @@ public partial class ServerWorld
             }
 
             // A rally is an explicit order: march to the point before picking fights,
-            // then fight whatever comes in range from the held position.
+            // then fight whatever comes in range from the held position. But a body
+            // physically blocking the march IS the fight — a summon shoving against
+            // an enemy at melee distance attacks it rather than pushing forever.
             bool marchingToRally = rallied && Vector2.Distance(s.Position, goal) > 1.2f;
+            bool blockedByPrey = marchingToRally && prey != null && bestDist <= 2.2f;
 
-            if (!marchingToRally && prey != null && bestDist <= s.Reach)
+            if ((!marchingToRally || blockedByPrey) && prey != null && bestDist <= s.Reach)
             {
                 if (Time >= s.AttackReadyAt)
                 {
@@ -2554,14 +2620,6 @@ public partial class ServerWorld
                     if (skill != null)
                         changed |= GrantSkillXp(killer, skill, xp);
                 }
-                // Kills refill everyone's flasks (PotionBalance.ChargesPerKill each).
-                int hpBefore = member.HealthPotionCharges, mpBefore = member.ManaPotionCharges;
-                member.HealthPotionCharges = Math.Min(Stats.PotionBalance.MaxCharges,
-                    member.HealthPotionCharges + Stats.PotionBalance.ChargesPerKill);
-                member.ManaPotionCharges = Math.Min(Stats.PotionBalance.MaxCharges,
-                    member.ManaPotionCharges + Stats.PotionBalance.ChargesPerKill);
-                if (member.HealthPotionCharges != hpBefore || member.ManaPotionCharges != mpBefore)
-                    _events.PlayerHealthChanged(member);
                 if (changed) _events.CharacterChanged(member);
             }
         }
@@ -2632,6 +2690,20 @@ public partial class ServerWorld
         if (skill.Experience < need) return;
         skill.Experience -= need;
         skill.Level++;
+        // A summon skill's reservation price rises with its level — reprice every
+        // minion already out (and any awaiting a free respawn), not just future ones.
+        var def = skill.GetDefinition(Data);
+        if (def?.Archetype == SkillArchetype.Summon)
+        {
+            float reservation = SummonManaCost(p, def, skill.Level);
+            foreach (var s in Summons.Values)
+                if (s.OwnerId == p.Id && s.SkillId == skillId)
+                    s.ManaReserved = reservation;
+            foreach (var r in _summonRespawns)
+                if (r.OwnerId == p.Id && r.SkillId == skillId)
+                    r.ManaReserved = reservation;
+            RecomputeManaReservation(p);
+        }
         _events.CharacterChanged(p);
     }
 

@@ -114,6 +114,21 @@ public static class ItemTooltip
                 or StatType.DeflectionRating or StatType.EnergyShield) continue;
             baseLines.Add(new Line(DescribeBaseStat(stat, value), white));
         }
+
+        // Flask stats: what a sip restores and how it recharges.
+        if (itemBase.Category == ItemCategory.Flask)
+        {
+            if (itemBase.FlaskHeal > 0)
+                baseLines.Add(new Line(
+                    $"Restores {itemBase.FlaskHeal:0} Life over {itemBase.FlaskDuration:0.#}s",
+                    new Color(235, 130, 120)));
+            if (itemBase.FlaskMana > 0)
+                baseLines.Add(new Line(
+                    $"Restores {itemBase.FlaskMana:0} Mana over {itemBase.FlaskDuration:0.#}s",
+                    new Color(140, 170, 245)));
+            baseLines.Add(new Line($"Charges: {item.FlaskCharges}/{itemBase.FlaskChargesMax}", white));
+            baseLines.Add(new Line("Charges never regenerate — refill at the sanctum fountain.", gray));
+        }
         if (baseLines.Count > 0)
         {
             lines.Add(new Line("", gray, Separator: true));

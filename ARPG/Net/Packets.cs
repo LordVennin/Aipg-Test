@@ -102,6 +102,9 @@ public enum PacketType : byte
     /// <summary>Server -> client: a telegraphed enemy dash (id, phase 1 line-telegraph / 2 launch,
     /// position, direction, range, windup, height).</summary>
     EnemyDash,
+
+    /// <summary>Client -> server: refill equipped flasks at the sanctum fountain (batch 19).</summary>
+    UseFountainRequest,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

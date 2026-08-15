@@ -267,6 +267,10 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    /// <summary>Refill equipped flasks at the sanctum fountain. Server-validated.</summary>
+    public void RequestUseFountain() =>
+        Send(Packets.Make(PacketType.UseFountainRequest), DeliveryMethod.ReliableOrdered);
+
     public void RequestOpenChest(int chestId)
     {
         var w = Packets.Make(PacketType.ChestOpenRequest);
@@ -475,7 +479,6 @@ public class GameClient
                 float hp = r.GetFloat(), maxHp = r.GetFloat(), mana = r.GetFloat();
                 float es = r.GetFloat(), maxEs = r.GetFloat();
                 float manaReserved = r.GetFloat();
-                byte hpCharges = r.GetByte(), mpCharges = r.GetByte();
                 float healLeft = r.GetFloat(), manaLeft = r.GetFloat();
                 if (World.Players.TryGetValue(id, out var p))
                 {
@@ -485,8 +488,6 @@ public class GameClient
                     p.EnergyShield = es;
                     p.MaxEnergyShield = maxEs;
                     p.ManaReserved = manaReserved;
-                    p.HealthPotionCharges = hpCharges;
-                    p.ManaPotionCharges = mpCharges;
                     p.PotionHealSecondsLeft = healLeft;
                     p.PotionManaSecondsLeft = manaLeft;
                 }

@@ -100,7 +100,7 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Command summons: TAP to rally the focused pack at the cursor, HOLD to order it back to following (aiming near yourself also recalls) | `` ` `` (backquote) |
 | Cycle summon focus (which pack the command key drives) | `Tab` |
 | Interact: doors (ready up) / chests / NPCs / pick up items | `F` (hover a ground label to target a specific drop) |
-| Health potion / Mana potion (restore over time; kills refill charges) | `Q` / `E` |
+| Health flask / Mana flask (equipped items; restore over time; fountain refills) | `Q` / `E` |
 | Debug menu | `F1` |
 | Pause / close panels / menu | `Escape` |
 
@@ -384,15 +384,22 @@ Hosted games now run the actual GAME LOOP instead of the old test arena
   second while a red MMO-style ground LINE burns along his locked path, then
   barrels down it for heavy contact damage — step off the line and it all
   misses. Stuns and freezes cancel the charge.
-- **Potion flasks**: every character carries a health flask (`Q`) and a mana
-  flask (`E`) — ARPG-style sips that restore **~40% over 4 seconds**, never
-  instantly. Three charges each, refilled one per kill (every player, both
-  flasks); the HUD bottles beside the orbs show charges and pulse while a sip
-  is working. The mana flask respects summon reservations.
+- **Potion flasks are ITEMS**: flasks drop as equippable gear (two dedicated
+  flask slots in the inventory) with their own stats — how much they restore,
+  over how long, and how many charges they hold. New characters start with a
+  Minor pair (health on `Q`, mana on `E`); Greater flasks drop from level 14.
+  Sips restore over time, never instantly, and the mana flask respects summon
+  reservations. **Charges never regenerate** — refill at the Sanctum
+  **fountain** (`F` beside the basin refills every flask you carry), and every
+  flask starts a play session full. The HUD bottles beside the orbs show the
+  equipped flasks' charges and pulse while a sip works.
 - **No stranded terrain**: a post-generation connectivity pass BFS-checks every
   walkable tile from the spawn, carves extra stairs wherever a terrace or
   plateau pocket sits one clean level away, and turns any last unreachable
-  sliver into scenery — stairs never lead to places you can't actually go.
+  sliver into scenery — stairs never lead to places you can't actually go. An
+  **orphan-stair cleanup** also removes any staircase whose terrace got
+  flattened by a later pass (boss arena, ponds, corridor carve) so stairs
+  never sit embedded in flat ground climbing to nothing.
 
 **Starter economy**: new characters begin with **100 gold** and only **Mace
 Strike + Fire Bolt**. Every other skill is bought from the skill trainer for
@@ -722,7 +729,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (431 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (444 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

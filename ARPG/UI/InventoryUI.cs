@@ -75,6 +75,9 @@ public class InventoryUI
         _slotRects[EquipSlot.Belt] = new Rectangle(x + 178, y + 262, 84, 40);
         _slotRects[EquipSlot.Ring2] = new Rectangle(x + 272, y + 262, 40, 40);
         _slotRects[EquipSlot.Boots] = new Rectangle(x + 334, y + 252, 60, 60);
+        // Flask strip between the belt row and the bag grid.
+        _slotRects[EquipSlot.Flask1] = new Rectangle(x + 128, y + 316, 40, 48);
+        _slotRects[EquipSlot.Flask2] = new Rectangle(x + 272, y + 316, 40, 48);
     }
 
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
@@ -346,6 +349,21 @@ public class InventoryUI
             return;
         }
 
+        // Flasks show the bottle with the item's remaining charges.
+        var flaskTex = SpriteGen.GetFlaskSprite(b);
+        if (flaskTex != null)
+        {
+            int fH = rect.Height - 8;
+            int fW = fH * flaskTex.Width / flaskTex.Height;
+            sb.Draw(flaskTex, new Rectangle(rect.Center.X - fW / 2, rect.Center.Y - fH / 2, fW, fH), Color.White);
+            var chargeFont = FontManager.GetBold(12);
+            string ch = $"{item.FlaskCharges}/{b.FlaskChargesMax}";
+            var chSize = chargeFont.MeasureString(ch);
+            sb.DrawString(chargeFont, ch,
+                new Vector2(rect.Right - chSize.X - 3, rect.Bottom - chSize.Y - 1), new Color(255, 240, 190));
+            return;
+        }
+
         // Weapons show their actual sprite (upright); everything else keeps initials.
         var weaponTex = SpriteGen.GetWeaponSprite(b);
         if (weaponTex != null)
@@ -373,6 +391,7 @@ public class InventoryUI
         ItemCategory.SkillScroll => new Color(70, 44, 74),
         ItemCategory.EnchantScroll => new Color(58, 50, 38),
         ItemCategory.Ring or ItemCategory.Amulet => new Color(70, 64, 36),
+        ItemCategory.Flask => new Color(40, 46, 62),
         _ => new Color(44, 52, 56),
     };
 
@@ -389,6 +408,8 @@ public class InventoryUI
         EquipSlot.OffHand => "Off Hand",
         EquipSlot.Ring1 => "Ring",
         EquipSlot.Ring2 => "Ring",
+        EquipSlot.Flask1 => "Flask",
+        EquipSlot.Flask2 => "Flask",
         _ => slot.ToString(),
     };
 

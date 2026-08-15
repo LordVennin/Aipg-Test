@@ -170,6 +170,104 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
+    /// <summary>The sanctum's flask-refill fountain: a stone basin with a spout column
+    /// and glinting water.</summary>
+    public static Texture2D GetFountain()
+    {
+        if (_device == null) return null;
+        string key = "fountain";
+        if (!_cache.TryGetValue(key, out var frames))
+        {
+            frames = new[] { DrawFountain() };
+            _cache[key] = frames;
+        }
+        return frames[0];
+    }
+
+    private static Texture2D DrawFountain()
+    {
+        const int w = 26, h = 26;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var stone = new Color(148, 146, 140);
+        var stoneDark = new Color(104, 102, 98);
+        var stoneLight = new Color(184, 182, 174);
+        var water = new Color(80, 140, 220);
+        var waterLight = new Color(150, 200, 255);
+
+        // Basin: a wide stone bowl.
+        Rect(2, 16, 23, 23, stone);
+        Rect(2, 16, 23, 16, stoneLight);
+        Rect(2, 22, 23, 23, stoneDark);
+        Rect(2, 16, 3, 23, stoneDark);
+        Rect(22, 16, 23, 23, stoneDark);
+        // Water surface inside the basin.
+        Rect(5, 17, 20, 19, water);
+        Set(7, 17, waterLight); Set(12, 18, waterLight); Set(17, 17, waterLight);
+
+        // Center column + top cup.
+        Rect(11, 6, 14, 16, stone);
+        Rect(11, 6, 11, 16, stoneDark);
+        Rect(9, 4, 16, 6, stone);
+        Rect(9, 4, 16, 4, stoneLight);
+        // Falling water threads either side of the column.
+        for (int y = 7; y <= 16; y++)
+        {
+            Set(9, y, (y & 1) == 0 ? waterLight : water);
+            Set(16, y, (y & 1) == 1 ? waterLight : water);
+        }
+        Set(12, 3, waterLight); Set(13, 2, waterLight); // spray at the top
+
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>Inventory icon for a flask base: a corked bottle filled with the
+    /// potion's liquid (red for health, blue for mana).</summary>
+    public static Texture2D GetFlaskSprite(Items.ItemBase itemBase)
+    {
+        if (_device == null || itemBase is not { Category: Items.ItemCategory.Flask }) return null;
+        string key = "flask:" + itemBase.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+        var tex = DrawFlaskItem(itemBase.FlaskHeal > 0
+            ? new Color(198, 52, 52) : new Color(66, 108, 226));
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    private static Texture2D DrawFlaskItem(Color liquid)
+    {
+        const int w = 14, h = 20;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var glass = new Color(190, 205, 215, 90);
+        var glassEdge = new Color(210, 220, 230);
+        var cork = new Color(150, 112, 66);
+        var liquidLight = Shade(liquid, 1.4f);
+
+        // Bulb body.
+        Rect(3, 8, 10, 17, glass);
+        Rect(2, 10, 11, 15, glass);
+        // Liquid fill (lower two thirds of the bulb).
+        Rect(3, 11, 10, 16, liquid);
+        Rect(2, 12, 11, 15, liquid);
+        Set(4, 11, liquidLight); Set(8, 12, liquidLight);
+        // Neck + cork.
+        Rect(5, 3, 8, 8, glass);
+        Rect(5, 1, 8, 3, cork);
+        // Glass edge highlights.
+        Set(2, 10, glassEdge); Set(11, 10, glassEdge);
+        Set(3, 8, glassEdge); Set(10, 8, glassEdge);
+        Set(3, 17, glassEdge); Set(10, 17, glassEdge);
+
+        return BakeStrip(px, w, h);
+    }
+
     /// <summary>A hooded peddler: earthy robe, gold trim, a bulging satchel at the hip.</summary>
     private static Texture2D DrawMerchant()
     {

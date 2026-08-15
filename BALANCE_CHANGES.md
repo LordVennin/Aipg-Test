@@ -272,7 +272,7 @@ fast-attacking build no longer starves the rest of the group of character XP.
 A level-3 Multishot Fire Bolt costs 7 × 1.2 × 1.2 ≈ **10 mana** instead of 7 —
 power drinks deeper. The K menu shows the real cost.
 
-## Potion flasks (new)
+## Potion flasks (new — superseded by the batch-19 item rework below)
 
 | Knob | Value (`PotionBalance`) |
 |---|---|
@@ -303,3 +303,57 @@ point-blank enemies always caught. The old test (a circle around the projected
 impact point) could reach range+radius ahead while whiffing an adjacent
 off-axis enemy — the "hits far, misses close" report. Aimed area slams (Mace
 Slam) keep the placed-circle behavior by design.
+
+# Addendum — batch 19 (flask items, summons, loot window)
+
+## Flasks are equippable ITEMS (rework)
+
+Flasks moved off `PotionBalance` percentages onto item bases with real stats:
+
+| Base | Lvl | Restores | Charges | Duration |
+|---|---|---|---|---|
+| Minor Health Flask | 1 | **55 life** | 3 | 4s |
+| Minor Mana Flask | 1 | **45 mana** | 3 | 4s |
+| Greater Health Flask | 14 | **120 life** | 3 | 4s |
+| Greater Mana Flask | 14 | **95 mana** | 3 | 4s |
+
+- Two dedicated equipment slots (`Flask1`/`Flask2`, either order); new
+  characters start with the Minor pair equipped; pre-flask saves are migrated.
+- Flasks drop as loot (category weight 30, always Normal rarity, always full).
+- **Charges never regenerate** — the kill refill is gone. The Sanctum
+  **fountain** (mid-room, `F` beside the basin) refills every carried flask,
+  and every flask starts a play session full.
+- Restore stays over-time; mana still respects summon reservations.
+
+## Spell base costs trimmed
+
+Costs now scale +10%/skill level (+20%/scroll), so the bases came down:
+Fire Bolt **7 → 6**, Ice Spike **6 → 5**, Chain Lightning **11 → 9**.
+
+## Summons: +10 base HP, live reservation reprice, rally-block fix
+
+- Skeleton Archers **30 → 40** base HP, Skeleton Warriors **48 → 58** — paying
+  the pack back for the tighter mana economy.
+- **Bug fix**: leveling a summon skill now reprices the reservation of minions
+  ALREADY out (and those awaiting a free respawn) — previously only future
+  summons paid the higher price.
+- **Bug fix**: a summon marching to a rally point set BEHIND enemies used to
+  shove against the bodies forever without swinging. Marching summons now
+  fight any enemy within **2.2 tiles** (a physical blocker), then resume the
+  march when it dies; distant enemies still don't distract the march.
+
+## Loot: base-level window
+
+Drops at item level N only roll bases with `RequiredLevel ≥ N − 25`
+(`LootGenerator.BaseLevelWindow`) — late zones stop dropping leather hoods.
+If the window would empty the pool (ilvl far above current data), generation
+falls back to the full pool rather than dropping nothing.
+
+## Generation: orphan-stair cleanup
+
+Later passes (boss arena, ponds, spawn pocket, corridor fallback) could
+flatten a terrace and leave its staircase embedded in flat ground, climbing
+to nothing. `CleanOrphanRamps` now removes any ramp whose ascent side doesn't
+reach walkable ground one level up (or whose low side isn't walkable at its
+own level) before the connectivity pass runs; tests assert zero orphan ramps
+across six seeds.
