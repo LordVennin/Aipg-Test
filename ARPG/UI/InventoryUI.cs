@@ -55,11 +55,13 @@ public class InventoryUI
         _drag = drag;
     }
 
+    public readonly WindowDrag Window = new();
+
     public void Layout(Point screen)
     {
         int w = 20 + 10 * Cell;
         int h = 640;
-        _panelRect = new Rectangle(screen.X - w - 12, 36, w, h);
+        _panelRect = Window.Place(new Rectangle(screen.X - w - 12, 36, w, h), screen);
         int x = _panelRect.X, y = _panelRect.Y;
         _gridRect = new Rectangle(x + 10, y + 372, 10 * Cell, 6 * Cell);
 
@@ -77,12 +79,13 @@ public class InventoryUI
 
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
 
-    public void Update(InputManager input)
+    public void Update(InputManager input, bool mouseBlocked = false)
     {
         HoveredItem = null;
         if (!Open) return;
         var character = _client.World.MyCharacter;
         if (character == null) return;
+        if (mouseBlocked) return; // a window above this one holds the mouse
         var mouse = input.MousePosition;
 
         if (CloseButton.Handle(input, _panelRect))
@@ -91,6 +94,7 @@ public class InventoryUI
             CancelEnchantMode();
             return;
         }
+        if (Window.HandleBar(input, WindowDrag.BarFor(_panelRect))) return;
 
         if (_panelRect.Contains(mouse))
             input.MouseCapturedByUI = true;
@@ -232,6 +236,7 @@ public class InventoryUI
 
         sb.Draw(TextureGen.Pixel, _panelRect, new Color(22, 22, 30, 240));
         DrawBorder(sb, _panelRect, new Color(95, 88, 62));
+        WindowDrag.DrawBar(sb, _panelRect, input.MousePosition);
         var title = FontManager.GetBold(19);
         sb.DrawString(title, "Equipment & Inventory", new Vector2(_panelRect.X + 12, _panelRect.Y + 8), new Color(230, 215, 165));
         CloseButton.Draw(sb, _panelRect, input.MousePosition);

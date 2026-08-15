@@ -35,7 +35,7 @@ public interface IServerEvents
     /// <summary>A damage application, for floating combat numbers on all clients.</summary>
     void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false);
     /// <summary>A boss ground-slam burst, for the AoE visual on all clients.</summary>
-    void EnemySlammed(ServerEnemy e, float radius);
+    void EnemySlammed(ServerEnemy e, float radius, byte phase);
     /// <summary>Telegraphed melee swing: phase 1 = wind-up started, 2 = swing resolved.</summary>
     void EnemyAttacked(ServerEnemy e, byte phase, Vector2 dir);
     /// <summary>A summon attacked (arrow loosed / sword swung) — drives client animation.</summary>
@@ -537,9 +537,34 @@ public partial class ServerWorld
             {
                 // A stun or freeze mid-wind-up cancels the swing outright (the cooldown
                 // was already committed at wind-up start, so interrupts genuinely deny
-                // the hit instead of merely delaying it).
+                // the hit instead of merely delaying it). Same for a telegraphed slam.
                 e.Winding = false;
+                e.SlamResolveAt = 0;
                 continue; // no movement, no attacks
+            }
+
+            // Committed to a telegraphed ground slam: the boss holds still while the
+            // red warning decal fills, then the shockwave hits whoever is still inside
+            // the circle — standing in it is a choice.
+            if (e.SlamResolveAt > 0)
+            {
+                if (Time < e.SlamResolveAt) continue;
+                e.SlamResolveAt = 0;
+                _events.EnemySlammed(e, e.Def.SlamRadius, phase: 2);
+                foreach (var victim in Players.Values)
+                {
+                    if (!victim.Alive || Time < victim.InvulnerableUntil) continue;
+                    if (MathF.Abs(victim.Height - e.Height) > 0.75f) continue;
+                    if (Vector2.Distance(victim.Position, e.Position) > e.Def.SlamRadius) continue;
+                    // A ground slam is an AoE, not a direct Attack — never deflectable.
+                    DamagePlayerTyped(victim, new List<(DamageKind, float)>
+                        { (DamageKind.Blunt, e.Def.SlamDamage * e.DamageScale) }, attackHit: false);
+                    var away = (victim.Position - e.Position).NormalizedOrZero();
+                    float kh = victim.Height;
+                    victim.Position = Map.MoveWithCollision(victim.Position, away * 2.0f, ServerPlayer.Radius, ref kh);
+                    victim.Height = kh;
+                }
+                continue;
             }
 
             // Committed to a telegraphed swing: stand still until it resolves. Sword
@@ -626,25 +651,15 @@ public partial class ServerWorld
                         e.State = target == null && meat == null ? EnemyState.Idle : EnemyState.Chase;
                         break;
                     }
-                    // Boss ground slam: an AoE burst around the boss on its own timer,
-                    // hitting every same-surface player in the radius with knockback.
+                    // Boss ground slam: telegraphed — commit the cooldown and start the
+                    // wind-up now; the red warning decal broadcasts to every client and
+                    // the damage resolves at wind-up end against RESOLVE-time positions
+                    // (walk out of the circle and the shockwave misses you).
                     if (e.Def.SlamRadius > 0 && Time >= e.SlamReadyAt && dist <= e.Def.SlamRadius * 0.85f)
                     {
                         e.SlamReadyAt = Time + e.Def.SlamCooldown;
-                        _events.EnemySlammed(e, e.Def.SlamRadius);
-                        foreach (var victim in Players.Values)
-                        {
-                            if (!victim.Alive || Time < victim.InvulnerableUntil) continue;
-                            if (MathF.Abs(victim.Height - e.Height) > 0.75f) continue;
-                            if (Vector2.Distance(victim.Position, e.Position) > e.Def.SlamRadius) continue;
-                            // A ground slam is an AoE, not a direct Attack — never deflectable.
-                            DamagePlayerTyped(victim, new List<(DamageKind, float)>
-                                { (DamageKind.Blunt, e.Def.SlamDamage * e.DamageScale) }, attackHit: false);
-                            var away = (victim.Position - e.Position).NormalizedOrZero();
-                            float kh = victim.Height;
-                            victim.Position = Map.MoveWithCollision(victim.Position, away * 1.6f, ServerPlayer.Radius, ref kh);
-                            victim.Height = kh;
-                        }
+                        e.SlamResolveAt = Time + e.Def.SlamWindup;
+                        _events.EnemySlammed(e, e.Def.SlamRadius, phase: 1);
                         break;
                     }
                     if (Time >= e.AttackReadyAt)
@@ -1208,11 +1223,29 @@ public partial class ServerWorld
         {
             case SkillArchetype.MeleeStrike:
             {
-                // Caster-relative: always projected in front of the player along the aim
-                // direction, never behind, clamped to weapon/skill range. Hits EVERY
-                // enemy in the arc — the mace visibly swings through all of them.
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
-                foreach (var e in EnemiesNear(effectPoint, stats.Radius, p.Height))
+                // Aimed area slams (the "Area" tag — Mace Slam) keep the classic circle
+                // around the projected impact point: they're ground bursts you place.
+                // Plain SWINGS use a player-centered arc instead: an enemy is hit when
+                // it's within the skill's RANGE of the CASTER (plus its own body radius)
+                // and inside the swing arc around the aim direction, with point-blank
+                // enemies always caught. (The old circle-at-impact-point test reached
+                // range+radius ahead of the player yet whiffed adjacent off-axis
+                // enemies, which read as wildly inconsistent reach.)
+                var aimDir = (target - p.Position).NormalizedOrZero();
+                if (aimDir == Vector2.Zero) aimDir = p.Facing;
+                var struckList = def.Tags?.Contains("Area") == true
+                    ? EnemiesNear(effectPoint, stats.Radius, p.Height)
+                    : Enemies.Values.Where(e =>
+                    {
+                        if (e.Dead || MathF.Abs(e.Height - p.Height) > 0.75f) return false;
+                        float edist = Vector2.Distance(e.Position, p.Position);
+                        if (edist > stats.Range + e.Def.Radius) return false;
+                        if (edist <= 0.75f + e.Def.Radius) return true; // point-blank
+                        var toEnemy = (e.Position - p.Position).NormalizedOrZero();
+                        return Vector2.Dot(aimDir, toEnemy) >= 0.34f; // ~140° swing arc
+                    }).ToList();
+                foreach (var e in struckList)
                 {
                     var (dmg, kind) = RollSkillHit(e, stats, out var comps);
                     HitEnemy(e, dmg * chargeMult, playerId, skillId, kind);
@@ -1263,7 +1296,15 @@ public partial class ServerWorld
                 foreach (var e in EnemiesNear(p.Position, stats.Radius, p.Height))
                 {
                     { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind); ApplyAilments(e, comps, dmg, stats); }
-                    if (!e.Dead && RollStun(def))
+                    if (e.Dead) continue;
+                    if (def.Knockback > 0)
+                    {
+                        // The shockwave hurls survivors straight away from the caster.
+                        var push = (e.Position - p.Position).NormalizedOrZero();
+                        if (push == Vector2.Zero) push = p.Facing;
+                        e.Position = Map.MoveWithCollision(e.Position, push * def.Knockback, e.Def.Radius, ref e.Height);
+                    }
+                    if (RollStun(def))
                         e.StunnedUntil = Time + def.StunDuration *
                             (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.3f : 1f);
                 }
@@ -2071,9 +2112,11 @@ public partial class ServerWorld
 
         // Elites roll the loot table twice; the boss's own table already guarantees
         // an item + both scroll types per roll, so its double roll is the reward burst.
+        // Item level comes from e.Level — the SCALED level when a spawner overrides
+        // the def — so a level-11 "zombie" drops level-11 loot, not level-1 loot.
         int lootRolls = e.Affixes == EliteAffix.None ? 1 : 2;
         for (int roll = 0; roll < lootRolls; roll++)
-            foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Def.Level))
+            foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Level))
                 SpawnDrop(item, e.Position, e.Height);
 
         // Gold drop, scaled by enemy level.
@@ -2081,7 +2124,7 @@ public partial class ServerWorld
         if (_rng.NextDouble() < table.GoldDropChance)
         {
             int amount = _rng.Next(table.GoldMin, table.GoldMax + 1);
-            amount = Math.Max(1, (int)(amount * (1f + 0.25f * (e.Def.Level - 1))));
+            amount = Math.Max(1, (int)(amount * (1f + 0.25f * (e.Level - 1))));
             SpawnGoldDrop(amount, e.Position, e.Height);
         }
     }

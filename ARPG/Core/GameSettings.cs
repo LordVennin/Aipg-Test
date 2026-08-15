@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 20; // v20: summon mana reservation in health sync
+    public const int ProtocolVersion = 21; // v21: two-phase boss slam telegraph packet
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

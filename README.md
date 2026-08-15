@@ -99,7 +99,7 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Passive Skill Tree | `P` |
 | Command summons: TAP to rally the focused pack at the cursor, HOLD to order it back to following (aiming near yourself also recalls) | `` ` `` (backquote) |
 | Cycle summon focus (which pack the command key drives) | `Tab` |
-| Interact: talk to NPCs / pick up items | `F` (or click an item's ground label) |
+| Interact: talk to NPCs / pick up items | `F` (hover a ground label to target a specific drop) |
 | Debug menu | `F1` |
 | Pause / close panels / menu | `Escape` |
 
@@ -148,15 +148,20 @@ damage per 10 points of equipped shield armor. Enemy debuffs (stun, burning)
 replicate as snapshot flags and render as tiny per-debuff icons above the enemy's
 head.
 
-**Skills**: *Mace Strike* (fast swing that hits EVERY enemy in its arc with light
-knockback, free — no impact circle, the weapon swing IS the visual), *Mace Slam*
+**Skills**: *Mace Strike* (fast swing that hits EVERY enemy in a player-centered
+~140° arc within its range — point-blank enemies are always caught, and the swing
+can never reach past range+bodies — with light knockback, free; no impact circle,
+the weapon swing IS the visual), *Mace Slam*
 (mace-only ground slam at the aimed point: a 0.35s WIND-UP before the hit lands —
 the overhead animation stretches to match, and the hit resolves from wherever the
 caster IS at landing time, so moving mid-swing moves the impact and its visuals
 with you — then heavy knockback, a 60% chance to Slow survivors for 2.5s, a
 cracked-earth impact overlay and a burst of dust and terrain-colored rock debris —
 tagged `Slam`, higher mana cost),
-Ground Slam, Shield Bash, Fire Bolt, Arcane Burst, *Ice Spike* (a cold projectile
+*Ground Slam* (self-centered AoE: a 0.4s overhead wind-up, then the earth CRACKS —
+radiating fissures plus a storm of dust and debris around the caster — with
+knockback, a brief stun, 12 mana and a long 2.2s cooldown),
+Shield Bash, Fire Bolt, Arcane Burst, *Ice Spike* (a cold projectile
 with its own crystalline shard sprite) and *Chain Lightning* (an instant blue-white
 bolt that strikes the enemy nearest the aim and leaps between nearby targets — the
 exact chain path is broadcast so every client draws the same jagged, flickering
@@ -222,9 +227,10 @@ through the strike direction with a forward lurch on every swing), archers
 recoil from each bow release, and both bob lightly while walking instead of
 gliding as static sprites. Summons softly collide with each other
 (the same push-apart enemies use), so packs fan out instead of stacking into one
-sprite. A **summon roster** sits beside the mana orb: one card per learned summon
-skill with its living count / limit; `Tab` cycles which pack is FOCUSED (lit
-border). The backquote key (`` ` ``) commands the focused pack: **tap** to rally
+sprite. A **summon roster** sits beside the mana orb: one card per summon skill
+with at least one LIVING minion (living count / limit) — merely learning a summon
+skill shows nothing, so melee characters never see the element; `Tab` cycles
+which pack is FOCUSED (lit border). The backquote key (`` ` ``) commands the focused pack: **tap** to rally
 it at the cursor — rallied minions march to the point before picking fights,
 then hold it (rallied warriors still chase prey near their post, or they could
 never swing) — and **hold** the key to order it back to following you. Because
@@ -308,7 +314,11 @@ ARPG/
   wind-up animation (the server's echo of that cast is suppressed so it doesn't play
   twice), and projectile skills loose a cosmetic **ghost bolt** on click that the
   authoritative projectile ADOPTS on arrival — it inherits the ghost's flight progress
-  so nothing snaps backwards. Damage, hits, cooldown enforcement and what every OTHER
+  so nothing snaps backwards. If the ghost already FINISHED before confirmation
+  (it stopped on an enemy, or capped out) its final progress is remembered for a
+  moment and the real bolt fast-forwards to where it ended — without that, every
+  close-range cast at high ping visibly "fired twice" as the real bolt re-flew
+  the whole path. Damage, hits, cooldown enforcement and what every OTHER
   player sees remain fully server-side; a rejected cast just shows a swing that hits
   nothing, and an unconfirmed ghost fizzles within a second. Ghosts never spawn for
   casts the client already knows will fail (no mana), and they stop on the first
@@ -374,7 +384,10 @@ spawners (groups that share aggro and respawn together) guard the lower path,
 an ambush waits under the bridge, elite-led packs hold the upper ruins, spitters
 overlook the corridor from the plateau rim, and **The Gravelord** — a ground-slam
 miniboss with stun resistance — waits with its guards in the wide arena on the
-south plateau, dropping a guaranteed reward burst (rare-biased loot plus both
+south plateau. Its slam is TELEGRAPHED: a pulsing red MMO-style decal marks the
+full slam circle for 0.9s, then damage resolves against wherever everyone stands
+at the end — walk out of the red and it misses (stuns/freezes cancel the slam
+outright). It drops a guaranteed reward burst (rare-biased loot plus both
 scroll types, twice) from its own loot table. Elite affixes (Brutish/Swift/
 Warded) scale life/damage/speed/resists, multiply XP and loot rolls, tint the
 sprite and prefix the name.
@@ -398,7 +411,14 @@ surface you meant.
 **Ground loot UX**: item name labels that would overlap stack into a tidy
 vertical list per cluster. Hovering a label highlights it; the pickup key then
 grabs THAT item — auto-walking you to it first when it's out of reach (any
-manual movement cancels the walk). Clicking a label works too.
+manual movement cancels the walk). Left-click never picks up items — the pickup
+key is the only grab, so attacks can't eat loot clicks.
+
+**Draggable windows**: every gameplay panel (inventory, skill menu, character
+sheet, passive tree, shop grid) has a title-bar grip — drag it to rearrange your
+screen (positions clamp so a window can never be lost off-screen). Panels are
+z-ordered: the last one you click (or open) draws on top, and windows underneath
+an overlap never react to clicks meant for the window above.
 
 ### Zone themes
 
@@ -634,7 +654,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (348 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (361 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

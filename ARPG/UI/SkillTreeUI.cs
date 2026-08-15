@@ -41,11 +41,13 @@ public class SkillTreeUI
         _client = client;
     }
 
+    public readonly WindowDrag Window = new();
+
     public void Layout(Point screen)
     {
         int w = Math.Min(860, screen.X - 60);
         int h = Math.Min(560, screen.Y - 80);
-        _panelRect = new Rectangle(screen.X / 2 - w / 2, 40, w, h);
+        _panelRect = Window.Place(new Rectangle(screen.X / 2 - w / 2, 40, w, h), screen);
     }
 
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
@@ -65,9 +67,10 @@ public class SkillTreeUI
             .Any(n => c.AllocatedPassives.Contains(n));
     }
 
-    public void Update(InputManager input)
+    public void Update(InputManager input, bool mouseBlocked = false)
     {
         if (!Open) return;
+        if (mouseBlocked) return; // a window above this one holds the mouse
         _lastMouse = input.MousePosition;
         var character = _client.World.MyCharacter;
         if (character == null) return;
@@ -77,6 +80,8 @@ public class SkillTreeUI
             Open = false;
             return;
         }
+        // The title bar moves the WINDOW; the panel body below it pans the tree.
+        if (Window.HandleBar(input, WindowDrag.BarFor(_panelRect))) return;
 
         // Drag-to-pan; a short press-release without movement is an allocation click.
         if (input.MouseLeftPressed && _panelRect.Contains(input.MousePosition))
@@ -125,6 +130,7 @@ public class SkillTreeUI
 
         sb.Draw(TextureGen.Pixel, _panelRect, new Color(18, 18, 26, 245));
         Border(sb, _panelRect, new Color(110, 96, 130));
+        WindowDrag.DrawBar(sb, _panelRect, _lastMouse);
         CloseButton.Draw(sb, _panelRect, _lastMouse);
 
         int points = PassiveTree.PointsForLevel(character.Level) - character.AllocatedPassives.Count;

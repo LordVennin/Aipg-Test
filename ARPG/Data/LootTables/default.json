@@ -10,8 +10,8 @@
   "RarityWeightMagic": 38,
   "RarityWeightRare": 17,
   "CategoryWeights": {
-    "Mace": 120,
-    "Staff": 120,
+    "Mace": 80,
+    "Staff": 80,
     "Helmet": 90,
     "BodyArmor": 90,
     "Gloves": 90,

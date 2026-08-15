@@ -121,6 +121,18 @@ public class ClientProjectile
     public bool Ghost;
 }
 
+/// <summary>A predicted ghost projectile that already ENDED (touched an enemy or ran
+/// out of range) before the authoritative spawn arrived. The spawn handler consumes
+/// these to fast-forward the real projectile to where the ghost finished — without it,
+/// the real bolt replays the whole flight from the caster and high-ping players see
+/// every close-range cast "fire twice".</summary>
+public struct SpentGhost
+{
+    public string SkillId;
+    public float Traveled;
+    public long AtMs;
+}
+
 /// <summary>A player's minion (skeleton archer), replicated like a small friendly enemy.</summary>
 public class ClientSummon
 {
@@ -219,6 +231,18 @@ public class ClientWorld
     public readonly Dictionary<int, ClientPlayer> Players = new();
     public readonly Dictionary<int, ClientEnemy> Enemies = new();
     public readonly Dictionary<int, ClientProjectile> Projectiles = new();
+    /// <summary>Recently finished ghost projectiles (see SpentGhost) awaiting adoption.</summary>
+    public readonly List<SpentGhost> SpentGhosts = new();
+
+    /// <summary>Remember how far a just-removed ghost flew so the authoritative spawn
+    /// can pick up from there instead of re-flying the whole path.</summary>
+    public void RecordSpentGhost(ClientProjectile pr) =>
+        SpentGhosts.Add(new SpentGhost
+        {
+            SkillId = pr.SkillId,
+            Traveled = pr.Traveled,
+            AtMs = Environment.TickCount64,
+        });
     public readonly Dictionary<Guid, ClientDrop> Drops = new();
     public readonly Dictionary<int, ClientNpc> Npcs = new();
     public readonly Dictionary<int, ClientSummon> Summons = new();
@@ -293,6 +317,7 @@ public class ClientWorld
             if (pr.Traveled > pr.MaxRange + 2f)
             {
                 Projectiles.Remove(pr.Id);
+                if (pr.Ghost) RecordSpentGhost(pr);
                 continue;
             }
             // Predicted ghosts stop on the first enemy they visually touch — the REAL
@@ -306,11 +331,15 @@ public class ClientWorld
                     if (Vector2.Distance(pr.Position, e.Position) <= (e.Def?.Radius ?? 0.4f) + 0.25f)
                     {
                         Projectiles.Remove(pr.Id);
+                        RecordSpentGhost(pr);
                         break;
                     }
                 }
             }
         }
+        // Spent-ghost records only matter for the ~one round trip until the matching
+        // authoritative spawn arrives; drop stale ones so they never mis-adopt.
+        SpentGhosts.RemoveAll(g => Environment.TickCount64 - g.AtMs > 1500);
 
         for (int i = Effects.Count - 1; i >= 0; i--)
         {

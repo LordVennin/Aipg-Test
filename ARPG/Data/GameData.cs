@@ -52,6 +52,9 @@ public class EnemyDefinition
     public float SlamRadius { get; set; }
     public float SlamDamage { get; set; } = 14;
     public float SlamCooldown { get; set; } = 6f;
+    /// <summary>Telegraph time: the red warning decal shows for this long before the
+    /// slam resolves against resolve-time positions.</summary>
+    public float SlamWindup { get; set; } = 0.9f;
     public string LootTableId { get; set; } = "default";
     public string Color { get; set; } = "C04040"; // art tint (RRGGBB hex)
     /// <summary>Procedural sprite style: "Zombie", "Ghoul", or empty for a plain token.</summary>

@@ -163,6 +163,7 @@ public class ServerEnemy
     public float BonusResist;         // flat % added to every resistance (Warded)
     public float XpScale = 1f;
     public float SlamReadyAt;         // boss ground-slam cooldown gate
+    public float SlamResolveAt;       // >0 while a telegraphed slam is winding up
 
     // Damage-over-time ailments. Ticks apply every frame but damage events/health
     // updates are batched via accumulators to avoid packet spam.

@@ -83,12 +83,14 @@ public class ShopUI
 
     public void Close() => SetMode(ShopMode.Closed);
 
+    public readonly WindowDrag Window = new();
+
     public void Layout(Point screen)
     {
         _screenSize = screen;
         // Shop panel sits LEFT so the player's inventory (right side) fits beside it.
         int w = 20 + GridW * Cell;
-        _panelRect = new Rectangle(16, 36, w, 250 + GridH * Cell);
+        _panelRect = Window.Place(new Rectangle(16, 36, w, 250 + GridH * Cell), screen);
         _dialogueRect = new Rectangle(screen.X / 2 - 250, screen.Y / 2 - 170, 500, 250);
     }
 
@@ -99,9 +101,10 @@ public class ShopUI
         _ => false,
     };
 
-    public void Update(InputManager input)
+    public void Update(InputManager input, bool mouseBlocked = false)
     {
         if (Mode == ShopMode.Closed) return;
+        if (mouseBlocked) return; // a window above this one holds the mouse
         _lastMouse = input.MousePosition;
 
         if (Mode == ShopMode.Dialogue)
@@ -122,6 +125,7 @@ public class ShopUI
 
         // --- shop grid ---
         if (CloseButton.Handle(input, _panelRect)) { Close(); return; }
+        if (Window.HandleBar(input, WindowDrag.BarFor(_panelRect))) return;
         if (input.MouseLeftPressed)
         {
             var gold = _client.World.MyCharacter?.Gold ?? 0;
@@ -153,6 +157,7 @@ public class ShopUI
         // ---------------- shop grid panel
         sb.Draw(TextureGen.Pixel, _panelRect, new Color(22, 22, 30, 240));
         Border(sb, _panelRect, new Color(120, 100, 60));
+        WindowDrag.DrawBar(sb, _panelRect, _lastMouse);
         CloseButton.Draw(sb, _panelRect, _lastMouse);
 
         int x = _panelRect.X + 10, y = _panelRect.Y + 8;

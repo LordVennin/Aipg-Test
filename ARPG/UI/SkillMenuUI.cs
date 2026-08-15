@@ -34,6 +34,7 @@ public class SkillMenuUI
     private Rectangle? _levelUpRect;
 
     public ItemInstance HoveredScrollItem { get; private set; }
+    public readonly WindowDrag Window = new();
 
     public SkillMenuUI(GameData data, GameClient client, DragState drag)
     {
@@ -44,23 +45,25 @@ public class SkillMenuUI
 
     public void Layout(Point screen)
     {
-        _panelRect = new Rectangle(12, 36, 480, Math.Min(660, screen.Y - 60));
+        _panelRect = Window.Place(new Rectangle(12, 36, 480, Math.Min(660, screen.Y - 60)), screen);
     }
 
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
 
-    public void Update(InputManager input)
+    public void Update(InputManager input, bool mouseBlocked = false)
     {
         HoveredScrollItem = null;
         if (!Open) return;
         var character = _client.World.MyCharacter;
         if (character == null) return;
+        if (mouseBlocked) return; // a window above this one holds the mouse
         var mouse = input.MousePosition;
         if (CloseButton.Handle(input, _panelRect))
         {
             Open = false;
             return;
         }
+        if (Window.HandleBar(input, WindowDrag.BarFor(_panelRect))) return;
         if (_panelRect.Contains(mouse)) input.MouseCapturedByUI = true;
 
         _selectedSkillId ??= character.Skills.FirstOrDefault()?.SkillId;
@@ -126,6 +129,7 @@ public class SkillMenuUI
 
         sb.Draw(TextureGen.Pixel, _panelRect, new Color(22, 22, 30, 240));
         Border(sb, _panelRect, new Color(95, 88, 62));
+        WindowDrag.DrawBar(sb, _panelRect, input.MousePosition);
         CloseButton.Draw(sb, _panelRect, input.MousePosition);
         int x = _panelRect.X + 12, y = _panelRect.Y + 8;
         sb.DrawString(FontManager.GetBold(19), "Skills", new Vector2(x, y), new Color(230, 215, 165));
@@ -329,14 +333,15 @@ public class SkillMenuUI
         y += 54;
         sb.DrawString(small, "drag a Scroll from your inventory onto a slot · click a Scroll to detach",
             new Vector2(x, y), new Color(130, 124, 112));
-        y += 24;
 
         // --- hotkey assignment ---
-        sb.DrawString(font, "Assign to hotbar:", new Vector2(x, y), Color.White);
-        y += 22;
+        // Anchored to the panel BOTTOM, not flowed: skills with long descriptions
+        // used to push this section clean out of the box.
+        int hotY = _panelRect.Bottom - 42;
+        sb.DrawString(font, "Assign to hotbar:", new Vector2(x, hotY - 24), Color.White);
         for (int slot = 0; slot < character.Hotbar.Length; slot++)
         {
-            var rect = new Rectangle(x + slot * 74, y, 66, 30);
+            var rect = new Rectangle(x + slot * 74, hotY, 66, 30);
             bool assignedHere = character.Hotbar[slot] == sel.SkillId;
             sb.Draw(TextureGen.Pixel, rect, assignedHere ? new Color(64, 84, 56) : new Color(40, 40, 48));
             Border(sb, rect, assignedHere ? new Color(140, 200, 120) : new Color(80, 78, 66));

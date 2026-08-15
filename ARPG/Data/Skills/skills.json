@@ -53,11 +53,12 @@
  {
   "Id": "ground_slam",
   "Name": "Ground Slam",
-  "Description": "Slam the ground, damaging and briefly stunning all enemies around you.",
+  "Description": "Raise your mace overhead and smash the earth — the ground cracks around you, hurling enemies back and briefly stunning them.",
   "Tags": [
    "Attack",
    "Melee",
    "Area",
+   "Slam",
    "Physical",
    "Mace"
   ],
@@ -67,13 +68,15 @@
   "WeaponDamageMultiplier": 1.3,
   "WeaponDamageMultiplierPerLevel": 0.1,
   "RequiredWeapon": "Mace",
-  "Cooldown": 0.8,
+  "Cooldown": 2.2,
   "Range": 0,
   "Radius": 2.2,
   "RadiusPerLevel": 0.12,
   "StunDuration": 0.9,
-  "ManaCost": 8,
-  "UseTime": 0.6
+  "Knockback": 1.8,
+  "ManaCost": 12,
+  "UseTime": 0.6,
+  "WindupTime": 0.4
  },
  {
   "Id": "shield_bash",
