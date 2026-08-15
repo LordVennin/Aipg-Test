@@ -362,6 +362,17 @@ Hosted games now run the actual GAME LOOP instead of the old test arena
   hub door generates three NEW maps and raises the enemy level by 3 (loop 2 = 4,
   loop 3 = 7, ...). **Graveguard skeletons** (Barrow Knights) join the pack mixes
   from the second loop — guaranteed, not dice.
+- **Party XP**: the player who lands a kill earns its full XP; every other
+  player in the game earns **70%** of it (each through their own under-level
+  penalty), so a high-damage build sniping kills doesn't starve the group.
+  Skill XP still follows the skill that struck the blow.
+- **Forest dressing**: run maps grow **tall grass** — Pokemon-style patches
+  (terrace tops included) whose front blades sway and draw OVER whatever stands
+  in them, hiding the lower half of players and monsters alike; big trees come
+  in four silhouettes (two broadleaf, a dark tiered fir, a pale birch), small
+  wall-trees in three, and the clutter mix adds mossy boulders, lichen slabs
+  and ferns. Elevated terrain uses the same mottled grass/dirt palette as the
+  ground floor, and terrace tops carry trees and clutter like anywhere else.
 - **The Gravelord's arena**: map 3 ends in a cleared pocket by the exit where the
   boss waits with guards. The exit door is SEALED (red glow) while he lives, and
   he now **summons three Grave Spitters** around himself on a long cooldown
@@ -694,7 +705,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (408 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (414 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

@@ -239,6 +239,17 @@ freezes cancel the slam.
 | Knockback | none | **1.8 tiles** |
 | Visual | plain ring | **cracked-earth fissures + debris/dust storm around the caster** |
 
+## Party XP share
+
+| Role | Share of a kill's XP |
+|---|---|
+| The player who landed the kill | **100%** |
+| Every other player in the game | **70%** (`XpBalance.PartyShare`) |
+
+Each member's own under-level penalty applies to their own share, and skill XP
+still follows only the skill that landed the blow — but a high-damage or
+fast-attacking build no longer starves the rest of the group of character XP.
+
 ## Starter economy (campaign)
 
 | Knob | Value |

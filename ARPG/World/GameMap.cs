@@ -63,6 +63,7 @@ public class GameMap
     private readonly byte[] _bridge;   // elevated walkable deck level (0 = none)
     private readonly byte[] _feature;  // TileFeature per tile (theme-generated landmarks)
     private readonly byte[] _water;    // 1 = water: impassable to walkers, open to shots/sight
+    private readonly byte[] _tallGrass; // 1 = tall grass: walkable, renders over entity legs
 
     /// <summary>Vertical step an entity can absorb when moving between surfaces. Level
     /// differences at or under this are walkable (ramp ends); full levels are not.</summary>
@@ -115,6 +116,7 @@ public class GameMap
         _bridge = new byte[width * height];
         _feature = new byte[width * height];
         _water = new byte[width * height];
+        _tallGrass = new byte[width * height];
         switch (kind)
         {
             case MapKind.Hub: GenerateHub(); break;
@@ -141,6 +143,10 @@ public class GameMap
     /// nothing can WALK onto it, but shots, sight lines and thrown effects pass freely
     /// over the surface (bridge decks above water stay walkable).</summary>
     public bool IsWater(int x, int y) => InBounds(x, y) && _water[Idx(x, y)] == 1;
+
+    /// <summary>Tall grass: purely visual walkable cover — the renderer draws a blade
+    /// fringe OVER whatever stands in the tile, hiding its lower half.</summary>
+    public bool IsTallGrass(int x, int y) => InBounds(x, y) && _tallGrass[Idx(x, y)] == 1;
 
     /// <summary>Legacy-style solid check (used by tests/debug helpers on the ground layer).</summary>
     public bool IsWallAt(Vector2 pos) => IsSolid((int)MathF.Floor(pos.X), (int)MathF.Floor(pos.Y));
@@ -639,6 +645,7 @@ public class GameMap
 
         GenerateForestTrees(corridor);
         GenerateRunPonds(corridor);
+        GenerateTallGrass(corridor);
 
         // Pack anchors along the corridor, spaced down the hall, none in the spawn
         // pocket or the boss arena (the first sits past aggro range of the spawn).
@@ -672,7 +679,7 @@ public class GameMap
     {
         if (Theme?.Id != "forest") return;
         var rng = new Random(Seed ^ 0x466F7245);
-        int wanted = Width * Height / 110;
+        int wanted = Width * Height / 70;
         int planted = 0, attempts = 0;
         while (planted < wanted && attempts++ < wanted * 30)
         {
@@ -723,6 +730,40 @@ public class GameMap
                     double ang = Math.Atan2(dy, dx);
                     float wobble = 1f + 0.25f * (float)Math.Sin(ang * 3 + wobblePhase);
                     if (dx * dx + dy * dy <= wobble) _water[i] = 1;
+                }
+        }
+    }
+
+    /// <summary>Pokemon-style tall grass: noisy elliptical patches on walkable ground
+    /// (any elevation — terrace tops included), the corridor line very much allowed —
+    /// wading through cover is the point. Purely visual; no gameplay effect yet.</summary>
+    private void GenerateTallGrass(int[] corridor)
+    {
+        var rng = new Random(Seed ^ 0x47524153); // "GRAS"
+        int patches = Math.Max(6, Width / 7);
+        for (int p = 0; p < patches; p++)
+        {
+            int cx = rng.Next(7, Width - 9), cy = rng.Next(3, Height - 3);
+            float rx = 1.3f + (float)rng.NextDouble() * 1.6f;
+            float ry = 1.1f + (float)rng.NextDouble() * 1.3f;
+            double wobblePhase = rng.NextDouble() * Math.PI * 2;
+            byte patchLevel = _ground[Idx(Math.Clamp(cx, 0, Width - 1), Math.Clamp(cy, 0, Height - 1))];
+            for (int y = cy - 4; y <= cy + 4; y++)
+                for (int x = cx - 4; x <= cx + 4; x++)
+                {
+                    if (x < 1 || y < 1 || x >= Width - 1 || y >= Height - 1) continue;
+                    int i = Idx(x, y);
+                    if (_wall[i] != 0 || _water[i] != 0 || _ramp[i] != 0 ||
+                        _bridge[i] != 0 || _feature[i] != 0) continue;
+                    if (_ground[i] != patchLevel) continue; // one patch, one terrace
+                    var tileCenter = new Vector2(x + 0.5f, y + 0.5f);
+                    if (Vector2.Distance(tileCenter, PlayerSpawn) < 3f) continue;
+                    if (ExitDoor != Vector2.Zero && Vector2.Distance(tileCenter, ExitDoor) < 3f) continue;
+                    if (BossSpot != Vector2.Zero && Vector2.Distance(tileCenter, BossSpot) < 4f) continue;
+                    float dx = (x - cx) / rx, dy = (y - cy) / ry;
+                    double ang = Math.Atan2(dy, dx);
+                    float wobble = 1f + 0.3f * (float)Math.Sin(ang * 3 + wobblePhase);
+                    if (dx * dx + dy * dy <= wobble) _tallGrass[i] = 1;
                 }
         }
     }
