@@ -69,6 +69,118 @@
     }
   },
   {
+    "Id": "poachers_hood",
+    "Name": "Poacher's Hood",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": {
+      "DeflectionRating": 18
+    },
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "poachers_tunic",
+    "Name": "Poacher's Tunic",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": {
+      "DeflectionRating": 33
+    },
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "poachers_gloves",
+    "Name": "Poacher's Gloves",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": {
+      "DeflectionRating": 13
+    },
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "poachers_boots",
+    "Name": "Poacher's Boots",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": {
+      "DeflectionRating": 13
+    },
+    "RequiredDexterity": 8
+  },
+  {
+    "Id": "novice_cowl",
+    "Name": "Novice's Cowl",
+    "Category": "Helmet",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": {
+      "EnergyShield": 8
+    },
+    "RequiredIntelligence": 8
+  },
+  {
+    "Id": "novice_robe",
+    "Name": "Novice's Robe",
+    "Category": "BodyArmor",
+    "InventoryWidth": 2,
+    "InventoryHeight": 3,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": {
+      "EnergyShield": 15
+    },
+    "RequiredIntelligence": 8
+  },
+  {
+    "Id": "novice_wraps",
+    "Name": "Novice's Wraps",
+    "Category": "Gloves",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": {
+      "EnergyShield": 5
+    },
+    "RequiredIntelligence": 8
+  },
+  {
+    "Id": "novice_slippers",
+    "Name": "Novice's Slippers",
+    "Category": "Boots",
+    "InventoryWidth": 2,
+    "InventoryHeight": 2,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 6,
+    "DropWeight": 100,
+    "BaseStats": {
+      "EnergyShield": 5
+    },
+    "RequiredIntelligence": 8
+  },
+  {
     "Id": "bone_amulet",
     "Name": "Bone Amulet",
     "Category": "Amulet",
@@ -449,7 +561,7 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 20,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 50,
     "BaseStats": {
@@ -465,7 +577,7 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 20,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 50,
     "BaseStats": {
@@ -481,7 +593,7 @@
     "Category": "BodyArmor",
     "InventoryWidth": 2,
     "InventoryHeight": 3,
-    "RequiredLevel": 20,
+    "RequiredLevel": 5,
     "BaseModifierLimit": 6,
     "DropWeight": 50,
     "BaseStats": {

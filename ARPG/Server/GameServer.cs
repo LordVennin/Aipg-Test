@@ -472,12 +472,16 @@ public class GameServer : IServerEvents
 
     public void EnemySpawned(ServerEnemy e) => Broadcast(EnemySpawnPacket(e), DeliveryMethod.ReliableOrdered);
 
-    public void EnemySlammed(ServerEnemy e, float radius)
+    public void EnemySlammed(ServerEnemy e, float radius, byte phase)
     {
+        // phase 1 = telegraph start (red warning decal for SlamWindup seconds),
+        // phase 2 = the slam itself landing.
         var w = Packets.Make(PacketType.EnemySlam);
         w.PutVec2(e.Position);
         w.Put(radius);
         w.Put(e.Height);
+        w.Put(phase);
+        w.Put(e.Def.SlamWindup);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

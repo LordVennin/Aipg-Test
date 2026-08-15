@@ -403,6 +403,10 @@ public static class HeadlessNetTest
         var kbTarget = server.World.Enemies.Values.Where(e => !e.Dead)
             .OrderBy(e => Vector2.Distance(e.Position, kbPlayer.Position)).First();
         kbTarget.StunnedUntil = server.World.Time + 5f; // hold still: measure pure knockback, not chase drift
+        // The swing is now player-centered (range + body radius) — step within reach
+        // first, since the debug grunt can spawn a couple of tiles out.
+        clientA.World.Me.Position = SafeNear(kbTarget.Position);
+        Pump(0.3f);
         float kbBefore = Vector2.Distance(kbTarget.Position, kbPlayer.Position);
         clientA.RequestUseSkill("basic_strike", kbTarget.Position);
         Pump(0.15f);
@@ -511,7 +515,7 @@ public static class HeadlessNetTest
                 Pump(0.3f);
             }
             clientA.RequestUseSkill("ground_slam", stunPlayer.Position);
-            Pump(0.25f);
+            Pump(0.65f); // the reworked slam has a 0.4s wind-up before the hit lands
             stunConfirmed = server.World.Enemies.Values.Any(e => !e.Dead && e.StunnedUntil > server.World.Time);
             if (!stunConfirmed)
             {
@@ -524,10 +528,47 @@ public static class HeadlessNetTest
                                   $"closest={closest?.Def.Id}@{closest?.Position} " +
                                   $"dist={(closest != null ? Vector2.Distance(closest.Position, stunPlayer.Position) : -1):0.0} " +
                                   $"cd={stunPlayer.SkillReadyAt.GetValueOrDefault("ground_slam") - server.World.Time:0.00}");
-                Pump(0.7f); // ride out the skill cooldown before retrying
+                Pump(2.4f); // ride out the (now much longer) skill cooldown before retrying
             }
         }
         Check(stunConfirmed, "ground slam stunned nearby enemies");
+
+        // Ground Slam rework: wind-up before the hit, knockback on survivors, and the
+        // heavier cost/cooldown numbers.
+        var gsDef = data.Skills["ground_slam"];
+        Check(gsDef.WindupTime > 0.3f && gsDef.ManaCost == 12 && gsDef.Cooldown > 2f &&
+              gsDef.Knockback > 1f && gsDef.Tags.Contains("Slam"),
+              "Ground Slam reworked: wind-up, 12 mana, knockback, long cooldown");
+        {
+            clientA.SendDebugCommand("kill_nearby");
+            clientA.SendDebugCommand("heal");
+            stunPlayer.Mana = stunPlayer.Stats.MaxMana;
+            stunPlayer.SkillReadyAt.Clear();
+            stunPlayer.GlobalSkillReadyAt = 0;
+            clientA.World.Me.Position = clientA.World.Map.PlayerSpawn;
+            Pump(0.3f);
+            var gsPrey = server.World.SpawnEnemy("grunt", stunPlayer.Position + new Vector2(1.0f, 0));
+            gsPrey.Health = 999f;
+            gsPrey.StunnedUntil = server.World.Time + 30f; // pinned: any later movement is knockback
+            Pump(0.2f);
+            float gsHpBefore = gsPrey.Health;
+            float gsDistBefore = Vector2.Distance(gsPrey.Position, stunPlayer.Position);
+            stunPlayer.Mana = stunPlayer.Stats.MaxMana;
+            stunPlayer.SkillReadyAt.Clear();
+            stunPlayer.GlobalSkillReadyAt = 0;
+            clientA.RequestUseSkill("ground_slam", stunPlayer.Position);
+            Pump(0.2f); // inside the wind-up: nothing has landed yet
+            Check(gsPrey.Health >= gsHpBefore - 0.01f,
+                  "ground slam wind-up delays the hit (no damage mid-charge)");
+            Pump(0.5f); // past the wind-up: the slam lands
+            float gsDistAfter = Vector2.Distance(gsPrey.Position, stunPlayer.Position);
+            Check(gsPrey.Health < gsHpBefore - 0.01f,
+                  $"ground slam lands after the wind-up (hp {gsHpBefore:0} -> {gsPrey.Health:0})");
+            Check(gsDistAfter > gsDistBefore + 0.4f,
+                  $"ground slam knocks survivors back ({gsDistBefore:0.00} -> {gsDistAfter:0.00} tiles)");
+            // gsPrey stays alive and pinned-stunned: the replication check below
+            // needs a living stunned enemy to read the debuff flag from.
+        }
 
         // The stun replicates to clients as a debuff flag (rendered as a tiny icon).
         bool stunFlagSeen = false;
@@ -1329,15 +1370,17 @@ public static class HeadlessNetTest
         var boss = server.World.SpawnEnemy("gravelord", clientB.World.Me.Position + new Vector2(1.5f, 0),
             Server.EliteAffix.Boss);
         var srvBBoss = server.World.Players[bId];
-        bool slamSeen = false;
+        bool slamSeen = false, slamWarnSeen = false;
         float hpBeforeSlam = srvBBoss.Health;
-        for (int i = 0; i < 40 && !slamSeen; i++)
+        for (int i = 0; i < 60 && !slamSeen; i++)
         {
             srvBBoss.Health = srvBBoss.Stats.MaxHealth; // out-heal the boss while observing
             clientB.World.Me.Position = boss.Position + new Vector2(-1.2f, 0); // stay in slam range
             Pump(0.2f);
+            slamWarnSeen |= clientA.World.Effects.Any(fx => fx.Kind == "slamwarn");
             slamSeen = clientA.World.Effects.Any(fx => fx.Kind == "slam") && boss.SlamReadyAt > 0;
         }
+        Check(slamWarnSeen, "boss slam telegraphs first (red AoE warning decal replicates)");
         Check(slamSeen, "boss ground slam fires and replicates its AoE visual");
         // Track NEW drop ids rather than a raw count delta: B's teleport sweep during
         // the kill loop can auto-pickup OLD gold piles, which would mask the burst.
@@ -1399,12 +1442,39 @@ public static class HeadlessNetTest
             clientB.RequestUseSkill("mace_strike", pack3[0].Position);
             Pump(0.6f); // past the slam's 0.35s wind-up, so THIS cast's roll is judged
             slowed = pack3.Any(g => g.SlowedUntil > server.World.Time);
+            if (!slowed)
+                Console.WriteLine($"  [diag] slam-slow attempt {attempt}: " + string.Join(" | ",
+                    pack3.Select(g => $"dead={g.Dead} hp={g.Health:0} slow={g.SlowedUntil - server.World.Time:0.00} " +
+                        $"dist={Vector2.Distance(g.Position, srvMulti.Position):0.00}")) +
+                    $" srvPos={srvMulti.Position} mana={srvMulti.Mana:0}");
         }
         Check(slowed, "Mace Slam slows survivors");
         Check(data.Skills["mace_strike"].Name == "Mace Slam" &&
               data.Skills["mace_strike"].Tags.Contains("Slam") &&
               data.Skills["mace_strike"].Tags.Contains("Area"),
               "Heavy Strike renamed to Mace Slam with Slam/Area tags");
+
+        // Player-centered swing reach: a plain Mace Strike can't overshoot past
+        // range+bodies anymore, and can't whiff an enemy standing on the caster's toes
+        // off-axis (the old impact-point circle did both).
+        var farGrunt = server.World.SpawnEnemy("grunt", srvMulti.Position + new Vector2(2.6f, 0));
+        farGrunt.Health = 500f;
+        farGrunt.StunnedUntil = server.World.Time + 30f;
+        var closeGrunt = server.World.SpawnEnemy("grunt", srvMulti.Position + new Vector2(-0.5f, 0));
+        closeGrunt.Health = 500f;
+        closeGrunt.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        srvMulti.Mana = srvMulti.Stats.MaxMana;
+        srvMulti.SkillReadyAt.Clear();
+        srvMulti.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("basic_strike", clientB.World.Me.Position + new Vector2(2.6f, 0));
+        Pump(0.4f);
+        Check(farGrunt.Health >= 499.9f,
+              $"Mace Strike no longer overshoots its range (far grunt hp {farGrunt.Health:0.0})");
+        Check(closeGrunt.Health < 499.9f,
+              $"point-blank enemies are caught even behind the swing (close grunt hp {closeGrunt.Health:0.0})");
+        farGrunt.Health = 1f;
+        closeGrunt.Health = 1f;
 
         // Global use-time lockout: two casts in the same instant — only ONE fires.
         srvMulti.Mana = srvMulti.Stats.MaxMana;
@@ -2545,6 +2615,77 @@ public static class HeadlessNetTest
               MathF.Abs(scaled.XpScale - Stats.EnemyLevelScaling.Xp(lvlUp)) < 0.001f,
               $"level-overridden enemies scale health/damage/XP centrally (hp {scaled.MaxHealth:0})");
         scaled.Health = 0.1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        // Drops roll at the enemy's SCALED level too: a level-12 "gravelord" drops
+        // level-12 loot (it used to roll at the def's native level regardless).
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        Pump(0.3f);
+        var dropKeysBeforeScaled = server.World.Drops.Keys.ToHashSet();
+        var scaledBoss = server.World.SpawnEnemy("gravelord",
+            srvSum.Position + new Vector2(1.2f, 0), level: 12);
+        scaledBoss.Health = 1f;
+        for (int hit = 0; hit < 12 && !scaledBoss.Dead; hit++)
+        {
+            clientB.SendDebugCommand("heal");
+            srvSum.Mana = srvSum.Stats.MaxMana;
+            srvSum.SkillReadyAt.Clear();
+            srvSum.GlobalSkillReadyAt = 0;
+            clientB.World.Me.Position = scaledBoss.Position + new Vector2(-1.2f, 0);
+            clientB.RequestUseSkill("basic_strike", scaledBoss.Position);
+            Pump(0.3f);
+        }
+        Check(scaledBoss.Dead, "scaled Gravelord killed for the loot-level check");
+        Pump(0.4f);
+        var scaledLoot = server.World.Drops
+            .Where(kv => !dropKeysBeforeScaled.Contains(kv.Key))
+            .Select(kv => kv.Value)
+            .Where(d => d.Item != null && d.Item.GetBase(data).IsEquippable)
+            .ToList();
+        Check(scaledLoot.Count > 0 && scaledLoot.All(d => d.Item.ItemLevel == 12),
+              $"loot rolls at the enemy's scaled level ({scaledLoot.Count} item(s) at ilvl " +
+              $"{scaledLoot.FirstOrDefault()?.Item.ItemLevel ?? -1})");
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.3f);
+
+        // Loot parity: every defense flavor exists at level 1, hybrids join the pool at
+        // level 5, and weapons no longer outweigh armor slots in the tables.
+        Check(data.Items["poachers_hood"].RequiredLevel == 1 &&
+              data.Items["poachers_tunic"].BaseStats.ContainsKey(Stats.StatType.DeflectionRating) &&
+              data.Items["novice_robe"].RequiredLevel == 1 &&
+              data.Items["novice_robe"].BaseStats.ContainsKey(Stats.StatType.EnergyShield),
+              "Deflection and Energy Shield armor exist as level-1 starter sets");
+        Check(new[] { "brigandine", "battlemage_plate", "shadowweave_garb" }
+                  .All(id => data.Items[id].RequiredLevel == 5),
+              "hybrid bodies drop from level 5");
+        Check(data.GetLootTable("default").CategoryWeights[Items.ItemCategory.Mace] == 80 &&
+              data.GetLootTable("default").CategoryWeights[Items.ItemCategory.Staff] == 80 &&
+              data.GetLootTable("boss").CategoryWeights[Items.ItemCategory.Mace] == 80,
+              "weapon category weights trimmed so armor drops keep pace");
+
+        // Spent-ghost bookkeeping (the "spell fired twice" fix): a ghost that dies on an
+        // enemy records its flight progress so the authoritative spawn can fast-forward.
+        var ghostPrey = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(1.5f, 0));
+        ghostPrey.Health = 500f;
+        ghostPrey.StunnedUntil = server.World.Time + 30f;
+        Pump(0.3f);
+        var preyOnB = clientB.World.Enemies[ghostPrey.Id];
+        clientB.World.Projectiles[-777] = new ClientProjectile
+        {
+            Id = -777, Ghost = true, FromPlayer = true, SkillId = "fire_bolt",
+            Position = preyOnB.Position, Height = preyOnB.Height,
+            Direction = new Vector2(1, 0), Speed = 0.01f, MaxRange = 8f, Traveled = 1.25f,
+        };
+        Pump(0.1f);
+        Check(!clientB.World.Projectiles.ContainsKey(-777) &&
+              clientB.World.SpentGhosts.Any(g => g.SkillId == "fire_bolt" &&
+                  MathF.Abs(g.Traveled - 1.25f) < 0.2f),
+              "a ghost consumed on an enemy records its progress for spawn adoption");
+        clientB.World.SpentGhosts.Clear();
+        ghostPrey.Health = 1f;
         clientB.SendDebugCommand("kill_nearby");
         Check(Stats.Deflection.ChanceFromRating(200, 50) < Stats.Deflection.ChanceFromRating(200, 5),
               "the same deflection rating is worth less at higher character level");

@@ -1271,13 +1271,21 @@ public class WorldRenderer
             }
             if (fx.Kind == "burst")
             {
-                // Detonation: a bright core flash, TWO expanding rings and radial sparks —
-                // reads as a real explosion instead of a growing purple puddle.
+                // Detonation: a bright core flash, TWO expanding rings, radial sparks and
+                // a field of arcane motes covering the whole area of effect — the AoE
+                // footprint reads clearly instead of a growing purple puddle.
                 float bfade = 1f - t;
-                float outerPx = fx.Radius * 2f * IsoCamera.HalfTileW * (0.35f + 0.75f * t);
+                float fullPx = fx.Radius * 2f * IsoCamera.HalfTileW;
+                float outerPx = fullPx * (0.35f + 0.75f * t);
                 float innerPx = outerPx * 0.6f;
+                int seedB = (int)(fx.Position.X * 553) ^ (int)(fx.Position.Y * 719);
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
+                    // Faint ground wash over the exact damage area.
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - fullPx), (int)(screen.Y - fullPx / 2f),
+                            (int)(fullPx * 2), (int)fullPx),
+                        new Color(140, 70, 220) * (0.18f * bfade));
                     for (int ring = 0; ring < 2; ring++)
                     {
                         float rp = ring == 0 ? outerPx : innerPx;
@@ -1291,14 +1299,28 @@ public class WorldRenderer
                         }
                     }
                     // Radial sparks flung outward, decelerating.
-                    for (int sp = 0; sp < 8; sp++)
+                    for (int sp = 0; sp < 14; sp++)
                     {
-                        float ang2 = sp * 0.785f + 0.4f;
+                        float ang2 = sp * (MathF.Tau / 14f) + 0.4f;
                         float rr = outerPx * (0.5f + 0.55f * t);
                         batch.Draw(TextureGen.Pixel, new Rectangle(
                             (int)(screen.X + MathF.Cos(ang2) * rr) - 1,
                             (int)(screen.Y + MathF.Sin(ang2) * rr * 0.5f) - 6 - 1, 2, 2),
                             new Color(235, 210, 255) * bfade);
+                    }
+                    // Motes scattered across the FULL radius, drifting upward as they fade
+                    // — deterministic per burst, no particle state to track.
+                    for (int m = 0; m < 18; m++)
+                    {
+                        var rngM = new Random(seedB + m * 89);
+                        float aM = (float)(rngM.NextDouble() * Math.PI * 2);
+                        float dM = fullPx * MathF.Sqrt((float)rngM.NextDouble());
+                        float rise = 4f + (14f + 18f * (float)rngM.NextDouble()) * t;
+                        int sz = 2 + rngM.Next(2);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(aM) * dM) - 1,
+                            (int)(screen.Y + MathF.Sin(aM) * dM * 0.5f - rise) - 1, sz, sz),
+                            new Color(190, 130, 255) * (bfade * (0.45f + 0.55f * (float)rngM.NextDouble())));
                     }
                     // Core flash, collapsing fast.
                     int core = (int)(26 * (1f - t * t));
@@ -1306,6 +1328,78 @@ public class WorldRenderer
                         batch.Draw(TextureGen.Circle32,
                             new Rectangle((int)screen.X - core / 2, (int)screen.Y - 8 - core / 2, core, core),
                             new Color(240, 220, 255) * (bfade * 0.9f));
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "slamwarn")
+            {
+                // MMO-style AoE telegraph: a red circle marking the FULL slam radius,
+                // an inner fill sweeping outward as the impact nears, and a pulsing rim.
+                float rPx = fx.Radius * 2f * IsoCamera.HalfTileW;
+                long clockW = Environment.TickCount64;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    float pulse = 0.75f + 0.25f * MathF.Sin(clockW * 0.02f);
+                    // Full-radius danger zone.
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - rPx), (int)(screen.Y - rPx / 2f),
+                            (int)(rPx * 2), (int)rPx), new Color(220, 40, 30) * 0.22f);
+                    // Inner fill swelling toward the rim: a progress bar for the impact.
+                    float fillPx = rPx * t;
+                    if (fillPx > 2)
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(screen.X - fillPx), (int)(screen.Y - fillPx / 2f),
+                                (int)(fillPx * 2), (int)fillPx), new Color(255, 60, 40) * (0.30f * pulse));
+                    // Rim ring.
+                    for (int seg3 = 0; seg3 < 26; seg3++)
+                    {
+                        float a3 = seg3 / 26f * MathF.Tau;
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(a3) * rPx) - 1,
+                            (int)(screen.Y + MathF.Sin(a3) * rPx * 0.5f) - 1, 3, 2),
+                            new Color(255, 70, 50) * (0.85f * pulse));
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "groundcrack")
+            {
+                // Ground Slam's cracked earth: jagged dark fissures radiating from the
+                // caster, shooting out in the first third of the effect then fading.
+                // Deterministic from the position hash — no particle state.
+                int seedC = (int)(fx.Position.X * 641) ^ (int)(fx.Position.Y * 877);
+                float maxPx = fx.Radius * 2f * IsoCamera.HalfTileW;
+                float reach = MathF.Min(1f, t * 3f);
+                float crackFade = t < 0.55f ? 1f : 1f - (t - 0.55f) / 0.45f;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    for (int c = 0; c < 8; c++)
+                    {
+                        var rngC = new Random(seedC + c * 131);
+                        float angC = c / 8f * MathF.Tau + (float)rngC.NextDouble() * 0.6f;
+                        float len = maxPx * (0.55f + 0.45f * (float)rngC.NextDouble()) * reach;
+                        var dirC = new Vector2(MathF.Cos(angC), MathF.Sin(angC) * 0.5f);
+                        var posC = new Vector2(screen.X, screen.Y);
+                        const int segsC = 5;
+                        for (int s2 = 0; s2 < segsC; s2++)
+                        {
+                            var next = posC + dirC * (len / segsC);
+                            next.X += (float)(rngC.NextDouble() - 0.5) * 7f;
+                            next.Y += (float)(rngC.NextDouble() - 0.5) * 4f;
+                            // Fissures thin as they run outward.
+                            int wC = s2 < 2 ? 3 : 2;
+                            var mid = (posC + next) * 0.5f;
+                            batch.Draw(TextureGen.Pixel,
+                                new Rectangle((int)posC.X, (int)posC.Y, wC, wC), new Color(24, 18, 12) * crackFade);
+                            batch.Draw(TextureGen.Pixel,
+                                new Rectangle((int)mid.X, (int)mid.Y, wC, wC), new Color(30, 24, 16) * crackFade);
+                            posC = next;
+                        }
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)posC.X, (int)posC.Y, 2, 2), new Color(36, 28, 20) * crackFade);
+                    }
                 }));
                 continue;
             }

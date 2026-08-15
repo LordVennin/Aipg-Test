@@ -195,6 +195,75 @@ public class TextInput : UIElement
 /// Shared tiny "x" close button for in-game panels (inventory, skills, character sheet),
 /// drawn in the panel's top-right corner so menus can be closed with the mouse.
 /// </summary>
+/// <summary>
+/// Title-bar dragging for the gameplay panels (inventory, skills, sheet, tree, shop).
+/// Each panel owns one of these: Layout() runs the default rect through Place() to get
+/// the dragged position (clamped so the bar always stays reachable), and Update() calls
+/// HandleBar() with the title-bar strip BEFORE its own click handling — while a drag is
+/// live the panel skips everything else so list rows under the bar never react.
+/// </summary>
+public class WindowDrag
+{
+    private Point _offset;          // persistent displacement from the default layout
+    private bool _dragging;
+    private Point _grabMouse;
+    private Point _grabOffset;
+
+    public bool Dragging => _dragging;
+
+    /// <summary>The draggable strip: the panel's top edge minus the close button.</summary>
+    public static Rectangle BarFor(in Rectangle panel) =>
+        new(panel.X, panel.Y, panel.Width - 34, 28);
+
+    /// <summary>Apply the stored drag offset to the panel's default rect, clamped so a
+    /// chunk of the title bar always stays on screen (a lost window can't happen).</summary>
+    public Rectangle Place(Rectangle def, Point screen)
+    {
+        int x = Math.Clamp(def.X + _offset.X, 90 - def.Width, Math.Max(90 - def.Width, screen.X - 90));
+        int y = Math.Clamp(def.Y + _offset.Y, 0, Math.Max(0, screen.Y - 48));
+        _offset = new Point(x - def.X, y - def.Y);
+        return new Rectangle(x, y, def.Width, def.Height);
+    }
+
+    /// <summary>Start/continue a title-bar drag. True while a drag is live (the panel
+    /// should skip its other mouse handling for the frame).</summary>
+    public bool HandleBar(InputManager input, in Rectangle bar)
+    {
+        if (!_dragging && input.MouseLeftPressed && bar.Contains(input.MousePosition))
+        {
+            _dragging = true;
+            _grabMouse = input.MousePosition;
+            _grabOffset = _offset;
+        }
+        if (!_dragging) return false;
+        if (!input.MouseLeftDown)
+        {
+            _dragging = false;
+            return false;
+        }
+        _offset = new Point(_grabOffset.X + input.MousePosition.X - _grabMouse.X,
+                            _grabOffset.Y + input.MousePosition.Y - _grabMouse.Y);
+        input.MouseCapturedByUI = true;
+        return true;
+    }
+
+    /// <summary>The grip visual: a subtle darker strip with drag dots, drawn right after
+    /// the panel background so the panel's own title text sits on top of it.</summary>
+    public static void DrawBar(SpriteBatch sb, in Rectangle panel, Point mouse)
+    {
+        var bar = BarFor(panel);
+        bool hover = bar.Contains(mouse);
+        sb.Draw(TextureGen.Pixel, bar, new Color((byte)255, (byte)255, (byte)255, hover ? (byte)14 : (byte)7));
+        sb.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Bottom - 1, panel.Width, 1),
+            new Color((byte)255, (byte)255, (byte)255, (byte)10));
+        var dotColor = new Color((byte)255, (byte)255, (byte)255, hover ? (byte)90 : (byte)45);
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 2; j++)
+                sb.Draw(TextureGen.Pixel,
+                    new Rectangle(bar.Right - 22 + i * 6, bar.Y + 11 + j * 5, 2, 2), dotColor);
+    }
+}
+
 public static class CloseButton
 {
     public static Rectangle RectFor(in Rectangle panel) => new(panel.Right - 26, panel.Y + 6, 20, 20);

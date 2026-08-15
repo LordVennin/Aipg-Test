@@ -82,7 +82,9 @@ public class PlayScreen : IScreen
     /// <summary>Which learned summon SKILL the command key drives (cycled with Tab).</summary>
     private int _summonFocusIdx;
 
-    /// <summary>Learned summon skills, in the stable order the skill list shows them.</summary>
+    /// <summary>Summon skills with at least one ACTIVE minion, in the stable order the
+    /// skill list shows them. Merely LEARNING a summon skill doesn't put it here — the
+    /// focus cycling / command UI only exists while something is actually summoned.</summary>
     private List<string> SummonSkillIds()
     {
         var character = _client.World.MyCharacter;
@@ -90,6 +92,8 @@ public class PlayScreen : IScreen
         return character.Skills
             .Where(s => _game.Data.Skills.GetValueOrDefault(s.SkillId)?.Archetype == SkillArchetype.Summon)
             .Select(s => s.SkillId)
+            .Where(id => _client.World.Summons.Values.Any(su =>
+                su.OwnerId == _client.World.MyPlayerId && su.SkillId == id))
             .ToList();
     }
 
@@ -107,6 +111,27 @@ public class PlayScreen : IScreen
     private float _fpsTimer;
     private int _fpsCounter;
     private float _autosaveTimer;
+
+    /// <summary>A draggable gameplay panel wrapped for z-ordering (see ctor).</summary>
+    private sealed class PanelZ
+    {
+        public object Owner;
+        public Func<bool> IsOpen;
+        public Func<Point, bool> Contains;
+        public Action<InputManager, bool> Update;
+        public Action<SpriteBatch> Draw;
+    }
+    private readonly List<PanelZ> _panelZ = new();
+
+    /// <summary>Move a panel to the top of the z-order (drawn last, updated first).</summary>
+    private void RaisePanel(object owner)
+    {
+        int idx = _panelZ.FindIndex(p => p.Owner == owner);
+        if (idx < 0 || idx == _panelZ.Count - 1) return;
+        var top = _panelZ[idx];
+        _panelZ.RemoveAt(idx);
+        _panelZ.Add(top);
+    }
 
     public PlayScreen(GameMain game, GameServer server, GameClient client)
     {
@@ -135,6 +160,16 @@ public class PlayScreen : IScreen
             }
         };
         _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
+
+        // Draggable gameplay panels in z-order (last entry = topmost). Clicking an open
+        // panel raises it; updates run topmost-first so a window never reacts to input
+        // meant for one stacked above it. The debug panel stays outside the stack —
+        // always on top, drawn last.
+        _panelZ.Add(new PanelZ { Owner = _skillMenu, IsOpen = () => _skillMenu.Open, Contains = p => _skillMenu.Contains(p), Update = (i, b) => _skillMenu.Update(i, b), Draw = sb => _skillMenu.Draw(sb, _game.Input) });
+        _panelZ.Add(new PanelZ { Owner = _characterSheet, IsOpen = () => _characterSheet.Open, Contains = p => _characterSheet.Contains(p), Update = (i, b) => _characterSheet.Update(i, b), Draw = sb => _characterSheet.Draw(sb) });
+        _panelZ.Add(new PanelZ { Owner = _skillTree, IsOpen = () => _skillTree.Open, Contains = p => _skillTree.Contains(p), Update = (i, b) => _skillTree.Update(i, b), Draw = sb => _skillTree.Draw(sb) });
+        _panelZ.Add(new PanelZ { Owner = _shop, IsOpen = () => _shop.Open, Contains = p => _shop.Contains(p), Update = (i, b) => _shop.Update(i, b), Draw = sb => _shop.Draw(sb, _game.UiScreenSize) });
+        _panelZ.Add(new PanelZ { Owner = _inventory, IsOpen = () => _inventory.Open, Contains = p => _inventory.Contains(p), Update = (i, b) => _inventory.Update(i, b), Draw = sb => _inventory.Draw(sb, _game.Input) });
 
         // Dev convenience (like --sp): ARPG_DEVUI=debug[,skills][,inventory] opens
         // panels at startup — lets headless/automated sessions drive them by mouse alone.
@@ -315,20 +350,32 @@ public class PlayScreen : IScreen
             }
         }
 
-        // --- panel toggles ---
-        if (input.WasActionPressed(InputAction.Inventory)) _inventory.Open = !_inventory.Open;
-        if (input.WasActionPressed(InputAction.SkillMenu)) _skillMenu.Open = !_skillMenu.Open;
-        if (input.WasActionPressed(InputAction.CharacterSheet)) _characterSheet.Open = !_characterSheet.Open;
-        if (input.WasActionPressed(InputAction.SkillTree)) _skillTree.Open = !_skillTree.Open;
+        // --- panel toggles (opening a window puts it on top of the stack) ---
+        if (input.WasActionPressed(InputAction.Inventory)) { _inventory.Open = !_inventory.Open; if (_inventory.Open) RaisePanel(_inventory); }
+        if (input.WasActionPressed(InputAction.SkillMenu)) { _skillMenu.Open = !_skillMenu.Open; if (_skillMenu.Open) RaisePanel(_skillMenu); }
+        if (input.WasActionPressed(InputAction.CharacterSheet)) { _characterSheet.Open = !_characterSheet.Open; if (_characterSheet.Open) RaisePanel(_characterSheet); }
+        if (input.WasActionPressed(InputAction.SkillTree)) { _skillTree.Open = !_skillTree.Open; if (_skillTree.Open) RaisePanel(_skillTree); }
         if (input.WasActionPressed(InputAction.DebugMenu)) _debug.Open = !_debug.Open;
 
         // --- UI updates first: they claim the mouse before world input runs ---
+        // A click raises the topmost open panel under the mouse; updates then run
+        // topmost-first, and any panel below a window that holds the mouse is blocked
+        // for the frame — overlapping menus never both react to one click.
+        if (input.MouseLeftPressed && !_debug.Contains(input.MousePosition))
+            for (int i = _panelZ.Count - 1; i >= 0; i--)
+                if (_panelZ[i].IsOpen() && _panelZ[i].Contains(input.MousePosition))
+                {
+                    RaisePanel(_panelZ[i].Owner);
+                    break;
+                }
         _debug.Update(input);
-        _skillMenu.Update(input);
-        _characterSheet.Update(input);
-        _skillTree.Update(input);
-        _shop.Update(input);
-        _inventory.Update(input);
+        bool uiMouseTaken = _debug.Contains(input.MousePosition);
+        for (int i = _panelZ.Count - 1; i >= 0; i--)
+        {
+            var panel = _panelZ[i];
+            panel.Update(input, uiMouseTaken);
+            if (panel.IsOpen() && panel.Contains(input.MousePosition)) uiMouseTaken = true;
+        }
 
         // --- finish drags ---
         if (_drag.Active && input.MouseLeftReleased)
@@ -528,17 +575,8 @@ public class PlayScreen : IScreen
                     me.Height = wh;
                 }
             }
-            if (mouseFree && input.MouseLeftPressed)
-            {
-                foreach (var (rect, dropId) in _renderer.DropLabelRects)
-                {
-                    if (rect.Contains(input.RawMousePosition)) // drop labels render in world space
-                    {
-                        _client.RequestPickup(dropId);
-                        break;
-                    }
-                }
-            }
+            // (No LMB pickup: clicking a drop label only HOVER-targets it — the pickup
+            // key is the one way to grab items, so attacks never eat loot clicks.)
         }
 
         // Camera follows the player.
@@ -718,11 +756,9 @@ public class PlayScreen : IScreen
                 frac >= 1f ? new Color(255, 226, 120) : new Color(120, 180, 255));
         }
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
-        _skillMenu.Draw(sb, _game.Input);
-        _characterSheet.Draw(sb);
-        _skillTree.Draw(sb);
-        _shop.Draw(sb, screen);
-        _inventory.Draw(sb, _game.Input);
+        // Panels draw bottom-to-top so the last-raised window overlays the rest;
+        // the debug panel always sits above the stack.
+        foreach (var panel in _panelZ) panel.Draw(sb);
         _debug.Draw(sb);
 
         // Drag ghost + tooltips on top.

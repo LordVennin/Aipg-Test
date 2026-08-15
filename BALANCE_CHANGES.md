@@ -178,3 +178,72 @@ no deflection, and bare attribute points only amplify what armor provides.
 
 A full starter set (~33 armor) is now ~31% reduction at level 1 and falls off
 fast without upgrades (was ~45%+ under the old base-40 denominator).
+
+
+---
+
+# Addendum — third pass (attributes, drops, slams)
+
+## Attributes carry more weight
+
+| Knob | Before | After |
+|---|---|---|
+| Life per Strength | 0.5 | **2** |
+| Mana per Intelligence | 0.5 | **2** |
+
+Dexterity unchanged. With half-rate per-level growth (previous pass), attribute
+points are now the main way health and mana pools grow.
+
+## XP down again (~30%)
+
+| Enemy | Before | After |
+|---|---|---|
+| Gravebound Grunt | 11 | **8** |
+| Grave Spitter | 16 | **11** |
+| Barrow Knight | 20 | **14** |
+| The Gravelord | 150 | **100** |
+
+## Drops: parity, availability & level scaling
+
+- **Weapon weights trimmed**: Mace/Staff category weights 120 → **80** (both
+  loot tables) — armor slots no longer lose most rolls to weapons.
+- **Level-1 Deflection set** (Poacher's: hood 18 / tunic 33 / gloves 13 /
+  boots 13 rating, 8 Dex) and **level-1 Energy Shield set** (Novice's: cowl 8 /
+  robe 15 / wraps 5 / slippers 5 ES, 8 Int) — every defense flavor now drops
+  from the first kill, at the same starter weight (100) as the Armor set.
+- **Hybrid bodies drop from level 5** (were 20).
+- **FIX — drops now roll at the enemy's SCALED level**: a level-11 zombie from
+  a leveled spawner previously dropped level-1 loot (the def's native level was
+  passed to the loot roll); it now drops level-11 loot, and gold scales off the
+  same level.
+
+## Boss slam: telegraphed + bigger
+
+| Knob | Before | After |
+|---|---|---|
+| Slam radius | 2.4 | **3.2** |
+| Telegraph | none (instant) | **0.9s red AoE decal** (`SlamWindup`, per enemy) |
+
+The Gravelord now commits: a pulsing red MMO-style circle marks the full slam
+area during the wind-up, damage resolves against where everyone stands at the
+END of the wind-up — walking out of the circle dodges it entirely. Stuns and
+freezes cancel the slam.
+
+## Ground Slam rework
+
+| Knob | Before | After |
+|---|---|---|
+| Cast | instant | **0.4s wind-up** (overhead raise) |
+| Mana | 8 | **12** |
+| Cooldown | 0.8s | **2.2s** |
+| Knockback | none | **1.8 tiles** |
+| Visual | plain ring | **cracked-earth fissures + debris/dust storm around the caster** |
+
+## Mace Strike reach fix (behavior)
+
+Plain swings now hit **player-centered**: enemies within the skill's Range of
+the CASTER (plus their body radius) inside a ~140° arc toward the aim, with
+point-blank enemies always caught. The old test (a circle around the projected
+impact point) could reach range+radius ahead while whiffing an adjacent
+off-axis enemy — the "hits far, misses close" report. Aimed area slams (Mace
+Slam) keep the placed-circle behavior by design.

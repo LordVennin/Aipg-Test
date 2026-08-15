@@ -28,24 +28,28 @@ public class CharacterSheetUI
         _client = client;
     }
 
+    public readonly WindowDrag Window = new();
+
     public void Layout(Point screen)
     {
-        _panelRect = new Rectangle(screen.X / 2 - 250, 36, 500, Math.Min(650, screen.Y - 60));
+        _panelRect = Window.Place(new Rectangle(screen.X / 2 - 250, 36, 500, Math.Min(650, screen.Y - 60)), screen);
     }
 
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
 
     private Point _lastMouse;
 
-    public void Update(InputManager input)
+    public void Update(InputManager input, bool mouseBlocked = false)
     {
         if (!Open) return;
+        if (mouseBlocked) return; // a window above this one holds the mouse
         _lastMouse = input.MousePosition;
         if (CloseButton.Handle(input, _panelRect))
         {
             Open = false;
             return;
         }
+        if (Window.HandleBar(input, WindowDrag.BarFor(_panelRect))) return;
         if (_panelRect.Contains(input.MousePosition))
             input.MouseCapturedByUI = true;
     }
@@ -59,6 +63,7 @@ public class CharacterSheetUI
 
         sb.Draw(TextureGen.Pixel, _panelRect, new Color(22, 22, 30, 240));
         Border(sb, _panelRect, new Color(95, 88, 62));
+        WindowDrag.DrawBar(sb, _panelRect, _lastMouse);
         CloseButton.Draw(sb, _panelRect, _lastMouse);
         int x = _panelRect.X + 14, y = _panelRect.Y + 8;
         var title = FontManager.GetBold(19);

@@ -108,11 +108,14 @@ public class HudUI
             sb.DrawString(FontManager.Get(11), $"{reserved:0} reserved",
                 new Vector2(manaRect.X - 4, manaRect.Y - 14), new Color(170, 150, 220));
 
-        // --- summon roster (left of the mana orb): one card per learned summon skill ---
-        // with its living count / limit; the focused card (the one the command key
-        // drives, cycled with Tab) gets a lit border.
+        // --- summon roster (left of the mana orb): one card per summon skill with at ---
+        // least one LIVING minion, showing count / limit; the focused card (the one the
+        // command key drives, cycled with Tab) gets a lit border. Skills that are merely
+        // learned show nothing — a melee player without summons never sees this UI.
         var summonSkills = character.Skills
             .Where(s => _data.Skills.GetValueOrDefault(s.SkillId)?.Archetype == SkillArchetype.Summon)
+            .Where(s => _client.World.Summons.Values.Any(su =>
+                su.OwnerId == _client.World.MyPlayerId && su.SkillId == s.SkillId))
             .ToList();
         if (summonSkills.Count > 0)
         {

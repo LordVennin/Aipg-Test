@@ -11,7 +11,7 @@ public static class AttributeBalance
     public const float BaseAttribute = 10f;
 
     // Strength: life and physical/melee power.
-    public const float LifePerStrength = 0.5f;
+    public const float LifePerStrength = 2f;
     public const float PhysicalPctPer10Strength = 2f;
 
     // Dexterity: light-armor defense and mobility. DEX SCALES gear deflection by a
@@ -20,7 +20,7 @@ public static class AttributeBalance
     public const float MovementPctPer10Dexterity = 0.5f;
 
     // Intelligence: mana and Energy Shield.
-    public const float ManaPerIntelligence = 0.5f;
+    public const float ManaPerIntelligence = 2f;
     public const float EnergyShieldPctPer10Intelligence = 2f;
 }
 

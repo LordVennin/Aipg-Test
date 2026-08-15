@@ -194,7 +194,8 @@ public class GameClient
         var dir = aim.LengthSquared() > 0.001f ? Vector2.Normalize(aim) : me.Facing;
 
         // Swing / wind-up animation, mirroring the SkillEffect handler's rules.
-        if (def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
+        if (def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle
+                or Skills.SkillArchetype.MeleeArea &&
             !def.RequiresShield)
         {
             me.SwingTotal = def.WindupTime > 0 ? def.WindupTime + 0.12f : ClientPlayer.SwingDuration;
@@ -456,7 +457,17 @@ public class GameClient
                 var at = r.GetVec2();
                 float radius = r.GetFloat();
                 float height = r.GetFloat();
-                World.AddEffect(at, radius, 0.45f, "slam", height);
+                byte slamPhase = r.GetByte();
+                float slamWindup = r.GetFloat();
+                if (slamPhase == 1)
+                    // Telegraph: the red MMO-style warning decal covering the full slam
+                    // radius for the wind-up — get out of the circle or eat the hit.
+                    World.AddEffect(at, radius, MathF.Max(0.2f, slamWindup), "slamwarn", height);
+                else
+                {
+                    World.AddEffect(at, radius, 0.45f, "slam", height);
+                    World.AddEffect(at, radius * 0.8f, 0.9f, "debris", height);
+                }
                 break;
             }
             case PacketType.EnemyAttack:
@@ -667,7 +678,7 @@ public class GameClient
                 // Adopt a matching ghost from our own cast prediction: keep the ghost's
                 // flight progress so the bolt doesn't snap backwards on confirmation.
                 if (pr.FromPlayer && World.Me is { } ghostOwner &&
-                    Vector2.Distance(pr.Position, ghostOwner.Position) < 2.5f)
+                    Vector2.Distance(pr.Position, ghostOwner.Position) < 4f)
                 {
                     var ghost = World.Projectiles.Values.FirstOrDefault(g =>
                         g.Ghost && g.SkillId == pr.SkillId);
@@ -677,6 +688,23 @@ public class GameClient
                         pr.Position += pr.Direction * ghost.Traveled;
                         pr.Height += pr.HeightStep * ghost.Traveled;
                         pr.Traveled = ghost.Traveled;
+                    }
+                    else
+                    {
+                        // The ghost already FINISHED (hit an enemy or capped out) while
+                        // this spawn was in flight — fast-forward to where it ended, or
+                        // at high ping the real bolt re-flies the whole path and the
+                        // cast visibly fires twice.
+                        int spentIdx = World.SpentGhosts.FindIndex(g => g.SkillId == pr.SkillId);
+                        if (spentIdx >= 0)
+                        {
+                            var spent = World.SpentGhosts[spentIdx];
+                            World.SpentGhosts.RemoveAt(spentIdx);
+                            float fwd = MathF.Min(spent.Traveled, pr.MaxRange);
+                            pr.Position += pr.Direction * fwd;
+                            pr.Height += pr.HeightStep * fwd;
+                            pr.Traveled = fwd;
+                        }
                     }
                 }
                 World.Projectiles[pr.Id] = pr;
@@ -741,7 +769,8 @@ public class GameClient
                     // the server echo must not restart the animation mid-motion.
                     bool ownPredicted = playerId == World.MyPlayerId && ConsumePredictedSwing(skillId);
                     if (phase != 2 && !ownPredicted &&
-                        def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle &&
+                        def.Archetype is Skills.SkillArchetype.MeleeStrike or Skills.SkillArchetype.MeleeSingle
+                            or Skills.SkillArchetype.MeleeArea &&
                         !def.RequiresShield &&
                         World.Players.GetValueOrDefault(playerId) is { } swingCaster)
                     {
@@ -778,7 +807,16 @@ public class GameClient
                                 break;
                             // MeleeSingle: the weapon swing itself is the visual — no impact circle.
                             case Skills.SkillArchetype.MeleeArea:
-                                World.AddEffect(effectPoint, def.Radius, 0.3f, "slam", effectHeight);
+                                if (isSlam)
+                                {
+                                    // Ground Slam: cracked earth radiating from the caster
+                                    // plus a storm of little debris particles all around.
+                                    World.AddEffect(effectPoint, def.Radius, 0.9f, "groundcrack", effectHeight);
+                                    World.AddEffect(effectPoint, def.Radius, 0.45f, "impact", effectHeight);
+                                    World.AddEffect(effectPoint, def.Radius * 0.9f, 1.0f, "debris", effectHeight);
+                                }
+                                else
+                                    World.AddEffect(effectPoint, def.Radius, 0.3f, "slam", effectHeight);
                                 break;
                             case Skills.SkillArchetype.AreaBurst:
                                 World.AddEffect(effectPoint, def.Radius, 0.3f, "burst", effectHeight);
