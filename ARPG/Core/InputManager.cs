@@ -23,6 +23,8 @@ public enum InputAction
     CommandSummons,
     CycleSummonFocus,
     Interact,
+    HealthPotion,
+    ManaPotion,
     Pause,
     DebugMenu,
 }
@@ -111,6 +113,8 @@ public class InputManager
         [InputAction.CommandSummons] = new InputBinding(Keys.OemTilde),
         [InputAction.CycleSummonFocus] = new InputBinding(Keys.Tab),
         [InputAction.Interact] = new InputBinding(Keys.F),
+        [InputAction.HealthPotion] = new InputBinding(Keys.Q),
+        [InputAction.ManaPotion] = new InputBinding(Keys.E),
         [InputAction.Pause] = new InputBinding(Keys.Escape),
         [InputAction.DebugMenu] = new InputBinding(Keys.F1),
     };

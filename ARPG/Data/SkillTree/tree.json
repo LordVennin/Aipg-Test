@@ -59,7 +59,26 @@
    "Effects": [{"Stat": "Intelligence", "Value": 8}]},
   {"Id": "aether_veil", "Name": "Aether Veil", "Description": "A humming shell of force.",
    "X": 4.2, "Y": 0.6,
-   "Effects": [{"Stat": "EnergyShield", "Value": 15}]}
+   "Effects": [{"Stat": "EnergyShield", "Value": 15}]},
+
+  {"Id": "titan_blood", "Name": "Titan Blood", "Description": "The old giants' strength runs shallow in everyone.",
+   "X": -5.6, "Y": 1.9,
+   "Effects": [{"Stat": "Strength", "Value": 10}]},
+  {"Id": "colossus", "Name": "Colossus", "Description": "Broader shoulders, heavier hands.",
+   "X": -5.6, "Y": 0.4,
+   "Effects": [{"Stat": "Strength", "Value": 8}]},
+  {"Id": "viper_reflex", "Name": "Viper Reflex", "Description": "Strike-swift, twice over.",
+   "X": -4.0, "Y": 5.0,
+   "Effects": [{"Stat": "Dexterity", "Value": 10}]},
+  {"Id": "ghost_step", "Name": "Ghost Step", "Description": "Feet that never quite touch down.",
+   "X": -4.2, "Y": 2.9,
+   "Effects": [{"Stat": "Dexterity", "Value": 8}]},
+  {"Id": "starlit_mind", "Name": "Starlit Mind", "Description": "Thought as wide as the night sky.",
+   "X": 5.6, "Y": 1.9,
+   "Effects": [{"Stat": "Intelligence", "Value": 10}]},
+  {"Id": "sage", "Name": "Sage", "Description": "Learning worn as easily as a coat.",
+   "X": 5.6, "Y": 0.4,
+   "Effects": [{"Stat": "Intelligence", "Value": 8}]}
  ],
  "Connections": [
   ["root", "brawn"], ["brawn", "heavy_hands"], ["heavy_hands", "executioner"],
@@ -67,6 +86,9 @@
   ["root", "vitality"], ["vitality", "stone_skin"], ["stone_skin", "fleet_foot"],
   ["stone_skin", "nimble"], ["nimble", "sidestep"], ["nimble", "wind_dancer"],
   ["root", "focus"], ["focus", "clear_mind"], ["clear_mind", "arcanist"],
-  ["focus", "keen_mind"], ["keen_mind", "aether_veil"], ["keen_mind", "deep_thought"]
+  ["focus", "keen_mind"], ["keen_mind", "aether_veil"], ["keen_mind", "deep_thought"],
+  ["mountain_heart", "titan_blood"], ["bulwark", "colossus"],
+  ["wind_dancer", "viper_reflex"], ["sidestep", "ghost_step"],
+  ["deep_thought", "starlit_mind"], ["aether_veil", "sage"]
  ]
 }

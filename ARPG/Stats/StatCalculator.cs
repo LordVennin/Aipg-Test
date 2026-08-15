@@ -187,7 +187,8 @@ public static class StatCalculator
             MaxMana = BaseMaxMana + ManaPerCharLevel * (character.Level - 1) + total.Get(StatType.MaximumMana)
                       + intelligence * AttributeBalance.ManaPerIntelligence,
             ManaRegeneration = (BaseManaRegen + ManaRegenPerCharLevel * (character.Level - 1))
-                               * (1f + total.Get(StatType.ManaRegeneration) / 100f),
+                               * (1f + total.Get(StatType.ManaRegeneration) / 100f)
+                               * (1f + intelligence * AttributeBalance.ManaRegenPctPerIntelligence / 100f),
             MovementSpeed = BaseMoveSpeed * (1f + (total.Get(StatType.MovementSpeed)
                             + dexterity / 10f * AttributeBalance.MovementPctPer10Dexterity) / 100f),
             Armor = total.Get(StatType.Armor),

@@ -262,6 +262,9 @@ public class GameServer : IServerEvents
             case PacketType.ChestOpenRequest:
                 World.OpenChest(playerId, r.GetInt());
                 break;
+            case PacketType.PotionRequest:
+                World.UsePotion(playerId, r.GetByte());
+                break;
         }
     }
 
@@ -333,6 +336,9 @@ public class GameServer : IServerEvents
             if (other.Id != playerId)
                 peer.Send(AppearancePacket(other), DeliveryMethod.ReliableOrdered);
         Broadcast(AppearancePacket(player), DeliveryMethod.ReliableOrdered);
+        // Baseline resource sync (potion flask charges ride PlayerHealth — without
+        // this the joiner's flasks read empty until the first health change).
+        PlayerHealthChanged(player);
         Console.WriteLine($"[Server] {player.Name} joined as player {playerId}");
     }
 
@@ -594,6 +600,23 @@ public class GameServer : IServerEvents
         w.Put(p.EnergyShield);
         w.Put(p.Stats.MaxEnergyShield);
         w.Put(p.ManaReserved);
+        w.Put((byte)p.HealthPotionCharges);
+        w.Put((byte)p.ManaPotionCharges);
+        w.Put(MathF.Max(0f, p.PotionHealUntil - World.Time));
+        w.Put(MathF.Max(0f, p.PotionManaUntil - World.Time));
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void EnemyDashed(ServerEnemy e, byte phase)
+    {
+        var w = Packets.Make(PacketType.EnemyDash);
+        w.Put(e.Id);
+        w.Put(phase);
+        w.PutVec2(e.Position);
+        w.PutVec2(e.DashDir);
+        w.Put(e.Def.DashRange);
+        w.Put(e.Def.DashWindup);
+        w.Put(e.Height);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

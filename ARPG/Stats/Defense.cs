@@ -21,6 +21,8 @@ public static class AttributeBalance
 
     // Intelligence: mana and Energy Shield.
     public const float ManaPerIntelligence = 2f;
+    /// <summary>Intelligence gently speeds the well's refill too: +% mana regen per point.</summary>
+    public const float ManaRegenPctPerIntelligence = 1f;
     public const float EnergyShieldPctPer10Intelligence = 2f;
 }
 
@@ -87,6 +89,22 @@ public static class ArmorBalance
 
 /// <summary>Character/skill XP awards: kills below your level pay less, scaling with
 /// the gap; everything centralized for the balance pass.</summary>
+/// <summary>Potion flasks (the one place their numbers live): both flasks restore over
+/// TIME, never instantly — an ARPG sip, not a heal button. Charges refill from kills.</summary>
+public static class PotionBalance
+{
+    public const int MaxCharges = 3;
+    public const int StartCharges = 3;
+    /// <summary>Every enemy killed by anyone grants each player this many charges (both flasks).</summary>
+    public const int ChargesPerKill = 1;
+    /// <summary>Health flask: fraction of max health restored, spread over the duration.</summary>
+    public const float HealPct = 0.40f;
+    public const float HealDuration = 4f;
+    /// <summary>Mana flask: fraction of max (unreserved) mana restored over the duration.</summary>
+    public const float ManaPct = 0.40f;
+    public const float ManaDuration = 4f;
+}
+
 public static class XpBalance
 {
     /// <summary>Kills within this many levels of the player pay full XP.</summary>

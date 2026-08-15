@@ -259,6 +259,14 @@ public class GameClient
     public void RequestDoorReady() =>
         Send(Packets.Make(PacketType.DoorReadyRequest), DeliveryMethod.ReliableOrdered);
 
+    /// <summary>Drink a potion flask (0 = health, 1 = mana). Server-validated.</summary>
+    public void RequestUsePotion(byte kind)
+    {
+        var w = Packets.Make(PacketType.PotionRequest);
+        w.Put(kind);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestOpenChest(int chestId)
     {
         var w = Packets.Make(PacketType.ChestOpenRequest);
@@ -467,6 +475,8 @@ public class GameClient
                 float hp = r.GetFloat(), maxHp = r.GetFloat(), mana = r.GetFloat();
                 float es = r.GetFloat(), maxEs = r.GetFloat();
                 float manaReserved = r.GetFloat();
+                byte hpCharges = r.GetByte(), mpCharges = r.GetByte();
+                float healLeft = r.GetFloat(), manaLeft = r.GetFloat();
                 if (World.Players.TryGetValue(id, out var p))
                 {
                     p.Health = hp;
@@ -475,6 +485,10 @@ public class GameClient
                     p.EnergyShield = es;
                     p.MaxEnergyShield = maxEs;
                     p.ManaReserved = manaReserved;
+                    p.HealthPotionCharges = hpCharges;
+                    p.ManaPotionCharges = mpCharges;
+                    p.PotionHealSecondsLeft = healLeft;
+                    p.PotionManaSecondsLeft = manaLeft;
                 }
                 break;
             }
@@ -495,6 +509,23 @@ public class GameClient
                     World.AddEffect(at, radius, 0.45f, "slam", height);
                     World.AddEffect(at, radius * 0.8f, 0.9f, "debris", height);
                 }
+                break;
+            }
+            case PacketType.EnemyDash:
+            {
+                int dashId = r.GetInt();
+                byte dashPhase = r.GetByte();
+                var dashPos = r.GetVec2();
+                var dashDir = r.GetVec2();
+                float dashRange = r.GetFloat();
+                float dashWindup = r.GetFloat();
+                float dashHeight = r.GetFloat();
+                if (dashPhase == 1)
+                    // MMO-style prepare LINE: the burning strip the charge will travel.
+                    World.AddLineEffect(dashPos, dashPos + dashDir * dashRange,
+                        MathF.Max(0.2f, dashWindup), "dashline", dashHeight);
+                else
+                    World.AddEffect(dashPos, 0.9f, 0.3f, "impact", dashHeight);
                 break;
             }
             case PacketType.EnemyAttack:

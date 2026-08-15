@@ -670,6 +670,127 @@ public class GameMap
                     _water[i] = 0;
                     _feature[i] = 0;
                 }
+
+        ConnectStrandedAreas();
+    }
+
+    /// <summary>
+    /// No unreachable pockets: BFS the reachable set from the spawn, then carve stair
+    /// ramps wherever a stranded walkable area sits one clean level from reachable
+    /// ground (repeats until everything connects). Any sliver still stranded after
+    /// that — pinched between water, pillars and walls — becomes a low rock outcrop
+    /// so the map never SHOWS ground a player can't stand on. Deterministic.
+    /// </summary>
+    private void ConnectStrandedAreas()
+    {
+        Span<(int dx, int dy, RampDirection up)> dirs = stackalloc (int, int, RampDirection)[]
+        {
+            (1, 0, RampDirection.PlusX), (-1, 0, RampDirection.MinusX),
+            (0, 1, RampDirection.PlusY), (0, -1, RampDirection.MinusY),
+        };
+        for (int guard = 0; guard < 40; guard++)
+        {
+            var reach = ReachableFrom(PlayerSpawn);
+            bool carved = false;
+            for (int y = 1; y < Height - 1 && !carved; y++)
+                for (int x = 1; x < Width - 1 && !carved; x++)
+                {
+                    int i = Idx(x, y);
+                    if (!reach[i]) continue;
+                    if (_wall[i] != 0 || _water[i] != 0 || _ramp[i] != 0 ||
+                        _bridge[i] != 0 || _feature[i] != 0) continue;
+                    foreach (var (dx, dy, up) in dirs)
+                    {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx < 1 || ny < 1 || nx >= Width - 1 || ny >= Height - 1) continue;
+                        int ni = Idx(nx, ny);
+                        if (reach[ni]) continue;
+                        if (_wall[ni] != 0 || _water[ni] != 0 || _ramp[ni] != 0 ||
+                            _bridge[ni] != 0 || _feature[ni] != 0) continue;
+                        if (_ground[ni] == _ground[i] + 1)
+                        {
+                            // Stranded ground one step UP: stairs on the reachable
+                            // tile rising toward it.
+                            _ramp[i] = (byte)up;
+                            _rampStyle[i] = 1;
+                            carved = true;
+                            break;
+                        }
+                        if (_ground[ni] == _ground[i] - 1)
+                        {
+                            // Stranded ground one step DOWN: stairs on the stranded
+                            // tile rising back toward the reachable side.
+                            var down = up switch
+                            {
+                                RampDirection.PlusX => RampDirection.MinusX,
+                                RampDirection.MinusX => RampDirection.PlusX,
+                                RampDirection.PlusY => RampDirection.MinusY,
+                                _ => RampDirection.PlusY,
+                            };
+                            _ramp[ni] = (byte)down;
+                            _rampStyle[ni] = 1;
+                            carved = true;
+                            break;
+                        }
+                    }
+                }
+            if (!carved) break;
+        }
+        // Whatever is STILL stranded becomes scenery, never fake floor.
+        var final = ReachableFrom(PlayerSpawn);
+        for (int y = 1; y < Height - 1; y++)
+            for (int x = 1; x < Width - 1; x++)
+            {
+                int i = Idx(x, y);
+                if (final[i] || _wall[i] != 0 || _water[i] != 0 || _feature[i] != 0) continue;
+                _wall[i] = 1;
+                _ramp[i] = 0;
+                _rampStyle[i] = 0;
+                _tallGrass[i] = 0;
+            }
+    }
+
+    /// <summary>Walkable-looking tiles NOT reachable from the player spawn (should be
+    /// zero on generated run maps — the connectivity pass guarantees it). Test hook.</summary>
+    public int CountUnreachableWalkable()
+    {
+        var reach = ReachableFrom(PlayerSpawn);
+        int stranded = 0;
+        for (int y = 1; y < Height - 1; y++)
+            for (int x = 1; x < Width - 1; x++)
+                if (!IsSolid(x, y) && !IsWater(x, y) && !reach[Idx(x, y)])
+                    stranded++;
+        return stranded;
+    }
+
+    /// <summary>The set of tiles walkable from a start point (same edge rule as
+    /// GroundPathExists).</summary>
+    private bool[] ReachableFrom(Vector2 from)
+    {
+        var seen = new bool[Width * Height];
+        int sx = (int)MathF.Floor(from.X), sy = (int)MathF.Floor(from.Y);
+        if (!InBounds(sx, sy)) return seen;
+        var queue = new Queue<int>();
+        seen[Idx(sx, sy)] = true;
+        queue.Enqueue(Idx(sx, sy));
+        Span<(int dx, int dy)> dirs = stackalloc (int, int)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        while (queue.Count > 0)
+        {
+            int node = queue.Dequeue();
+            int x = node % Width, y = node / Width;
+            foreach (var (dx, dy) in dirs)
+            {
+                int nx = x + dx, ny = y + dy;
+                if (!InBounds(nx, ny) || seen[Idx(nx, ny)]) continue;
+                if (IsSolid(nx, ny) || IsWater(nx, ny)) continue;
+                var pa = new Vector2(x + 0.5f + dx * 0.49f, y + 0.5f + dy * 0.49f);
+                var pb = new Vector2(nx + 0.5f - dx * 0.49f, ny + 0.5f - dy * 0.49f);
+                if (MathF.Abs(GroundHeightAt(pa) - GroundHeightAt(pb)) > StepTolerance) continue;
+                seen[Idx(nx, ny)] = true;
+                queue.Enqueue(Idx(nx, ny));
+            }
+        }
+        return seen;
     }
 
     /// <summary>Big trees for run maps: same 2x2 solid columns as the arena forest, but

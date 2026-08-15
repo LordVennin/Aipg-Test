@@ -1769,8 +1769,15 @@ public static class HeadlessNetTest
 
         Console.WriteLine("\n-- Passive skill tree --");
         var tree = data.PassiveTree;
-        Check(tree.Nodes.Count == 19 && tree.Nodes.Count(n => n.Start) == 1,
+        Check(tree.Nodes.Count == 25 && tree.Nodes.Count(n => n.Start) == 1,
               $"starter tree loaded ({tree.Nodes.Count} nodes, {tree.Nodes.Count(n => n.Start)} start)");
+        int TreeAttrNodes(Stats.StatType st) =>
+            tree.Nodes.Count(n => n.Effects.Any(fx => fx.Stat == st));
+        Check(TreeAttrNodes(Stats.StatType.Strength) >= 4 &&
+              TreeAttrNodes(Stats.StatType.Dexterity) >= 4 &&
+              TreeAttrNodes(Stats.StatType.Intelligence) >= 4,
+              $"each attribute branch carries 4+ attribute nodes " +
+              $"(STR {TreeAttrNodes(Stats.StatType.Strength)} / DEX {TreeAttrNodes(Stats.StatType.Dexterity)} / INT {TreeAttrNodes(Stats.StatType.Intelligence)})");
         Check(tree.Nodes.All(n => n.Effects.Count > 0) &&
               tree.Connections.All(c => c.Count == 2 && tree.ById.ContainsKey(c[0]) && tree.ById.ContainsKey(c[1])),
               "every node has effects and every connection joins real nodes");
@@ -2400,6 +2407,11 @@ public static class HeadlessNetTest
         var intStats = Stats.StatCalculator.Compute(data, attrChar);
         Check(MathF.Abs(intStats.MaxMana - attrBase.MaxMana - 20 * Stats.AttributeBalance.ManaPerIntelligence) < 0.01f,
               "Intelligence grants maximum Mana at the centralized rate");
+        float regenRatio = intStats.ManaRegeneration / attrBase.ManaRegeneration;
+        float expectRatio = (1f + 30f * Stats.AttributeBalance.ManaRegenPctPerIntelligence / 100f) /
+                            (1f + 10f * Stats.AttributeBalance.ManaRegenPctPerIntelligence / 100f);
+        Check(MathF.Abs(regenRatio - expectRatio) < 0.01f,
+              $"Intelligence speeds mana regeneration (+{Stats.AttributeBalance.ManaRegenPctPerIntelligence}%/point)");
 
         // Deflection aggregation: ALL equipped pieces + dexterity pool into ONE rating.
         strHelm.Modifiers.Clear();
@@ -2959,6 +2971,61 @@ public static class HeadlessNetTest
               MathF.Abs(srvShareB.Character.Experience - xpBBefore - expectB) < 0.5f,
               $"party members earn 70% without landing the kill (+{srvShareB.Character.Experience - xpBBefore:0.0} of {expectB:0.0})");
 
+        Console.WriteLine("\n-- Costs scale with power --");
+        var fbDef = data.Skills["fire_bolt"];
+        var noScrolls = Array.Empty<Skills.ScrollDefinition>();
+        float costL1 = Skills.SkillMath.Compute(data, fbDef, 1, noScrolls, clientB.World.MyStats).ManaCost;
+        float costL3 = Skills.SkillMath.Compute(data, fbDef, 3, noScrolls, clientB.World.MyStats).ManaCost;
+        var anyScroll = data.Scrolls.Values.First();
+        float costScrolled = Skills.SkillMath.Compute(data, fbDef, 1, new[] { anyScroll }, clientB.World.MyStats).ManaCost;
+        Check(MathF.Abs(costL1 - fbDef.ManaCost) < 0.01f &&
+              MathF.Abs(costL3 - fbDef.ManaCost * (1f + 2 * Skills.SkillMath.ManaCostPerSkillLevelPct)) < 0.05f,
+              $"skill levels raise mana cost ({costL1:0.0} -> {costL3:0.0} at level 3)");
+        Check(MathF.Abs(costScrolled - fbDef.ManaCost * (1f + Skills.SkillMath.ManaCostPerScrollPct)) < 0.05f,
+              $"an attached Skill Scroll raises mana cost ({costL1:0.0} -> {costScrolled:0.0})");
+
+        Console.WriteLine("\n-- Potion flasks (restore over time) --");
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+        var srvPot = server.World.Players[clientB.World.MyPlayerId];
+        srvPot.InvulnerableUntil = server.World.Time + 12f; // measure the sip undisturbed
+        srvPot.Health = srvPot.Stats.MaxHealth * 0.3f;
+        srvPot.HealthPotionCharges = 2;
+        srvPot.PotionHealUntil = 0;
+        clientB.RequestUsePotion(0);
+        Pump(0.25f);
+        Check(srvPot.HealthPotionCharges == 1, "drinking the health flask consumes a charge");
+        Check(srvPot.Health < srvPot.Stats.MaxHealth * 0.45f,
+              $"the heal is a SIP, not a burst (hp {srvPot.Health / srvPot.Stats.MaxHealth:P0} just after)");
+        Pump(4.2f);
+        Check(srvPot.Health > srvPot.Stats.MaxHealth * 0.62f,
+              $"~40% of max health restored over the duration (hp {srvPot.Health / srvPot.Stats.MaxHealth:P0})");
+        float potCeiling = MathF.Max(0f, srvPot.Stats.MaxMana - srvPot.ManaReserved);
+        srvPot.Mana = potCeiling * 0.1f;
+        srvPot.LastSyncedMana = srvPot.Mana;
+        srvPot.ManaPotionCharges = 1;
+        float potManaBefore = srvPot.Mana;
+        clientB.RequestUsePotion(1);
+        Pump(2.0f);
+        Check(srvPot.ManaPotionCharges == 0 &&
+              srvPot.Mana > potManaBefore + srvPot.Stats.ManaRegeneration * 2f + potCeiling * 0.12f,
+              $"the mana flask refills noticeably faster than regen alone ({potManaBefore:0} -> {srvPot.Mana:0})");
+        clientB.RequestUsePotion(1); // empty: refused with a message, charges stay 0
+        Pump(0.3f);
+        Check(srvPot.ManaPotionCharges == 0, "an empty flask refuses the drink");
+        srvPot.HealthPotionCharges = 0;
+        srvPot.InvulnerableUntil = server.World.Time + 8f;
+        var potGrunt = server.World.SpawnEnemy("grunt", srvPot.Position + new Vector2(1.1f, 0));
+        potGrunt.Health = 1f;
+        potGrunt.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        srvPot.SkillReadyAt.Clear();
+        srvPot.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("basic_strike", potGrunt.Position);
+        Pump(0.4f);
+        Check(potGrunt.Dead && srvPot.HealthPotionCharges >= 1,
+              $"kills refill the flasks ({srvPot.HealthPotionCharges} charge(s) back)");
+
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
         // The campaign's run maps grow tall-grass patches (on terraces too) and stay
         // walkable through them; density-bumped big trees come in four variants.
@@ -2983,6 +3050,15 @@ public static class HeadlessNetTest
             Check(dressMap.GroundPathExists(dressMap.PlayerSpawn,
                       dressMap.ExitDoor + new Vector2(-1.2f, 0)),
                   "tall grass never blocks the corridor (still walkable end to end)");
+            // Reachability guarantee across several seeds: stairs never lead into (or
+            // hide) pockets you can't actually walk to.
+            int strandedTotal = 0;
+            foreach (int rSeed in new[] { 424242, 987654, 1337, 20260815 })
+                strandedTotal += new World.GameMap(rSeed,
+                    data.ZoneThemes.First(t => t.Id == "forest"), World.MapKind.Forest)
+                    .CountUnreachableWalkable();
+            Check(strandedTotal == 0,
+                  $"every walkable tile on run maps is reachable from spawn ({strandedTotal} stranded over 4 seeds)");
         }
 
         Console.WriteLine("\n-- Campaign: hub sanctum --");
@@ -3172,6 +3248,46 @@ public static class HeadlessNetTest
               "loop-2 enemies carry the scaled level");
         Check(campServer.World.Packs.Any(pk => pk.Entries.Any(en => en.typeId == "bone_knight")),
               "Graveguard skeletons appear from the second loop");
+
+        Console.WriteLine("\n-- Campaign: the loop-2 Gravelord charges --");
+        campA.SendDebugCommand("warp_next");
+        CPump(0.6f);
+        campA.SendDebugCommand("warp_next");
+        CPump(0.8f);
+        Check(campServer.World.MapIndex == 3, "warped ahead to the loop-2 boss map");
+        var boss2 = campServer.World.Enemies.Values.FirstOrDefault(e => e.Def.Id == "gravelord");
+        Check(boss2 != null && boss2.Level >= boss2.Def.DashMinLevel,
+              $"the loop-2 Gravelord (level {boss2?.Level}) has its dash unlocked (min {boss2?.Def.DashMinLevel})");
+        bool dashTelegraphed = false, dashLineSeen = false, dashLaunched = false;
+        var dashStart = Vector2.Zero;
+        float bossTravel = 0f;
+        for (int i = 0; i < 90 && !dashLaunched; i++)
+        {
+            campA.SendDebugCommand("heal");
+            if (boss2.DashPrepareUntil <= 0 && boss2.DashUntil <= 0)
+                campA.World.Me.Position = boss2.Position + new Vector2(-4.5f, 0);
+            CPump(0.25f);
+            dashLineSeen |= campA.World.Effects.Any(fx => fx.Kind == "dashline");
+            if (boss2.DashPrepareUntil > 0 && !dashTelegraphed)
+            {
+                dashTelegraphed = true;
+                dashStart = boss2.Position;
+            }
+            if (dashTelegraphed && boss2.DashUntil > 0)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    CPump(0.12f);
+                    bossTravel = MathF.Max(bossTravel, Vector2.Distance(boss2.Position, dashStart));
+                }
+                dashLaunched = true;
+            }
+        }
+        Check(dashTelegraphed, "the Gravelord roots into a one-second prepare stance");
+        Check(dashLineSeen, "the MMO ground line telegraph replicates to clients");
+        Check(dashLaunched && bossTravel > 2.5f,
+              $"then charges hard down the line ({bossTravel:0.0} tiles covered)");
+
         campA.Disconnect();
         campB.Disconnect();
         CPump(0.3f);

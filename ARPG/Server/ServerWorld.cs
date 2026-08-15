@@ -36,6 +36,8 @@ public interface IServerEvents
     void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false);
     /// <summary>A boss ground-slam burst, for the AoE visual on all clients.</summary>
     void EnemySlammed(ServerEnemy e, float radius, byte phase);
+    /// <summary>Telegraphed dash charge: phase 1 = ground line telegraph, 2 = launch.</summary>
+    void EnemyDashed(ServerEnemy e, byte phase);
     /// <summary>Telegraphed melee swing: phase 1 = wind-up started, 2 = swing resolved.</summary>
     void EnemyAttacked(ServerEnemy e, byte phase, Vector2 dir);
     /// <summary>A summon attacked (arrow loosed / sword swung) — drives client animation.</summary>
@@ -433,6 +435,44 @@ public partial class ServerWorld
             TransitionTo(MapIndex >= 3 ? 0 : MapIndex + 1);
     }
 
+    /// <summary>Drink a potion flask (0 = health, 1 = mana): consumes a charge and
+    /// starts a restore-over-TIME tick — an ARPG sip, not an instant heal. Refused
+    /// while the same flask is already working or when there's nothing to restore.</summary>
+    public void UsePotion(int playerId, byte kind)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        if (kind == 0)
+        {
+            if (Time < p.PotionHealUntil) return; // already drinking
+            if (p.HealthPotionCharges <= 0)
+            {
+                _events.MessageFor(p, "Your health flask is empty — kills refill it.");
+                return;
+            }
+            if (p.Health >= p.Stats.MaxHealth - 0.5f) return; // nothing to heal
+            p.HealthPotionCharges--;
+            p.PotionHealUntil = Time + Stats.PotionBalance.HealDuration;
+            p.PotionHealPerSec = p.Stats.MaxHealth * Stats.PotionBalance.HealPct /
+                                 Stats.PotionBalance.HealDuration;
+        }
+        else
+        {
+            if (Time < p.PotionManaUntil) return;
+            if (p.ManaPotionCharges <= 0)
+            {
+                _events.MessageFor(p, "Your mana flask is empty — kills refill it.");
+                return;
+            }
+            float ceiling = MathF.Max(0f, p.Stats.MaxMana - p.ManaReserved);
+            if (p.Mana >= ceiling - 0.5f) return;
+            p.ManaPotionCharges--;
+            p.PotionManaUntil = Time + Stats.PotionBalance.ManaDuration;
+            p.PotionManaPerSec = ceiling * Stats.PotionBalance.ManaPct /
+                                 Stats.PotionBalance.ManaDuration;
+        }
+        _events.PlayerHealthChanged(p);
+    }
+
     /// <summary>Open a hub chest: the lid pops for everyone and the starter gear inside
     /// drops on the ground. Once per chest per RUN SESSION — no farming the sanctum.</summary>
     public void OpenChest(int playerId, int chestId)
@@ -597,6 +637,17 @@ public partial class ServerWorld
                 if (MathF.Abs(p.Health - p.LastSyncedHealth) >= 1f || p.Health >= p.Stats.MaxHealth)
                     resourceChanged = true;
             }
+            // Potion flasks: restore-over-time ticks (never instant). Health caps at
+            // max; mana respects the reservation ceiling like everything else.
+            if (p.Alive && Time < p.PotionHealUntil && p.Health < p.Stats.MaxHealth)
+            {
+                p.Health = MathF.Min(p.Stats.MaxHealth, p.Health + p.PotionHealPerSec * dt);
+                if (MathF.Abs(p.Health - p.LastSyncedHealth) >= 1f || p.Health >= p.Stats.MaxHealth)
+                    resourceChanged = true;
+            }
+            if (p.Alive && Time < p.PotionManaUntil)
+                p.Mana += p.PotionManaPerSec * dt; // clamped by the ceiling just below
+
             // Mana regenerates only into the UNRESERVED pool (summons hold the rest).
             float manaCeiling = MathF.Max(0f, p.Stats.MaxMana - p.ManaReserved);
             if (p.Mana > manaCeiling)
@@ -820,10 +871,52 @@ public partial class ServerWorld
             {
                 // A stun or freeze mid-wind-up cancels the swing outright (the cooldown
                 // was already committed at wind-up start, so interrupts genuinely deny
-                // the hit instead of merely delaying it). Same for a telegraphed slam.
+                // the hit instead of merely delaying it). Same for a telegraphed slam
+                // or dash — interrupted charges just stop.
                 e.Winding = false;
                 e.SlamResolveAt = 0;
+                e.DashPrepareUntil = 0;
+                e.DashUntil = 0;
                 continue; // no movement, no attacks
+            }
+
+            // Committed to a telegraphed dash: stand dead still while the ground line
+            // burns, then barrel down it — heavy contact damage to anyone still on it.
+            if (e.DashPrepareUntil > 0)
+            {
+                if (Time < e.DashPrepareUntil) continue;
+                e.DashPrepareUntil = 0;
+                e.DashUntil = Time + e.Def.DashRange / MathF.Max(1f, e.Def.DashSpeed);
+                e.DashHitIds.Clear();
+                _events.EnemyDashed(e, phase: 2);
+            }
+            if (e.DashUntil > Time)
+            {
+                float step = e.Def.DashSpeed * dt;
+                var before = e.Position;
+                float dh = e.Height;
+                e.Position = Map.MoveWithCollision(e.Position, e.DashDir * step, e.Def.Radius, ref dh);
+                e.Height = dh;
+                if (Vector2.Distance(before, e.Position) < step * 0.35f)
+                    e.DashUntil = 0; // slammed into terrain — the charge ends there
+                foreach (var victim in Players.Values)
+                {
+                    if (!victim.Alive || Time < victim.InvulnerableUntil) continue;
+                    if (e.DashHitIds.Contains(victim.Id)) continue;
+                    if (MathF.Abs(victim.Height - e.Height) > 0.75f) continue;
+                    if (Vector2.Distance(victim.Position, e.Position) >
+                        e.Def.Radius + ServerPlayer.Radius + 0.3f) continue;
+                    e.DashHitIds.Add(victim.Id);
+                    // A body-charge, not a swung Attack — never deflectable.
+                    DamagePlayerTyped(victim, new List<(DamageKind, float)>
+                        { (DamageKind.Blunt, e.Def.DashDamage * e.DamageScale) }, attackHit: false);
+                    var aside = (victim.Position - e.Position).NormalizedOrZero();
+                    if (aside == Vector2.Zero) aside = new Vector2(-e.DashDir.Y, e.DashDir.X);
+                    float kh2 = victim.Height;
+                    victim.Position = Map.MoveWithCollision(victim.Position, aside * 1.2f, ServerPlayer.Radius, ref kh2);
+                    victim.Height = kh2;
+                }
+                continue; // dashing: nothing else this tick
             }
 
             // Committed to a telegraphed ground slam: the boss holds still while the
@@ -884,6 +977,23 @@ public partial class ServerWorld
             float meatDist = meat != null ? Vector2.Distance(e.Position, meat.Position) : float.MaxValue;
             // Pursue whichever threat is closer once aggroed.
             bool pursueMeat = meat != null && (target == null || meatDist < dist);
+
+            // Telegraphed dash (scaled bosses only — DashMinLevel gates it to the
+            // campaign's loop-2+ Gravelord): an engaged MID-RANGE target on a clear
+            // line commits the charge. Direction LOCKS at prepare start, so stepping
+            // off the burning line dodges the whole thing.
+            if (e.Def.DashDamage > 0 && e.Level >= e.Def.DashMinLevel &&
+                e.State != EnemyState.Idle && Time >= e.DashReadyAt &&
+                target != null && sameSurface &&
+                dist >= 2.2f && dist <= e.Def.DashRange &&
+                !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f))
+            {
+                e.DashReadyAt = Time + e.Def.DashCooldown;
+                e.DashPrepareUntil = Time + e.Def.DashWindup;
+                e.DashDir = (target.Position - e.Position).NormalizedOrZero();
+                _events.EnemyDashed(e, phase: 1);
+                continue; // rooted in the prepare stance this tick
+            }
 
             // Boss reinforcements: an ENGAGED summoner conjures its adds on a long
             // clock. The first delay arms when it first engages, so the fight never
@@ -2444,6 +2554,14 @@ public partial class ServerWorld
                     if (skill != null)
                         changed |= GrantSkillXp(killer, skill, xp);
                 }
+                // Kills refill everyone's flasks (PotionBalance.ChargesPerKill each).
+                int hpBefore = member.HealthPotionCharges, mpBefore = member.ManaPotionCharges;
+                member.HealthPotionCharges = Math.Min(Stats.PotionBalance.MaxCharges,
+                    member.HealthPotionCharges + Stats.PotionBalance.ChargesPerKill);
+                member.ManaPotionCharges = Math.Min(Stats.PotionBalance.MaxCharges,
+                    member.ManaPotionCharges + Stats.PotionBalance.ChargesPerKill);
+                if (member.HealthPotionCharges != hpBefore || member.ManaPotionCharges != mpBefore)
+                    _events.PlayerHealthChanged(member);
                 if (changed) _events.CharacterChanged(member);
             }
         }
