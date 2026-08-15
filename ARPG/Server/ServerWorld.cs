@@ -2421,14 +2421,25 @@ public partial class ServerWorld
     {
         if (Players.TryGetValue(e.LastHitByPlayer, out var killer))
         {
-            // Under-level kills pay less, scaling with the gap (XpBalance centralizes it).
-            float xp = e.Def.XpReward * e.XpScale *
-                       Stats.XpBalance.LevelFactor(killer.Character.Level, e.Level);
-            bool changed = GrantCharacterXp(killer, xp);
-            var skill = e.LastHitSkillId != null ? killer.Character.GetSkill(e.LastHitSkillId) : null;
-            if (skill != null)
-                changed |= GrantSkillXp(killer, skill, xp);
-            if (changed) _events.CharacterChanged(killer);
+            // Party XP: the killer earns full value, every OTHER player earns
+            // XpBalance.PartyShare of it — so one high-damage build sniping every kill
+            // no longer starves the rest of the group. Each member's own under-level
+            // penalty applies to their own share. Skill XP stays killer-only (it
+            // follows the skill that landed the blow).
+            foreach (var member in Players.Values)
+            {
+                float share = member.Id == killer.Id ? 1f : Stats.XpBalance.PartyShare;
+                float xp = e.Def.XpReward * e.XpScale * share *
+                           Stats.XpBalance.LevelFactor(member.Character.Level, e.Level);
+                bool changed = GrantCharacterXp(member, xp);
+                if (member.Id == killer.Id)
+                {
+                    var skill = e.LastHitSkillId != null ? killer.Character.GetSkill(e.LastHitSkillId) : null;
+                    if (skill != null)
+                        changed |= GrantSkillXp(killer, skill, xp);
+                }
+                if (changed) _events.CharacterChanged(member);
+            }
         }
 
         // Elites roll the loot table twice; the boss's own table already guarantees

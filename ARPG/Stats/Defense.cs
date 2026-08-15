@@ -95,6 +95,9 @@ public static class XpBalance
     public const float PenaltyPerLevelBelow = 0.25f;
     /// <summary>Grossly under-leveled kills still trickle this fraction.</summary>
     public const float MinimumFactor = 0.1f;
+    /// <summary>Party members who did NOT land the kill still earn this fraction of its
+    /// XP — high-damage / fast-attacking builds no longer hoover the whole map's worth.</summary>
+    public const float PartyShare = 0.7f;
 
     public static float LevelFactor(int playerLevel, int enemyLevel)
     {

@@ -181,22 +181,29 @@ public class WorldRenderer
                 uint n = TileHash(map.Seed, x, y);
                 float roll = (n & 0xFFFF) / 65536f;
                 int wall = map.WallHeight(x, y);
-                if (wall == 1 && map.GroundLevel(x, y) == 0)
+                if (wall == 1)
                 {
+                    // Features stand on ANY elevation now — terrace tops grow their
+                    // small trees just like the ground floor.
+                    uint featVariants = style == "forest" ? 3u : 2u;
                     if (roll < Theme.WallFeatureChance)
-                        _features.Add((x, y, wall, $"{style}:feature:{(n >> 16) % 2}"));
+                        _features.Add((x, y, map.GroundLevel(x, y) + wall,
+                            $"{style}:feature:{(n >> 16) % featVariants}"));
                     continue;
                 }
                 if (wall > 0 || map.Ramp(x, y) != RampDirection.None || map.BridgeLevel(x, y) > 0 ||
                     map.IsWater(x, y))
                     continue;
                 if (_pathTiles.Contains(y * map.Width + x)) continue; // trails stay clear
+                if (map.IsTallGrass(x, y)) continue; // tall grass IS the decoration there
                 if (roll < Theme.ClutterDensity)
                 {
                     float ox = ((n >> 16 & 0xFF) / 255f - 0.5f) * 0.6f;
                     float oy = ((n >> 24 & 0xFF) / 255f - 0.5f) * 0.6f;
                     var pos = new NumVec2(x + 0.5f + ox, y + 0.5f + oy);
-                    uint variants = style == "forest" ? 6u : 3u; // forest: grass-heavy mix + stones
+                    // Forest mix: grass-heavy plus stones, a mossy boulder, a lichen
+                    // slab and ferns — rocks give the woods some bones.
+                    uint variants = style == "forest" ? 9u : 3u;
                     _clutter.Add((pos, map.GroundLevel(x, y), $"{style}:clutter:{(n >> 8) % variants}"));
                 }
             }
@@ -393,7 +400,7 @@ public class WorldRenderer
                     // anchored at the 2x2 footprint's center instead of blocks.
                     if (tileFeature == TileFeature.BigTreeRoot)
                     {
-                        var tex = SpriteGen.GetPropSprite($"forest:bigtree:{(TileHash(map.Seed, x, y) >> 5) % 2}");
+                        var tex = SpriteGen.GetPropSprite($"forest:bigtree:{(TileHash(map.Seed, x, y) >> 5) % 4}");
                         if (tex != null)
                         {
                             var center = camera.WorldToScreen(new NumVec2(x + 1f, y + 1f));
@@ -472,10 +479,11 @@ public class WorldRenderer
                     Color top;
                     if (organic)
                     {
+                        // Elevated tops share the FLOOR palette (same grass/dirt mottle
+                        // as level 0, brightened per level) — terraces used to render a
+                        // flat single tone with none of the dirt patching.
                         float en = GroundNoise(map.Seed, x, y);
-                        var baseTop = LerpColor(
-                            new Color(Math.Max(0, _elevTop.R - 8), Math.Max(0, _elevTop.G - 8), Math.Max(0, _elevTop.B - 8)),
-                            new Color(_elevTop.R + 10, _elevTop.G + 12, _elevTop.B + 8), en);
+                        var baseTop = LerpColor(_floorD, _floorC, en);
                         top = new Color(
                             Math.Min(255, baseTop.R + lift), Math.Min(255, baseTop.G + lift), Math.Min(255, baseTop.B + lift));
                     }
@@ -606,6 +614,63 @@ public class WorldRenderer
             float ffade = OccluderFade(fdepth, dest);
             _sorted.Add((fdepth, batch => batch.Draw(tex, dest, Color.White * ffade)));
         }
+
+        // --- tall grass: a tuft bed UNDER entities plus a blade fringe OVER anything ---
+        // --- standing in the tile, so players wade through half-hidden (pokemon-style) ---
+        long grassClock = Environment.TickCount64;
+        for (int gy2 = 1; gy2 < map.Height - 1; gy2++)
+            for (int gx2 = 1; gx2 < map.Width - 1; gx2++)
+            {
+                if (!map.IsTallGrass(gx2, gy2)) continue;
+                int gGround = map.GroundLevel(gx2, gy2);
+                var gScreen = camera.WorldToScreen(new NumVec2(gx2 + 0.5f, gy2 + 0.5f), gGround);
+                if (gScreen.X < -70 || gScreen.X > camera.ScreenWidth + 70 ||
+                    gScreen.Y < -70 || gScreen.Y > camera.ScreenHeight + 70) continue;
+                uint gh = TileHash(map.Seed ^ 0x67726173, gx2, gy2);
+                // Entities on the tile sit at depth ~ x+y+1+ground+0.1; the bed slides
+                // under them, the fringe over them — but under the NEXT tile row.
+                float bedDepth = gx2 + gy2 + 1 + gGround * 1.0f + 0.05f;
+                float fringeDepth = gx2 + gy2 + 1 + gGround * 1.0f + 0.3f;
+                var deep = new Color(52, 96, 46);
+                var mid = new Color(70, 122, 56);
+                var lit = new Color(104, 158, 76);
+                _sorted.Add((bedDepth, batch =>
+                {
+                    // Bed: a soft dark patch plus short back-row blades across the tile.
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)gScreen.X - 26, (int)gScreen.Y - 12, 52, 22),
+                        new Color(34, 62, 34) * 0.55f);
+                    for (int b = 0; b < 9; b++)
+                    {
+                        int shift = (b * 7) % 26;
+                        int bx = (int)(6 + (gh >> shift) % 52);
+                        int by = (int)(2 + (gh >> (shift + 3)) % 14);
+                        int tall = 6 + (int)((gh >> (shift + 6)) % 5);
+                        var c = (b % 3) switch { 0 => deep, 1 => mid, _ => lit };
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)gScreen.X - 32 + bx, (int)gScreen.Y - 16 + by - tall, 2, tall), c);
+                    }
+                }));
+                _sorted.Add((fringeDepth, batch =>
+                {
+                    // Fringe: tall front blades with a lazy sway, covering the lower
+                    // half of whoever stands in the tile.
+                    for (int b = 0; b < 8; b++)
+                    {
+                        int shift = (b * 9) % 24;
+                        int bx = (int)(8 + (gh >> shift) % 48);
+                        int by = (int)(10 + (gh >> (shift + 4)) % 10);
+                        int tall = 12 + (int)((gh >> (shift + 7)) % 7);
+                        int sway = (int)MathF.Round(MathF.Sin(grassClock * 0.0016f + bx * 0.7f + gy2));
+                        var c = (b % 3) switch { 0 => mid, 1 => lit, _ => deep };
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)gScreen.X - 32 + bx + sway, (int)gScreen.Y - 16 + by - tall, 2, tall), c);
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)gScreen.X - 32 + bx + sway, (int)gScreen.Y - 16 + by - tall - 1, 1, 2),
+                            new Color(140, 190, 96)); // lit tip
+                    }
+                }));
+            }
 
         foreach (var drop in world.Drops.Values)
         {

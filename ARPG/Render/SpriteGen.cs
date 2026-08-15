@@ -848,7 +848,7 @@ public static class SpriteGen
                     Set(8, 3, stone);
                     Set(5, 6, dark);
                 }
-                else // taller grass clump
+                else if (variant == 4) // taller grass clump
                 {
                     Init(12, 11);
                     var grass = new Color(90, 144, 70); var lite = Shade(grass, 1.25f); var dark = Shade(grass, 0.78f);
@@ -857,8 +857,92 @@ public static class SpriteGen
                     Set(3, 4, dark); Set(5, 2, lite); Set(7, 2, lite);
                     Set(1, 7, grass); Set(10, 5, dark);
                 }
+                else if (variant == 6) // mossy boulder
+                {
+                    Init(16, 12);
+                    var rock = new Color(122, 120, 116); var dark = Shade(rock, 0.68f); var lite = Shade(rock, 1.22f);
+                    var moss = new Color(84, 122, 62);
+                    Rect(3, 4, 10, 6, rock);
+                    Rect(4, 2, 8, 3, rock);
+                    Rect(3, 9, 10, 2, dark);
+                    Set(2, 6, rock); Set(13, 5, rock);           // ragged silhouette
+                    Set(5, 3, lite); Set(7, 2, lite);            // top light
+                    Rect(4, 2, 5, 2, moss);                      // moss cap
+                    Set(9, 3, moss); Set(3, 4, Shade(moss, 0.8f));
+                    Set(8, 6, dark); Set(6, 8, dark);            // cracks
+                }
+                else if (variant == 7) // lichen-spotted slab pair
+                {
+                    Init(15, 9);
+                    var rock = new Color(134, 128, 118); var dark = Shade(rock, 0.7f); var lite = Shade(rock, 1.2f);
+                    var lichen = new Color(150, 158, 96);
+                    Rect(2, 3, 7, 5, rock);                      // leaning slab
+                    Rect(3, 2, 5, 2, rock);
+                    Rect(2, 7, 7, 1, dark);
+                    Set(4, 3, lichen); Set(6, 4, lichen);        // lichen spots
+                    Set(3, 2, lite);
+                    Rect(10, 5, 4, 3, dark);                     // smaller companion
+                    Set(11, 4, rock); Set(12, 4, lite);
+                }
+                else // fern
+                {
+                    Init(13, 10);
+                    var frond = new Color(58, 118, 62); var lite = Shade(frond, 1.3f); var dark = Shade(frond, 0.72f);
+                    VLine(6, 3, 6, dark);                        // stem
+                    // Arching fronds: pixel steps out from the stem.
+                    Set(5, 4, frond); Set(4, 3, frond); Set(3, 3, lite); Set(2, 4, frond);
+                    Set(7, 4, frond); Set(8, 3, frond); Set(9, 3, lite); Set(10, 4, frond);
+                    Set(5, 6, frond); Set(4, 6, lite); Set(3, 7, frond);
+                    Set(7, 6, frond); Set(8, 6, lite); Set(9, 7, frond);
+                    Set(6, 2, lite); Set(6, 1, frond);
+                }
                 break;
             case "forest:bigtree": // large 2x2-tile canopy trees (generated landmarks)
+                if (variant == 2) // dark fir: stacked triangular tiers
+                {
+                    Init(66, 88);
+                    var trunk = new Color(88, 62, 40); var trunkD = Shade(trunk, 0.68f);
+                    var leaf = new Color(38, 78, 46); var leafD = Shade(leaf, 0.7f); var leafL = Shade(leaf, 1.32f);
+                    Rect(30, 66, 6, 19, trunk);
+                    VLine(35, 66, 19, trunkD);
+                    Rect(25, 81, 5, 4, trunkD); Rect(37, 81, 5, 4, trunkD);
+                    // Tiers, widest at the base.
+                    Rect(12, 52, 42, 16, leaf);
+                    Rect(17, 38, 32, 16, leaf);
+                    Rect(22, 24, 22, 16, leaf);
+                    Rect(27, 12, 12, 14, leaf);
+                    Rect(30, 4, 6, 10, leaf);
+                    // Tier undershadows + snow-less lit edges.
+                    Rect(12, 64, 42, 4, leafD);
+                    Rect(17, 50, 32, 4, leafD);
+                    Rect(22, 36, 22, 4, leafD);
+                    Rect(27, 23, 12, 3, leafD);
+                    Rect(14, 52, 6, 2, leafL); Rect(19, 38, 6, 2, leafL);
+                    Rect(24, 24, 5, 2, leafL); Rect(29, 12, 4, 2, leafL);
+                    Set(32, 3, leafL); Set(33, 3, leafL);
+                }
+                else if (variant == 3) // pale birch: slim white trunk, airy light canopy
+                {
+                    Init(66, 88);
+                    var bark = new Color(214, 210, 198); var barkD = new Color(60, 58, 52);
+                    var leaf = new Color(104, 138, 58); var leafD = Shade(leaf, 0.72f); var leafL = Shade(leaf, 1.28f);
+                    Rect(31, 44, 5, 41, bark);
+                    Set(32, 50, barkD); Set(33, 56, barkD); Set(31, 64, barkD); // bark scars
+                    Set(34, 70, barkD); Set(32, 76, barkD);
+                    Rect(27, 80, 4, 5, Shade(bark, 0.82f)); Rect(36, 80, 4, 5, Shade(bark, 0.82f));
+                    Rect(24, 34, 5, 3, bark); Rect(38, 28, 5, 3, bark);        // branches
+                    // Airy canopy: smaller separated clumps with sky gaps.
+                    Rect(14, 18, 22, 14, leaf);
+                    Rect(32, 10, 22, 16, leaf);
+                    Rect(22, 4, 20, 10, leaf);
+                    Rect(8, 28, 14, 12, leaf);
+                    Rect(42, 26, 16, 12, leaf);
+                    Rect(26, 28, 14, 12, leaf);
+                    Rect(8, 37, 14, 3, leafD); Rect(42, 35, 16, 3, leafD); Rect(26, 37, 14, 3, leafD);
+                    Rect(24, 5, 14, 3, leafL); Rect(34, 12, 10, 3, leafL);
+                    Set(18, 22, leafL); Set(46, 20, leafL); Set(30, 32, leafD); Set(50, 30, leafD);
+                }
+                else
                 {
                     Init(66, 88);
                     var trunk = new Color(98, 72, 46); var trunkD = Shade(trunk, 0.68f); var trunkL = Shade(trunk, 1.2f);
@@ -892,6 +976,21 @@ public static class SpriteGen
                 }
                 break;
             case "forest:feature": // trees
+                if (variant == 2) // slender young fir
+                {
+                    Init(20, 34);
+                    var trunk = new Color(96, 68, 44);
+                    var leaf = new Color(42, 84, 50); var leafD = Shade(leaf, 0.72f); var leafL = Shade(leaf, 1.3f);
+                    Rect(9, 26, 2, 6, trunk);
+                    Rect(4, 18, 12, 8, leaf);
+                    Rect(6, 10, 8, 9, leaf);
+                    Rect(8, 4, 4, 7, leaf);
+                    Set(9, 2, leaf); Set(10, 2, leaf);
+                    Rect(4, 24, 12, 2, leafD);
+                    Rect(6, 17, 8, 2, leafD);
+                    Set(6, 11, leafL); Set(8, 5, leafL); Set(5, 19, leafL);
+                }
+                else
                 {
                     Init(24, 34);
                     var trunk = new Color(104, 78, 50); var trunkD = Shade(trunk, 0.7f);

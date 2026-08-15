@@ -2895,6 +2895,87 @@ public static class HeadlessNetTest
               gateCd <= server.World.Time,
               "and commits no cooldown");
 
+        Console.WriteLine("\n-- Party XP share --");
+        // Killer gets 100%, everyone else 70% — each through their OWN under-level
+        // penalty. Clear the field (and any lingering summons — their kills would
+        // credit stray XP mid-measurement) before the controlled kill.
+        var srvShareA = server.World.Players[clientA.World.MyPlayerId];
+        var srvShareB = server.World.Players[clientB.World.MyPlayerId];
+        Server.ServerEnemy shareGrunt = null;
+        float xpABefore = 0, xpBBefore = 0;
+        int lvlABefore = 0, lvlBBefore = 0;
+        for (int attempt = 0; attempt < 5 && (shareGrunt == null || !shareGrunt.Dead); attempt++)
+        {
+            for (int wait = 0; wait < 20 && !clientA.World.Me.Alive; wait++) Pump(0.5f);
+            clientA.SendDebugCommand("kill_nearby");
+            clientA.SendDebugCommand("heal");
+            clientB.SendDebugCommand("kill_nearby");
+            foreach (var s in server.World.Summons.Values.ToList()) s.Health = 0;
+            clientA.World.Me.Position = clientA.World.Map.PlayerSpawn;
+            clientB.World.Me.Position = SafeNear(clientA.World.Map.PlayerSpawn + new Vector2(10, 10));
+            Pump(0.4f);
+            shareGrunt = server.World.SpawnEnemy("grunt", srvShareA.Position + new Vector2(1.1f, 0));
+            shareGrunt.Health = 1f;
+            shareGrunt.StunnedUntil = server.World.Time + 30f;
+            Pump(0.2f);
+            xpABefore = srvShareA.Character.Experience;
+            xpBBefore = srvShareB.Character.Experience;
+            lvlABefore = srvShareA.Character.Level;
+            lvlBBefore = srvShareB.Character.Level;
+            srvShareA.Mana = srvShareA.Stats.MaxMana;
+            srvShareA.SkillReadyAt.Clear();
+            srvShareA.GlobalSkillReadyAt = 0;
+            // A ended the suite holding a staff — Fire Bolt is the weapon-agnostic kill.
+            clientA.RequestUseSkill("fire_bolt", shareGrunt.Position);
+            Pump(0.5f);
+            if (!shareGrunt.Dead)
+            {
+                Console.WriteLine($"  [diag] share attempt {attempt}: aAlive={srvShareA.Alive} " +
+                    $"gruntHp={shareGrunt.Health:0.0} dist={Vector2.Distance(shareGrunt.Position, srvShareA.Position):0.00} " +
+                    $"msgA='{msgA}' weapon={srvShareA.Character.MainHand?.BaseItemId ?? "none"} " +
+                    $"hA={srvShareA.Height:0.0} hG={shareGrunt.Height:0.0} global={srvShareA.GlobalSkillReadyAt - server.World.Time:0.00}");
+                shareGrunt.Health = 0.01f; // don't let a stray survivor pollute the next attempt
+                Pump(0.2f);
+            }
+        }
+        Check(shareGrunt is { Dead: true }, "share-test grunt felled by A");
+        float shareBase = shareGrunt.Def.XpReward * shareGrunt.XpScale;
+        float expectA = shareBase * Stats.XpBalance.LevelFactor(lvlABefore, shareGrunt.Level);
+        float expectB = shareBase * Stats.XpBalance.PartyShare *
+                        Stats.XpBalance.LevelFactor(lvlBBefore, shareGrunt.Level);
+        Check(srvShareA.Character.Level == lvlABefore &&
+              MathF.Abs(srvShareA.Character.Experience - xpABefore - expectA) < 0.5f,
+              $"the killer earns full XP (+{srvShareA.Character.Experience - xpABefore:0.0} of {expectA:0.0})");
+        Check(srvShareB.Character.Level == lvlBBefore &&
+              MathF.Abs(srvShareB.Character.Experience - xpBBefore - expectB) < 0.5f,
+              $"party members earn 70% without landing the kill (+{srvShareB.Character.Experience - xpBBefore:0.0} of {expectB:0.0})");
+
+        Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
+        // The campaign's run maps grow tall-grass patches (on terraces too) and stay
+        // walkable through them; density-bumped big trees come in four variants.
+        {
+            var dressMap = new World.GameMap(424242, data.ZoneThemes.First(t => t.Id == "forest"),
+                World.MapKind.Forest);
+            int grassTiles = 0, grassElevated = 0, treeRoots = 0;
+            for (int ty = 0; ty < dressMap.Height; ty++)
+                for (int tx = 0; tx < dressMap.Width; tx++)
+                {
+                    if (dressMap.IsTallGrass(tx, ty))
+                    {
+                        grassTiles++;
+                        if (dressMap.GroundLevel(tx, ty) > 0) grassElevated++;
+                        if (dressMap.IsSolid(tx, ty) || dressMap.IsWater(tx, ty))
+                            grassTiles = -100000; // never on unwalkable tiles
+                    }
+                    if (dressMap.Feature(tx, ty) == World.TileFeature.BigTreeRoot) treeRoots++;
+                }
+            Check(grassTiles > 25, $"run maps grow tall-grass patches ({grassTiles} tiles)");
+            Check(treeRoots >= 20, $"denser woods: {treeRoots} big trees on one run map");
+            Check(dressMap.GroundPathExists(dressMap.PlayerSpawn,
+                      dressMap.ExitDoor + new Vector2(-1.2f, 0)),
+                  "tall grass never blocks the corridor (still walkable end to end)");
+        }
+
         Console.WriteLine("\n-- Campaign: hub sanctum --");
         var campServer = new GameServer(data, 777001, "forest", campaign: true);
         Check(campServer.Start(0), "campaign server started");
