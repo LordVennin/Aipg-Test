@@ -39,11 +39,11 @@ public class GameServer : IServerEvents
     /// <summary>Fixed simulation rate of the dedicated server thread.</summary>
     public const float TickRate = 60f;
 
-    public GameServer(GameData data, int mapSeed, string zoneThemeId = null)
+    public GameServer(GameData data, int mapSeed, string zoneThemeId = null, bool campaign = false)
     {
         Data = data;
         MapSeed = mapSeed;
-        World = new ServerWorld(data, mapSeed, this, zoneThemeId);
+        World = new ServerWorld(data, mapSeed, this, zoneThemeId, campaign);
         _net = new NetManager(_listener) { AutoRecycle = true };
 
         _listener.ConnectionRequestEvent += request =>
@@ -256,6 +256,12 @@ public class GameServer : IServerEvents
                 World.SummonRally(playerId, skillId, hasPoint, point);
                 break;
             }
+            case PacketType.DoorReadyRequest:
+                World.DoorReady(playerId);
+                break;
+            case PacketType.ChestOpenRequest:
+                World.OpenChest(playerId, r.GetInt());
+                break;
         }
     }
 
@@ -286,11 +292,12 @@ public class GameServer : IServerEvents
         _peerToPlayer[peer] = playerId;
         _playerToPeer[playerId] = peer;
 
-        // Accept: id, map seed, authoritative character state.
+        // Accept: id, CURRENT map (campaign transitions change it), authoritative character state.
         var accept = Packets.Make(PacketType.JoinAccept);
         accept.Put(playerId);
-        accept.Put(MapSeed);
+        accept.Put(World.Map.Seed);
         accept.Put(World.Map.Theme?.Id ?? "");
+        accept.Put((byte)World.Map.Kind);
         accept.PutVec2(player.Position);
         accept.Put(player.Height);
         accept.Put(player.Health);
@@ -298,6 +305,9 @@ public class GameServer : IServerEvents
         accept.Put(player.Mana);
         accept.Put(Json.SaveCompact(player.Character));
         peer.Send(accept, DeliveryMethod.ReliableOrdered);
+        peer.Send(ZoneStatePacket(), DeliveryMethod.ReliableOrdered);
+        foreach (var chest in World.Chests)
+            peer.Send(ChestPacket(chest), DeliveryMethod.ReliableOrdered);
 
         // Existing world snapshot for the new player.
         foreach (var other in World.Players.Values)
@@ -471,6 +481,62 @@ public class GameServer : IServerEvents
     // ------------------------------------------------------------------ IServerEvents
 
     public void EnemySpawned(ServerEnemy e) => Broadcast(EnemySpawnPacket(e), DeliveryMethod.ReliableOrdered);
+
+    public void MapChanged(ServerWorld world)
+    {
+        // Per-peer: everyone rebuilds the map, wipes replicated state and teleports to
+        // THEIR OWN new position; then the fresh snapshot (npcs, chests, summons)
+        // follows on the same ordered channel.
+        foreach (var (peer, pid) in _peerToPlayer)
+        {
+            if (!world.Players.TryGetValue(pid, out var p)) continue;
+            var w = Packets.Make(PacketType.MapChange);
+            w.Put(world.Map.Seed);
+            w.Put(world.Map.Theme?.Id ?? "");
+            w.Put((byte)world.Map.Kind);
+            w.Put(world.Loop);
+            w.Put(world.MapIndex);
+            w.Put(world.CampaignEnemyLevel);
+            w.Put(world.ExitLocked);
+            w.PutVec2(p.Position);
+            w.Put(p.Height);
+            peer.Send(w, DeliveryMethod.ReliableOrdered);
+        }
+        foreach (var npc in world.Npcs)
+            Broadcast(NpcInfoPacket(npc), DeliveryMethod.ReliableOrdered);
+        foreach (var chest in world.Chests)
+            Broadcast(ChestPacket(chest), DeliveryMethod.ReliableOrdered);
+        foreach (var summon in world.Summons.Values)
+            Broadcast(SummonSpawnPacket(summon), DeliveryMethod.ReliableOrdered);
+    }
+
+    private NetDataWriter ZoneStatePacket()
+    {
+        var w = Packets.Make(PacketType.ZoneState);
+        w.Put(World.Loop);
+        w.Put(World.MapIndex);
+        w.Put(World.CampaignEnemyLevel);
+        w.Put(World.ReadyCount);
+        w.Put(World.Players.Values.Count(p => p.Alive));
+        w.Put(World.ExitLocked);
+        return w;
+    }
+
+    public void ZoneStateChanged(ServerWorld world) =>
+        Broadcast(ZoneStatePacket(), DeliveryMethod.ReliableOrdered);
+
+    private static NetDataWriter ChestPacket(ServerChest chest)
+    {
+        var w = Packets.Make(PacketType.ChestInfo);
+        w.Put(chest.Id);
+        w.PutVec2(chest.Position);
+        w.Put(chest.Height);
+        w.Put(chest.Opened);
+        return w;
+    }
+
+    public void ChestChanged(ServerChest chest) =>
+        Broadcast(ChestPacket(chest), DeliveryMethod.ReliableOrdered);
 
     public void EnemySlammed(ServerEnemy e, float radius, byte phase)
     {

@@ -47,6 +47,26 @@ public class HudUI
         var character = _client.World.MyCharacter;
         if (me == null || character == null) return;
 
+        // --- zone banner (top center): where the group is in the campaign loop ---
+        if (_client.World.Map?.Kind != World.MapKind.Arena)
+        {
+            var zoneFont = FontManager.GetBold(16);
+            var subFont = FontManager.Get(12);
+            string zoneName = _client.World.Map?.Kind == World.MapKind.Hub
+                ? "The Sanctum"
+                : $"Mirewood Depths {_client.World.ZoneMapIndex} / 3";
+            string zoneSub = _client.World.Map?.Kind == World.MapKind.Hub
+                ? (_client.World.ZoneLoop > 1 ? $"expedition {_client.World.ZoneLoop} awaits" : "gear up, then take the door")
+                : $"enemy level {_client.World.ZoneEnemyLevel}" +
+                  (_client.World.ZoneReadyCount > 0
+                      ? $"  ·  {_client.World.ZoneReadyCount}/{Math.Max(1, _client.World.ZoneAlivePlayers)} at the door"
+                      : "");
+            var znSize = zoneFont.MeasureString(zoneName);
+            sb.DrawString(zoneFont, zoneName, new Vector2(screen.X / 2f - znSize.X / 2, 26), new Color(230, 215, 165));
+            var zsSize = subFont.MeasureString(zoneSub);
+            sb.DrawString(subFont, zoneSub, new Vector2(screen.X / 2f - zsSize.X / 2, 46), new Color(170, 162, 140));
+        }
+
         // --- health orb (bottom left) ---
         int orbSize = 96;
         var orbRect = new Rectangle(18, screen.Y - orbSize - 18, orbSize, orbSize);

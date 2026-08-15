@@ -22,6 +22,17 @@ public enum RampDirection : byte
     MinusY = 4,
 }
 
+/// <summary>What a map IS. Arena = the original demo/test slice (seeded pillars around
+/// the authored terrain showcase). Hub = the small sanctum room between runs (merchants,
+/// chests, the run door). Forest = a generated hallway-style run map: long, terraced,
+/// with an entry door behind the players and an exit door at the far end.</summary>
+public enum MapKind : byte
+{
+    Arena = 0,
+    Hub = 1,
+    Forest = 2,
+}
+
 /// <summary>
 /// The playable map plus collision, now with LAYERED TERRAIN. The simulation stays
 /// fundamentally 2D/isometric: every entity is (X, Y) plus a continuous surface HEIGHT in
@@ -60,15 +71,41 @@ public class GameMap
     public Vector2 PlayerSpawn { get; private set; }
     public List<Vector2> EnemySpawns { get; } = new();
 
+    /// <summary>What this map is (arena slice / hub sanctum / forest run hallway).</summary>
+    public MapKind Kind { get; }
+    /// <summary>Door players ARRIVE through (forest maps; zero on other kinds).</summary>
+    public Vector2 EntryDoor { get; private set; }
+    /// <summary>Door leading onward (hub: into the forest; forest: to the next map).</summary>
+    public Vector2 ExitDoor { get; private set; }
+    /// <summary>Openable starter-gear chests (hub only).</summary>
+    public List<Vector2> ChestSpots { get; } = new();
+    /// <summary>Generation-placed pack anchors along the run (forest only).</summary>
+    public List<Vector2> PackSpots { get; } = new();
+    /// <summary>Overlook plateau anchors for ranged packs (forest only).</summary>
+    public List<Vector2> OverlookSpots { get; } = new();
+    /// <summary>The cleared arena by the exit where the final map's boss waits.</summary>
+    public Vector2 BossSpot { get; private set; }
+    /// <summary>Friendly NPC stations (hub: gear merchant first, skill trainer second).</summary>
+    public List<Vector2> NpcSpots { get; } = new();
+
     /// <summary>The zone theme this map was GENERATED with. Themes are decided before
     /// generation and replicated to clients (JoinAccept), because they shape the map
     /// itself — the forest grows multi-tile trees, not just different colors.</summary>
     public ZoneTheme Theme { get; }
 
-    public GameMap(int seed, ZoneTheme theme = null, int width = 44, int height = 44)
+    public GameMap(int seed, ZoneTheme theme = null, MapKind kind = MapKind.Arena,
+        int width = 0, int height = 0)
     {
         Seed = seed;
         Theme = theme;
+        Kind = kind;
+        if (width <= 0 || height <= 0)
+            (width, height) = kind switch
+            {
+                MapKind.Hub => (22, 16),
+                MapKind.Forest => (96, 26),
+                _ => (44, 44),
+            };
         Width = width;
         Height = height;
         _ground = new byte[width * height];
@@ -78,7 +115,12 @@ public class GameMap
         _bridge = new byte[width * height];
         _feature = new byte[width * height];
         _water = new byte[width * height];
-        Generate(new Random(seed));
+        switch (kind)
+        {
+            case MapKind.Hub: GenerateHub(); break;
+            case MapKind.Forest: GenerateForestRun(new Random(seed)); break;
+            default: Generate(new Random(seed)); break;
+        }
     }
 
     private int Idx(int x, int y) => y * Width + x;
@@ -431,6 +473,292 @@ public class GameMap
             if (!IsWallAt(p) && !IsWater((int)p.X, (int)p.Y) && Vector2.Distance(p, PlayerSpawn) > 8f)
                 EnemySpawns.Add(p);
         }
+    }
+
+    // ------------------------------------------------------------------ hub generation
+
+    /// <summary>
+    /// The sanctum between runs: a small flat room. West half is the players' —
+    /// spawn point and a row of starter-gear chests along the wall; east wall holds
+    /// the run door; the two merchants station mid-room, out of the walking line.
+    /// </summary>
+    private void GenerateHub()
+    {
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+                if (x == 0 || y == 0 || x == Width - 1 || y == Height - 1)
+                    _wall[Idx(x, y)] = 2;
+
+        PlayerSpawn = new Vector2(5.5f, Height / 2f);
+        ExitDoor = new Vector2(Width - 2.5f, Height / 2f);
+        NpcSpots.Add(new Vector2(Width * 0.62f, 3.6f));           // gear merchant, north side
+        NpcSpots.Add(new Vector2(Width * 0.62f, Height - 3.6f));  // skill trainer, south side
+        ChestSpots.Add(new Vector2(2.6f, 3.5f));
+        ChestSpots.Add(new Vector2(2.6f, Height - 3.5f));
+        ChestSpots.Add(new Vector2(6.5f, 2.4f));
+        ChestSpots.Add(new Vector2(6.5f, Height - 2.4f));
+    }
+
+    // ------------------------------------------------------------------ forest run generation
+
+    /// <summary>
+    /// A run map: a LONG hallway with real terrain — a meandering corridor, terrace
+    /// bands crossing the hall (stairs only near the corridor line, cliffs elsewhere),
+    /// overlook plateaus hugging the side walls, pillar clusters, ponds and the theme's
+    /// big trees. Entry door behind the spawn (west), exit door at the far east end,
+    /// with a cleared arena in front of it for the final map's boss. Pack anchors are
+    /// laid along the corridor at generation time. A ground-surface BFS validates the
+    /// spawn-to-exit path; if decorations ever pinch it shut, the corridor line is
+    /// carved flat as a deterministic fallback.
+    /// </summary>
+    private void GenerateForestRun(Random rng)
+    {
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+                if (x == 0 || y == 0 || x == Width - 1 || y == Height - 1)
+                    _wall[Idx(x, y)] = 2;
+
+        // Meandering corridor line: a bounded random walk in y across the hall.
+        var corridor = new int[Width];
+        int cy = Height / 2;
+        for (int x = 0; x < Width; x++)
+        {
+            corridor[x] = cy;
+            if (x % 3 == 0)
+                cy = Math.Clamp(cy + rng.Next(-1, 2), 4, Height - 5);
+        }
+
+        // Terrace bands crossing the hall: raised strips with stair columns cut in at
+        // the corridor rows (±1) — everywhere else the band edge is a sheer cliff.
+        int bx = 12 + rng.Next(5);
+        while (bx < Width - 16)
+        {
+            int bw = 3 + rng.Next(3);
+            for (int y = 1; y < Height - 1; y++)
+                for (int x = bx; x < bx + bw; x++)
+                    _ground[Idx(x, y)] = 1;
+            foreach (int side in new[] { bx - 1, bx + bw })
+            {
+                var dir = side < bx ? RampDirection.PlusX : RampDirection.MinusX;
+                int mid = corridor[Math.Clamp(side, 0, Width - 1)];
+                for (int y = mid - 1; y <= mid + 1; y++)
+                {
+                    if (y < 1 || y >= Height - 1) continue;
+                    int i = Idx(side, y);
+                    _ground[i] = 0;
+                    _ramp[i] = (byte)dir;
+                    _rampStyle[i] = 1;
+                }
+            }
+            bx += bw + 11 + rng.Next(8);
+        }
+
+        // Overlook plateaus hugging the side walls, each with a stair inset facing the
+        // hall — spitter packs hold the tops (anchors recorded for the server).
+        int plateaus = 3 + rng.Next(3);
+        for (int i = 0; i < plateaus; i++)
+        {
+            int pw = 5 + rng.Next(4), ph = 4 + rng.Next(2);
+            int px = 14 + rng.Next(Math.Max(1, Width - 30 - pw));
+            bool north = rng.Next(2) == 0;
+            int py = north ? 1 : Height - 1 - ph;
+            // Skip plateaus that would land on a terrace ramp column or the boss arena.
+            bool blocked = false;
+            for (int x = px - 1; x <= px + pw && !blocked; x++)
+                for (int y = py; y < py + ph && !blocked; y++)
+                    blocked = !InBounds(x, y) || _ramp[Idx(x, y)] != 0 || x >= Width - 14;
+            if (blocked) continue;
+            byte level = (byte)(_ground[Idx(px, py + ph / 2)] + 1);
+            for (int y = py; y < py + ph; y++)
+                for (int x = px; x < px + pw; x++)
+                    _ground[Idx(x, y)] = level;
+            // Stair inset on the hall-facing edge, two tiles wide.
+            int stairY = north ? py + ph - 1 : py;
+            var stairDir = north ? RampDirection.MinusY : RampDirection.PlusY;
+            for (int x = px + pw / 2 - 1; x <= px + pw / 2; x++)
+            {
+                int si = Idx(x, stairY);
+                _ground[si] = (byte)(level - 1);
+                _ramp[si] = (byte)stairDir;
+                _rampStyle[si] = 1;
+            }
+            OverlookSpots.Add(new Vector2(px + pw / 2f, py + ph / 2f));
+        }
+
+        // Pillar clusters for cover — never pinching the corridor line itself.
+        int clusters = Width / 6;
+        for (int i = 0; i < clusters; i++)
+        {
+            int cx = rng.Next(5, Width - 6);
+            int cyy = rng.Next(2, Height - 3);
+            int w = rng.Next(1, 3), h = rng.Next(1, 3);
+            byte tall = (byte)rng.Next(1, 4);
+            for (int y = cyy; y < Math.Min(cyy + h, Height - 1); y++)
+                for (int x = cx; x < Math.Min(cx + w, Width - 1); x++)
+                {
+                    if (Math.Abs(y - corridor[x]) <= 1) continue;   // corridor stays open
+                    if (_ramp[Idx(x, y)] != 0) continue;            // stairs stay usable
+                    if (x >= Width - 13) continue;                  // boss arena stays open
+                    _wall[Idx(x, y)] = tall;
+                }
+        }
+
+        // Spawn + doors sit on the corridor line at either end.
+        PlayerSpawn = new Vector2(4.5f, corridor[4] + 0.5f);
+        EntryDoor = new Vector2(1.6f, corridor[2] + 0.5f);
+        ExitDoor = new Vector2(Width - 1.6f, corridor[Width - 3] + 0.5f);
+
+        // Boss arena: a cleared flat pocket in front of the exit door.
+        BossSpot = new Vector2(Width - 7.5f, corridor[Width - 8] + 0.5f);
+        for (int y = 1; y < Height - 1; y++)
+            for (int x = Width - 13; x < Width - 1; x++)
+                if (Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), BossSpot) < 5.2f)
+                {
+                    int i = Idx(x, y);
+                    _wall[i] = 0;
+                    _ground[i] = 0;
+                    _ramp[i] = 0;
+                    _rampStyle[i] = 0;
+                    _water[i] = 0;
+                    _feature[i] = 0;
+                }
+
+        // Clear the spawn pocket.
+        for (int y = -2; y <= 2; y++)
+            for (int x = -2; x <= 2; x++)
+            {
+                int tx = (int)PlayerSpawn.X + x, ty = (int)PlayerSpawn.Y + y;
+                if (!InBounds(tx, ty) || tx == 0 || ty == 0 || tx == Width - 1 || ty == Height - 1) continue;
+                int i = Idx(tx, ty);
+                _wall[i] = 0;
+                _ground[i] = 0;
+                _ramp[i] = 0;
+                _water[i] = 0;
+                _feature[i] = 0;
+            }
+
+        GenerateForestTrees(corridor);
+        GenerateRunPonds(corridor);
+
+        // Pack anchors along the corridor, spaced down the hall, none in the spawn
+        // pocket or the boss arena (the first sits past aggro range of the spawn).
+        int ax = 17 + rng.Next(5);
+        while (ax < Width - 15)
+        {
+            PackSpots.Add(new Vector2(ax + 0.5f, corridor[ax] + 0.5f));
+            ax += 9 + rng.Next(6);
+        }
+
+        // Connectivity guarantee: if generation pinched the hall shut anywhere, carve
+        // the corridor line flat. Deterministic — clients regenerate the exact map.
+        if (!GroundPathExists(PlayerSpawn, new Vector2(Width - 3.5f, corridor[Width - 4] + 0.5f)))
+            for (int x = 1; x < Width - 1; x++)
+                for (int y = corridor[x] - 1; y <= corridor[x] + 1; y++)
+                {
+                    if (y < 1 || y >= Height - 1) continue;
+                    int i = Idx(x, y);
+                    _wall[i] = 0;
+                    _ground[i] = 0;
+                    _ramp[i] = 0;
+                    _water[i] = 0;
+                    _feature[i] = 0;
+                }
+    }
+
+    /// <summary>Big trees for run maps: same 2x2 solid columns as the arena forest, but
+    /// planted anywhere the terrain is uniform (terrace tops included) away from the
+    /// corridor line, doors and boss arena.</summary>
+    private void GenerateForestTrees(int[] corridor)
+    {
+        if (Theme?.Id != "forest") return;
+        var rng = new Random(Seed ^ 0x466F7245);
+        int wanted = Width * Height / 110;
+        int planted = 0, attempts = 0;
+        while (planted < wanted && attempts++ < wanted * 30)
+        {
+            int x = rng.Next(2, Width - 3), y = rng.Next(2, Height - 3);
+            if (Math.Abs(y - corridor[x]) <= 2 || Math.Abs(y + 1 - corridor[x + 1]) <= 2) continue;
+            if (x >= Width - 14 || x <= 7) continue; // arena + spawn stay open
+            byte g0 = _ground[Idx(x, y)];
+            bool clear = true;
+            for (int dy = 0; dy < 2 && clear; dy++)
+                for (int dx = 0; dx < 2 && clear; dx++)
+                    clear = _wall[Idx(x + dx, y + dy)] == 0 && _ground[Idx(x + dx, y + dy)] == g0 &&
+                            _ramp[Idx(x + dx, y + dy)] == 0 && _water[Idx(x + dx, y + dy)] == 0 &&
+                            _feature[Idx(x + dx, y + dy)] == 0;
+            if (!clear) continue;
+            for (int dy = 0; dy < 2; dy++)
+                for (int dx = 0; dx < 2; dx++)
+                {
+                    _wall[Idx(x + dx, y + dy)] = 2;
+                    _feature[Idx(x + dx, y + dy)] = (byte)TileFeature.BigTreePart;
+                }
+            _feature[Idx(x, y)] = (byte)TileFeature.BigTreeRoot;
+            planted++;
+        }
+    }
+
+    /// <summary>Ponds for run maps: same organic noisy ellipses, kept off the corridor
+    /// line and the arena so water reads as scenery, not a roadblock.</summary>
+    private void GenerateRunPonds(int[] corridor)
+    {
+        var rng = new Random(Seed ^ 0x57415452);
+        int ponds = Width / 16;
+        for (int p = 0; p < ponds; p++)
+        {
+            int cx = rng.Next(8, Width - 16), cyp = rng.Next(4, Height - 4);
+            float rx = 1.4f + (float)rng.NextDouble() * 1.5f;
+            float ry = 1.4f + (float)rng.NextDouble() * 1.5f;
+            double wobblePhase = rng.NextDouble() * Math.PI * 2;
+            for (int y = cyp - 4; y <= cyp + 4; y++)
+                for (int x = cx - 4; x <= cx + 4; x++)
+                {
+                    if (x < 2 || y < 2 || x >= Width - 2 || y >= Height - 2) continue;
+                    if (Math.Abs(y - corridor[x]) <= 1) continue;
+                    if (Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), PlayerSpawn) < 6f) continue;
+                    int i = Idx(x, y);
+                    if (_wall[i] != 0 || _ground[i] != 0 || _ramp[i] != 0 || _bridge[i] != 0 || _feature[i] != 0)
+                        continue;
+                    float dx = (x - cx) / rx, dy = (y - cyp) / ry;
+                    double ang = Math.Atan2(dy, dx);
+                    float wobble = 1f + 0.25f * (float)Math.Sin(ang * 3 + wobblePhase);
+                    if (dx * dx + dy * dy <= wobble) _water[i] = 1;
+                }
+        }
+    }
+
+    /// <summary>Tile-level BFS over GROUND surfaces (ramp-aware, mirroring the server's
+    /// flow-field connectivity rule): is there a walkable path between two points?
+    /// Used to validate generated runs before players ever load them.</summary>
+    public bool GroundPathExists(Vector2 from, Vector2 to)
+    {
+        int sx = (int)MathF.Floor(from.X), sy = (int)MathF.Floor(from.Y);
+        int tx = (int)MathF.Floor(to.X), ty = (int)MathF.Floor(to.Y);
+        if (!InBounds(sx, sy) || !InBounds(tx, ty)) return false;
+        var seen = new bool[Width * Height];
+        var queue = new Queue<int>();
+        seen[Idx(sx, sy)] = true;
+        queue.Enqueue(Idx(sx, sy));
+        Span<(int dx, int dy)> dirs = stackalloc (int, int)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        while (queue.Count > 0)
+        {
+            int node = queue.Dequeue();
+            int x = node % Width, y = node / Width;
+            if (x == tx && y == ty) return true;
+            foreach (var (dx, dy) in dirs)
+            {
+                int nx = x + dx, ny = y + dy;
+                if (!InBounds(nx, ny) || seen[Idx(nx, ny)]) continue;
+                if (IsSolid(nx, ny) || IsWater(nx, ny)) continue;
+                // Surface heights at the shared edge (ramp-interpolated).
+                var pa = new Vector2(x + 0.5f + dx * 0.49f, y + 0.5f + dy * 0.49f);
+                var pb = new Vector2(nx + 0.5f - dx * 0.49f, ny + 0.5f - dy * 0.49f);
+                if (MathF.Abs(GroundHeightAt(pa) - GroundHeightAt(pb)) > StepTolerance) continue;
+                seen[Idx(nx, ny)] = true;
+                queue.Enqueue(Idx(nx, ny));
+            }
+        }
+        return false;
     }
 
     /// <summary>

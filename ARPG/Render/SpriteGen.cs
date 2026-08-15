@@ -59,15 +59,115 @@ public static class SpriteGen
         return tex;
     }
 
-    /// <summary>Friendly NPC sprites (the test merchant). Cached per type id.</summary>
+    /// <summary>Friendly NPC sprites. Cached per type id — the skill trainer is the
+    /// same hooded silhouette in scholar's violet with a tome instead of a satchel.</summary>
     public static Texture2D GetNpcSprite(string typeId)
     {
         if (_device == null || string.IsNullOrEmpty(typeId)) return null;
         string key = "npc:" + typeId;
         if (_cache.TryGetValue(key, out var cached)) return cached[0];
-        var tex = DrawMerchant();
+        var tex = typeId == "skill_trainer" ? DrawTrainer() : DrawMerchant();
         _cache[key] = new[] { tex };
         return tex;
+    }
+
+    /// <summary>The skill trainer: violet robes, silver trim, an open tome held in
+    /// front — the merchant's silhouette recolored so the two read apart at a glance.</summary>
+    private static Texture2D DrawTrainer()
+    {
+        const int w = 20, h = 28;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var robe = new Color(74, 58, 104);
+        var robeDark = new Color(54, 42, 78);
+        var trim = new Color(190, 186, 210);
+        var hood = new Color(62, 48, 90);
+        var skin = new Color(224, 188, 152);
+        var eyes = new Color(40, 32, 26);
+        var tome = new Color(160, 130, 70);
+        var page = new Color(230, 220, 190);
+
+        for (int y = 10; y <= 26; y++)
+        {
+            int half = 3 + (y - 10) * 3 / 16;
+            Rect(9 - half, y, 10 + half, y, robe);
+            Set(9 - half, y, robeDark);
+            Set(10 + half, y, robeDark);
+        }
+        Rect(3, 26, 16, 27, robeDark);
+        Rect(3, 25, 16, 25, trim);
+        Rect(6, 2, 13, 9, hood);
+        Set(6, 2, Color.Transparent); Set(13, 2, Color.Transparent);
+        Rect(7, 1, 12, 1, hood);
+        Rect(8, 5, 11, 8, skin);
+        Set(8, 6, eyes); Set(11, 6, eyes);
+        Rect(6, 9, 13, 10, robeDark);
+        Rect(9, 11, 10, 24, trim);
+        Rect(4, 12, 6, 16, robeDark);
+        Rect(13, 12, 15, 16, robeDark);
+        // Open tome held in both hands.
+        Rect(5, 15, 14, 19, tome);
+        Rect(6, 16, 9, 18, page);
+        Rect(10, 16, 13, 18, page);
+        Set(9, 17, robeDark); Set(10, 17, robeDark); // spine
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>Hub chest sprites: closed (latched lid) and opened (lid thrown back,
+    /// a gold glint inside). Cached as a 2-frame pair.</summary>
+    public static Texture2D GetChest(bool opened)
+    {
+        if (_device == null) return null;
+        string key = "chest";
+        if (!_cache.TryGetValue(key, out var frames))
+        {
+            frames = new[] { DrawChest(false), DrawChest(true) };
+            _cache[key] = frames;
+        }
+        return frames[opened ? 1 : 0];
+    }
+
+    private static Texture2D DrawChest(bool opened)
+    {
+        const int w = 22, h = 18;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var wood = new Color(122, 86, 52);
+        var woodDark = new Color(88, 62, 38);
+        var band = new Color(70, 68, 74);
+        var gold = new Color(240, 200, 90);
+
+        // Body box.
+        Rect(2, 8, 19, 16, wood);
+        Rect(2, 8, 19, 8, woodDark);
+        Rect(2, 16, 19, 16, woodDark);
+        Rect(2, 8, 2, 16, woodDark);
+        Rect(19, 8, 19, 16, woodDark);
+        Rect(9, 8, 12, 16, band);              // center strap
+        if (opened)
+        {
+            // Lid thrown back behind the box; glint of loot inside.
+            Rect(3, 1, 18, 4, woodDark);
+            Rect(3, 1, 18, 1, band);
+            Rect(4, 6, 17, 7, gold);
+            Set(7, 5, gold); Set(13, 5, gold);
+        }
+        else
+        {
+            // Domed lid + latch.
+            Rect(2, 4, 19, 7, wood);
+            Rect(3, 3, 18, 3, woodDark);
+            Rect(2, 7, 19, 7, woodDark);
+            Rect(9, 4, 12, 7, band);
+            Set(10, 7, gold); Set(11, 7, gold); // latch glint
+        }
+        return BakeStrip(px, w, h);
     }
 
     /// <summary>A hooded peddler: earthy robe, gold trim, a bulging satchel at the hip.</summary>

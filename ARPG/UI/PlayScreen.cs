@@ -30,6 +30,7 @@ public class PlayScreen : IScreen
     private readonly CharacterSheetUI _characterSheet;
     private readonly SkillTreeUI _skillTree;
     private readonly ShopUI _shop;
+    private readonly TrainerUI _trainer;
     private readonly DebugUI _debug;
     private readonly DragState _drag = new();
 
@@ -57,6 +58,7 @@ public class PlayScreen : IScreen
     private bool _devLearnSummons, _devRaiseSummons;
     /// <summary>ARPG_DEVUI=knight: spawn Barrow Knights next to the player (GUI automation).</summary>
     private bool _devSpawnKnights;
+    private bool _devWarpNext;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     private bool _lmbClaimedByUI;
@@ -111,6 +113,7 @@ public class PlayScreen : IScreen
     private float _fpsTimer;
     private int _fpsCounter;
     private float _autosaveTimer;
+    private float _lastNoManaMsgAt = -10f;
 
     /// <summary>A draggable gameplay panel wrapped for z-ordering (see ctor).</summary>
     private sealed class PanelZ
@@ -145,6 +148,7 @@ public class PlayScreen : IScreen
         _characterSheet = new CharacterSheetUI(game.Data, client);
         _skillTree = new SkillTreeUI(game.Data, client);
         _shop = new ShopUI(game.Data, client, _inventory);
+        _trainer = new TrainerUI(game.Data, client);
         // Entering the shop opens the bag in sell mode beside it; closing ends selling.
         _shop.ModeChanged += mode =>
         {
@@ -169,6 +173,7 @@ public class PlayScreen : IScreen
         _panelZ.Add(new PanelZ { Owner = _characterSheet, IsOpen = () => _characterSheet.Open, Contains = p => _characterSheet.Contains(p), Update = (i, b) => _characterSheet.Update(i, b), Draw = sb => _characterSheet.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _skillTree, IsOpen = () => _skillTree.Open, Contains = p => _skillTree.Contains(p), Update = (i, b) => _skillTree.Update(i, b), Draw = sb => _skillTree.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _shop, IsOpen = () => _shop.Open, Contains = p => _shop.Contains(p), Update = (i, b) => _shop.Update(i, b), Draw = sb => _shop.Draw(sb, _game.UiScreenSize) });
+        _panelZ.Add(new PanelZ { Owner = _trainer, IsOpen = () => _trainer.Open, Contains = p => _trainer.Contains(p), Update = (i, b) => _trainer.Update(i, b), Draw = sb => _trainer.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _inventory, IsOpen = () => _inventory.Open, Contains = p => _inventory.Contains(p), Update = (i, b) => _inventory.Update(i, b), Draw = sb => _inventory.Draw(sb, _game.Input) });
 
         // Dev convenience (like --sp): ARPG_DEVUI=debug[,skills][,inventory] opens
@@ -187,10 +192,19 @@ public class PlayScreen : IScreen
             if (devUi.Contains("sheet")) _characterSheet.Open = true;
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
             if (devUi.Contains("knight")) _devSpawnKnights = true;
+            if (devUi.Contains("warp")) _devWarpNext = true;
         }
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
         _client.ServerMessageReceived += msg => _hud.AddMessage(msg);
+        _client.MapChanged += () =>
+        {
+            // New map: snap the camera to the arrival spot and close world-anchored UI.
+            if (_client.World.Me is { } me2) _camera.Center = me2.Position;
+            _shop.Close();
+            _trainer.Open = false;
+            _pickupTargetId = Guid.Empty;
+        };
         BuildPauseMenu();
     }
 
@@ -262,6 +276,11 @@ public class PlayScreen : IScreen
             _devSpawnKnights = false;
             _client.SendDebugCommand("spawn_enemy", "bone_knight");
         }
+        if (_devWarpNext && _clientTime > 3f)
+        {
+            _devWarpNext = false;
+            _client.SendDebugCommand("warp_next");
+        }
 
         // The server (when hosting) runs on its OWN thread with a fixed timestep — the
         // render thread only drives the client, which talks to it over loopback UDP.
@@ -286,6 +305,7 @@ public class PlayScreen : IScreen
         _characterSheet.Layout(uiScreen);
         _skillTree.Layout(uiScreen);
         _shop.Layout(uiScreen);
+        _trainer.Layout(uiScreen);
 
         if (_client.Status != ClientStatus.InGame)
         {
@@ -337,9 +357,10 @@ public class PlayScreen : IScreen
         if (input.WasActionPressed(InputAction.Pause))
         {
             if (_inventory.Open || _skillMenu.Open || _debug.Open || _characterSheet.Open ||
-                _skillTree.Open || _shop.Open)
+                _skillTree.Open || _shop.Open || _trainer.Open)
             {
                 _inventory.Open = _skillMenu.Open = _debug.Open = _characterSheet.Open = _skillTree.Open = false;
+                _trainer.Open = false;
                 _shop.Close();
                 _inventory.CancelEnchantMode();
             }
@@ -489,6 +510,10 @@ public class PlayScreen : IScreen
             {
                 var npcNear = _client.World.Npcs.Values
                     .FirstOrDefault(n => NumVec2.Distance(me.Position, n.Position) <= 3f);
+                var chestNear = _client.World.Chests.Values
+                    .FirstOrDefault(c => !c.Opened && NumVec2.Distance(me.Position, c.Position) <= 2.2f);
+                bool doorNear = _client.World.Map.ExitDoor != NumVec2.Zero &&
+                                NumVec2.Distance(me.Position, _client.World.Map.ExitDoor) <= 2.4f;
                 if (_renderer.HoveredDropId != Guid.Empty &&
                     _client.World.Drops.TryGetValue(_renderer.HoveredDropId, out var targeted))
                 {
@@ -497,9 +522,26 @@ public class PlayScreen : IScreen
                     else
                         _pickupTargetId = targeted.DropId; // walk over, then grab it
                 }
-                else if (npcNear != null && !_shop.Open)
+                else if (doorNear)
                 {
-                    _client.RequestShopOpen(npcNear.Id); // shop opens when the stock arrives
+                    _client.RequestDoorReady(); // toggle READY; server moves everyone when all are
+                }
+                else if (chestNear != null)
+                {
+                    _client.RequestOpenChest(chestNear.Id);
+                }
+                else if (npcNear != null && !_shop.Open && !_trainer.Open)
+                {
+                    if (npcNear.TypeId == "skill_trainer")
+                    {
+                        // The trainer's list is local knowledge — no stock roundtrip.
+                        _trainer.Open = true;
+                        RaisePanel(_trainer);
+                    }
+                    else
+                    {
+                        _client.RequestShopOpen(npcNear.Id); // shop opens when the stock arrives
+                    }
                 }
                 else
                 {
@@ -641,6 +683,34 @@ public class PlayScreen : IScreen
         if (!MeetsEquipmentGates(def)) return;
 
         var stats = SkillMath.Compute(_game.Data, def, learned.Level, learned.ScrollDefinitions(_game.Data), _client.World.MyStats);
+
+        // Not enough mana: the cast never starts — no animation, no cooldown, no
+        // request. A little reminder instead of a swing that does nothing.
+        var me = _client.World.Me;
+        if (stats.ManaCost > 0 && me != null && me.Mana < stats.ManaCost - 0.01f)
+        {
+            if (_clientTime - _lastNoManaMsgAt > 1.2f)
+            {
+                _lastNoManaMsgAt = _clientTime;
+                _hud.AddMessage("Not enough mana.");
+            }
+            return;
+        }
+        // Instant-target skills (Chain Lightning) fizzle for free with nothing in
+        // reach — mirror the server: no cooldown, no request, no cost.
+        if (def.Archetype == SkillArchetype.ChainLightning && me != null)
+        {
+            var toAim = target - me.Position;
+            float aimDist = toAim.Length();
+            var probe = aimDist > stats.Range && aimDist > 0.001f
+                ? me.Position + toAim / aimDist * stats.Range
+                : target;
+            bool anyTarget = _client.World.Enemies.Values.Any(e =>
+                MathF.Abs(e.Height - me.Height) <= 0.75f &&
+                NumVec2.Distance(e.Position, probe) <= 2.2f);
+            if (!anyTarget) return;
+        }
+
         _cooldownEnds[skillId] = _clientTime + stats.Cooldown;
         _globalReadyEnd = _clientTime + def.UseTime;
         _client.RequestUseSkill(skillId, target, _renderer.HoveredEnemyId, charge);

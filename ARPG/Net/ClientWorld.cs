@@ -28,6 +28,9 @@ public class ClientPlayer
     public float ManaReserved;
     public bool Alive = true;
     public bool IsLocal;
+    /// <summary>Snap to the next replicated position instead of lerping (set on map
+    /// transitions, where interpolating across the whole map reads as a streak).</summary>
+    public bool SnapNext;
     /// <summary>Latest round-trip ping in ms (from PlayerPings packets), for the player list.</summary>
     public int PingMs;
     /// <summary>Counts down while this player is dodge-dashing (visual flair + i-frame hint).</summary>
@@ -155,6 +158,15 @@ public class ClientSummon
 }
 
 /// <summary>A friendly NPC (the test merchant): stationary, interacted with via the pickup key.</summary>
+/// <summary>A hub chest as the client sees it (position + popped-lid state).</summary>
+public class ClientChest
+{
+    public int Id;
+    public Vector2 Position;
+    public float Height;
+    public bool Opened;
+}
+
 public class ClientNpc
 {
     public int Id;
@@ -246,7 +258,32 @@ public class ClientWorld
     public readonly Dictionary<Guid, ClientDrop> Drops = new();
     public readonly Dictionary<int, ClientNpc> Npcs = new();
     public readonly Dictionary<int, ClientSummon> Summons = new();
+    public readonly Dictionary<int, ClientChest> Chests = new();
     public readonly List<ClientEffect> Effects = new();
+
+    // Campaign zone state (from ZoneState packets; drives the HUD banner + door hints).
+    public int ZoneLoop = 1;
+    public int ZoneMapIndex;
+    public int ZoneEnemyLevel = 1;
+    public int ZoneReadyCount;
+    public int ZoneAlivePlayers;
+    public bool ZoneExitLocked;
+
+    /// <summary>Wipe every replicated world object for a map transition (players stay —
+    /// they travel together; their positions snap on the next state packet).</summary>
+    public void ClearForMapChange()
+    {
+        Enemies.Clear();
+        Projectiles.Clear();
+        Drops.Clear();
+        Npcs.Clear();
+        Summons.Clear();
+        Chests.Clear();
+        Effects.Clear();
+        FloatingNumbers.Clear();
+        SpentGhosts.Clear();
+        foreach (var p in Players.Values) p.SnapNext = true;
+    }
     public readonly List<FloatingNumber> FloatingNumbers = new();
     /// <summary>Diagnostic counter: dodge events received (used by the headless net test).</summary>
     public int DodgeEventsSeen;

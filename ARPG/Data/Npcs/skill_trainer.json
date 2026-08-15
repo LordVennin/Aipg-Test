@@ -1,0 +1,12 @@
+{
+ "Id": "skill_trainer",
+ "Name": "Maren the Lorekeeper",
+ "Dialogue": [
+  "Every technique in these pages was paid for in blood. Yours costs gold — a bargain.",
+  "Seventy-five gold and a steady hand. The forest teaches the rest.",
+  "I taught the last group everything I know. Lovely people. Terrible reflexes.",
+  "Knowledge keeps better than bread and sells better than both.",
+  "The Gravelord? Oh, he was a student once. Poor listener.",
+  "Learn it here, or learn it out there the hard way. Here's cheaper."
+ ]
+}

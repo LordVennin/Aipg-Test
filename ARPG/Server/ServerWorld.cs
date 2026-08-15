@@ -46,6 +46,13 @@ public interface IServerEvents
     void WorldEffect(string kind, Vector2 position, float radius, float duration, float height);
     void SummonSpawned(ServerSummon s);
     void SummonDespawned(ServerSummon s);
+    /// <summary>The world swapped to a different map (campaign transition). The transport
+    /// broadcasts the new map + a fresh snapshot (npcs, chests, summons, zone state).</summary>
+    void MapChanged(ServerWorld world);
+    /// <summary>Campaign zone state changed (ready count, boss gate, loop/level).</summary>
+    void ZoneStateChanged(ServerWorld world);
+    /// <summary>A chest opened (replicate the popped lid).</summary>
+    void ChestChanged(ServerChest chest);
 }
 
 /// <summary>One merchant stock slot as offered to a specific player.</summary>
@@ -65,7 +72,7 @@ public class ShopEntry
 public partial class ServerWorld
 {
     public readonly GameData Data;
-    public readonly GameMap Map;
+    public GameMap Map { get; private set; }
     public readonly LootGenerator Loot;
     public readonly Dictionary<int, ServerPlayer> Players = new();
     public readonly Dictionary<int, ServerEnemy> Enemies = new();
@@ -80,19 +87,61 @@ public partial class ServerWorld
     private int _nextProjectileId = 1;
     public float Time { get; private set; }
 
-    private const int MaxEnemies = 16;
+    private const int MaxEnemies = 100;
     private const float RespawnDelay = 20f;
     private const float PlayerRespawnDelay = 3f;
 
-    public ServerWorld(GameData data, int mapSeed, IServerEvents events, string zoneThemeId = null)
+    // ------------------------------------------------------------------ campaign state
+    //
+    // The playable game loop: players start in the HUB (a small sanctum with the two
+    // merchants, starter chests and the run door), then clear THREE generated forest
+    // maps in a row — the third ends in the Gravelord, whose death unlocks the door
+    // home. Every return trip into the forest generates three NEW maps and raises the
+    // enemy level by 3. The old demo slice lives on as Arena mode for tests/debug.
+
+    /// <summary>True when this world runs the hub-and-runs game loop (Arena otherwise).</summary>
+    public bool Campaign { get; }
+    /// <summary>Which forest excursion this is (1-based). Drives enemy level scaling.</summary>
+    public int Loop { get; private set; } = 1;
+    /// <summary>0 = hub, 1..3 = the run's forest maps.</summary>
+    public int MapIndex { get; private set; }
+    public int CampaignEnemyLevel => 1 + 3 * (Loop - 1);
+    /// <summary>The final map's exit stays sealed while the boss lives.</summary>
+    public bool ExitLocked => Campaign && MapIndex == 3 && BossAlive;
+    public bool BossAlive => _bossEnemyId >= 0 &&
+                             Enemies.TryGetValue(_bossEnemyId, out var b) && !b.Dead;
+    public int ReadyCount => _readyAtDoor.Count;
+    /// <summary>Openable starter-gear chests (hub only; opened state persists per run).</summary>
+    public readonly List<ServerChest> Chests = new();
+
+    private readonly int _runSeed;
+    private readonly ZoneTheme _theme;
+    private readonly HashSet<int> _readyAtDoor = new();
+    private readonly HashSet<int> _openedChests = new();
+    private int _bossEnemyId = -1;
+    private int _forestEntries;
+
+    public ServerWorld(GameData data, int mapSeed, IServerEvents events, string zoneThemeId = null,
+        bool campaign = false)
     {
         Data = data;
         var theme = data.ZoneThemes.FirstOrDefault(t => t.Id == zoneThemeId)
                     ?? data.ZoneThemes.FirstOrDefault();
-        Map = new GameMap(mapSeed, theme);
+        _theme = theme;
+        _runSeed = mapSeed;
         _events = events;
         _rng = new Random();
         Loot = new LootGenerator(data, _rng);
+        Campaign = campaign;
+
+        if (campaign)
+        {
+            Map = new GameMap(CampaignMapSeed(0), theme, MapKind.Hub);
+            SetupHub();
+            return;
+        }
+
+        Map = new GameMap(mapSeed, theme);
 
         // A few roaming spawners on the open ground for ambient danger...
         var types = new[] { "grunt", "spitter", "bone_knight" };
@@ -183,6 +232,228 @@ public partial class ServerWorld
     /// <summary>Friendly NPCs (the test merchant). Not combat entities.</summary>
     public readonly List<ServerNpc> Npcs = new();
 
+    // ------------------------------------------------------------------ campaign flow
+
+    /// <summary>Deterministic per-map seed (NOT HashCode.Combine — that's randomized per
+    /// process, and the same run seed must reproduce the same maps run after run).</summary>
+    private int CampaignMapSeed(int mapIndex) =>
+        unchecked(_runSeed * 31 + Loop * 7919 + mapIndex * 104729);
+
+    /// <summary>The hub sanctum: two merchants, the starter chests (opened state
+    /// persists across returns) and the run door.</summary>
+    private void SetupHub()
+    {
+        Spawners.Clear();
+        Packs.Clear();
+        Npcs.Clear();
+        Chests.Clear();
+        _bossEnemyId = -1;
+        if (Data.Npcs.ContainsKey("merchant") && Map.NpcSpots.Count > 0)
+            Npcs.Add(new ServerNpc
+            {
+                Id = 1, TypeId = "merchant", Position = Map.NpcSpots[0],
+                Height = Map.GroundHeightAt(Map.NpcSpots[0]),
+            });
+        if (Data.Npcs.ContainsKey("skill_trainer") && Map.NpcSpots.Count > 1)
+            Npcs.Add(new ServerNpc
+            {
+                Id = 2, TypeId = "skill_trainer", Position = Map.NpcSpots[1],
+                Height = Map.GroundHeightAt(Map.NpcSpots[1]),
+            });
+        for (int i = 0; i < Map.ChestSpots.Count; i++)
+            Chests.Add(new ServerChest
+            {
+                Id = i + 1,
+                Position = Map.ChestSpots[i],
+                Height = Map.GroundHeightAt(Map.ChestSpots[i]),
+                Opened = _openedChests.Contains(i + 1),
+            });
+    }
+
+    /// <summary>A run map: generation-placed packs along the corridor and on the
+    /// overlooks, spawned ONCE (no respawning). The third map adds the Gravelord's
+    /// arena pack by the exit; its death unlocks the way home. From the second loop
+    /// on, Graveguard skeletons (Barrow Knights) join the pack mixes.</summary>
+    private void SetupForest()
+    {
+        Spawners.Clear();
+        Packs.Clear();
+        Npcs.Clear();
+        Chests.Clear();
+        _bossEnemyId = -1;
+        int level = CampaignEnemyLevel;
+        bool knights = Loop >= 2;
+        var packRng = new Random(Map.Seed ^ 0x5041434B); // "PACK" — deterministic per map
+        foreach (var spot in Map.PackSpots)
+        {
+            (string, int)[] entries = packRng.Next(knights ? 4 : 3) switch
+            {
+                0 => new[] { ("grunt", 3) },
+                1 => new[] { ("grunt", 2), ("spitter", 1) },
+                2 => new[] { ("grunt", 1), ("spitter", 2) },
+                _ => new[] { ("bone_knight", 2), ("grunt", 1) },
+            };
+            var affix = packRng.Next(5) switch
+            {
+                0 => EliteAffix.Brutish,
+                1 => EliteAffix.Swift,
+                2 => EliteAffix.Warded,
+                _ => EliteAffix.None,
+            };
+            Packs.Add(new PackSpawner
+            {
+                Position = spot,
+                Entries = entries,
+                LeaderAffixes = affix,
+                EnemyLevel = level,
+                NoRespawn = true,
+            });
+        }
+        foreach (var overlook in Map.OverlookSpots)
+            Packs.Add(new PackSpawner
+            {
+                Position = overlook,
+                Entries = knights
+                    ? new[] { ("spitter", 2), ("bone_knight", 1) }
+                    : new[] { ("spitter", 2) },
+                EnemyLevel = level,
+                ScatterRadius = 0.9f,
+                NoRespawn = true,
+            });
+        // From the second loop on, Graveguard skeletons are a PROMISE, not a dice
+        // roll — if the mixes above happened not to roll any, station a patrol.
+        if (knights && Map.PackSpots.Count > 0 &&
+            !Packs.Any(pk => pk.Entries.Any(en => en.typeId == "bone_knight")))
+            Packs.Add(new PackSpawner
+            {
+                Position = Map.PackSpots[Map.PackSpots.Count / 2],
+                Entries = new[] { ("bone_knight", 2) },
+                EnemyLevel = level,
+                ScatterRadius = 1.1f,
+                NoRespawn = true,
+            });
+        if (MapIndex == 3)
+            Packs.Add(new PackSpawner
+            {
+                Position = Map.BossSpot,
+                Entries = knights
+                    ? new[] { ("gravelord", 1), ("bone_knight", 2) }
+                    : new[] { ("gravelord", 1), ("grunt", 2) },
+                LeaderAffixes = EliteAffix.Boss,
+                EnemyLevel = Math.Max(Data.Enemies["gravelord"].Level, level + 3),
+                ScatterRadius = 1.8f,
+                NoRespawn = true,
+            });
+
+        // Spawn everything NOW (after the MapChanged broadcast the transport sends the
+        // spawns in order), and remember which enemy is the door-sealing boss.
+        for (int pi = 0; pi < Packs.Count; pi++)
+            SpawnPackMembers(Packs[pi], pi);
+        _bossEnemyId = Enemies.Values
+            .FirstOrDefault(e => !e.Dead && e.Def.Id == "gravelord")?.Id ?? -1;
+    }
+
+    /// <summary>Swap the world onto another campaign map and move everyone there.</summary>
+    private void TransitionTo(int newIndex)
+    {
+        if (!Campaign) return;
+        _readyAtDoor.Clear();
+        Enemies.Clear();       // clients wipe on MapChange — no death broadcasts needed
+        Projectiles.Clear();
+        Drops.Clear();
+        _windups.Clear();
+        _flow.Clear();
+        _rallyFields.Clear();
+        foreach (var p in Players.Values) p.SummonRallies.Clear();
+
+        // Re-entering the forest from the hub starts a NEW excursion: three fresh
+        // maps, enemy level up 3 per loop.
+        if (newIndex == 1) Loop = ++_forestEntries;
+        MapIndex = newIndex;
+        Map = new GameMap(CampaignMapSeed(newIndex), _theme,
+            newIndex == 0 ? MapKind.Hub : MapKind.Forest);
+
+        // Everyone arrives together at the new map's spawn (dead players are pulled
+        // through on their feet — the run moves as a group).
+        int slot = 0;
+        foreach (var p in Players.Values)
+        {
+            var offset = new Vector2((slot % 3) * 0.9f - 0.9f, (slot / 3) * 0.9f);
+            slot++;
+            p.Position = Map.PlayerSpawn + offset;
+            p.Height = Map.GroundHeightAt(p.Position);
+            p.IgnoreStateUntil = Time + 0.5f; // in-flight old-map state packets can't yank us back
+            if (!p.Alive)
+            {
+                p.Health = p.Stats.MaxHealth * 0.5f;
+                _events.PlayerRespawned(p);
+            }
+            _events.PlayerHealthChanged(p);
+        }
+        foreach (var s in Summons.Values)
+        {
+            if (!Players.TryGetValue(s.OwnerId, out var owner)) continue;
+            s.Position = owner.Position + new Vector2(
+                (float)(_rng.NextDouble() - 0.5) * 1.2f, (float)(_rng.NextDouble() - 0.5) * 1.2f);
+            s.Height = owner.Height;
+        }
+
+        // Clear map furniture BEFORE the broadcast — MapChanged snapshots whatever is
+        // in these lists, and a forest must not re-send the hub's merchants.
+        Spawners.Clear();
+        Packs.Clear();
+        Npcs.Clear();
+        Chests.Clear();
+        if (newIndex == 0) SetupHub();
+        _events.MapChanged(this);
+        if (newIndex != 0) SetupForest(); // packs spawn AFTER the map broadcast
+        _events.ZoneStateChanged(this);
+    }
+
+    /// <summary>The exit door: standing near it, the interact key toggles READY. When
+    /// every living player is ready the group moves on (hub -> map 1 -> 2 -> 3 -> hub).
+    /// The final map's door refuses while the boss lives.</summary>
+    public void DoorReady(int playerId)
+    {
+        if (!Campaign || !Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        if (Vector2.Distance(p.Position, Map.ExitDoor) > 2.6f) return;
+        if (ExitLocked)
+        {
+            _events.MessageFor(p, "The way is sealed — the Gravelord still stands.");
+            return;
+        }
+        bool nowReady = _readyAtDoor.Add(playerId);
+        if (!nowReady) _readyAtDoor.Remove(playerId);
+        int alive = Players.Values.Count(pl => pl.Alive);
+        foreach (var pl in Players.Values)
+            _events.MessageFor(pl,
+                $"{p.Name} is {(nowReady ? "ready" : "no longer ready")} at the door ({_readyAtDoor.Count}/{alive}).");
+        _events.ZoneStateChanged(this);
+        if (alive > 0 && _readyAtDoor.Count >= alive)
+            TransitionTo(MapIndex >= 3 ? 0 : MapIndex + 1);
+    }
+
+    /// <summary>Open a hub chest: the lid pops for everyone and the starter gear inside
+    /// drops on the ground. Once per chest per RUN SESSION — no farming the sanctum.</summary>
+    public void OpenChest(int playerId, int chestId)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        var chest = Chests.FirstOrDefault(c => c.Id == chestId);
+        if (chest == null || chest.Opened) return;
+        if (Vector2.Distance(p.Position, chest.Position) > 2.4f) return;
+        chest.Opened = true;
+        _openedChests.Add(chest.Id);
+        var table = Data.GetLootTable("default");
+        for (int i = 0; i < 2; i++)
+        {
+            var item = Loot.GenerateEquipment(table, itemLevel: 1, forcedRarity: ItemRarity.Normal);
+            if (item != null)
+                SpawnDrop(item, chest.Position + new Vector2(0.4f + 0.5f * i, 0.55f), chest.Height);
+        }
+        _events.ChestChanged(chest);
+        _events.WorldEffect("hit", chest.Position, 0.5f, 0.3f, chest.Height);
+    }
+
     /// <summary>Player minions (skeleton archers), by id.</summary>
     public readonly Dictionary<int, ServerSummon> Summons = new();
     private int _nextSummonId = 1;
@@ -237,6 +508,9 @@ public partial class ServerWorld
     public void UpdatePlayerState(int id, Vector2 pos, Vector2 facing, float height)
     {
         if (!Players.TryGetValue(id, out var p) || !p.Alive) return;
+        // Right after a map transition the client is still sending OLD-map coordinates
+        // until its MapChange arrives; hold the server position until then.
+        if (Time < p.IgnoreStateUntil) return;
         pos.X = Math.Clamp(pos.X, 0, Map.Width);
         pos.Y = Math.Clamp(pos.Y, 0, Map.Height);
         // Sanity: accept the client's position/height only if a surface actually exists
@@ -368,26 +642,14 @@ public partial class ServerWorld
             var pack = Packs[pi];
             pack.AliveIds.RemoveAll(id => !Enemies.TryGetValue(id, out var m) || m.Dead);
             if (pack.AliveIds.Count > 0) continue;
+            if (pack.NoRespawn && pack.Spawned) continue; // placed encounters stay cleared
             if (pack.RespawnAt <= 0)
             {
                 pack.RespawnAt = Time <= 0.1f ? Time : Time + pack.RespawnDelay;
             }
             if (Time < pack.RespawnAt) continue;
             pack.RespawnAt = 0;
-            bool leaderPlaced = false;
-            foreach (var (typeId, count) in pack.Entries)
-                for (int i = 0; i < count; i++)
-                {
-                    var offset = new Vector2(
-                        (float)(_rng.NextDouble() * 2 - 1) * pack.ScatterRadius,
-                        (float)(_rng.NextDouble() * 2 - 1) * pack.ScatterRadius);
-                    var pos = pack.Position + offset;
-                    if (Map.CircleHitsWall(pos, 0.4f)) pos = pack.Position;
-                    var affixes = leaderPlaced ? EliteAffix.None : pack.LeaderAffixes;
-                    leaderPlaced = true;
-                    var member = SpawnEnemy(typeId, pos, affixes, pi, pack.EnemyLevel);
-                    pack.AliveIds.Add(member.Id);
-                }
+            SpawnPackMembers(pack, pi);
         }
 
         int alive = Enemies.Values.Count(e => !e.Dead && e.PackId < 0);
@@ -409,6 +671,27 @@ public partial class ServerWorld
                 alive++;
             }
         }
+    }
+
+    /// <summary>Spawn one pack's full roster scattered around its anchor (first member
+    /// carries the leader affixes).</summary>
+    private void SpawnPackMembers(PackSpawner pack, int pi)
+    {
+        bool leaderPlaced = false;
+        foreach (var (typeId, count) in pack.Entries)
+            for (int i = 0; i < count; i++)
+            {
+                var offset = new Vector2(
+                    (float)(_rng.NextDouble() * 2 - 1) * pack.ScatterRadius,
+                    (float)(_rng.NextDouble() * 2 - 1) * pack.ScatterRadius);
+                var pos = pack.Position + offset;
+                if (Map.CircleHitsWall(pos, 0.4f)) pos = pack.Position;
+                var affixes = leaderPlaced ? EliteAffix.None : pack.LeaderAffixes;
+                leaderPlaced = true;
+                var member = SpawnEnemy(typeId, pos, affixes, pi, pack.EnemyLevel);
+                pack.AliveIds.Add(member.Id);
+            }
+        pack.Spawned = true;
     }
 
     public ServerEnemy SpawnEnemy(string typeId, Vector2 pos, EliteAffix affixes = EliteAffix.None,
@@ -601,6 +884,32 @@ public partial class ServerWorld
             float meatDist = meat != null ? Vector2.Distance(e.Position, meat.Position) : float.MaxValue;
             // Pursue whichever threat is closer once aggroed.
             bool pursueMeat = meat != null && (target == null || meatDist < dist);
+
+            // Boss reinforcements: an ENGAGED summoner conjures its adds on a long
+            // clock. The first delay arms when it first engages, so the fight never
+            // opens with the summon.
+            if (e.Def.AddSpawnType.Length > 0 && e.State != EnemyState.Idle &&
+                (target != null || meat != null))
+            {
+                if (e.NextAddSpawnAt <= 0)
+                {
+                    e.NextAddSpawnAt = Time + e.Def.AddSpawnFirstDelay;
+                }
+                else if (Time >= e.NextAddSpawnAt)
+                {
+                    e.NextAddSpawnAt = Time + e.Def.AddSpawnCooldown;
+                    _events.WorldEffect("burst", e.Position, 1.6f, 0.4f, e.Height);
+                    for (int ai = 0; ai < e.Def.AddSpawnCount; ai++)
+                    {
+                        float ang = ai * MathF.Tau / e.Def.AddSpawnCount + 0.6f;
+                        var apos = e.Position + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * 1.7f;
+                        if (Map.CircleHitsWall(apos, 0.4f)) apos = e.Position;
+                        var add = SpawnEnemy(e.Def.AddSpawnType, apos, level: e.Level);
+                        add.State = EnemyState.Chase; // raised mid-fight: already angry
+                        add.TargetPlayerId = e.TargetPlayerId;
+                    }
+                }
+            }
 
             switch (e.State)
             {
@@ -1127,6 +1436,18 @@ public partial class ServerWorld
         {
             target = aimed.Position;
             targetHeight = aimed.Height;
+        }
+
+        // Instant-target skills (Chain Lightning) with nothing in reach fizzle for FREE:
+        // no mana spent, no cooldown committed — a whiffed bolt into empty air costing
+        // 11 mana felt like a tax on aiming.
+        if (def.Archetype == SkillArchetype.ChainLightning)
+        {
+            var probe = ClampToRange(p.Position, target, stats.Range);
+            bool anyTarget = Enemies.Values.Any(en => !en.Dead &&
+                MathF.Abs(en.Height - p.Height) <= 0.75f &&
+                Vector2.Distance(en.Position, probe) <= 2.2f);
+            if (!anyTarget) return;
         }
 
         // Mana: validated and spent server-side (no cooldown consumed on failure).
@@ -2126,6 +2447,14 @@ public partial class ServerWorld
             int amount = _rng.Next(table.GoldMin, table.GoldMax + 1);
             amount = Math.Max(1, (int)(amount * (1f + 0.25f * (e.Level - 1))));
             SpawnGoldDrop(amount, e.Position, e.Height);
+        }
+
+        // Campaign boss down: the sealed exit opens.
+        if (Campaign && e.Id == _bossEnemyId)
+        {
+            foreach (var pl in Players.Values)
+                _events.MessageFor(pl, "The Gravelord falls — the way home is open.");
+            _events.ZoneStateChanged(this);
         }
     }
 

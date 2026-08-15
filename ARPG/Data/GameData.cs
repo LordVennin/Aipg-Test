@@ -55,6 +55,14 @@ public class EnemyDefinition
     /// <summary>Telegraph time: the red warning decal shows for this long before the
     /// slam resolves against resolve-time positions.</summary>
     public float SlamWindup { get; set; } = 0.9f;
+    /// <summary>Reinforcement summon (bosses): enemy type conjured around this enemy
+    /// while it fights. Empty = never summons.</summary>
+    public string AddSpawnType { get; set; } = "";
+    public int AddSpawnCount { get; set; } = 3;
+    /// <summary>Seconds between summons, and the delay after FIRST engaging before the
+    /// first one — a boss never opens the fight with its adds.</summary>
+    public float AddSpawnCooldown { get; set; } = 24f;
+    public float AddSpawnFirstDelay { get; set; } = 10f;
     public string LootTableId { get; set; } = "default";
     public string Color { get; set; } = "C04040"; // art tint (RRGGBB hex)
     /// <summary>Procedural sprite style: "Zombie", "Ghoul", or empty for a plain token.</summary>

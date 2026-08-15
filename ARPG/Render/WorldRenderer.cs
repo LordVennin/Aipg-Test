@@ -897,6 +897,56 @@ public class WorldRenderer
             }));
         }
 
+        // Hub chests: closed until someone pops them, then the lid stays back.
+        foreach (var chest in world.Chests.Values)
+        {
+            var pos = chest.Position;
+            var screen = camera.WorldToScreen(pos, chest.Height);
+            var chestTex = SpriteGen.GetChest(chest.Opened);
+            if (chestTex == null) continue;
+            _sorted.Add((pos.X + pos.Y + chest.Height * 1.0f + 0.1f + UnderDeckBias(pos, chest.Height), batch =>
+            {
+                int w = chestTex.Width * 2, h = chestTex.Height * 2;
+                batch.Draw(TextureGen.Circle32,
+                    new Rectangle((int)(screen.X - 18), (int)(screen.Y - 8), 36, 16),
+                    new Color(0, 0, 0, 80));
+                batch.Draw(chestTex, new Rectangle((int)screen.X - w / 2, (int)screen.Y - h + 8, w, h),
+                    Color.White);
+            }));
+        }
+
+        // Campaign doors: a standing gate at each map's entry/exit. The exit glows —
+        // gold when it will take the ready press, red while the boss seals it.
+        void DrawDoor(System.Numerics.Vector2 doorPos, bool exit)
+        {
+            if (doorPos == System.Numerics.Vector2.Zero) return;
+            float doorHeight = world.Map.GroundHeightAt(doorPos);
+            var screen = camera.WorldToScreen(doorPos, doorHeight);
+            bool locked = exit && world.ZoneExitLocked;
+            var glow = locked ? new Color(220, 60, 40) : new Color(240, 200, 90);
+            long clock = Environment.TickCount64;
+            float pulse = 0.7f + 0.3f * MathF.Sin(clock * 0.004f);
+            _sorted.Add((doorPos.X + doorPos.Y + doorHeight * 1.0f + 0.1f, batch =>
+            {
+                // Frame: two posts and a lintel; leaves drawn as dark planks.
+                var frame = new Color(78, 60, 40);
+                var plank = new Color(52, 40, 30);
+                int pw = 8, ph = 58, span = 44;
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - span / 2 - pw, (int)screen.Y - ph, pw, ph), frame);
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)screen.X + span / 2, (int)screen.Y - ph, pw, ph), frame);
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - span / 2 - pw, (int)screen.Y - ph - 8, span + pw * 2, 8), frame);
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - span / 2, (int)screen.Y - ph + 2, span, ph - 6), plank);
+                for (int s = 1; s < 4; s++)
+                    batch.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - span / 2 + s * span / 4, (int)screen.Y - ph + 2, 1, ph - 6),
+                        new Color(30, 24, 18));
+                // Glow seam down the middle + threshold light.
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 1, (int)screen.Y - ph + 2, 3, ph - 6), glow * pulse);
+                batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 22, (int)screen.Y - 9, 44, 18), glow * (0.30f * pulse));
+            }));
+        }
+        DrawDoor(world.Map.ExitDoor, exit: true);
+        DrawDoor(world.Map.EntryDoor, exit: false);
+
         foreach (var p in world.Players.Values)
         {
             var pos = p.Position;
@@ -1496,6 +1546,34 @@ public class WorldRenderer
                 var hintSize = labelFont.MeasureString(hint);
                 sb.DrawString(labelFont, hint,
                     new Vector2(npcScreen.X - hintSize.X / 2, npcScreen.Y - 50), new Color(200, 200, 190));
+            }
+        }
+
+        // --- door + chest interaction hints (screen space, on top) ---
+        if (world.Me is { } hintMe)
+        {
+            if (world.Map.ExitDoor != System.Numerics.Vector2.Zero &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.ExitDoor) <= 2.4f)
+            {
+                var doorScreen = camera.WorldToScreen(world.Map.ExitDoor,
+                    world.Map.GroundHeightAt(world.Map.ExitDoor));
+                string doorHint = world.ZoneExitLocked
+                    ? "Sealed — defeat the Gravelord"
+                    : $"F  Ready ({world.ZoneReadyCount}/{Math.Max(1, world.ZoneAlivePlayers)})";
+                var dSize = labelFont.MeasureString(doorHint);
+                sb.DrawString(labelFont, doorHint,
+                    new Vector2(doorScreen.X - dSize.X / 2, doorScreen.Y - 78),
+                    world.ZoneExitLocked ? new Color(255, 120, 100) : new Color(255, 226, 130));
+            }
+            foreach (var chest in world.Chests.Values)
+            {
+                if (chest.Opened ||
+                    System.Numerics.Vector2.Distance(hintMe.Position, chest.Position) > 2.2f) continue;
+                var cScreen = camera.WorldToScreen(chest.Position, chest.Height);
+                const string cHint = "F  Open";
+                var cSize = labelFont.MeasureString(cHint);
+                sb.DrawString(labelFont, cHint,
+                    new Vector2(cScreen.X - cSize.X / 2, cScreen.Y - 48), new Color(255, 226, 130));
             }
         }
 

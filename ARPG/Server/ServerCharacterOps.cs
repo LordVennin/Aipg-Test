@@ -330,10 +330,33 @@ public partial class ServerWorld
         _events.CharacterChanged(p);
     }
 
+    /// <summary>Gold price of learning a skill from the trainer (campaign mode).</summary>
+    public const int SkillPrice = 75;
+
     public void LearnSkill(int playerId, string skillId)
     {
         if (!Players.TryGetValue(playerId, out var p)) return;
         if (!Data.Skills.ContainsKey(skillId) || p.Character.GetSkill(skillId) != null) return;
+        // Campaign: skills are BOUGHT from the trainer in the sanctum — 75 gold, in
+        // person. (Arena/test worlds have no trainer and keep free learning.)
+        if (Campaign)
+        {
+            var trainer = Npcs.FirstOrDefault(n => n.TypeId == "skill_trainer");
+            if (trainer == null ||
+                System.Numerics.Vector2.Distance(p.Position, trainer.Position) > 3.5f)
+            {
+                _events.MessageFor(p, "New skills are taught by the trainer in the sanctum.");
+                return;
+            }
+            if (p.Character.Gold < SkillPrice)
+            {
+                _events.MessageFor(p, $"Training costs {SkillPrice} gold — you can't afford it yet.");
+                return;
+            }
+            p.Character.Gold -= SkillPrice;
+            var learnedDef = Data.Skills[skillId];
+            _events.MessageFor(p, $"Learned {learnedDef.Name} for {SkillPrice} gold.");
+        }
         p.Character.Skills.Add(new LearnedSkill { SkillId = skillId });
         _events.CharacterChanged(p);
     }
@@ -364,6 +387,10 @@ public partial class ServerWorld
 
         switch (cmd)
         {
+            case "warp_next":
+                // Dev shortcut through the campaign loop (skips the ready-door dance).
+                if (Campaign) TransitionTo(MapIndex >= 3 ? 0 : MapIndex + 1);
+                break;
             case "spawn_enemy":
             {
                 string type = string.IsNullOrEmpty(arg)
@@ -612,14 +639,15 @@ public partial class ServerWorld
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
         var npc = ShopNpcInRange(p, npcId);
-        if (npc == null) return;
+        if (npc == null || npc.TypeId == "skill_trainer") return; // trainer sells skills, not stock
         _events.ShopStockFor(p, npcId, GetShopStock(p));
     }
 
     public void ShopBuy(int playerId, int npcId, int slot)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
-        if (ShopNpcInRange(p, npcId) == null) return;
+        var buyNpc = ShopNpcInRange(p, npcId);
+        if (buyNpc == null || buyNpc.TypeId == "skill_trainer") return;
         var entry = GetShopStock(p).FirstOrDefault(e => e.Slot == slot);
         if (entry == null || entry.Sold) return;
         var c = p.Character;

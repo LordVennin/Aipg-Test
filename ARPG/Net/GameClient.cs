@@ -39,6 +39,8 @@ public class GameClient
 
     /// <summary>Fired when the server confirms our join (map is ready afterwards).</summary>
     public event Action JoinedGame;
+    /// <summary>The world moved to another campaign map (camera snaps, panels close).</summary>
+    public event Action MapChanged;
     /// <summary>Fired on any authoritative character update (inventory/skills/equipment).</summary>
     public event Action CharacterUpdated;
     /// <summary>Server info/error text for the HUD message line.</summary>
@@ -188,7 +190,14 @@ public class GameClient
         var me = World.Me;
         var def = _data.Skills.GetValueOrDefault(skillId);
         if (me == null || def == null || def.Archetype == Skills.SkillArchetype.Summon) return;
-        if (World.MyCharacter?.GetSkill(skillId) == null) return;
+        var learned = World.MyCharacter?.GetSkill(skillId);
+        if (learned == null) return;
+
+        // A cast the server will refuse for mana must show NOTHING — no swing, no
+        // ghost. The animation firing on an empty pool read as a broken attack.
+        var predStats = Skills.SkillMath.Compute(_data, def, learned.Level,
+            learned.ScrollDefinitions(_data), World.MyStats);
+        if (predStats.ManaCost > 0 && me.Mana < predStats.ManaCost - 0.5f) return;
 
         var aim = target - me.Position;
         var dir = aim.LengthSquared() > 0.001f ? Vector2.Normalize(aim) : me.Facing;
@@ -207,11 +216,9 @@ public class GameClient
 
         // Ghost projectile: flies from the click; the authoritative spawn adopts its
         // progress on arrival. A short range cap makes rejected casts fizzle quietly.
-        // Casts the server will obviously refuse (not enough mana) spawn NO ghost —
-        // a bolt sailing through enemies with no server hit behind it reads as a bug.
+        // (Mana-starved casts already bailed above — no ghost, no swing.)
         if (def.Archetype == Skills.SkillArchetype.Projectile)
         {
-            if (def.ManaCost > 0 && me.Mana < def.ManaCost - 0.5f) return;
             var ghost = new ClientProjectile
             {
                 Id = _nextGhostId--,
@@ -245,6 +252,17 @@ public class GameClient
     {
         var w = Packets.Make(PacketType.PickupRequest);
         w.PutGuid(dropId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    /// <summary>Toggle READY at the exit door (campaign transition when everyone is).</summary>
+    public void RequestDoorReady() =>
+        Send(Packets.Make(PacketType.DoorReadyRequest), DeliveryMethod.ReliableOrdered);
+
+    public void RequestOpenChest(int chestId)
+    {
+        var w = Packets.Make(PacketType.ChestOpenRequest);
+        w.Put(chestId);
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -367,6 +385,7 @@ public class GameClient
                 World.MyPlayerId = r.GetInt();
                 int mapSeed = r.GetInt();
                 string zoneThemeId = r.GetString();
+                var mapKind = (MapKind)r.GetByte();
                 var pos = r.GetVec2();
                 float joinHeight = r.GetFloat();
                 float hp = r.GetFloat();
@@ -374,7 +393,8 @@ public class GameClient
                 float mana = r.GetFloat();
                 World.MyCharacter = Json.Load<CharacterData>(r.GetString());
                 World.Map = new GameMap(mapSeed,
-                    _data.ZoneThemes.FirstOrDefault(t => t.Id == zoneThemeId) ?? _data.ZoneThemes.FirstOrDefault());
+                    _data.ZoneThemes.FirstOrDefault(t => t.Id == zoneThemeId) ?? _data.ZoneThemes.FirstOrDefault(),
+                    mapKind);
                 World.Players[World.MyPlayerId] = new ClientPlayer
                 {
                     Id = World.MyPlayerId,
@@ -430,6 +450,13 @@ public class GameClient
                         p.NetTarget = pos;
                         p.Facing = facing;
                         p.NetTargetHeight = height;
+                        if (p.SnapNext)
+                        {
+                            // Map transition: appear at the new spot, don't streak there.
+                            p.SnapNext = false;
+                            p.Position = pos;
+                            p.Height = height;
+                        }
                     }
                 }
                 break;
@@ -503,6 +530,51 @@ public class GameClient
                 npc.Height = r.GetFloat();
                 npc.Name = _data.Npcs.GetValueOrDefault(npc.TypeId)?.Name ?? npc.TypeId;
                 World.Npcs[npc.Id] = npc;
+                break;
+            }
+            case PacketType.MapChange:
+            {
+                // The whole group moved to another campaign map: rebuild it from the
+                // seed, wipe every replicated object (fresh snapshot follows on this
+                // same ordered channel) and appear at our assigned spawn.
+                int mcSeed = r.GetInt();
+                string mcTheme = r.GetString();
+                var mcKind = (MapKind)r.GetByte();
+                World.ZoneLoop = r.GetInt();
+                World.ZoneMapIndex = r.GetInt();
+                World.ZoneEnemyLevel = r.GetInt();
+                World.ZoneExitLocked = r.GetBool();
+                var mcPos = r.GetVec2();
+                float mcHeight = r.GetFloat();
+                World.Map = new GameMap(mcSeed,
+                    _data.ZoneThemes.FirstOrDefault(t => t.Id == mcTheme) ?? _data.ZoneThemes.FirstOrDefault(),
+                    mcKind);
+                World.ClearForMapChange();
+                if (World.Me is { } traveler)
+                {
+                    traveler.Position = traveler.NetTarget = mcPos;
+                    traveler.Height = traveler.NetTargetHeight = mcHeight;
+                }
+                MapChanged?.Invoke();
+                break;
+            }
+            case PacketType.ZoneState:
+            {
+                World.ZoneLoop = r.GetInt();
+                World.ZoneMapIndex = r.GetInt();
+                World.ZoneEnemyLevel = r.GetInt();
+                World.ZoneReadyCount = r.GetInt();
+                World.ZoneAlivePlayers = r.GetInt();
+                World.ZoneExitLocked = r.GetBool();
+                break;
+            }
+            case PacketType.ChestInfo:
+            {
+                var chest = new ClientChest { Id = r.GetInt() };
+                chest.Position = r.GetVec2();
+                chest.Height = r.GetFloat();
+                chest.Opened = r.GetBool();
+                World.Chests[chest.Id] = chest;
                 break;
             }
             case PacketType.ShopStock:
