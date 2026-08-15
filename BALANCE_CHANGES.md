@@ -239,6 +239,17 @@ freezes cancel the slam.
 | Knockback | none | **1.8 tiles** |
 | Visual | plain ring | **cracked-earth fissures + debris/dust storm around the caster** |
 
+## Starter economy (campaign)
+
+| Knob | Value |
+|---|---|
+| Starting gold | **100** |
+| Starting skills | **Mace Strike + Fire Bolt** only |
+| Skill price at the trainer | **75 gold** each |
+| Chest gear | 2 plain level-1 items per hub chest (4 chests, once per session) |
+| Campaign enemy level | **1 + 3 × (loop − 1)** — loop 2 = 4, loop 3 = 7 |
+| Gravelord adds | 3 spitters at HIS level, first at ~11s engaged, every 26s after |
+
 ## Mace Strike reach fix (behavior)
 
 Plain swings now hit **player-centered**: enemies within the skill's Range of

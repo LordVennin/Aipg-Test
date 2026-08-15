@@ -63,10 +63,12 @@ public class CharacterData
     public ItemInstance MainHand => Equipment.GetValueOrDefault(EquipSlot.MainHand);
     public ItemInstance OffHand => Equipment.GetValueOrDefault(EquipSlot.OffHand);
 
-    /// <summary>Starting character: a club, a staff in the bag, two starter skills on the bar.</summary>
+    /// <summary>Starting character: a club, a staff in the bag, 100 gold, and just the
+    /// two free skills — Mace Strike and Fire Bolt. Everything else is bought from the
+    /// sanctum's skill trainer.</summary>
     public static CharacterData CreateNew(GameData data, string name)
     {
-        var c = new CharacterData { Name = name };
+        var c = new CharacterData { Name = name, Gold = 100 };
 
         ItemInstance MakeNormal(string baseId) => new()
         {
@@ -85,11 +87,6 @@ public class CharacterData
         {
             c.Skills.Add(new LearnedSkill { SkillId = "basic_strike" });
             c.Hotbar[0] = "basic_strike";
-        }
-        if (data.Skills.ContainsKey("mace_strike"))
-        {
-            c.Skills.Add(new LearnedSkill { SkillId = "mace_strike" });
-            if (c.Hotbar[0] == null) c.Hotbar[0] = "mace_strike";
         }
         if (data.Skills.ContainsKey("fire_bolt"))
         {

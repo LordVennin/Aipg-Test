@@ -82,6 +82,19 @@ public enum PacketType : byte
     SummonStates,
     /// <summary>A summon died or was dismissed (id).</summary>
     SummonDespawn,
+
+    // Campaign loop (batch 15)
+    /// <summary>Client -> server: toggle READY at the exit door (transition when all living players are ready).</summary>
+    DoorReadyRequest,
+    /// <summary>Client -> server: open a hub chest (chest id).</summary>
+    ChestOpenRequest,
+    /// <summary>Server -> client: the world moved to another map — rebuild it locally and wipe replicated state.
+    /// Payload: seed, theme id, kind, loop, map index, enemy level, exit locked, YOUR new position + height.</summary>
+    MapChange,
+    /// <summary>Server -> client: campaign zone state (loop, map index, enemy level, ready count, living players, exit locked).</summary>
+    ZoneState,
+    /// <summary>Server -> client: one chest's state (id, position, height, opened).</summary>
+    ChestInfo,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

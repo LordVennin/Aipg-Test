@@ -174,18 +174,14 @@ public class SkillMenuUI
             }
             y += 30;
         }
-        foreach (var def in _data.Skills.Values.OrderBy(d => d.Name))
+        // Unlearned skills are BOUGHT from the sanctum's skill trainer, not learned
+        // free from this menu — just a pointer here.
+        int unknown = _data.Skills.Values.Count(d => character.GetSkill(d.Id) == null);
+        if (unknown > 0)
         {
-            if (character.GetSkill(def.Id) != null) continue;
-            var rect = new Rectangle(x, y, 300, 26);
-            sb.Draw(TextureGen.Pixel, rect, new Color(28, 28, 34));
-            sb.DrawString(font, def.Name, new Vector2(rect.X + 30, rect.Y + 4), new Color(120, 116, 108));
-            var learnRect = new Rectangle(rect.Right + 8, rect.Y, 64, 26);
-            sb.Draw(TextureGen.Pixel, learnRect, new Color(46, 66, 46));
-            Border(sb, learnRect, new Color(90, 130, 90));
-            sb.DrawString(small, "Learn", new Vector2(learnRect.X + 14, learnRect.Y + 5), new Color(180, 230, 180));
-            _listRows.Add((learnRect, def.Id, false));
-            y += 30;
+            sb.DrawString(small, $"{unknown} more skill{(unknown == 1 ? "" : "s")} at the skill trainer ({TrainerUI.SkillPrice}g each)",
+                new Vector2(x, y + 4), new Color(150, 140, 170));
+            y += 26;
         }
         y += 8;
 

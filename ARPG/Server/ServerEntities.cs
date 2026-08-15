@@ -56,6 +56,9 @@ public class ServerPlayer
     // Dodge: cooldown and invulnerability are server-authoritative.
     public float NextDodgeAt;
     public float InvulnerableUntil;
+    /// <summary>Client position updates are ignored until this time (set on map
+    /// transitions, while the client's in-flight states still carry old-map coords).</summary>
+    public float IgnoreStateUntil;
 
     /// <summary>Blocking goes on cooldown after each successful block (server-authoritative).</summary>
     public float NextBlockReadyAt;
@@ -164,6 +167,10 @@ public class ServerEnemy
     public float XpScale = 1f;
     public float SlamReadyAt;         // boss ground-slam cooldown gate
     public float SlamResolveAt;       // >0 while a telegraphed slam is winding up
+    /// <summary>Next time this enemy may spawn its adds (0 = not armed yet; armed with
+    /// the def's first-delay when the enemy first engages, so a boss never opens with
+    /// the summon).</summary>
+    public float NextAddSpawnAt;
 
     // Damage-over-time ailments. Ticks apply every frame but damage events/health
     // updates are batched via accumulators to avoid packet spam.
@@ -277,8 +284,23 @@ public class PackSpawner
     public int EnemyLevel;
     public float ScatterRadius = 1.4f;
     public float RespawnDelay = 45f;
+    /// <summary>Campaign packs spawn ONCE at map build and stay dead when cleared —
+    /// run maps are placed encounters, not the test arena's endless respawns.</summary>
+    public bool NoRespawn;
+    /// <summary>True once the pack has spawned at least once (gates NoRespawn packs).</summary>
+    public bool Spawned;
     public readonly List<int> AliveIds = new();
     public float RespawnAt;
+}
+
+/// <summary>An openable chest (hub sanctum): first opener pops the lid and the starter
+/// gear inside drops on the ground for whoever grabs it.</summary>
+public class ServerChest
+{
+    public int Id;
+    public Vector2 Position;
+    public float Height;
+    public bool Opened;
 }
 
 /// <summary>A player's persistent minion (skeleton archer). Follows its summoner (or a

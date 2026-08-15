@@ -75,6 +75,17 @@ public static class HeadlessNetTest
         Console.WriteLine("\n-- Join --");
         Check(clientA.Status == ClientStatus.InGame, "client A joined");
         Check(clientB.Status == ClientStatus.InGame, "client B joined");
+        // New characters know only Mace Strike + Fire Bolt (skills are trainer-bought
+        // in the campaign). The arena has no trainer, so learning stays free — pick up
+        // Mace Slam here because half the combat checks below swing it.
+        clientA.RequestLearnSkill("mace_strike");
+        clientB.RequestLearnSkill("mace_strike");
+        Pump(0.3f);
+        Check(clientA.World.MyCharacter.GetSkill("mace_strike") != null &&
+              clientB.World.MyCharacter.GetSkill("mace_strike") != null,
+              "arena worlds keep free skill learning (no trainer present)");
+        Check(clientA.World.MyCharacter.Gold >= 100,
+              $"new characters start with 100 gold (has {clientA.World.MyCharacter.Gold})");
         Check(clientA.World.Players.Count == 2, $"client A sees 2 players (saw {clientA.World.Players.Count})");
         Check(clientB.World.Players.Count == 2, $"client B sees 2 players (saw {clientB.World.Players.Count})");
         Check(clientA.World.Map != null && clientB.World.Map != null &&
@@ -2852,6 +2863,229 @@ public static class HeadlessNetTest
         Check(clientB.World.Me.SwingTimeLeft > 0f,
               "the melee swing animation starts the instant of the click");
         Pump(0.8f);
+
+        Console.WriteLine("\n-- Cast gating: mana and empty-air targets --");
+        // Not enough mana: NOTHING starts client-side — no predicted swing, no ghost.
+        var srvGate = server.World.Players[clientB.World.MyPlayerId];
+        clientB.World.Me.SwingTimeLeft = 0f;
+        clientB.World.Me.Mana = 0f;
+        clientB.RequestUseSkill("mace_strike", predictAim); // costs 9 mana
+        Check(clientB.World.Me.SwingTimeLeft <= 0f,
+              "no swing animation is predicted when mana is short");
+        clientB.RequestUseSkill("fire_bolt", predictAim);
+        Check(!clientB.World.Projectiles.Values.Any(pr => pr.Ghost),
+              "no ghost bolt either — a mana-starved cast shows nothing");
+        Pump(0.4f);
+
+        // Chain Lightning into empty air: the server takes NO mana and commits NO
+        // cooldown — an instant-target skill with no target simply doesn't cast.
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+        clientB.RequestLearnSkill("chain_lightning"); // no-op if already learned
+        Pump(0.2f);
+        srvGate.Mana = srvGate.Stats.MaxMana * 0.6f;
+        srvGate.SkillReadyAt.Clear();
+        srvGate.GlobalSkillReadyAt = 0;
+        float gateManaBefore = srvGate.Mana;
+        clientB.RequestUseSkill("chain_lightning", srvGate.Position + new Vector2(4f, 0));
+        Pump(0.3f);
+        Check(srvGate.Mana >= gateManaBefore - 0.2f,
+              $"chain lightning with no target costs no mana ({gateManaBefore:0.0} -> {srvGate.Mana:0.0})");
+        Check(!srvGate.SkillReadyAt.TryGetValue("chain_lightning", out float gateCd) ||
+              gateCd <= server.World.Time,
+              "and commits no cooldown");
+
+        Console.WriteLine("\n-- Campaign: hub sanctum --");
+        var campServer = new GameServer(data, 777001, "forest", campaign: true);
+        Check(campServer.Start(0), "campaign server started");
+        var campA = new GameClient(data, "RunnerA", null);
+        var campB = new GameClient(data, "RunnerB", null);
+        campA.Connect("127.0.0.1", campServer.LocalPort, out _);
+        campB.Connect("127.0.0.1", campServer.LocalPort, out _);
+        void CPump(float seconds)
+        {
+            const float dt = 1f / 60f;
+            int steps = (int)(seconds / dt);
+            for (int i = 0; i < steps; i++)
+            {
+                campServer.Update(dt);
+                campA.Update(dt);
+                campB.Update(dt);
+                Thread.Sleep(2);
+            }
+        }
+        CPump(1.5f);
+        Check(campA.Status == ClientStatus.InGame && campB.Status == ClientStatus.InGame,
+              "both campaign clients joined");
+        Check(campServer.World.Campaign && campServer.World.MapIndex == 0 &&
+              campServer.World.Map.Kind == World.MapKind.Hub,
+              "the campaign starts in the hub sanctum");
+        Check(campA.World.Map.Kind == World.MapKind.Hub &&
+              campA.World.Map.Seed == campServer.World.Map.Seed,
+              "clients build the same hub map from the seed");
+        Check(campServer.World.Npcs.Count == 2 &&
+              campServer.World.Npcs.Any(n => n.TypeId == "merchant") &&
+              campServer.World.Npcs.Any(n => n.TypeId == "skill_trainer"),
+              "the hub holds the gear merchant AND the skill trainer");
+        Check(campA.World.Npcs.Count == 2, "both merchants replicate to clients");
+        Check(campServer.World.Chests.Count == 4 && campA.World.Chests.Count == 4 &&
+              campA.World.Chests.Values.All(c => !c.Opened),
+              "four closed starter chests replicate");
+        var freshChar = campA.World.MyCharacter;
+        Check(freshChar.Gold == 100 &&
+              freshChar.Skills.Count == 2 &&
+              freshChar.GetSkill("basic_strike") != null && freshChar.GetSkill("fire_bolt") != null,
+              $"fresh characters: 100 gold, Mace Strike + Fire Bolt only ({freshChar.Skills.Count} skills, {freshChar.Gold}g)");
+
+        // Chests: first open pops the lid and drops plain starter gear; reopening is refused.
+        var chest1 = campServer.World.Chests[0];
+        var dropsBeforeChest = campServer.World.Drops.Keys.ToHashSet();
+        campA.World.Me.Position = chest1.Position + new Vector2(0.9f, 0);
+        CPump(0.4f);
+        campA.RequestOpenChest(chest1.Id);
+        CPump(0.4f);
+        var chestLoot = campServer.World.Drops.Values
+            .Where(d => !dropsBeforeChest.Contains(d.DropId) && d.Item != null).ToList();
+        Check(chest1.Opened && chestLoot.Count == 2, $"chest pops and drops starter gear ({chestLoot.Count} items)");
+        Check(chestLoot.All(d => d.Item.Rarity == Items.ItemRarity.Normal && d.Item.ItemLevel == 1),
+              "chest gear is plain level-1 starter fare");
+        Check(campA.World.Chests[chest1.Id].Opened, "the popped lid replicates");
+        campA.RequestOpenChest(chest1.Id);
+        CPump(0.3f);
+        Check(campServer.World.Drops.Values.Count(d => d.Item != null && !dropsBeforeChest.Contains(d.DropId)) == 2,
+              "a chest opens only once");
+
+        // Skill trainer: buying away from him is refused; at his side it costs 75 gold.
+        campA.RequestLearnSkill("chain_lightning");
+        CPump(0.3f);
+        Check(campA.World.MyCharacter.GetSkill("chain_lightning") == null,
+              "buying a skill away from the trainer is refused");
+        var trainerNpc = campServer.World.Npcs.First(n => n.TypeId == "skill_trainer");
+        campA.World.Me.Position = trainerNpc.Position + new Vector2(0.9f, 0);
+        CPump(0.4f);
+        campA.RequestLearnSkill("chain_lightning");
+        CPump(0.4f);
+        Check(campA.World.MyCharacter.GetSkill("chain_lightning") != null &&
+              campA.World.MyCharacter.Gold == 25,
+              $"the trainer teaches Chain Lightning for 75 gold ({campA.World.MyCharacter.Gold}g left)");
+        campA.RequestLearnSkill("ice_spike");
+        CPump(0.3f);
+        Check(campA.World.MyCharacter.GetSkill("ice_spike") == null &&
+              campA.World.MyCharacter.Gold == 25,
+              "a second skill at 25 gold is refused (75g each)");
+
+        Console.WriteLine("\n-- Campaign: the run door --");
+        var hubDoor = campServer.World.Map.ExitDoor;
+        campA.World.Me.Position = hubDoor + new Vector2(-0.9f, 0);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        CPump(0.4f);
+        Check(campServer.World.MapIndex == 0 && campServer.World.ReadyCount == 1,
+              "one ready of two: the group stays put");
+        campB.World.Me.Position = hubDoor + new Vector2(-0.9f, 0.7f);
+        CPump(0.4f);
+        campB.RequestDoorReady();
+        CPump(0.8f);
+        Check(campServer.World.MapIndex == 1 && campServer.World.Map.Kind == World.MapKind.Forest,
+              "everyone ready: the run begins on forest map 1");
+        Check(campServer.World.Loop == 1 && campServer.World.CampaignEnemyLevel == 1,
+              "first excursion runs at enemy level 1");
+        Check(campA.World.Map.Kind == World.MapKind.Forest &&
+              campA.World.Map.Seed == campServer.World.Map.Seed &&
+              campB.World.Map.Seed == campServer.World.Map.Seed,
+              "clients rebuild the forest map from the broadcast seed");
+        Check(campA.World.ZoneMapIndex == 1 && campA.World.ZoneEnemyLevel == 1,
+              "zone state replicates (map 1, enemy level 1)");
+        Check(campServer.World.Enemies.Values.Count(e => !e.Dead) >= 8,
+              $"packs are placed at generation ({campServer.World.Enemies.Count} enemies)");
+        Check(campServer.World.Enemies.Values.All(e => e.Level == 1),
+              "loop-1 enemies are all level 1");
+        Check(campServer.World.Enemies.Values.All(e => e.Def.Id != "bone_knight"),
+              "no Graveguard skeletons on the first loop");
+        Check(campServer.World.Packs.All(pk => pk.NoRespawn),
+              "campaign packs never respawn");
+        Check(campServer.World.Map.GroundPathExists(campServer.World.Map.PlayerSpawn,
+                  campServer.World.Map.ExitDoor + new Vector2(-1.2f, 0)),
+              "the generated hallway is walkable start to exit");
+        Check(campA.World.Npcs.Count == 0, "no merchants out in the forest");
+
+        // Maps 2 and 3 chain through the same ready-door mechanic.
+        void BothReadyAtExit()
+        {
+            var exitDoor = campServer.World.Map.ExitDoor;
+            campA.World.Me.Position = exitDoor + new Vector2(-0.9f, 0);
+            campB.World.Me.Position = exitDoor + new Vector2(-0.9f, 0.7f);
+            CPump(0.4f);
+            campA.RequestDoorReady();
+            campB.RequestDoorReady();
+            CPump(0.8f);
+        }
+        BothReadyAtExit();
+        Check(campServer.World.MapIndex == 2, "map 1 cleared through to map 2");
+        int map2Seed = campServer.World.Map.Seed;
+        BothReadyAtExit();
+        Check(campServer.World.MapIndex == 3 && campServer.World.Map.Seed != map2Seed,
+              "map 3 is a different generated map");
+
+        Console.WriteLine("\n-- Campaign: the Gravelord's arena --");
+        var campBoss = campServer.World.Enemies.Values.FirstOrDefault(e => e.Def.Id == "gravelord");
+        Check(campBoss != null, "the final map holds the Gravelord");
+        Check(campServer.World.ExitLocked, "the exit is sealed while the boss lives");
+        BothReadyAtExit(); // pressing ready on the sealed door must do nothing
+        Check(campServer.World.MapIndex == 3 && campServer.World.ReadyCount == 0,
+              "the sealed door refuses ready presses");
+
+        // Boss adds: engaging arms an 11s delay, THEN three spitters rise — never as
+        // an opener.
+        // Adds are told apart from any wandering corridor spitters by their LEVEL:
+        // summons ride the boss's level (4 on loop 1), corridor packs are level 1.
+        int SpittersNearBoss() => campServer.World.Enemies.Values.Count(e =>
+            !e.Dead && e.Def.Id == "spitter" && e.Level == campBoss.Level &&
+            Vector2.Distance(e.Position, campBoss.Position) < 10f);
+        campBoss.Health = campBoss.MaxHealth; // observe the full fight
+        campA.World.Me.Position = campBoss.Position + new Vector2(-2.0f, 0);
+        for (int i = 0; i < 4; i++) { campA.SendDebugCommand("heal"); CPump(0.4f); }
+        Check(campBoss.State != Server.EnemyState.Idle, "the Gravelord engaged");
+        Check(SpittersNearBoss() == 0, "no adds in the opening seconds of the fight");
+        for (int i = 0; i < 24 && SpittersNearBoss() == 0; i++)
+        {
+            campA.SendDebugCommand("heal");
+            campA.World.Me.Position = campBoss.Position + new Vector2(-2.0f, 0);
+            CPump(0.5f);
+        }
+        Check(SpittersNearBoss() >= 3,
+              $"the Gravelord summons three spitters mid-fight, at HIS level ({SpittersNearBoss()} up)");
+
+        // Fell the boss: the seal lifts, the door leads home.
+        campBoss.Health = 1f;
+        campA.SendDebugCommand("heal");
+        campA.RequestUseSkill("basic_strike", campBoss.Position);
+        CPump(0.6f);
+        Check(campBoss.Dead, "Gravelord felled");
+        Check(!campServer.World.ExitLocked, "the boss's death unseals the exit");
+        campA.SendDebugCommand("kill_nearby"); // clear the adds before leaving
+        campA.SendDebugCommand("heal");
+        campB.SendDebugCommand("heal");
+        CPump(0.3f);
+        BothReadyAtExit();
+        Check(campServer.World.MapIndex == 0 && campServer.World.Map.Kind == World.MapKind.Hub,
+              "the run loops back to the sanctum");
+        Check(campServer.World.Chests[0].Opened,
+              "chest lids stay popped between visits (no sanctum farming)");
+
+        Console.WriteLine("\n-- Campaign: second loop scales up --");
+        BothReadyAtExit(); // hub door again: NEW excursion
+        Check(campServer.World.MapIndex == 1 && campServer.World.Loop == 2 &&
+              campServer.World.CampaignEnemyLevel == 4,
+              $"second excursion: three new maps at enemy level 4 (loop {campServer.World.Loop})");
+        Check(campServer.World.Enemies.Values.All(e => e.Level >= 4),
+              "loop-2 enemies carry the scaled level");
+        Check(campServer.World.Packs.Any(pk => pk.Entries.Any(en => en.typeId == "bone_knight")),
+              "Graveguard skeletons appear from the second loop");
+        campA.Disconnect();
+        campB.Disconnect();
+        CPump(0.3f);
+        campServer.Stop();
 
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();

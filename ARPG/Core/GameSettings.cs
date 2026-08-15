@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 21; // v21: two-phase boss slam telegraph packet
+    public const int ProtocolVersion = 22; // v22: campaign loop (map change, zone state, doors, chests)
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

@@ -99,7 +99,7 @@ No NAT traversal / matchmaking / accounts — direct IP only, by design.
 | Passive Skill Tree | `P` |
 | Command summons: TAP to rally the focused pack at the cursor, HOLD to order it back to following (aiming near yourself also recalls) | `` ` `` (backquote) |
 | Cycle summon focus (which pack the command key drives) | `Tab` |
-| Interact: talk to NPCs / pick up items | `F` (hover a ground label to target a specific drop) |
+| Interact: doors (ready up) / chests / NPCs / pick up items | `F` (hover a ground label to target a specific drop) |
 | Debug menu | `F1` |
 | Pause / close panels / menu | `Escape` |
 
@@ -118,7 +118,10 @@ every connected player's round-trip ping, measured server-side and broadcast to 
 mana pool and its regeneration grow with character level (a PoE-style skill point
 system will layer on top later), and items can roll **Sapphire** (+max mana) and
 **of Clarity** (+% mana regen) modifiers. Costs are validated and spent server-side;
-the blue orb (bottom right) tracks it. Melee strikes play a weapon swing animation
+the blue orb (bottom right) tracks it. A cast you can't afford shows NOTHING — no
+swing animation, no ghost bolt, no cooldown started, just a "Not enough mana"
+reminder — and instant-target skills (Chain Lightning) aimed at empty air fizzle
+for FREE on both sides: no mana, no cooldown. Melee strikes play a weapon swing animation
 on the caster's held weapon. Arcane damage now has its own resistance plus melee
 ("Occult", mace-only) and spell ("Eldritch", staff-only) added-damage prefix
 families. F1 → "Drop All Scrolls" drops one of every crafting and skill scroll.
@@ -332,6 +335,43 @@ ARPG/
   one gameplay code path.
 - The map is generated deterministically from a seed the server sends on join, so only
   the seed crosses the wire.
+
+### The campaign loop (hub → three runs → boss → home)
+
+Hosted games now run the actual GAME LOOP instead of the old test arena
+(set `ARPG_ARENA=1` to get the arena back for debugging):
+
+- **The Sanctum (hub)**: everyone starts in a small square room holding **two
+  merchants** — Weaver the Peddler (gear, the existing shop) and **Maren the
+  Lorekeeper**, the skill trainer — plus **four starter chests** (press `F` to pop
+  one; two plain level-1 items drop out; each chest opens once per session) and the
+  **run door** on the east wall.
+- **Ready doors**: stand at a door and press `F` to toggle READY (shown over the
+  door and in chat). The group transitions only when EVERY living player is ready —
+  nobody gets left behind in multiplayer. Transitions rebuild the world server-side
+  and broadcast a `MapChange`; clients regenerate the same map from the seed, wipe
+  replicated state and receive a fresh snapshot on the same ordered channel.
+- **Run maps**: each excursion is THREE generated hallway-style forest maps
+  (96x26): a meandering corridor with real terrain — terrace bands crossing the
+  hall (stairs only near the corridor line, cliffs elsewhere), overlook plateaus
+  with spitter nests, pillar clusters, ponds and the theme's big trees. A
+  ground-surface BFS validates spawn-to-exit walkability at generation (with a
+  deterministic corridor-carve fallback). **Packs are placed at generation and
+  never respawn** — a cleared map stays cleared; the enemy cap is 100.
+- **Scaling**: excursion 1 runs at enemy level 1; every RETURN trip through the
+  hub door generates three NEW maps and raises the enemy level by 3 (loop 2 = 4,
+  loop 3 = 7, ...). **Graveguard skeletons** (Barrow Knights) join the pack mixes
+  from the second loop — guaranteed, not dice.
+- **The Gravelord's arena**: map 3 ends in a cleared pocket by the exit where the
+  boss waits with guards. The exit door is SEALED (red glow) while he lives, and
+  he now **summons three Grave Spitters** around himself on a long cooldown
+  (first summon ~11s into the fight — never as an opener; adds spawn at his
+  level). Kill him, the seal lifts, and the door leads back to the Sanctum.
+
+**Starter economy**: new characters begin with **100 gold** and only **Mace
+Strike + Fire Bolt**. Every other skill is bought from the skill trainer for
+**75 gold** (server-validated: in person, gold up front). The K menu lists only
+learned skills and points at the trainer for the rest.
 
 ### Layered terrain (elevation, ramps, bridges)
 
@@ -654,7 +694,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (361 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (408 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.
