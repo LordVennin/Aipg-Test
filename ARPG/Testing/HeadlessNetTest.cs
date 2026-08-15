@@ -1474,6 +1474,10 @@ public static class HeadlessNetTest
         var closeGrunt = server.World.SpawnEnemy("grunt", srvMulti.Position + new Vector2(-0.5f, 0));
         closeGrunt.Health = 500f;
         closeGrunt.StunnedUntil = server.World.Time + 30f;
+        // A flanker at ~90° off the aim: inside the VISIBLE sweep, so it must connect.
+        var flankGrunt = server.World.SpawnEnemy("grunt", srvMulti.Position + new Vector2(0, 1.3f));
+        flankGrunt.Health = 500f;
+        flankGrunt.StunnedUntil = server.World.Time + 30f;
         Pump(0.2f);
         srvMulti.Mana = srvMulti.Stats.MaxMana;
         srvMulti.SkillReadyAt.Clear();
@@ -1484,8 +1488,11 @@ public static class HeadlessNetTest
               $"Mace Strike no longer overshoots its range (far grunt hp {farGrunt.Health:0.0})");
         Check(closeGrunt.Health < 499.9f,
               $"point-blank enemies are caught even behind the swing (close grunt hp {closeGrunt.Health:0.0})");
+        Check(flankGrunt.Health < 499.9f,
+              $"the swing arc matches the sprite's sweep — a 90° flanker in range is hit (hp {flankGrunt.Health:0.0})");
         farGrunt.Health = 1f;
         closeGrunt.Health = 1f;
+        flankGrunt.Health = 1f;
 
         // Global use-time lockout: two casts in the same instant — only ONE fires.
         srvMulti.Mana = srvMulti.Stats.MaxMana;
@@ -1534,8 +1541,10 @@ public static class HeadlessNetTest
         Check(roots >= 8 && parts == roots * 4,
               $"forest theme grows multi-tile trees ({roots} trees over {parts} tiles)");
         Check(rx >= 0 && forestMap.IsSolid(rx, ry) && forestMap.WallHeight(rx, ry) == 2 &&
-              forestMap.Feature(rx + 1, ry + 1) == World.TileFeature.BigTreePart,
-              "big trees are solid 2x2 two-level columns (collision/LOS for free)");
+              forestMap.Feature(rx + 1, ry + 1) == World.TileFeature.BigTreePart &&
+              !forestMap.IsSolid(rx + 1, ry + 1) && !forestMap.IsSolid(rx + 1, ry) &&
+              !forestMap.IsSolid(rx, ry + 1),
+              "only the TRUNK tile blocks — the canopy footprint stays walkable");
         // Same seed, different theme: the BASE layout must be identical outside the
         // theme's added features (trees come from their own seeded stream).
         bool baseSame = true;

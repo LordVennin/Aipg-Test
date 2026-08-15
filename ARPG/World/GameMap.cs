@@ -694,12 +694,13 @@ public class GameMap
                             _ramp[Idx(x + dx, y + dy)] == 0 && _water[Idx(x + dx, y + dy)] == 0 &&
                             _feature[Idx(x + dx, y + dy)] == 0;
             if (!clear) continue;
+            // Only the TRUNK blocks: one solid two-level tile at the root; the rest of
+            // the footprint stays walkable (markers keep trees from overlapping) and
+            // the canopy simply overhangs it.
             for (int dy = 0; dy < 2; dy++)
                 for (int dx = 0; dx < 2; dx++)
-                {
-                    _wall[Idx(x + dx, y + dy)] = 2;
                     _feature[Idx(x + dx, y + dy)] = (byte)TileFeature.BigTreePart;
-                }
+            _wall[Idx(x, y)] = 2;
             _feature[Idx(x, y)] = (byte)TileFeature.BigTreeRoot;
             planted++;
         }
@@ -861,12 +862,12 @@ public class GameMap
                             _ramp[Idx(x + dx, y + dy)] == 0 && _bridge[Idx(x + dx, y + dy)] == 0 &&
                             _feature[Idx(x + dx, y + dy)] == 0;
             if (!clear) continue;
+            // Only the TRUNK blocks (see GenerateForestTrees) — footprint markers just
+            // keep trees apart and decorations out from under the canopy.
             for (int dy = 0; dy < 2; dy++)
                 for (int dx = 0; dx < 2; dx++)
-                {
-                    _wall[Idx(x + dx, y + dy)] = 2;
                     _feature[Idx(x + dx, y + dy)] = (byte)TileFeature.BigTreePart;
-                }
+            _wall[Idx(x, y)] = 2;
             _feature[Idx(x, y)] = (byte)TileFeature.BigTreeRoot;
             planted++;
         }

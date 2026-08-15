@@ -1559,12 +1559,18 @@ public partial class ServerWorld
                     ? EnemiesNear(effectPoint, stats.Radius, p.Height)
                     : Enemies.Values.Where(e =>
                     {
+                        // The hit test mirrors the VISIBLE weapon sweep: the swing
+                        // animation carries the mace through the caster's whole front,
+                        // so the arc is the full frontal half-circle (a hair past 180°),
+                        // with a touch of reach forgiveness for bodies mid-step and a
+                        // generous point-blank ring that always connects. Tighter arcs
+                        // read as whiffs through enemies the sprite clearly touched.
                         if (e.Dead || MathF.Abs(e.Height - p.Height) > 0.75f) return false;
                         float edist = Vector2.Distance(e.Position, p.Position);
-                        if (edist > stats.Range + e.Def.Radius) return false;
-                        if (edist <= 0.75f + e.Def.Radius) return true; // point-blank
+                        if (edist > stats.Range + e.Def.Radius + 0.15f) return false;
+                        if (edist <= 0.9f + e.Def.Radius) return true; // point-blank ring
                         var toEnemy = (e.Position - p.Position).NormalizedOrZero();
-                        return Vector2.Dot(aimDir, toEnemy) >= 0.34f; // ~140° swing arc
+                        return Vector2.Dot(aimDir, toEnemy) >= -0.05f; // the swept front
                     }).ToList();
                 foreach (var e in struckList)
                 {
