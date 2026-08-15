@@ -365,6 +365,8 @@ public class OptionsPanel
         InputAction.CommandSummons => "Command Summons",
         InputAction.CycleSummonFocus => "Cycle Summon Focus",
         InputAction.Interact => "Interact / Pickup",
+        InputAction.HealthPotion => "Health Potion",
+        InputAction.ManaPotion => "Mana Potion",
         InputAction.Pause => "Pause",
         InputAction.DebugMenu => "Debug Menu",
         _ => a.ToString(),

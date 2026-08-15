@@ -619,6 +619,12 @@ public class PlayScreen : IScreen
             }
             // (No LMB pickup: clicking a drop label only HOVER-targets it — the pickup
             // key is the one way to grab items, so attacks never eat loot clicks.)
+
+            // Potion flasks: a sip over time, server-validated (charges, already-active).
+            if (input.WasActionPressed(InputAction.HealthPotion))
+                _client.RequestUsePotion(0);
+            if (input.WasActionPressed(InputAction.ManaPotion))
+                _client.RequestUsePotion(1);
         }
 
         // Camera follows the player.

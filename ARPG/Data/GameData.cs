@@ -55,6 +55,16 @@ public class EnemyDefinition
     /// <summary>Telegraph time: the red warning decal shows for this long before the
     /// slam resolves against resolve-time positions.</summary>
     public float SlamWindup { get; set; } = 0.9f;
+    /// <summary>Telegraphed dash charge: the enemy stands still for DashWindup under a
+    /// ground LINE telegraph, then barrels along it for heavy contact damage.
+    /// DashDamage 0 = never dashes; DashMinLevel gates it to scaled-up spawns (the
+    /// campaign's loop-2+ Gravelord), so the same def is dash-less early.</summary>
+    public float DashDamage { get; set; }
+    public float DashRange { get; set; } = 7f;
+    public float DashSpeed { get; set; } = 13f;
+    public float DashWindup { get; set; } = 1.0f;
+    public float DashCooldown { get; set; } = 9f;
+    public int DashMinLevel { get; set; } = 7;
     /// <summary>Reinforcement summon (bosses): enemy type conjured around this enemy
     /// while it fights. Empty = never summons.</summary>
     public string AddSpawnType { get; set; } = "";

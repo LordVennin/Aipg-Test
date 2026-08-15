@@ -63,6 +63,14 @@ public class ServerPlayer
     /// <summary>Blocking goes on cooldown after each successful block (server-authoritative).</summary>
     public float NextBlockReadyAt;
 
+    // Potion flasks (PotionBalance): restore-over-time, charges refill from kills.
+    public int HealthPotionCharges = ARPG.Stats.PotionBalance.StartCharges;
+    public int ManaPotionCharges = ARPG.Stats.PotionBalance.StartCharges;
+    public float PotionHealUntil;
+    public float PotionHealPerSec;
+    public float PotionManaUntil;
+    public float PotionManaPerSec;
+
     /// <summary>Global skill lockout: no skill may be used before this server time
     /// (set to now + the last-used skill's UseTime).</summary>
     public float GlobalSkillReadyAt;
@@ -171,6 +179,14 @@ public class ServerEnemy
     /// the def's first-delay when the enemy first engages, so a boss never opens with
     /// the summon).</summary>
     public float NextAddSpawnAt;
+    // Telegraphed dash charge (bosses at DashMinLevel+): stand still through the
+    // prepare, then barrel down the locked line for heavy contact damage.
+    public float DashPrepareUntil;
+    public float DashUntil;
+    public Vector2 DashDir;
+    public float DashReadyAt;
+    /// <summary>Players already struck by the CURRENT dash (one hit per pass).</summary>
+    public readonly HashSet<int> DashHitIds = new();
 
     // Damage-over-time ailments. Ticks apply every frame but damage events/health
     // updates are batched via accumulators to avoid packet spam.

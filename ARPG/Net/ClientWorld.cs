@@ -31,6 +31,11 @@ public class ClientPlayer
     /// <summary>Snap to the next replicated position instead of lerping (set on map
     /// transitions, where interpolating across the whole map reads as a streak).</summary>
     public bool SnapNext;
+    // Potion flasks (HUD): charges + seconds left on the active restore ticks.
+    public int HealthPotionCharges;
+    public int ManaPotionCharges;
+    public float PotionHealSecondsLeft;
+    public float PotionManaSecondsLeft;
     /// <summary>Latest round-trip ping in ms (from PlayerPings packets), for the player list.</summary>
     public int PingMs;
     /// <summary>Counts down while this player is dodge-dashing (visual flair + i-frame hint).</summary>
@@ -394,8 +399,11 @@ public class ClientWorld
         }
 
         foreach (var p in Players.Values)
-            if (p.DodgeTimeLeft > 0)
-                p.DodgeTimeLeft -= dt;
+        {
+            if (p.DodgeTimeLeft > 0) p.DodgeTimeLeft -= dt;
+            if (p.PotionHealSecondsLeft > 0) p.PotionHealSecondsLeft -= dt;
+            if (p.PotionManaSecondsLeft > 0) p.PotionManaSecondsLeft -= dt;
+        }
 
         for (int i = FloatingNumbers.Count - 1; i >= 0; i--)
         {
@@ -406,6 +414,14 @@ public class ClientWorld
 
     public void AddEffect(Vector2 pos, float radius, float duration, string kind, float height = 0f, float delay = 0f) =>
         Effects.Add(new ClientEffect { Position = pos, Radius = radius, TimeLeft = duration, Duration = duration, Kind = kind, Height = height, Delay = delay });
+
+    /// <summary>A line-shaped effect (dash telegraphs): Points[0] = start, Points[1] = end.</summary>
+    public void AddLineEffect(Vector2 from, Vector2 to, float duration, string kind, float height = 0f) =>
+        Effects.Add(new ClientEffect
+        {
+            Position = from, Radius = 0.6f, TimeLeft = duration, Duration = duration,
+            Kind = kind, Height = height, Points = new List<Vector2> { from, to },
+        });
 
     public ClientDrop NearestDrop(Vector2 pos, float maxDist)
     {

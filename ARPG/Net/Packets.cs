@@ -95,6 +95,13 @@ public enum PacketType : byte
     ZoneState,
     /// <summary>Server -> client: one chest's state (id, position, height, opened).</summary>
     ChestInfo,
+
+    // Potions + boss dash (batch 18)
+    /// <summary>Client -> server: drink a potion flask (byte kind: 0 = health, 1 = mana).</summary>
+    PotionRequest,
+    /// <summary>Server -> client: a telegraphed enemy dash (id, phase 1 line-telegraph / 2 launch,
+    /// position, direction, range, windup, height).</summary>
+    EnemyDash,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

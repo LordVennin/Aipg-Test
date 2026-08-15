@@ -261,6 +261,40 @@ fast-attacking build no longer starves the rest of the group of character XP.
 | Campaign enemy level | **1 + 3 × (loop − 1)** — loop 2 = 4, loop 3 = 7 |
 | Gravelord adds | 3 spitters at HIS level, first at ~11s engaged, every 26s after |
 
+## Mana economy (batch 18)
+
+| Knob | Value |
+|---|---|
+| Mana regen from Intelligence | **+1% per point** (`AttributeBalance.ManaRegenPctPerIntelligence`) |
+| Mana cost per skill level past 1 | **+10%** (`SkillMath.ManaCostPerSkillLevelPct`) |
+| Mana cost per attached Skill Scroll | **+20%** (`SkillMath.ManaCostPerScrollPct`) |
+
+A level-3 Multishot Fire Bolt costs 7 × 1.2 × 1.2 ≈ **10 mana** instead of 7 —
+power drinks deeper. The K menu shows the real cost.
+
+## Potion flasks (new)
+
+| Knob | Value (`PotionBalance`) |
+|---|---|
+| Flasks | Health (`Q`) + Mana (`E`), always carried, never instant |
+| Restore | **40% of max over 4s** (mana respects summon reservations) |
+| Charges | **3 max**, start full, **+1 per kill** (every player, both flasks) |
+
+## Loop-2 Gravelord: dash charge (new)
+
+| Knob | Value (gravelord def) |
+|---|---|
+| Unlock | enemy level **7+** (`DashMinLevel`) — the loop-2+ campaign boss |
+| Prepare | **1.0s** rooted, with a red MMO ground LINE telegraph (direction locks at start) |
+| Charge | **7 tiles at speed 13**, one hit per player: **34 Blunt** contact damage + shove aside |
+| Cooldown | **9s**; stuns/freezes cancel both prepare and charge |
+
+## More attribute passives
+
+Six new tree nodes: Titan Blood / Colossus (**+10/+8 STR**), Viper Reflex /
+Ghost Step (**+10/+8 DEX**), Starlit Mind / Sage (**+10/+8 INT**) — each branch
+now carries four attribute nodes.
+
 ## Mace Strike reach fix (behavior)
 
 Plain swings now hit **player-centered**: enemies within the skill's Range of

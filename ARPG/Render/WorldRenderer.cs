@@ -423,7 +423,7 @@ public class WorldRenderer
                         var trTop = new Color(
                             Math.Min(255, trBase.R + trLift), Math.Min(255, trBase.G + trLift), Math.Min(255, trBase.B + trLift));
                         bool TrExposed(int nx, int ny) =>
-                            !map.IsSolid(nx, ny) &&
+                            (!map.IsSolid(nx, ny) || map.Feature(nx, ny) == TileFeature.BigTreeRoot) &&
                             (map.GroundLevel(nx, ny) < ground || map.Ramp(nx, ny) != RampDirection.None);
                         if (TrExposed(x + 1, y) || TrExposed(x, y + 1))
                         {
@@ -534,8 +534,11 @@ public class WorldRenderer
                             Math.Min(255, _elevTop.G + lift + check),
                             Math.Min(255, _elevTop.B + lift + check));
                     }
+                    // A tree TRUNK doesn't cover its tile the way a wall block does —
+                    // a cliff whose only open side faces a trunk must still draw its
+                    // face, or the gap behind the skinny sprite shows as a black hole.
                     bool Exposed(int nx, int ny) =>
-                        !map.IsSolid(nx, ny) &&
+                        (!map.IsSolid(nx, ny) || map.Feature(nx, ny) == TileFeature.BigTreeRoot) &&
                         (map.GroundLevel(nx, ny) < ground || map.Ramp(nx, ny) != RampDirection.None);
                     if (Exposed(x + 1, y) || Exposed(x, y + 1))
                     {
@@ -1514,6 +1517,42 @@ public class WorldRenderer
                             (int)(screen.Y + MathF.Sin(a3) * rPx * 0.5f) - 1, 3, 2),
                             new Color(255, 70, 50) * (0.85f * pulse));
                     }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "dashline" && fx.Points is { Count: > 1 })
+            {
+                // MMO-style dash telegraph: a burning red strip on the ground along the
+                // charge's exact path, filling toward the far end as launch nears.
+                var pA = fx.Points[0];
+                var pB = fx.Points[1];
+                long clockD = Environment.TickCount64;
+                float fillT = t; // 0 -> 1 across the wind-up
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f, batch =>
+                {
+                    float pulse = 0.7f + 0.3f * MathF.Sin(clockD * 0.02f);
+                    int segs = Math.Max(6, (int)(System.Numerics.Vector2.Distance(pA, pB) * 4));
+                    for (int i = 0; i <= segs; i++)
+                    {
+                        float st = i / (float)segs;
+                        var wp = System.Numerics.Vector2.Lerp(pA, pB, st);
+                        var sp = camera.WorldToScreen(wp, fx.Height);
+                        // Faint full-length strip; the FILLED part burns brighter.
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)sp.X - 13, (int)sp.Y - 6, 26, 12),
+                            new Color(220, 50, 35) * 0.16f);
+                        if (st <= fillT)
+                            batch.Draw(TextureGen.Circle32,
+                                new Rectangle((int)sp.X - 9, (int)sp.Y - 4, 18, 8),
+                                new Color(255, 70, 45) * (0.34f * pulse));
+                    }
+                    // Chevron at the destination — where the charge is headed.
+                    var tip = camera.WorldToScreen(pB, fx.Height);
+                    batch.Draw(TextureGen.Pixel, new Rectangle((int)tip.X - 6, (int)tip.Y - 2, 12, 3),
+                        new Color(255, 90, 60) * pulse);
+                    batch.Draw(TextureGen.Pixel, new Rectangle((int)tip.X - 2, (int)tip.Y - 5, 4, 9),
+                        new Color(255, 90, 60) * pulse);
                 }));
                 continue;
             }

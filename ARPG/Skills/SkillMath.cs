@@ -60,6 +60,12 @@ public static class SkillMath
     /// <summary>Skill XP needed to advance from `level` to the next level.</summary>
     public static float XpToNextLevel(int level) => 60f * level;
 
+    /// <summary>Power costs: each skill level past 1 raises the skill's mana cost by
+    /// this fraction, and each attached Skill Scroll by ManaCostPerScrollPct — stronger
+    /// casts drink deeper.</summary>
+    public const float ManaCostPerSkillLevelPct = 0.10f;
+    public const float ManaCostPerScrollPct = 0.20f;
+
     /// <summary>
     /// Scroll slots unlocked at a given skill level. Data-driven via Data/Config/scroll_slots.json
     /// (a map of "skill level reached" -> "total slots"), NOT hard-coded in UI code.
@@ -225,8 +231,10 @@ public static class SkillMath
 
         // Apply attached Skill Scrolls.
         float speedMult = 1f, cooldownMult = 1f, componentMult = 1f;
+        int attachedScrolls = 0;
         foreach (var scroll in scrolls)
         {
+            attachedScrolls++;
             foreach (var fx in scroll.Effects)
             {
                 switch (fx.Stat)
@@ -283,6 +291,13 @@ public static class SkillMath
                 };
 
         s.Cooldown = MathF.Max(0.1f, useTime / MathF.Max(0.1f, speedMult) * cooldownMult);
+
+        // Power has a price: higher skill levels and attached scrolls both raise the
+        // cast's mana cost (a Multishot fire bolt is a bigger bolt of mana too).
+        if (s.ManaCost > 0)
+            s.ManaCost = (def.ManaCost + def.ManaCostPerLevel * (level - 1)) *
+                         (1f + ManaCostPerSkillLevelPct * (level - 1)) *
+                         (1f + ManaCostPerScrollPct * attachedScrolls);
         return s;
     }
 }

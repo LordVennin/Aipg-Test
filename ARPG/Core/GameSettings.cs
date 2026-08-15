@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 22; // v22: campaign loop (map change, zone state, doors, chests)
+    public const int ProtocolVersion = 23; // v23: potion flasks in health sync + enemy dash telegraph
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }
