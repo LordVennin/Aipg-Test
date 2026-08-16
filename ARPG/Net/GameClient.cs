@@ -47,7 +47,8 @@ public class GameClient
     public event Action<string> ServerMessageReceived;
     public event Action<string> Disconnected;
     /// <summary>The merchant's stock for the local player (on shop open and after buys).</summary>
-    public event Action<int, List<ClientShopEntry>> ShopStockReceived;
+    /// <summary>(npcId, stock, buyback) — buyback lists this session's sold items.</summary>
+    public event Action<int, List<ClientShopEntry>, List<ClientShopEntry>> ShopStockReceived;
 
     private readonly CharacterData _initialCharacter;
 
@@ -338,6 +339,14 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestShopBuyback(int npcId, Guid itemInstanceId)
+    {
+        var w = Packets.Make(PacketType.ShopBuybackRequest);
+        w.Put(npcId);
+        w.PutGuid(itemInstanceId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestShopSell(Guid itemInstanceId)
     {
         var w = Packets.Make(PacketType.ShopSellRequest);
@@ -622,7 +631,16 @@ public class GameClient
                         Sold = r.GetBool(),
                         Item = Json.Load<ItemInstance>(r.GetString()),
                     });
-                ShopStockReceived?.Invoke(npcId, stock);
+                int buybackCount = r.GetInt();
+                var buyback = new List<ClientShopEntry>(buybackCount);
+                for (int i = 0; i < buybackCount; i++)
+                    buyback.Add(new ClientShopEntry
+                    {
+                        Slot = i,
+                        Price = r.GetInt(),
+                        Item = Json.Load<ItemInstance>(r.GetString()),
+                    });
+                ShopStockReceived?.Invoke(npcId, stock, buyback);
                 break;
             }
             case PacketType.SummonSpawn:
@@ -745,9 +763,13 @@ public class GameClient
                     var pos = r.GetVec2();
                     byte state = r.GetByte();
                     byte debuffs = r.GetByte();
+                    byte chillPct = r.GetByte();
                     float height = r.GetFloat();
                     if (World.Enemies.TryGetValue(id, out var e))
-                    { e.NetTarget = pos; e.State = state; e.DebuffFlags = debuffs; e.NetTargetHeight = height; }
+                    {
+                        e.NetTarget = pos; e.State = state; e.DebuffFlags = debuffs;
+                        e.ChillPercent = chillPct; e.NetTargetHeight = height;
+                    }
                 }
                 break;
             }

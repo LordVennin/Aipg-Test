@@ -32,6 +32,10 @@ public class ShopUI
     private Rectangle _dialogueRect;   // dialogue panel
     private int _npcId;
     private List<ClientShopEntry> _stock = new();
+    private List<ClientShopEntry> _buyback = new();
+    /// <summary>Active tab: false = the merchant's wares, true = the buy-back counter.</summary>
+    private bool _buybackTab;
+    private Rectangle _waresTabRect, _buybackTabRect;
     private string _dialogue = "";
     private string _npcName = "Merchant";
     private NpcDefinition _npcDef;
@@ -53,10 +57,11 @@ public class ShopUI
         _data = data;
         _client = client;
         _inventory = inventory;
-        _client.ShopStockReceived += (npcId, stock) =>
+        _client.ShopStockReceived += (npcId, stock, buyback) =>
         {
             _npcId = npcId;
             _stock = stock;
+            _buyback = buyback;
             if (Mode == ShopMode.Closed)
             {
                 var npc = _client.World.Npcs.GetValueOrDefault(npcId);
@@ -128,15 +133,33 @@ public class ShopUI
         if (Window.HandleBar(input, WindowDrag.BarFor(_panelRect))) return;
         if (input.MouseLeftPressed)
         {
-            var gold = _client.World.MyCharacter?.Gold ?? 0;
-            foreach (var (entry, rect) in _stockBoxes)
-                if (rect.Contains(input.MousePosition))
-                {
-                    input.MouseCapturedByUI = true;
-                    if (!entry.Sold && gold >= entry.Price)
-                        _client.RequestShopBuy(_npcId, entry.Slot);
-                    break;
-                }
+            if (_waresTabRect.Contains(input.MousePosition))
+            {
+                _buybackTab = false;
+                input.MouseCapturedByUI = true;
+            }
+            else if (_buybackTabRect.Contains(input.MousePosition))
+            {
+                _buybackTab = true;
+                input.MouseCapturedByUI = true;
+            }
+            else
+            {
+                var gold = _client.World.MyCharacter?.Gold ?? 0;
+                foreach (var (entry, rect) in _stockBoxes)
+                    if (rect.Contains(input.MousePosition))
+                    {
+                        input.MouseCapturedByUI = true;
+                        if (_buybackTab)
+                        {
+                            if (gold >= entry.Price)
+                                _client.RequestShopBuyback(_npcId, entry.Item.InstanceId);
+                        }
+                        else if (!entry.Sold && gold >= entry.Price)
+                            _client.RequestShopBuy(_npcId, entry.Slot);
+                        break;
+                    }
+            }
         }
         if (_panelRect.Contains(input.MousePosition))
             input.MouseCapturedByUI = true;
@@ -173,6 +196,26 @@ public class ShopUI
             new Color(240, 200, 90));
         y += 26;
 
+        // Tabs: the merchant's wares vs the buy-back counter (this session's sales).
+        _waresTabRect = new Rectangle(x, y, 108, 24);
+        _buybackTabRect = new Rectangle(x + 114, y, 148, 24);
+        void DrawTab(Rectangle rect, string label, bool active)
+        {
+            bool hovered = rect.Contains(_lastMouse);
+            sb.Draw(TextureGen.Pixel, rect,
+                active ? new Color(66, 58, 40, 240) : hovered ? new Color(44, 42, 48, 230) : new Color(30, 30, 38, 220));
+            sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Bottom - 2, rect.Width, 2),
+                active ? new Color(240, 200, 90) : new Color(60, 58, 52));
+            var tabFont = FontManager.GetBold(13);
+            var tSize = tabFont.MeasureString(label);
+            sb.DrawString(tabFont, label,
+                new Vector2(rect.Center.X - tSize.X / 2, rect.Center.Y - tSize.Y / 2),
+                active ? new Color(255, 236, 170) : new Color(190, 184, 168));
+        }
+        DrawTab(_waresTabRect, "Wares", !_buybackTab);
+        DrawTab(_buybackTabRect, $"Buy Back ({_buyback.Count})", _buybackTab);
+        y += 30;
+
         // The stock grid — same cell size and item boxes as the player's bag.
         var gridRect = new Rectangle(x, y, GridW * Cell, GridH * Cell);
         sb.Draw(TextureGen.Pixel, gridRect, new Color(14, 14, 18, 235));
@@ -181,7 +224,7 @@ public class ShopUI
         for (int gx = 0; gx <= GridW; gx++)
             sb.Draw(TextureGen.Pixel, new Rectangle(gridRect.X + gx * Cell, gridRect.Y, 1, gridRect.Height), new Color(50, 48, 44));
 
-        LayoutStock(gridRect);
+        LayoutStock(gridRect, _buybackTab ? _buyback : _stock);
         ItemInstance hoverItem = null;
         int hoverPrice = 0;
         bool hoverSold = false;
@@ -210,10 +253,19 @@ public class ShopUI
         if (hoverItem != null)
         {
             bool affordable = character.Gold >= hoverPrice;
+            string verb = _buybackTab ? "buy back" : "buy";
             string line = hoverSold ? "Sold out." :
-                $"{hoverItem.DisplayName(_data)} — {hoverPrice} gold" + (affordable ? "  (click to buy)" : "  (not enough gold)");
+                $"{hoverItem.DisplayName(_data)} — {hoverPrice} gold" +
+                (affordable ? $"  (click to {verb})" : "  (not enough gold)");
             sb.DrawString(FontManager.Get(14), Truncate(line, 56), new Vector2(x, stripY),
                 hoverSold ? new Color(150, 120, 120) : affordable ? new Color(240, 200, 90) : new Color(210, 120, 100));
+        }
+        else if (_buybackTab)
+        {
+            sb.DrawString(FontManager.Get(13), _buyback.Count == 0
+                    ? "Nothing sold this session — sold items land here."
+                    : "Click a sold item to buy it back at the price it fetched.",
+                new Vector2(x, stripY), new Color(140, 135, 120));
         }
         else
         {
@@ -262,13 +314,13 @@ public class ShopUI
         Option("Farewell.", Close);
     }
 
-    /// <summary>First-fit the stock items into the grid, left-to-right, per row —
+    /// <summary>First-fit the given items into the grid, left-to-right, per row —
     /// deterministic, so boxes never move between frames or reopens.</summary>
-    private void LayoutStock(Rectangle gridRect)
+    private void LayoutStock(Rectangle gridRect, List<ClientShopEntry> entries)
     {
         _stockBoxes.Clear();
         var occupied = new bool[GridW, GridH];
-        foreach (var entry in _stock.OrderBy(e => e.Slot))
+        foreach (var entry in entries.OrderBy(e => e.Slot))
         {
             var b = entry.Item.GetBase(_data);
             int w = Math.Min(b.InventoryWidth, GridW), h = Math.Min(b.InventoryHeight, GridH);

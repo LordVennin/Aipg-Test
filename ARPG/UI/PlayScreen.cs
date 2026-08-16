@@ -62,6 +62,7 @@ public class PlayScreen : IScreen
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     private bool _lmbClaimedByUI;
+    private bool _rmbClaimedByUI;
     /// <summary>Client-side cooldown estimates per skill (server still validates).</summary>
     private readonly Dictionary<string, float> _cooldownEnds = new();
     /// <summary>Client-side mirror of the server's global use-time lockout.</summary>
@@ -253,10 +254,17 @@ public class PlayScreen : IScreen
             _devDropScrolls = false;
             _client.SendDebugCommand("drop_scrolls");
         }
-        if (_devOpenShop && _clientTime > 2f && _client.World.Npcs.Count > 0)
+        if (_devOpenShop && _clientTime > 2f && _client.World.Npcs.Count > 0 && _client.World.Me != null)
         {
-            _devOpenShop = false;
-            _client.RequestShopOpen(_client.World.Npcs.Values.First().Id);
+            // Dev aid: stand beside the merchant first (the server range-gates
+            // ShopOpen), let the position replicate, then ask for the stock.
+            var devNpc = _client.World.Npcs.Values.First(n => n.TypeId != "skill_trainer");
+            _client.World.Me.Position = devNpc.Position + new NumVec2(0.9f, 0.4f);
+            if (_clientTime > 2.6f)
+            {
+                _devOpenShop = false;
+                _client.RequestShopOpen(devNpc.Id);
+            }
         }
         if (_devLearnSummons && _clientTime > 1.5f)
         {
@@ -414,6 +422,8 @@ public class PlayScreen : IScreen
         // closing a panel with the X never leaks into a primary attack.
         if (input.MouseCapturedByUI && input.MouseLeftDown) _lmbClaimedByUI = true;
         else if (!input.MouseLeftDown) _lmbClaimedByUI = false;
+        if (input.MouseCapturedByUI && input.MouseRightDown) _rmbClaimedByUI = true;
+        else if (!input.MouseRightDown) _rmbClaimedByUI = false;
 
         bool mouseFree = !input.MouseCapturedByUI && !_drag.Active;
 
@@ -489,11 +499,26 @@ public class PlayScreen : IScreen
                 me.Facing = NumVec2.Normalize(facing);
 
             // --- skills (chargeable skills fire on RELEASE, scaled by held time) ---
-            HandleHotbarSlot(0, input.IsActionDown(InputAction.PrimaryAttack) && mouseFree && !_lmbClaimedByUI, mouseWorld);
-            HandleHotbarSlot(1, input.IsActionDown(InputAction.Skill1), mouseWorld);
-            HandleHotbarSlot(2, input.IsActionDown(InputAction.Skill2), mouseWorld);
-            HandleHotbarSlot(3, input.IsActionDown(InputAction.Skill3), mouseWorld);
-            HandleHotbarSlot(4, input.IsActionDown(InputAction.Skill4), mouseWorld);
+            // Any MOUSE-bound action respects UI capture — a right-click that quick-
+            // equipped an item in the bag must never double as a skill cast.
+            bool SkillHeld(InputAction action)
+            {
+                if (!input.IsActionDown(action)) return false;
+                var binding = input.Bindings[action];
+                if (!binding.IsMouse) return true;
+                bool claimed = binding.MouseButton switch
+                {
+                    0 => _lmbClaimedByUI,
+                    1 => _rmbClaimedByUI,
+                    _ => false,
+                };
+                return mouseFree && !claimed;
+            }
+            HandleHotbarSlot(0, SkillHeld(InputAction.PrimaryAttack), mouseWorld);
+            HandleHotbarSlot(1, SkillHeld(InputAction.Skill1), mouseWorld);
+            HandleHotbarSlot(2, SkillHeld(InputAction.Skill2), mouseWorld);
+            HandleHotbarSlot(3, SkillHeld(InputAction.Skill3), mouseWorld);
+            HandleHotbarSlot(4, SkillHeld(InputAction.Skill4), mouseWorld);
 
             // --- pickup ---
             // Hover a drop label to target it: the pickup key then grabs THAT item,

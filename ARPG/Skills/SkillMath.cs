@@ -35,6 +35,11 @@ public struct EffectiveSkillStats
     public float PoisonMagnitude;
     public float BleedChance;
     public float BleedMagnitude;
+    /// <summary>How many bleed/poison instances THIS skill may keep on one enemy at
+    /// once: 1 by default, +1 per attached Rending/Venom scroll. Different skills'
+    /// (and different players') stacks always coexist.</summary>
+    public int MaxBleedStacks;
+    public int MaxPoisonStacks;
     /// <summary>Cold projectiles: shards fired behind a struck enemy (Scroll of Shattering).
     /// Deliberately NOT scaled by added-projectile scrolls.</summary>
     public int ShatterShards;
@@ -142,6 +147,8 @@ public static class SkillMath
             ManaCost = def.ManaCost,
             CritChance = playerStats.CritChance,
             CritDamage = playerStats.CritDamage,
+            MaxBleedStacks = 1,
+            MaxPoisonStacks = 1,
         };
 
         // Base damage: weapon-driven for attacks, skill-progression-driven for spells.
@@ -267,9 +274,11 @@ public static class SkillMath
                         break;
                     case ScrollStat.PoisonChance:
                         s.PoisonChance = MathF.Min(1f, s.PoisonChance + fx.Add);
+                        s.MaxPoisonStacks++; // each Venom scroll also stacks one more poison
                         break;
                     case ScrollStat.BleedChance:
                         s.BleedChance = MathF.Min(1f, s.BleedChance + fx.Add);
+                        s.MaxBleedStacks++;  // each Rending scroll also stacks one more bleed
                         break;
                     case ScrollStat.ShatterShards:
                         s.ShatterShards += (int)fx.Add;

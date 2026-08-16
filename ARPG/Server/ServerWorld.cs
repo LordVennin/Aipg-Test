@@ -913,9 +913,35 @@ public partial class ServerWorld
                 }
                 return false;
             }
+            // Stacked DoTs (poison/bleed): every live instance ticks; expired ones fall off.
+            bool TickDotStacks(List<ServerEnemy.DotStack> stacks, ref float accum, ref float emit, DamageKind kind)
+            {
+                if (stacks.Count == 0) return false;
+                float totalDps = 0f;
+                for (int i = stacks.Count - 1; i >= 0; i--)
+                {
+                    stacks[i].TimeLeft -= dt;
+                    if (stacks[i].TimeLeft <= 0) { stacks.RemoveAt(i); continue; }
+                    totalDps += stacks[i].Dps;
+                }
+                if (totalDps <= 0) return false;
+                float tick = totalDps * dt;
+                accum += tick;
+                emit += dt;
+                DamageEnemy(e, tick, e.LastHitByPlayer, e.LastHitSkillId, kind, emitEvents: false);
+                if (e.Dead) return true;
+                if (emit >= 0.5f && accum >= 1f)
+                {
+                    _events.DamageDealt(false, e.Id, accum, kind, e.Position);
+                    _events.EnemyHealthChanged(e);
+                    accum = 0;
+                    emit = 0;
+                }
+                return false;
+            }
             if (TickDot(ref e.BurnTimeLeft, ref e.BurnDps, ref e.BurnAccum, ref e.BurnEmitTimer, DamageKind.Fire)) continue;
-            if (TickDot(ref e.PoisonTimeLeft, ref e.PoisonDps, ref e.PoisonAccum, ref e.PoisonEmitTimer, DamageKind.Acid)) continue;
-            if (TickDot(ref e.BleedTimeLeft, ref e.BleedDps, ref e.BleedAccum, ref e.BleedEmitTimer, DamageKind.Blunt)) continue;
+            if (TickDotStacks(e.PoisonStacks, ref e.PoisonAccum, ref e.PoisonEmitTimer, DamageKind.Acid)) continue;
+            if (TickDotStacks(e.BleedStacks, ref e.BleedAccum, ref e.BleedEmitTimer, DamageKind.Blunt)) continue;
 
             // Chill decays constantly; electrocute rolls a freeze-in-place every 2s.
             if (e.ChillMagnitude > 0)
@@ -2292,7 +2318,7 @@ public partial class ServerWorld
     public const float ChillMaxMagnitude = 100f;   // modifiers can raise this later
     private const float ChillDecayPerSecond = 12f;
     private const float FreezeChanceAtCap = 0.35f;
-    private const float FreezeDuration = 1.4f;
+    public const float FreezeDuration = 2.2f;
     private const float ElectrocuteDuration = 6f;  // base "shock" duration
     private const float ShockRollInterval = 2f;
     private const float ShockFreezeChance = 0.45f;
@@ -2343,10 +2369,8 @@ public partial class ServerWorld
                                            c.kind is DamageKind.Dark or DamageKind.Acid)
                                .Sum(c => c.amount);
             if (basis > 0)
-            {
-                e.PoisonDps = MathF.Max(e.PoisonDps, basis * 0.6f / 4f * stats.PoisonMagnitude);
-                e.PoisonTimeLeft = 4f;
-            }
+                AddDotStack(e.PoisonStacks, Math.Max(1, stats.MaxPoisonStacks),
+                    basis * 0.6f / 4f * stats.PoisonMagnitude, e.LastHitByPlayer, e.LastHitSkillId);
         }
 
         // Bleed: physical only, but scales better (90% over 4s).
@@ -2354,11 +2378,45 @@ public partial class ServerWorld
         {
             float basis = comps.Where(c => DamageKinds.IsPhysical(c.kind)).Sum(c => c.amount);
             if (basis > 0)
-            {
-                e.BleedDps = MathF.Max(e.BleedDps, basis * 0.9f / 4f * stats.BleedMagnitude);
-                e.BleedTimeLeft = 4f;
-            }
+                AddDotStack(e.BleedStacks, Math.Max(1, stats.MaxBleedStacks),
+                    basis * 0.9f / 4f * stats.BleedMagnitude, e.LastHitByPlayer, e.LastHitSkillId);
         }
+    }
+
+    private const float DotDuration = 4f;
+
+    /// <summary>
+    /// Insert one bleed/poison instance. Stacks are capped PER SOURCE (owner + skill) —
+    /// different skills and different players always coexist. Within a full source only
+    /// the strongest instances survive: a stronger hit replaces the weakest stack, a
+    /// weaker one merely refreshes its duration (never downgrading the tick rate).
+    /// </summary>
+    public static void AddDotStack(List<ServerEnemy.DotStack> stacks, int cap, float dps,
+        int ownerId, string skillId)
+    {
+        if (dps <= 0) return;
+        ServerEnemy.DotStack weakest = null;
+        int mine = 0;
+        foreach (var s in stacks)
+        {
+            if (s.OwnerId != ownerId || s.SkillId != skillId) continue;
+            mine++;
+            if (weakest == null || s.Dps < weakest.Dps) weakest = s;
+        }
+        if (mine < cap)
+        {
+            stacks.Add(new ServerEnemy.DotStack
+            {
+                Dps = dps, TimeLeft = DotDuration, OwnerId = ownerId, SkillId = skillId,
+            });
+        }
+        else if (dps > weakest.Dps)
+        {
+            weakest.Dps = dps;
+            weakest.TimeLeft = DotDuration;
+        }
+        else
+            weakest.TimeLeft = MathF.Max(weakest.TimeLeft, DotDuration);
     }
 
     /// <summary>Active Scorched Earth fire-resistance shred stacks (expired ones pruned).</summary>

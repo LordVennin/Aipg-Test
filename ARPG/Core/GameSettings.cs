@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 24; // v24: item-based flasks (charges off the wire) + fountain refill
+    public const int ProtocolVersion = 25; // v25: shop buy-back in ShopStock + chill % in enemy states
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

@@ -357,3 +357,48 @@ to nothing. `CleanOrphanRamps` now removes any ramp whose ascent side doesn't
 reach walkable ground one level up (or whose low side isn't walkable at its
 own level) before the connectivity pass runs; tests assert zero orphan ramps
 across six seeds.
+
+# Addendum — batch 20 (buy-back, DoT stacks, XP/freeze tuning)
+
+## Merchant buy-back (new)
+
+The shop grew a second tab: everything sold this session (up to the **10**
+most recent, `BuybackSlots`) waits on the merchant's counter and can be
+bought back **at exactly the price it fetched**. The list rides the ShopStock
+packet and clears when the session ends.
+
+## Bleed & poison STACK (rework)
+
+One enemy used to hold at most one bleed and one poison total. Now every
+instance is a stack with its own tick rate and 4s timer:
+
+| Rule | Value |
+|---|---|
+| Stacks per SOURCE (one player's one skill) | **1** base |
+| Rending / Venom scroll on that skill | **+1 max stack each** |
+| Different skills / different players | always coexist, no shared cap |
+| A full source rolling a NEW instance | stronger → replaces its weakest stack; weaker → only refreshes it |
+
+The strongest instances always survive — a 4-damage-a-tick bleed is never
+overwritten by a weaker follow-up. Total DoT is the sum of every live stack.
+
+## Enemy XP down again (~20%)
+
+Grunt **8 → 6**, Spitter **11 → 9**, Barrow Knight **14 → 11**,
+Gravelord **100 → 80** (per-level scaling curves unchanged).
+
+## Freeze + chill readout
+
+- Deep freeze (chill at 100%) base duration **1.4s → 2.2s** (bosses still
+  thaw at 40% of that).
+- The chill debuff icon over an enemy now shows the buildup: a fill strip
+  along the icon's foot plus the raw percent above it — 100% is the freeze
+  threshold. The value rides the enemy state snapshots (0–100).
+
+## UI fixes
+
+- The inventory's gold readout moved below the drag bar (it clipped over the
+  grip dots).
+- A right-click that quick-equips an item in the bag no longer doubles as a
+  cast for skills bound to RMB — mouse-bound hotbar slots now respect UI
+  capture, exactly like the left button.

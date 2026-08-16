@@ -72,6 +72,8 @@ public class ClientEnemy
     /// <summary>Active debuff bitmask from enemy snapshots (Server.EnemyDebuffs flags),
     /// rendered as tiny per-debuff icons above the enemy's head.</summary>
     public byte DebuffFlags;
+    /// <summary>Chill buildup toward the freeze cap, 0..100 (shown on the chill icon).</summary>
+    public byte ChillPercent;
     /// <summary>Which way the sprite should face on screen (updated from movement).</summary>
     public bool FacingLeft;
     /// <summary>Elite affix bitmask (Server.EliteAffix) from the spawn packet — drives

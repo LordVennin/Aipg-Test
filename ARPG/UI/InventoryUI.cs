@@ -244,15 +244,16 @@ public class InventoryUI
         sb.DrawString(title, "Equipment & Inventory", new Vector2(_panelRect.X + 12, _panelRect.Y + 8), new Color(230, 215, 165));
         CloseButton.Draw(sb, _panelRect, input.MousePosition);
 
-        // --- gold display ---
+        // --- gold display (below the drag bar so it never overlaps the grip dots) ---
         var goldFont = FontManager.GetBold(16);
         string goldText = $"{character.Gold:n0}";
         var goldSize = goldFont.MeasureString(goldText);
         var pile = SpriteGen.GetGoldPile();
-        float goldX = _panelRect.Right - 44 - goldSize.X; // leave room for the close button
+        float goldX = _panelRect.Right - 12 - goldSize.X;
+        int goldY = _panelRect.Y + 32;
         if (pile != null)
-            sb.Draw(pile, new Rectangle((int)goldX - pile.Width * 2 - 6, _panelRect.Y + 12, pile.Width * 2, pile.Height * 2), Color.White);
-        sb.DrawString(goldFont, goldText, new Vector2(goldX, _panelRect.Y + 10), new Color(240, 200, 90));
+            sb.Draw(pile, new Rectangle((int)goldX - pile.Width * 2 - 6, goldY + 2, pile.Width * 2, pile.Height * 2), Color.White);
+        sb.DrawString(goldFont, goldText, new Vector2(goldX, goldY), new Color(240, 200, 90));
 
         // --- equipment slots ---
         foreach (var (slot, rect) in _slotRects)
