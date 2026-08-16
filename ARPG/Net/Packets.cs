@@ -105,6 +105,9 @@ public enum PacketType : byte
 
     /// <summary>Client -> server: refill equipped flasks at the sanctum fountain (batch 19).</summary>
     UseFountainRequest,
+
+    /// <summary>Client -> server: buy a previously sold item back (npc id + item instance guid).</summary>
+    ShopBuybackRequest,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

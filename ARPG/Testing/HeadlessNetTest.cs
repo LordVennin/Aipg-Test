@@ -1457,7 +1457,12 @@ public static class HeadlessNetTest
                 Console.WriteLine($"  [diag] slam-slow attempt {attempt}: " + string.Join(" | ",
                     pack3.Select(g => $"dead={g.Dead} hp={g.Health:0} slow={g.SlowedUntil - server.World.Time:0.00} " +
                         $"dist={Vector2.Distance(g.Position, srvMulti.Position):0.00}")) +
-                    $" srvPos={srvMulti.Position} mana={srvMulti.Mana:0}");
+                    $" srvPos={srvMulti.Position} mana={srvMulti.Mana:0} max={srvMulti.Stats.MaxMana:0}" +
+                    $" alive={srvMulti.Alive} frozen={srvMulti.FrozenUntil - server.World.Time:0.00}" +
+                    $" global={srvMulti.GlobalSkillReadyAt - server.World.Time:0.00}" +
+                    $" weap={srvMulti.Character.MainHand?.BaseItemId ?? "none"}" +
+                    $" lvl={srvMulti.Character.GetSkill("mace_strike")?.Level.ToString() ?? "unlearned"}" +
+                    $" msgB='{msgB}'");
         }
         Check(slowed, "Mace Slam slows survivors");
         Check(data.Skills["mace_strike"].Name == "Mace Slam" &&
@@ -1649,10 +1654,10 @@ public static class HeadlessNetTest
         Check(data.Npcs["merchant"].Dialogue.Count >= 4, "merchant carries dialogue lines");
 
         var merchant = server.World.Npcs[0];
-        List<ClientShopEntry> stockB = null;
-        clientB.ShopStockReceived += (_, stock) => stockB = stock;
+        List<ClientShopEntry> stockB = null, buybackB = null;
+        clientB.ShopStockReceived += (_, stock, buyback) => { stockB = stock; buybackB = buyback; };
         List<ClientShopEntry> stockA = null;
-        clientA.ShopStockReceived += (_, stock) => stockA = stock;
+        clientA.ShopStockReceived += (_, stock, _) => stockA = stock;
 
         // Range gate: opening from across the map is ignored.
         clientB.World.Me.Position = merchant.Position + new Vector2(8f, 8f);
@@ -1721,6 +1726,30 @@ public static class HeadlessNetTest
         Check(srvShopper.Character.Gold == goldBeforeSell + expectedSell &&
               srvShopper.Character.Inventory.FindByInstance(buyEntry.Item.InstanceId) == null,
               $"selling removes the item and pays its value ({expectedSell} gold)");
+
+        // Buy-back: the sale lands on the merchant's counter (replicated with the
+        // stock), and buying it back costs exactly what it fetched.
+        Check(srvShopper.Buyback.Count == 1 &&
+              srvShopper.Buyback[0].Item.InstanceId == buyEntry.Item.InstanceId &&
+              srvShopper.Buyback[0].Price == expectedSell,
+              "the sold item waits on the buy-back counter at its sale price");
+        Check(buybackB is { Count: 1 } &&
+              buybackB[0].Item.InstanceId == buyEntry.Item.InstanceId &&
+              buybackB[0].Price == expectedSell,
+              "the buy-back list replicates alongside the stock");
+        srvShopper.Character.Gold = expectedSell - 1; // one short: refused
+        clientB.RequestShopBuyback(merchant.Id, buyEntry.Item.InstanceId);
+        Pump(0.4f);
+        Check(srvShopper.Buyback.Count == 1 &&
+              srvShopper.Character.Inventory.FindByInstance(buyEntry.Item.InstanceId) == null,
+              "buy-back refuses when gold falls short");
+        srvShopper.Character.Gold = expectedSell + 3;
+        clientB.RequestShopBuyback(merchant.Id, buyEntry.Item.InstanceId);
+        Pump(0.4f);
+        Check(srvShopper.Character.Gold == 3 &&
+              srvShopper.Character.Inventory.FindByInstance(buyEntry.Item.InstanceId) != null &&
+              srvShopper.Buyback.Count == 0,
+              "buying back returns the item for its sale price and clears the counter");
 
         // Leveling up rerolls the stock and clears the sold slots.
         int lvlBefore = srvShopper.Character.Level;
@@ -1850,6 +1879,24 @@ public static class HeadlessNetTest
             Enumerable.Empty<Skills.ScrollDefinition>(), pctStats);
         Check(frenzyEff.Cooldown < plainEff.Cooldown - 0.01f,
               $"Frenzy scroll speeds melee attacks ({plainEff.Cooldown:0.00}s -> {frenzyEff.Cooldown:0.00}s)");
+
+        // ---- bleed/poison STACKS: base cap 1 per skill, +1 per Venom/Rending scroll,
+        // and within a full source only the strongest instances survive.
+        Check(plainEff.MaxBleedStacks == 1 && plainEff.MaxPoisonStacks == 1 &&
+              meleeEff.MaxBleedStacks == 2 && meleeEff.MaxPoisonStacks == 2,
+              "bleed/poison scrolls raise the skill's stack caps (+1 each over the base 1)");
+        var dotStacks = new List<Server.ServerEnemy.DotStack>();
+        Server.ServerWorld.AddDotStack(dotStacks, 2, 4f, 1, "strike");
+        Server.ServerWorld.AddDotStack(dotStacks, 2, 5f, 1, "strike");
+        Server.ServerWorld.AddDotStack(dotStacks, 2, 3f, 1, "strike"); // weaker: refresh only
+        Check(dotStacks.Count == 2 && MathF.Abs(dotStacks.Sum(s => s.Dps) - 9f) < 0.01f,
+              "a weaker instance never overwrites a stronger stack (4+5 kept over the 3)");
+        Server.ServerWorld.AddDotStack(dotStacks, 2, 6f, 1, "strike"); // stronger: replaces the 4
+        Check(dotStacks.Count == 2 && MathF.Abs(dotStacks.Sum(s => s.Dps) - 11f) < 0.01f,
+              "a stronger instance replaces the weakest stack (5+6 remain)");
+        Server.ServerWorld.AddDotStack(dotStacks, 2, 2f, 2, "strike"); // another player
+        Server.ServerWorld.AddDotStack(dotStacks, 2, 2f, 1, "other");  // another skill
+        Check(dotStacks.Count == 4, "stacks from different players/skills always coexist");
         var shatterEff = Skills.SkillMath.Compute(data, iceDef, 1, new[] { data.Scrolls["shattering"] }, magStats);
         var shatterMulti = Skills.SkillMath.Compute(data, iceDef, 1,
             new[] { data.Scrolls["shattering"], data.Scrolls["multishot"] }, magStats);
@@ -1888,10 +1935,14 @@ public static class HeadlessNetTest
             CastAt("ice_spike", chillTarget.Position);
         Check(server.World.Time < chillTarget.FrozenUntil,
               "at full chill, hits can freeze the target solid");
+        Check(Server.ServerWorld.FreezeDuration >= 2.19f,
+              $"the deep freeze holds longer now ({Server.ServerWorld.FreezeDuration:0.0}s base)");
         Pump(0.4f);
         Check(clientB.World.Enemies.TryGetValue(chillTarget.Id, out var chillOnB) &&
               (chillOnB.DebuffFlags & (Server.EnemyDebuffs.Chilled | Server.EnemyDebuffs.Frozen)) != 0,
               "chill/frozen flags replicate for the blue tint");
+        Check(chillOnB is { ChillPercent: > 30 },
+              $"chill buildup PERCENT replicates for the icon readout ({chillOnB.ChillPercent}%)");
         float chillPeak = chillTarget.ChillMagnitude;
         chillTarget.FrozenUntil = 0;
         Pump(1.5f);
@@ -1960,6 +2011,17 @@ public static class HeadlessNetTest
         }
         Check(chillTarget.BleedDps > chillTarget.PoisonDps * 0.99f,
               $"bleed outscales poison on pure-physical hits ({chillTarget.BleedDps:0.0} vs {chillTarget.PoisonDps:0.0})");
+        // Stacking in anger: with the Rending scroll the cap is 2, so a second bleed
+        // latches while the first still runs (and a third never does).
+        for (int i = 0; i < 40 && chillTarget.BleedStacks.Count < 2; i++)
+        {
+            chillTarget.Position = srvAil.Position + new Vector2(1.0f, 0);
+            CastAt("basic_strike", chillTarget.Position);
+        }
+        Check(chillTarget.BleedStacks.Count == 2,
+              "a Rending scroll lets a second bleed instance stack on the same enemy");
+        Check(chillTarget.BleedStacks.Count <= 2 && chillTarget.PoisonStacks.Count <= 2,
+              $"stacks respect the per-skill cap ({chillTarget.BleedStacks.Count} bleed / {chillTarget.PoisonStacks.Count} poison)");
         Pump(0.4f);
         Check(clientB.World.Enemies.TryGetValue(chillTarget.Id, out var dotOnB) &&
               (dotOnB.DebuffFlags & Server.EnemyDebuffs.Poisoned) != 0 &&
@@ -3022,6 +3084,9 @@ public static class HeadlessNetTest
         Check(data.Skills["summon_skeleton"].SummonHealth == 40 &&
               data.Skills["summon_skeleton_warrior"].SummonHealth == 58,
               "both summons gained +10 base health");
+        Check(data.Enemies["grunt"].XpReward == 6 && data.Enemies["spitter"].XpReward == 9 &&
+              data.Enemies["bone_knight"].XpReward == 11 && data.Enemies["gravelord"].XpReward == 80,
+              "enemy XP rewards trimmed again (~20%)");
 
         Console.WriteLine("\n-- Loot: base-level window + flask drops --");
         // Past the window, outleveled bases stop dropping: at ilvl 30 nothing under

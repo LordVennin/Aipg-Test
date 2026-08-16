@@ -667,6 +667,9 @@ public partial class ServerWorld
         _events.ShopStockFor(p, npcId, GetShopStock(p));
     }
 
+    /// <summary>Sold-by-mistake insurance: how many recent sales the merchant holds.</summary>
+    public const int BuybackSlots = 10;
+
     public void ShopSell(int playerId, Guid itemInstanceId)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
@@ -675,7 +678,42 @@ public partial class ServerWorld
         var placed = c.Inventory.FindByInstance(itemInstanceId);
         if (placed == null) return;
         c.Inventory.Remove(itemInstanceId);
-        c.Gold += Math.Max(1, placed.Item.GoldValue(Data));
+        int value = Math.Max(1, placed.Item.GoldValue(Data));
+        c.Gold += value;
+        // The merchant keeps recent sales on the counter — buy-back at the same price.
+        p.Buyback.Add(new ShopEntry { Item = placed.Item, Price = value });
+        while (p.Buyback.Count > BuybackSlots) p.Buyback.RemoveAt(0);
+        for (int i = 0; i < p.Buyback.Count; i++) p.Buyback[i].Slot = i;
         _events.CharacterChanged(p);
+        // Refresh the open shop so its buy-back tab shows the item immediately.
+        var shopNpc = Npcs.FirstOrDefault(n => n.TypeId != "skill_trainer" &&
+            Vector2.Distance(n.Position, p.Position) <= ShopInteractRange);
+        if (shopNpc != null) _events.ShopStockFor(p, shopNpc.Id, GetShopStock(p));
+    }
+
+    /// <summary>Buy a previously sold item back, at the price it fetched.</summary>
+    public void ShopBuyback(int playerId, int npcId, Guid itemInstanceId)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        var npc = ShopNpcInRange(p, npcId);
+        if (npc == null || npc.TypeId == "skill_trainer") return;
+        var entry = p.Buyback.FirstOrDefault(b => b.Item.InstanceId == itemInstanceId);
+        if (entry == null) return;
+        var c = p.Character;
+        if (c.Gold < entry.Price)
+        {
+            _events.MessageFor(p, "Not enough gold.");
+            return;
+        }
+        if (!c.Inventory.TryAdd(Data, entry.Item))
+        {
+            _events.MessageFor(p, "Your inventory is full.");
+            return;
+        }
+        c.Gold -= entry.Price;
+        p.Buyback.Remove(entry);
+        for (int i = 0; i < p.Buyback.Count; i++) p.Buyback[i].Slot = i;
+        _events.CharacterChanged(p);
+        _events.ShopStockFor(p, npcId, GetShopStock(p));
     }
 }

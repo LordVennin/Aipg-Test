@@ -195,6 +195,15 @@ replicated as debuff flags (tiny icons above heads plus on-body visuals):
   of the hit (60% over 4s), scaled by poison magnitude — green bubbles.
 - **Bleed** (Rending scroll, melee): physical-only but heavier (90% over 4s) —
   dripping red.
+- **DoT stacking**: bleed and poison apply as STACKS, each with its own tick
+  rate and timer. One skill keeps 1 stack on an enemy by default; each attached
+  Rending/Venom scroll raises that skill's cap by +1, and stacks from different
+  skills or different players always coexist. When a source is at its cap only
+  the strongest instances survive — a stronger hit replaces the weakest stack,
+  a weaker one merely refreshes it. Total DoT = the sum of every live stack.
+- The chill icon above an enemy shows the buildup toward the freeze: a fill
+  bar on the icon plus the exact percent — freezes trigger at 100% (2.2s base
+  freeze).
 
 **New Skill Scrolls**: *Venom* and *Rending* (melee poison/bleed chance), *Frenzy*
 (20% increased melee attack speed), *Shattering* (Cold projectiles burst into 5
@@ -531,6 +540,11 @@ character save). Buy price is twice the item's gold value; selling an inventory
 item (click it in the right column) pays its base value. All transactions are
 validated server-side like any other request.
 
+The shop has two tabs: **Wares** (the rolled stock) and **Buy Back** — the up
+to ten most recent items sold this session wait on the merchant's counter and
+can be bought back at exactly the price they fetched. The buy-back list is
+session-scoped and clears when you leave.
+
 ### Passive skill tree
 
 `P` opens a PoE-style passive tree — click-drag anywhere on the panel to PAN
@@ -729,7 +743,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (444 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (457 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

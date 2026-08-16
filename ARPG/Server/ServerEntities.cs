@@ -60,6 +60,10 @@ public class ServerPlayer
     /// transitions, while the client's in-flight states still carry old-map coords).</summary>
     public float IgnoreStateUntil;
 
+    /// <summary>Items sold to merchants THIS SESSION (most recent last): the buy-back
+    /// tab's stock, offered back at exactly what they fetched. Slot = list index.</summary>
+    public readonly List<ShopEntry> Buyback = new();
+
     /// <summary>Blocking goes on cooldown after each successful block (server-authoritative).</summary>
     public float NextBlockReadyAt;
 
@@ -193,12 +197,24 @@ public class ServerEnemy
     public float BurnTimeLeft;
     public float BurnAccum;
     public float BurnEmitTimer;
-    public float PoisonDps;
-    public float PoisonTimeLeft;
+    /// <summary>One applied bleed/poison instance. Each (owner, skill) source keeps its
+    /// own stacks up to that skill's cap — different sources always coexist.</summary>
+    public class DotStack
+    {
+        public float Dps;
+        public float TimeLeft;
+        public int OwnerId;
+        public string SkillId;
+    }
+    public readonly List<DotStack> PoisonStacks = new();
+    public readonly List<DotStack> BleedStacks = new();
+    /// <summary>Combined poison tick rate across every active stack (test/UI view).</summary>
+    public float PoisonDps => PoisonStacks.Sum(s => s.Dps);
+    public float PoisonTimeLeft => PoisonStacks.Count == 0 ? 0f : PoisonStacks.Max(s => s.TimeLeft);
+    public float BleedDps => BleedStacks.Sum(s => s.Dps);
+    public float BleedTimeLeft => BleedStacks.Count == 0 ? 0f : BleedStacks.Max(s => s.TimeLeft);
     public float PoisonAccum;
     public float PoisonEmitTimer;
-    public float BleedDps;
-    public float BleedTimeLeft;
     public float BleedAccum;
     public float BleedEmitTimer;
 

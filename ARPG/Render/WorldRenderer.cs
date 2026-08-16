@@ -901,7 +901,7 @@ public class WorldRenderer
                     batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
                         new Color(200, 50, 50));
                 }
-                DrawDebuffIcons(batch, e.DebuffFlags, (int)screen.X, barY - 16);
+                DrawDebuffIcons(batch, e.DebuffFlags, e.ChillPercent, (int)screen.X, barY - 16);
             }));
         }
 
@@ -1835,17 +1835,18 @@ public class WorldRenderer
     }
 
     /// <summary>Row of tiny per-debuff icons centered above an enemy's head — one icon
-    /// per active flag in Server.EnemyDebuffs order.</summary>
-    private static void DrawDebuffIcons(SpriteBatch sb, byte flags, int centerX, int y)
+    /// per active flag in Server.EnemyDebuffs order. The chill icon carries a buildup
+    /// readout (fill bar + tiny percent) toward the 100% freeze threshold.</summary>
+    private static void DrawDebuffIcons(SpriteBatch sb, byte flags, byte chillPercent, int centerX, int y)
     {
         if (flags == 0) return;
         var kinds = new string[8];
-        int count = 0;
+        int count = 0, chillIndex = -1;
         if ((flags & Server.EnemyDebuffs.Stunned) != 0) kinds[count++] = "stun";
         if ((flags & Server.EnemyDebuffs.Burning) != 0) kinds[count++] = "burn";
         if ((flags & Server.EnemyDebuffs.Slowed) != 0) kinds[count++] = "slow";
         if ((flags & Server.EnemyDebuffs.Frozen) != 0) kinds[count++] = "frozen";
-        else if ((flags & Server.EnemyDebuffs.Chilled) != 0) kinds[count++] = "chill";
+        else if ((flags & Server.EnemyDebuffs.Chilled) != 0) { chillIndex = count; kinds[count++] = "chill"; }
         if ((flags & Server.EnemyDebuffs.Shocked) != 0) kinds[count++] = "shock";
         if ((flags & Server.EnemyDebuffs.Poisoned) != 0) kinds[count++] = "poison";
         if ((flags & Server.EnemyDebuffs.Bleeding) != 0) kinds[count++] = "bleed";
@@ -1855,9 +1856,23 @@ public class WorldRenderer
         int x = centerX - totalW / 2;
         for (int i = 0; i < count; i++)
         {
+            var iconX = x + i * (iconSize + gap);
             var tex = SpriteGen.GetDebuffIcon(kinds[i]);
             if (tex != null)
-                sb.Draw(tex, new Rectangle(x + i * (iconSize + gap), y, iconSize, iconSize), Color.White);
+                sb.Draw(tex, new Rectangle(iconX, y, iconSize, iconSize), Color.White);
+            if (i != chillIndex) continue;
+            // Chill buildup: a fill strip along the icon's foot plus the raw percent
+            // floating just above — 100% is the freeze threshold.
+            var strip = new Rectangle(iconX, y + iconSize - 3, iconSize, 3);
+            sb.Draw(TextureGen.Pixel, strip, new Color(8, 14, 26, 230));
+            sb.Draw(TextureGen.Pixel,
+                new Rectangle(strip.X, strip.Y, Math.Max(1, iconSize * chillPercent / 100), 3),
+                chillPercent >= 100 ? new Color(220, 240, 255) : new Color(120, 190, 255));
+            var pctFont = FontManager.Get(10);
+            string pct = $"{chillPercent}%";
+            var pctSize = pctFont.MeasureString(pct);
+            sb.DrawString(pctFont, pct, new Vector2(iconX + iconSize / 2f - pctSize.X / 2, y - 11),
+                new Color(160, 210, 255));
         }
     }
 

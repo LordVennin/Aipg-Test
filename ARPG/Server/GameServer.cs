@@ -268,6 +268,9 @@ public class GameServer : IServerEvents
             case PacketType.UseFountainRequest:
                 World.UseFountain(playerId);
                 break;
+            case PacketType.ShopBuybackRequest:
+                World.ShopBuyback(playerId, r.GetInt(), r.GetGuid());
+                break;
         }
     }
 
@@ -426,6 +429,13 @@ public class GameServer : IServerEvents
             w.Put(entry.Sold);
             w.Put(Json.SaveCompact(entry.Item));
         }
+        // Buy-back counter: this session's sold items, same price back.
+        w.Put(p.Buyback.Count);
+        foreach (var entry in p.Buyback)
+        {
+            w.Put(entry.Price);
+            w.Put(Json.SaveCompact(entry.Item));
+        }
         SendTo(p.Id, w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -482,6 +492,9 @@ public class GameServer : IServerEvents
             if (e.PoisonTimeLeft > 0) debuffs |= EnemyDebuffs.Poisoned;
             if (e.BleedTimeLeft > 0) debuffs |= EnemyDebuffs.Bleeding;
             w.Put(debuffs);
+            // Chill buildup toward the freeze cap, 0..100 — the debuff icon shows it.
+            w.Put((byte)Math.Clamp((int)MathF.Round(
+                e.ChillMagnitude * 100f / ServerWorld.ChillMaxMagnitude), 0, 100));
             w.Put(e.Height);
         }
         Broadcast(w, DeliveryMethod.Unreliable);

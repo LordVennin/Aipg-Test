@@ -183,6 +183,7 @@ public class InputManager
     public bool MouseLeftDown => _mouse.LeftButton == ButtonState.Pressed;
     public bool MouseLeftPressed => _mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released;
     public bool MouseLeftReleased => _mouse.LeftButton == ButtonState.Released && _prevMouse.LeftButton == ButtonState.Pressed;
+    public bool MouseRightDown => _mouse.RightButton == ButtonState.Pressed;
     public bool MouseRightPressed => _mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released;
     public int ScrollDelta => _mouse.ScrollWheelValue - _prevMouse.ScrollWheelValue;
     public bool WasKeyPressed(Keys key) => _keys.IsKeyDown(key) && !_prevKeys.IsKeyDown(key);
