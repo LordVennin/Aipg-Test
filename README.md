@@ -114,6 +114,26 @@ Quick isolation test: on the host run **Host Game**; on the SAME machine run a s
 copy and join `127.0.0.1:7777` — if that works (it should), the game is fine and the
 block is between the machines.
 
+**Built-in UDP path tester** — proves where packets die without touching the game
+protocol (console-only, works on Windows and Linux):
+
+```
+# on the HOST machine:
+dotnet run -- --udpecho            # listens on UDP 7777 and echoes everything back
+
+# on the JOINING machine:
+dotnet run -- --udpping 100.x.y.z  # the host's Meshnet/LAN IP
+```
+
+Replies flowing both ways = the path is open and the game will connect. Silence =
+the drop is in a firewall or VPN permission, not the game. Note that an app-specific
+**Block** rule (created if the first-run firewall prompt was ever cancelled) overrides
+any port-allow rule — check *Windows Defender Firewall with Advanced Security →
+Inbound Rules* for red "blocked" entries naming the game or `dotnet`, delete them,
+then re-host and accept the prompt with BOTH network types ticked. Beware that
+`--udpecho`/`--udpping` run under the same executable, so they test the same
+firewall rules the real game hits.
+
 ## 6. Controls (all rebindable in Options)
 
 | Action | Default |
