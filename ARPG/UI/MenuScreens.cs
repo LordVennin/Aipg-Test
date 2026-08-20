@@ -61,8 +61,14 @@ public class MainMenuScreen : IScreen
 
         if (!string.IsNullOrEmpty(_message))
         {
-            var mSize = subFont.MeasureString(_message);
-            sb.DrawString(subFont, _message, new Vector2(size.X / 2f - mSize.X / 2, 195), new Color(255, 120, 110));
+            // Disconnect reasons can carry multi-line diagnostics — center each line.
+            float my = 195;
+            foreach (var line in _message.Split('\n'))
+            {
+                var mSize = subFont.MeasureString(line);
+                sb.DrawString(subFont, line, new Vector2(size.X / 2f - mSize.X / 2, my), new Color(255, 120, 110));
+                my += 22;
+            }
         }
         _panel.Draw(sb);
 
@@ -85,8 +91,8 @@ public class HostScreen : IScreen
         _game = game;
         var size = game.UiScreenSize;
         int cx = size.X / 2 - 170;
-        int y = size.Y / 2 - 140;
-        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 340) };
+        int y = size.Y / 2 - 170;
+        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 452) };
         _panel.Children.Add(new Label("Host Game", cx, y - 40, 26, bold: true));
         _panel.Children.Add(new Label("Player Name", cx, y + 8, 15));
         _name = new TextInput(new Rectangle(cx, y + 30, 340, 36), game.Settings.PlayerName);
@@ -94,10 +100,45 @@ public class HostScreen : IScreen
         _panel.Children.Add(new Label($"Port (default {GameNetConfig.DefaultPort})", cx, y + 78, 15));
         _port = new TextInput(new Rectangle(cx, y + 100, 340, 36), game.Settings.LastPort.ToString()) { NumericOnly = true, MaxLength = 5 };
         _panel.Children.Add(_port);
-        _error = new Label("", cx, y + 148, 15) { Color = new Color(255, 120, 110) };
+        // The host's own addresses (LAN + VPN adapters like Meshnet/ZeroTier): this is
+        // exactly what a friend types into Join — and proof the game sees the adapter.
+        _panel.Children.Add(new Label("Friends connect to one of YOUR addresses:", cx, y + 148, 15));
+        int addrY = y + 168;
+        foreach (var line in LocalAddressLines())
+        {
+            _panel.Children.Add(new Label(line, cx, addrY, 14) { Color = new Color(240, 200, 90) });
+            addrY += 20;
+        }
+        _error = new Label("", cx, y + 230, 15) { Color = new Color(255, 120, 110) };
         _panel.Children.Add(_error);
-        _panel.Children.Add(new Button("Start Hosting", new Rectangle(cx, y + 180, 340, 42), StartHosting));
-        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 232, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
+        _panel.Children.Add(new Button("Start Hosting", new Rectangle(cx, y + 262, 340, 42), StartHosting));
+        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 314, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
+    }
+
+    /// <summary>Up to three lines of this machine's IPv4 addresses on live non-loopback
+    /// interfaces — LAN and VPN (Meshnet/ZeroTier/Tailscale) alike.</summary>
+    private static List<string> LocalAddressLines()
+    {
+        var addrs = new List<string>();
+        try
+        {
+            foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up ||
+                    ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
+                    continue;
+                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                    if (ua.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        addrs.Add(ua.Address.ToString());
+            }
+        }
+        catch { /* no interface access: show the fallback line below */ }
+        addrs = addrs.Distinct().Take(6).ToList();
+        if (addrs.Count == 0) return new List<string> { "(no LAN/VPN address found)" };
+        var lines = new List<string>();
+        for (int i = 0; i < addrs.Count; i += 2)
+            lines.Add(string.Join("   ·   ", addrs.Skip(i).Take(2)));
+        return lines.Take(3).ToList();
     }
 
     private void StartHosting()
