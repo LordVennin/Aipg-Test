@@ -71,8 +71,18 @@ public class GameClient
         };
         _listener.PeerDisconnectedEvent += (peer, info) =>
         {
+            // A failure DURING the initial connect means our UDP packets never got an
+            // answer — with modern VPNs (Meshnet/ZeroTier/Tailscale) ping usually works
+            // while the HOST's firewall still drops the game's UDP, so say so.
+            bool neverConnected = Status == ClientStatus.Connecting;
+            string unreachable =
+                $"Could not reach {_connectHost}:{_connectPort} — the host never answered (UDP).\n" +
+                $"If ping works, the HOST's firewall is likely blocking UDP {_connectPort}: allow the game there,\n" +
+                "including on PUBLIC networks (VPN adapters usually count as Public). Both PCs need the same build.";
             string reason = LastDisconnectReason ?? info.Reason switch
             {
+                DisconnectReason.ConnectionFailed when neverConnected => unreachable,
+                DisconnectReason.Timeout when neverConnected => unreachable,
                 DisconnectReason.ConnectionFailed => "Could not reach the host.",
                 DisconnectReason.Timeout => "Connection timed out.",
                 DisconnectReason.ConnectionRejected => ReadRejectReason(info) ?? "Connection rejected by the host.",
@@ -101,6 +111,9 @@ public class GameClient
         return null;
     }
 
+    private string _connectHost = "";
+    private int _connectPort;
+
     public bool Connect(string host, int port, out string error)
     {
         error = null;
@@ -112,6 +125,8 @@ public class GameClient
         try
         {
             Status = ClientStatus.Connecting;
+            _connectHost = host;
+            _connectPort = port;
             _net.Connect(host, port, GameNetConfig.ConnectionKey);
             return true;
         }

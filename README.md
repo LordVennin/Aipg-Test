@@ -85,6 +85,35 @@ font atlas re-rasterizes whenever the UI scale changes), so menu/HUD text stays 
 **Default multiplayer port: `7777` (UDP).** Open/forward it if hosting across a firewall.
 No NAT traversal / matchmaking / accounts — direct IP only, by design.
 
+### Troubleshooting: "ping works, but the game can't connect" (Meshnet / ZeroTier / Tailscale)
+
+Ping is ICMP; the game is **UDP** — a firewall can pass one and drop the other. If the
+join screen ends with *"the host never answered (UDP)"*, work down this list on the
+**HOST's** machine (the joiner's firewall almost never matters — outbound UDP is allowed
+by default):
+
+1. **Windows Firewall is the usual culprit.** VPN adapters (Meshnet, ZeroTier, Tailscale)
+   are typically classified as **Public** networks, and the first-run "allow access"
+   prompt only ticks *Private* by default — so the game is silently blocked exactly on the
+   VPN interface. Fix: Windows Security → Firewall & network protection → *Allow an app
+   through firewall* → find the game (or add it) and tick **Public** too. Or add a port
+   rule as admin:
+   `netsh advfirewall firewall add rule name="Scrollbound" dir=in action=allow protocol=UDP localport=7777`
+2. **Use the host's VPN IP.** The Host screen lists every address the machine has (LAN
+   and VPN) — for NordVPN Meshnet share the `100.x.y.z` one (or the `*.nord` hostname;
+   both work). The joiner enters it with port `7777`.
+3. **Meshnet permissions**: in the host's NordVPN app, the joiner's device needs
+   *"Allow incoming connections"* enabled (per-device toggle in the Meshnet device list).
+4. **Same build on both machines.** The protocol version is checked on join — mismatched
+   builds get an explicit *"Version mismatch (server X, you Y)"* message rather than a
+   silent failure, so if you see THAT, update the older copy.
+5. Third-party antivirus firewalls (Bitdefender, Kaspersky, …) have their own allow
+   lists — the Windows one being open isn't enough if one of these is installed.
+
+Quick isolation test: on the host run **Host Game**; on the SAME machine run a second
+copy and join `127.0.0.1:7777` — if that works (it should), the game is fine and the
+block is between the machines.
+
 ## 6. Controls (all rebindable in Options)
 
 | Action | Default |
