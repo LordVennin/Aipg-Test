@@ -525,3 +525,21 @@ without-the-unique. Now:
 
 A regression check in the test suite counts the bow/quiver affix pools so
 this can't silently regress (suite is now **495 checks**).
+
+---
+
+# Addendum (batch 25): hair styles & free appearance colors
+
+- **Hair styles**: Short, Long, Bun, Bald — chosen at creation, independent of
+  body style (either body wears any hair).
+- **Free colors**: skin AND hair are now full 24-bit RGB. The creation screen
+  keeps six quick-pick swatches for each, but R/G/B sliders reach every color;
+  the live preview re-bakes the real sprite as the sliders move.
+- **Protocol v28**: `PlayerAppearance` carries body style, hair style and both
+  exact RGB values, so custom colors replicate byte-exact to every client.
+  Saves from before this patch keep working — their preset tone index becomes
+  the fallback color, and hair defaults to the old per-body look (male short,
+  female long).
+- Test suite stays at **495 checks** (appearance replication now asserts a
+  custom non-preset color round-trips; the two-handed-staff bag-swap test was
+  made deterministic — it could rarely fail on random bag pressure).

@@ -2,6 +2,7 @@ using ARPG.Data;
 using ARPG.Inventory;
 using ARPG.Items;
 using ARPG.Skills;
+using Microsoft.Xna.Framework;
 
 namespace ARPG.Sim;
 
@@ -41,8 +42,28 @@ public class CharacterData
     public string ClassId { get; set; } = "warrior";
     /// <summary>Body silhouette: 0 = male, 1 = female (one human rig; races come later).</summary>
     public byte BodyStyle { get; set; }
-    /// <summary>Index into the shared skin-tone palette (SpriteGen.SkinTones).</summary>
+    /// <summary>Preset index kept only as the fallback for saves made before free colors
+    /// (SkinRgb null). New characters always store SkinRgb.</summary>
     public byte SkinTone { get; set; } = 2;
+    /// <summary>Hair style (Appearance.Hair*); HairAuto = pre-hair save, derive from body.</summary>
+    public byte HairStyle { get; set; } = Appearance.HairAuto;
+    /// <summary>Exact 24-bit skin/hair colors (0xRRGGBB) — players mix ANY color, presets
+    /// are just swatches. Null on old saves; the Effective* helpers supply the fallback.</summary>
+    public int? SkinRgb { get; set; }
+    public int? HairRgb { get; set; }
+
+    public byte EffectiveHairStyle =>
+        HairStyle == Appearance.HairAuto
+            ? (BodyStyle == 1 ? Appearance.HairLong : Appearance.HairShort)
+            : HairStyle;
+
+    public Color EffectiveSkinColor => SkinRgb is int rgb
+        ? Appearance.Unpack(rgb)
+        : Appearance.SkinTones[Math.Clamp((int)SkinTone, 0, Appearance.SkinTones.Length - 1)];
+
+    public Color EffectiveHairColor => HairRgb is int rgb
+        ? Appearance.Unpack(rgb)
+        : Appearance.HairColors[BodyStyle == 1 ? 2 : 1];
     public int Level { get; set; } = 1;
     public float Experience { get; set; }
     public int Gold { get; set; }
@@ -87,7 +108,7 @@ public class CharacterData
     /// the starter flask pair, and 100 gold. Everything else is bought from the sanctum's
     /// skill trainer. Body/appearance is independent of class.</summary>
     public static CharacterData CreateNew(GameData data, string name, string classId = "warrior",
-        byte bodyStyle = 0, byte skinTone = 2)
+        byte bodyStyle = 0)
     {
         var cls = data.Classes.FirstOrDefault(cl => cl.Id == classId) ?? data.Classes.FirstOrDefault();
         var c = new CharacterData
@@ -96,7 +117,6 @@ public class CharacterData
             Gold = 100,
             ClassId = cls?.Id ?? "warrior",
             BodyStyle = bodyStyle,
-            SkinTone = skinTone,
         };
 
         ItemInstance MakeNormal(string baseId) => new()

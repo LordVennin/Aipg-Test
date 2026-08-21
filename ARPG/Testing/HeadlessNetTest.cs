@@ -909,8 +909,14 @@ public static class HeadlessNetTest
         clientA.SendDebugCommand("heal");
         Pump(0.4f);
 
-        // Two-handed rules: equipping a staff frees BOTH hands first — the main-hand shield
-        // swaps back to the bag and the off-hand shield is auto-unequipped.
+        // Two-handed rules: equipping a staff frees BOTH hands first — the main-hand mace
+        // swaps back to the bag and the off-hand shield is auto-unequipped. That needs
+        // bag room for BOTH freed hands, and the bag's contents here vary with the
+        // pickup race and debug-loot rolls — clear the bulky clutter first so the swap
+        // (the thing under test) is deterministic. give_staff re-syncs the client copy.
+        server.World.Players[aId].Character.Inventory.Items.RemoveAll(pl =>
+            pl.Item.GetBase(data).IsWeapon ||
+            pl.Item.GetBase(data).Category == Items.ItemCategory.Shield);
         clientA.SendDebugCommand("give_staff");
         Pump(0.5f);
         var staffPlaced = clientA.World.MyCharacter.Inventory.Items
@@ -923,14 +929,22 @@ public static class HeadlessNetTest
         Check(charAfterStaff.MainHand?.InstanceId == staffPlaced.Item.InstanceId &&
               charAfterStaff.OffHand == null &&
               charAfterStaff.Inventory.FindByInstance(offHandItem.InstanceId) != null,
-              "equipping a two-handed staff auto-unequips the off-hand shield to the bag");
+              $"equipping a two-handed staff auto-unequips the off-hand shield to the bag " +
+              $"(main {charAfterStaff.MainHand?.BaseItemId}, off {charAfterStaff.OffHand?.BaseItemId}, msgA '{msgA}')");
 
         var shieldInBag = charAfterStaff.Inventory.FindByInstance(offHandItem.InstanceId);
-        clientA.RequestMoveItem(ItemLocation.AtGrid(shieldInBag.X, shieldInBag.Y),
-                                ItemLocation.AtEquip(Items.EquipSlot.OffHand));
-        Pump(0.4f);
-        Check(clientA.World.MyCharacter.OffHand == null,
-              "off-hand refuses a shield while a two-handed staff is equipped");
+        if (shieldInBag != null)
+        {
+            clientA.RequestMoveItem(ItemLocation.AtGrid(shieldInBag.X, shieldInBag.Y),
+                                    ItemLocation.AtEquip(Items.EquipSlot.OffHand));
+            Pump(0.4f);
+            Check(clientA.World.MyCharacter.OffHand == null,
+                  "off-hand refuses a shield while a two-handed staff is equipped");
+        }
+        else
+        {
+            Check(false, "off-hand refuses a shield while a two-handed staff is equipped (SKIPPED: shield never reached the bag)");
+        }
 
         Console.WriteLine("\n-- Mana --");
         Check(data.Skills["fire_bolt"].ManaCost > 0 && data.Skills["basic_strike"].ManaCost == 0,
@@ -3405,10 +3419,14 @@ public static class HeadlessNetTest
         var campServer = new GameServer(data, 777001, "forest", campaign: true);
         Check(campServer.Start(0), "campaign server started");
         var campA = new GameClient(data, "RunnerA", null);
-        // B joins with a CLIENT-SAVED character: a female mage with skin tone 4, so this
-        // section also proves class kits and appearance survive the join handshake.
-        var campB = new GameClient(data, "RunnerB",
-            Sim.CharacterData.CreateNew(data, "RunnerB", "mage", bodyStyle: 1, skinTone: 4));
+        // B joins with a CLIENT-SAVED character: a female mage with a bun and CUSTOM
+        // (non-preset) colors, so this section proves class kits, hair, and free-RGB
+        // appearance all survive the join handshake byte-exact.
+        var campBChar = Sim.CharacterData.CreateNew(data, "RunnerB", "mage", bodyStyle: 1);
+        campBChar.HairStyle = Sim.Appearance.HairBun;
+        campBChar.SkinRgb = (17 << 16) | (200 << 8) | 96;   // a color no preset offers
+        campBChar.HairRgb = (250 << 16) | (40 << 8) | 220;
+        var campB = new GameClient(data, "RunnerB", campBChar);
         campA.Connect("127.0.0.1", campServer.LocalPort, out _);
         campB.Connect("127.0.0.1", campServer.LocalPort, out _);
         void CPump(float seconds)
@@ -3451,8 +3469,10 @@ public static class HeadlessNetTest
               freshChar.Hotbar[0] == "basic_strike" &&
               freshChar.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand)?.BaseItemId == "wooden_club",
               $"fresh characters default to the warrior kit: 100g, club, Mace Strike ({freshChar.Skills.Count} skills, {freshChar.Gold}g)");
-        Check(freshChar.ClassId == "warrior" && freshChar.BodyStyle == 0 && freshChar.SkinTone == 2,
-              "server-made characters carry the default appearance (male, mid tone)");
+        Check(freshChar.ClassId == "warrior" && freshChar.BodyStyle == 0 &&
+              freshChar.EffectiveHairStyle == Sim.Appearance.HairShort &&
+              freshChar.EffectiveSkinColor == Sim.Appearance.SkinTones[2],
+              "server-made characters carry the default appearance (male, short hair, mid tone)");
 
         // Classes are STARTING KITS — three of them, each granting gear + one skill.
         Check(data.Classes.Count == 3 &&
@@ -3460,17 +3480,19 @@ public static class HeadlessNetTest
               data.Classes.Any(cl => cl.Id == "archer") &&
               data.Classes.Any(cl => cl.Id == "mage"),
               "three starting classes load from Data/Classes");
-        var archerKit = Sim.CharacterData.CreateNew(data, "KitTest", "archer", bodyStyle: 1, skinTone: 5);
+        var archerKit = Sim.CharacterData.CreateNew(data, "KitTest", "archer", bodyStyle: 1);
         Check(archerKit.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand)?.BaseItemId == "short_bow" &&
               archerKit.Equipment.GetValueOrDefault(Items.EquipSlot.OffHand)?.BaseItemId == "leather_quiver" &&
               archerKit.GetSkill("arrow_shot") != null && archerKit.Hotbar[0] == "arrow_shot" &&
-              archerKit.BodyStyle == 1 && archerKit.SkinTone == 5,
-              "the archer kit equips bow + quiver with Arrow Shot hotbarred, appearance stored");
+              archerKit.BodyStyle == 1,
+              "the archer kit equips bow + quiver with Arrow Shot hotbarred, body stored");
 
-        // v27 appearance replication: A sees B's saved mage body over PlayerAppearance.
+        // v28 appearance replication: A sees B's saved mage — body, hair style, and the
+        // CUSTOM colors — byte-exact over PlayerAppearance.
         var mageSeenByA = campA.World.Players[campB.World.MyPlayerId];
-        Check(mageSeenByA.BodyStyle == 1 && mageSeenByA.SkinTone == 4,
-              "body style + skin tone replicate through PlayerAppearance");
+        Check(mageSeenByA.BodyStyle == 1 && mageSeenByA.HairStyle == Sim.Appearance.HairBun &&
+              mageSeenByA.SkinRgb == campBChar.SkinRgb && mageSeenByA.HairRgb == campBChar.HairRgb,
+              "body, hair style and free RGB colors replicate through PlayerAppearance");
         var srvCampB = campServer.World.Players[campB.World.MyPlayerId];
         Check(srvCampB.Character.ClassId == "mage" &&
               srvCampB.Character.GetSkill("fire_bolt") != null &&

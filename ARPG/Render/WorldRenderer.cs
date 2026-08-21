@@ -1207,7 +1207,8 @@ public class WorldRenderer
                 }
 
                 if (weaponBehind) DrawHands();
-                var bodyFrames = SpriteGen.GetPlayerFrames(p.BodyStyle, p.SkinTone);
+                var bodyFrames = SpriteGen.GetPlayerFrames(p.BodyStyle, p.HairStyle,
+                    Sim.Appearance.Unpack(p.SkinRgb), Sim.Appearance.Unpack(p.HairRgb));
                 if (bodyFrames != null)
                 {
                     // Walk cycle while the position is actually changing; the body tint

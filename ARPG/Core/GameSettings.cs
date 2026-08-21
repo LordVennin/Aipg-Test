@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 27; // v27: body style + skin tone in PlayerAppearance
+    public const int ProtocolVersion = 28; // v28: hair style + free skin/hair RGB in PlayerAppearance
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

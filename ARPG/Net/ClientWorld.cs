@@ -58,7 +58,10 @@ public class ClientPlayer
     public string OffHandBaseId;
     /// <summary>Body silhouette + skin tone (from PlayerAppearance packets).</summary>
     public byte BodyStyle;
-    public byte SkinTone = 2;
+    public byte HairStyle;
+    /// <summary>Exact replicated colors, packed 0xRRGGBB (players mix any color).</summary>
+    public int SkinRgb = (205 << 16) | (164 << 8) | 126;
+    public int HairRgb = (62 << 16) | (46 << 8) | 32;
     /// <summary>Render-side walk detection: last drawn position + whether it moved.</summary>
     public Vector2 RenderPrevPos;
     public bool RenderMoving;
