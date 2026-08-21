@@ -158,25 +158,24 @@ public static class SkillMath
             s.MinDamage = playerStats.WeaponMinDamage * mult;
             s.MaxDamage = playerStats.WeaponMaxDamage * mult;
             // Attacks deal the weapon's physical subtype (Blunt for maces). Added ATTACK
-            // damage rolls apply to MELEE skills only, as separately-typed components.
+            // damage rolls ride EVERY weapon attack — melee swings and arrows alike —
+            // as separately-typed components. (A bow's fire prefix burns through the
+            // arrow, not through your punches.)
             s.DamageKind = playerStats.PhysicalSubtype;
-            if (def.HasTag(SkillTags.Melee))
+            var addedAttack = new List<DamageComponent>();
+            void AddComp(DamageKind kind, float value)
             {
-                var added = new List<DamageComponent>();
-                void AddComp(DamageKind kind, float value)
-                {
-                    if (value > 0)
-                        added.Add(new DamageComponent { Kind = kind, Min = value * 0.8f, Max = value * 1.2f });
-                }
-                AddComp(DamageKind.Fire, playerStats.AddedFire);
-                AddComp(DamageKind.Cold, playerStats.AddedCold);
-                AddComp(DamageKind.Lightning, playerStats.AddedLightning);
-                AddComp(DamageKind.Acid, playerStats.AddedAcid);
-                AddComp(DamageKind.Dark, playerStats.AddedDark);
-                AddComp(DamageKind.Light, playerStats.AddedLight);
-                AddComp(DamageKind.Arcane, playerStats.AddedArcane);
-                if (added.Count > 0) s.Added = added;
+                if (value > 0)
+                    addedAttack.Add(new DamageComponent { Kind = kind, Min = value * 0.8f, Max = value * 1.2f });
             }
+            AddComp(DamageKind.Fire, playerStats.AddedFire);
+            AddComp(DamageKind.Cold, playerStats.AddedCold);
+            AddComp(DamageKind.Lightning, playerStats.AddedLightning);
+            AddComp(DamageKind.Acid, playerStats.AddedAcid);
+            AddComp(DamageKind.Dark, playerStats.AddedDark);
+            AddComp(DamageKind.Light, playerStats.AddedLight);
+            AddComp(DamageKind.Arcane, playerStats.AddedArcane);
+            if (addedAttack.Count > 0) s.Added = addedAttack;
         }
         else
         {

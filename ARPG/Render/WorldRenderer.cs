@@ -1158,8 +1158,12 @@ public class WorldRenderer
                 {
                     var hand = screen + screenDir * 16f + perp * (side * 14f) + new Vector2(0, -12);
                     var tint = weaponBehind ? Color.White * 0.55f : Color.White;
+                    // A bow's arc must open TOWARD the aim: facing west the side-view
+                    // sprite mirrors (texture Y maps to screen X under the -90° turn).
+                    var fx = tex == weaponTex && weaponBase?.Category == Items.ItemCategory.Bow && bodyFlip
+                        ? SpriteEffects.FlipVertically : SpriteEffects.None;
                     batch.Draw(tex, hand, null, tint, -MathF.PI / 2f,
-                        new Vector2(tex.Width * 0.4f, tex.Height / 2f), 2f, SpriteEffects.None, 0f);
+                        new Vector2(tex.Width * 0.4f, tex.Height / 2f), 2f, fx, 0f);
                 }
 
                 // Melee swing: the weapon sweeps an arc through the aim direction, gripped

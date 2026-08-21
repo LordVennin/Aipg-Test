@@ -607,3 +607,24 @@ Facing left or right you see the bow's full arc and string; facing toward or
 away from the camera the bow's plane is perpendicular to the screen, so it
 now draws EDGE-ON — a slim stave with the grip wrap and flared tips, no arc.
 Pure rendering; the bag icon keeps the full-arc silhouette for readability.
+
+---
+
+# Addendum (batch 30): weapon damage math cleanup + bow polish
+
+- **Added-damage prefixes now ride EVERY weapon attack.** They were gated to
+  Melee-tagged skills, so a bow's fire/cold/etc. rolls buffed your punches
+  and did nothing for Arrow Shot. The gate is gone: added attack damage
+  applies to all weapon-driven attacks, arrows included.
+- **Weapon-local damage totals (PoE-style).** A weapon's own flat added
+  phys AND its own %Physical rolls now fold directly into ITS damage:
+  (base + flat) x local% — and the tooltip shows exactly that total, the
+  way armor pieces already total their defenses. The weapon's %phys is
+  removed from the global pool so it never double-dips; %phys from rings,
+  amulets, passives and Strength stays global and multiplies the whole
+  number (added damage included). Quiver flat-phys rolls now ride the
+  bow's damage (they previously did nothing).
+- **The bow mirrors when facing west** — the arc opens toward the aim on
+  both sides instead of drawing backwards on the left.
+- Suite: **504 checks** (ranged added-damage, local-vs-global %phys,
+  quiver flat-phys wiring).
