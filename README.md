@@ -492,9 +492,11 @@ only learned skills and points at the trainer for the rest.
 
 The first time a player name starts (single player, hosting or joining), the
 game routes through the **character creation screen**: pick a **class**, a
-**body style** and a **skin tone**, with a live animated preview of the actual
-in-game sprite. The finished character is saved and the interrupted action
-resumes automatically.
+**body style**, a **hair style** (Short / Long / Bun / Bald), and BOTH colors —
+skin and hair each offer quick-pick swatches **plus free RGB sliders**, so any
+24-bit color goes (green skin, pink hair, whatever). A live animated preview
+bakes the actual in-game sprite as the sliders move. The finished character is
+saved and the interrupted action resumes automatically.
 
 - **Classes are starting KITS, not restrictions** (`Data/Classes/classes.json`):
   **Warrior** (wooden club + Mace Strike), **Archer** (short bow + leather
@@ -502,15 +504,20 @@ resumes automatically.
   decides what you stand up with on day one — items, skills and progression
   never check it again.
 - **One human rig** (16x27, three frames: idle + two stride poses) drawn for
-  two body styles — **male** (broad shoulders, cropped hair) and **female**
-  (tapered waist, long hair) — over a shared **six-step skin tone palette**
-  (`SpriteGen.SkinTones`). Because every body uses the same rig, future armor
-  overlays draw once and fit everyone; other RACES are planned as their own
-  standalone patch later.
-- **Appearance replicates**: body style + skin tone ride the `PlayerAppearance`
-  packet (protocol v27), so every client renders every player's chosen body,
-  walk animation and equipped weapons. Dead players render grey, frozen ones
-  ice-blue — the tints apply to the body sprite.
+  two body styles — **male** (broad shoulders) and **female** (tapered waist) —
+  with hair style and both colors fully independent of the body
+  (`Sim.Appearance` holds the swatch palettes and the packed-RGB helpers).
+  Because every body uses the same rig, future armor overlays draw once and
+  fit everyone; other RACES are planned as their own standalone patch later.
+  The rig is front-facing and mirrors horizontally with the facing direction —
+  true side/back poses are future work (they come naturally with the planned
+  pre-rendered 3D asset pipeline).
+- **Appearance replicates**: body style, hair style and the exact skin/hair
+  RGB values ride the `PlayerAppearance` packet (protocol v28), so every
+  client renders every player's chosen look, walk animation and equipped
+  weapons byte-exact. Dead players render grey, frozen ones ice-blue — the
+  tints apply to the body sprite. Pre-color saves still load: their stored
+  preset index becomes the fallback color.
 
 ### Layered terrain (elevation, ramps, bridges)
 

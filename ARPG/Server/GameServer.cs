@@ -771,7 +771,9 @@ public class GameServer : IServerEvents
         w.Put(p.Character.MainHand?.BaseItemId ?? "");
         w.Put(p.Character.OffHand?.BaseItemId ?? "");
         w.Put(p.Character.BodyStyle);
-        w.Put(p.Character.SkinTone);
+        w.Put(p.Character.EffectiveHairStyle);
+        w.Put(Sim.Appearance.Pack(p.Character.EffectiveSkinColor));
+        w.Put(Sim.Appearance.Pack(p.Character.EffectiveHairColor));
         return w;
     }
 

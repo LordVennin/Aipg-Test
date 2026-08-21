@@ -270,38 +270,40 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
-    /// <summary>The shared human skin-tone palette (character creation shows these
-    /// swatches; the index is what replicates). One list for every body style.</summary>
-    public static readonly Color[] SkinTones =
-    {
-        new(244, 219, 190), new(229, 194, 160), new(205, 164, 126),
-        new(176, 130, 90), new(141, 98, 62), new(102, 69, 43),
-    };
-
-    /// <summary>Player body frames for one (body style, skin tone) pair: [0] idle,
-    /// [1]/[2] walk. ONE human rig — style only changes silhouette pixels, so armor
-    /// overlays drawn against the rig fit every body. Cached per pair.</summary>
-    public static Texture2D[] GetPlayerFrames(byte bodyStyle, byte skinTone)
+    /// <summary>Player body frames for one appearance: [0] idle, [1]/[2] walk. ONE
+    /// human rig — style only changes silhouette pixels, so armor overlays drawn
+    /// against the rig fit every body. Cached per exact appearance (colors are free
+    /// 24-bit values, but a session only ever holds a handful of players).</summary>
+    public static Texture2D[] GetPlayerFrames(byte bodyStyle, byte hairStyle, Color skin, Color hair)
     {
         if (_device == null) return null;
-        skinTone = (byte)Math.Clamp(skinTone, 0, SkinTones.Length - 1);
-        string key = $"player:{bodyStyle}:{skinTone}";
+        string key = $"player:{bodyStyle}:{hairStyle}:{skin.PackedValue:x8}:{hair.PackedValue:x8}";
         if (_cache.TryGetValue(key, out var cached)) return cached;
-        var frames = new[]
-        {
-            DrawHumanBody(bodyStyle, skinTone, 0),
-            DrawHumanBody(bodyStyle, skinTone, 1),
-            DrawHumanBody(bodyStyle, skinTone, 2),
-        };
+        var frames = CreatePlayerFrames(bodyStyle, hairStyle, skin, hair);
         _cache[key] = frames;
         return frames;
     }
 
+    /// <summary>UNCACHED body frames — the creation screen's live preview bakes these
+    /// while the player drags the color sliders and disposes each superseded set, so
+    /// slider scrubbing never floods the shared cache with one-frame colors.</summary>
+    public static Texture2D[] CreatePlayerFrames(byte bodyStyle, byte hairStyle, Color skin, Color hair)
+    {
+        if (_device == null) return null;
+        return new[]
+        {
+            DrawHumanBody(bodyStyle, hairStyle, skin, hair, 0),
+            DrawHumanBody(bodyStyle, hairStyle, skin, hair, 1),
+            DrawHumanBody(bodyStyle, hairStyle, skin, hair, 2),
+        };
+    }
+
     /// <summary>The human rig: 16x27, feet on the bottom row. Frame 0 stands; frames
-    /// 1/2 alternate the stride. Style 0 = male (broad shoulders, short hair),
-    /// style 1 = female (tapered waist, long hair). Underclothes are a neutral tunic
-    /// so an unarmored character still reads; armor overlays replace these pixels.</summary>
-    private static Texture2D DrawHumanBody(byte style, byte tone, int frame)
+    /// 1/2 alternate the stride. Style 0 = male (broad shoulders), 1 = female (tapered
+    /// waist); hair style and both colors are independent of the body. Underclothes are
+    /// a neutral tunic so an unarmored character still reads; armor overlays replace
+    /// these pixels.</summary>
+    private static Texture2D DrawHumanBody(byte style, byte hairStyle, Color skin, Color hair, int frame)
     {
         const int w = 16, h = 27;
         var px = new Color[w * h];
@@ -309,9 +311,7 @@ public static class SpriteGen
         void Rect(int x0, int y0, int x1, int y1, Color c)
         { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
 
-        var skin = SkinTones[tone];
         var skinShade = Shade(skin, 0.78f);
-        var hair = style == 0 ? new Color(62, 46, 32) : new Color(88, 58, 34);
         var hairDark = Shade(hair, 0.7f);
         var tunic = new Color(104, 98, 88);
         var tunicDark = Shade(tunic, 0.72f);
@@ -354,15 +354,27 @@ public static class SpriteGen
         Rect(5, 9, 10, 9, skinShade);         // jaw shade
         Set(6, 6, eyes); Set(9, 6, eyes);
         Rect(6, 10, 9, 10, skinShade);        // neck — fills the head/torso seam row
-        // Hair: male crop vs female long fall.
-        Rect(4, 1, 11, 2, hair);
-        Rect(4, 3, 4, 4, hair); Rect(11, 3, 11, 4, hair);
-        Set(5, 1, hairDark); Set(10, 1, hairDark);
-        if (fem)
+        // Hair by style (independent of body): every non-bald style shares the crop base.
+        if (hairStyle != Sim.Appearance.HairBald)
+        {
+            Rect(4, 1, 11, 2, hair);
+            Rect(4, 3, 4, 4, hair); Rect(11, 3, 11, 4, hair);
+            Set(5, 1, hairDark); Set(10, 1, hairDark);
+        }
+        else
+        {
+            Rect(5, 3, 10, 3, skinShade);     // bald crown catches the light
+        }
+        if (hairStyle == Sim.Appearance.HairLong)
         {
             Rect(4, 3, 4, 12, hair);          // side falls to the shoulders
             Rect(11, 3, 11, 12, hair);
             Set(4, 12, hairDark); Set(11, 12, hairDark);
+        }
+        else if (hairStyle == Sim.Appearance.HairBun)
+        {
+            Rect(6, 0, 9, 0, hair);           // topknot above the crop
+            Set(6, 0, hairDark); Set(9, 0, hairDark);
         }
 
         return BakeStrip(px, w, h);

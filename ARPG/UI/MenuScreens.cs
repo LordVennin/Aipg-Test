@@ -513,9 +513,10 @@ public class OptionsScreen : IScreen
 
 /// <summary>
 /// First-run character creation: pick a starting class (a starting KIT — classes never
-/// gate items or skills later), a body style and a skin tone, with a live animated
-/// preview of the body sprite. Shown once per player name; the finished character is
-/// saved and the interrupted action (single player / host / join) re-entered.
+/// gate items or skills later), a body style, a hair style, and BOTH colors — quick-pick
+/// swatches plus free RGB sliders, so any 24-bit skin or hair color goes. A live
+/// animated preview bakes the real in-game sprite as the sliders move. Shown once per
+/// player name; the finished character is saved and the interrupted action re-entered.
 /// </summary>
 public class CharacterCreateScreen : IScreen
 {
@@ -524,19 +525,31 @@ public class CharacterCreateScreen : IScreen
     private Panel _panel;
     private Button[] _classButtons;
     private Button _maleButton, _femaleButton;
+    private Button[] _hairButtons;
     private Point _builtSize;
 
     private int _classIdx;
     private byte _body;      // 0 = male, 1 = female
-    private byte _tone = 2;
+    private byte _hairStyle = Appearance.HairShort;
+    private Color _skinColor = Appearance.SkinTones[2];
+    private Color _hairColor = Appearance.HairColors[1];
 
     // Layout anchors captured by Build() so Draw/Update can place the custom widgets
-    // (tone swatches, preview, description) that aren't UIElements.
-    private Rectangle _toneRects0; // first swatch; the rest step right from it
+    // (swatches, sliders, preview, description) that aren't UIElements.
+    private Point _skinSwatchAt, _hairSwatchAt, _skinSlidersAt, _hairSlidersAt;
     private Rectangle _previewRect;
     private int _descX, _descY, _descWidth;
 
-    private const int ToneSwatch = 34, ToneGap = 8;
+    // Slider drag state: which group (0 skin, 1 hair) and channel (0 R, 1 G, 2 B).
+    private int _dragGroup = -1, _dragChannel = -1;
+
+    // Live preview textures — UNCACHED bakes, disposed whenever the appearance changes
+    // so slider scrubbing doesn't leak a texture per color step.
+    private Texture2D[] _previewFrames;
+    private string _previewKey;
+
+    private const int Swatch = 28, SwatchGap = 6;
+    private const int TrackW = 168, TrackH = 12, SliderPitch = 22;
 
     public CharacterCreateScreen(GameMain game, Action proceed)
     {
@@ -549,14 +562,14 @@ public class CharacterCreateScreen : IScreen
     {
         var size = _game.UiScreenSize;
         _builtSize = size;
-        int w = 720, h = 470;
+        int w = 720, h = 560;
         int px = size.X / 2 - w / 2, py = Math.Max(12, size.Y / 2 - h / 2);
         _panel = new Panel { Bounds = new Rectangle(px, py, w, h) };
         _panel.Children.Add(new Label("Create Your Character", px + 24, py + 16, 26, bold: true));
         _panel.Children.Add(new Label($"Playing as '{_game.Settings.PlayerName}'", px + 24, py + 52, 14)
             { Color = new Color(150, 145, 130) });
 
-        // --- left column: class cards ---
+        // --- left column: class cards + description ---
         int colX = px + 24, colY = py + 92;
         _panel.Children.Add(new Label("Class", colX, colY - 24, 16, bold: true));
         var classes = _game.Data.Classes;
@@ -565,75 +578,195 @@ public class CharacterCreateScreen : IScreen
         {
             int idx = i;
             _classButtons[i] = new Button(classes[i].Name ?? classes[i].Id,
-                new Rectangle(colX, colY + i * 52, 190, 42),
+                new Rectangle(colX, colY + i * 52, 180, 42),
                 () => { _classIdx = idx; RefreshSelection(); });
             _panel.Children.Add(_classButtons[i]);
         }
         _descX = colX;
         _descY = colY + classes.Count * 52 + 14;
-        _descWidth = 300;
+        _descWidth = 190;
 
-        // --- middle column: body + skin tone ---
-        int midX = px + 250;
+        // --- middle column: body, skin, hair ---
+        int midX = px + 236;
         _panel.Children.Add(new Label("Body", midX, colY - 24, 16, bold: true));
-        _maleButton = new Button("Male", new Rectangle(midX, colY, 100, 36),
+        _maleButton = new Button("Male", new Rectangle(midX, colY, 96, 32),
             () => { _body = 0; RefreshSelection(); });
-        _femaleButton = new Button("Female", new Rectangle(midX + 108, colY, 100, 36),
+        _femaleButton = new Button("Female", new Rectangle(midX + 104, colY, 96, 32),
             () => { _body = 1; RefreshSelection(); });
         _panel.Children.Add(_maleButton);
         _panel.Children.Add(_femaleButton);
-        _panel.Children.Add(new Label("Skin Tone", midX, colY + 58, 16, bold: true));
-        _toneRects0 = new Rectangle(midX, colY + 82, ToneSwatch, ToneSwatch);
+
+        int sy = colY + 48;
+        _panel.Children.Add(new Label("Skin", midX, sy, 16, bold: true));
+        _skinSwatchAt = new Point(midX, sy + 22);
+        _skinSlidersAt = new Point(midX, sy + 22 + Swatch + 8);
+
+        int hy = sy + 22 + Swatch + 8 + 3 * SliderPitch + 14;
+        _panel.Children.Add(new Label("Hair", midX, hy, 16, bold: true));
+        _hairButtons = new Button[Appearance.HairStyleNames.Length];
+        for (int i = 0; i < _hairButtons.Length; i++)
+        {
+            int idx = i;
+            _hairButtons[i] = new Button(Appearance.HairStyleNames[i],
+                new Rectangle(midX + i * 68, hy + 22, 62, 26),
+                () => { _hairStyle = (byte)idx; RefreshSelection(); }) { FontSize = 14 };
+            _panel.Children.Add(_hairButtons[i]);
+        }
+        _hairSwatchAt = new Point(midX, hy + 56);
+        _hairSlidersAt = new Point(midX, hy + 56 + Swatch + 8);
 
         // --- right column: live preview ---
-        _previewRect = new Rectangle(px + w - 200, py + 88, 168, 240);
+        _previewRect = new Rectangle(px + w - 196, py + 88, 168, 240);
 
         // --- bottom row ---
         _panel.Children.Add(new Button("Begin", new Rectangle(px + w - 224, py + h - 60, 200, 42), Create));
-        _panel.Children.Add(new Button("Back", new Rectangle(px + 24, py + h - 60, 140, 36),
-            () => _game.SwitchScreen(new MainMenuScreen(_game))));
+        _panel.Children.Add(new Button("Back", new Rectangle(px + 24, py + h - 60, 140, 36), () =>
+        {
+            DisposePreview();
+            _game.SwitchScreen(new MainMenuScreen(_game));
+        }));
         RefreshSelection();
+    }
+
+    private static void Highlight(Button b, bool sel, string baseText)
+    {
+        b.Text = sel ? $"[ {baseText} ]" : baseText;
+        b.Background = sel ? new Color(84, 76, 56) : new Color(52, 48, 40);
     }
 
     private void RefreshSelection()
     {
         var classes = _game.Data.Classes;
         for (int i = 0; i < _classButtons.Length; i++)
-        {
-            bool sel = i == _classIdx;
-            _classButtons[i].Text = sel ? $"[ {classes[i].Name ?? classes[i].Id} ]" : classes[i].Name ?? classes[i].Id;
-            _classButtons[i].Background = sel ? new Color(84, 76, 56) : new Color(52, 48, 40);
-        }
-        _maleButton.Text = _body == 0 ? "[ Male ]" : "Male";
-        _maleButton.Background = _body == 0 ? new Color(84, 76, 56) : new Color(52, 48, 40);
-        _femaleButton.Text = _body == 1 ? "[ Female ]" : "Female";
-        _femaleButton.Background = _body == 1 ? new Color(84, 76, 56) : new Color(52, 48, 40);
+            Highlight(_classButtons[i], i == _classIdx, classes[i].Name ?? classes[i].Id);
+        Highlight(_maleButton, _body == 0, "Male");
+        Highlight(_femaleButton, _body == 1, "Female");
+        for (int i = 0; i < _hairButtons.Length; i++)
+            Highlight(_hairButtons[i], i == _hairStyle, Appearance.HairStyleNames[i]);
     }
 
     private void Create()
     {
         var classes = _game.Data.Classes;
         string classId = classes.Count > 0 ? classes[Math.Clamp(_classIdx, 0, classes.Count - 1)].Id : "warrior";
-        SaveManager.SaveCharacter(CharacterData.CreateNew(_game.Data, _game.Settings.PlayerName, classId, _body, _tone));
+        var c = CharacterData.CreateNew(_game.Data, _game.Settings.PlayerName, classId, _body);
+        c.HairStyle = _hairStyle;
+        c.SkinRgb = Appearance.Pack(_skinColor);
+        c.HairRgb = Appearance.Pack(_hairColor);
+        SaveManager.SaveCharacter(c);
+        DisposePreview();
         _proceed();
     }
 
-    private Rectangle ToneRect(int i) =>
-        new(_toneRects0.X + i * (ToneSwatch + ToneGap), _toneRects0.Y, ToneSwatch, ToneSwatch);
+    private void DisposePreview()
+    {
+        if (_previewFrames != null)
+            foreach (var t in _previewFrames) t?.Dispose();
+        _previewFrames = null;
+        _previewKey = null;
+    }
+
+    private static Rectangle SwatchRect(Point origin, int i) =>
+        new(origin.X + i * (Swatch + SwatchGap), origin.Y, Swatch, Swatch);
+
+    private static Rectangle TrackRect(Point origin, int ch) =>
+        new(origin.X + 18, origin.Y + ch * SliderPitch, TrackW, TrackH);
+
+    private static byte Channel(Color c, int ch) => ch == 0 ? c.R : ch == 1 ? c.G : c.B;
+
+    private static Color WithChannel(Color c, int ch, byte v) => ch switch
+    {
+        0 => new Color(v, c.G, c.B),
+        1 => new Color(c.R, v, c.B),
+        _ => new Color(c.R, c.G, v),
+    };
+
+    /// <summary>Swatch clicks + slider drags for one color group. Presets are shortcuts;
+    /// the sliders reach every 24-bit color.</summary>
+    private void UpdateColorGroup(Core.InputManager input, int group, Color[] presets,
+        Point swatchAt, Point slidersAt, ref Color color)
+    {
+        if (input.MouseLeftPressed)
+        {
+            for (int i = 0; i < presets.Length; i++)
+                if (SwatchRect(swatchAt, i).Contains(input.MousePosition))
+                {
+                    color = presets[i];
+                    input.MouseCapturedByUI = true;
+                    return;
+                }
+            for (int ch = 0; ch < 3; ch++)
+            {
+                var track = TrackRect(slidersAt, ch);
+                track.Inflate(2, 5); // forgiving grab area
+                if (track.Contains(input.MousePosition))
+                {
+                    _dragGroup = group;
+                    _dragChannel = ch;
+                }
+            }
+        }
+        if (_dragGroup == group && _dragChannel >= 0)
+        {
+            if (!input.MouseLeftDown)
+            {
+                _dragGroup = _dragChannel = -1;
+                return;
+            }
+            var track = TrackRect(slidersAt, _dragChannel);
+            float f = Math.Clamp((input.MousePosition.X - track.X) / (float)track.Width, 0f, 1f);
+            color = WithChannel(color, _dragChannel, (byte)Math.Round(f * 255f));
+            input.MouseCapturedByUI = true;
+        }
+    }
 
     public void Update(float dt)
     {
         if (_game.UiScreenSize != _builtSize) Build(); // resolution changed under us
         var input = _game.Input;
-        if (input.MouseLeftPressed)
-            for (int i = 0; i < SpriteGen.SkinTones.Length; i++)
-                if (ToneRect(i).Contains(input.MousePosition))
-                {
-                    _tone = (byte)i;
-                    input.MouseCapturedByUI = true;
-                    break;
-                }
-        _panel.Update(input);
+        UpdateColorGroup(input, 0, Appearance.SkinTones, _skinSwatchAt, _skinSlidersAt, ref _skinColor);
+        UpdateColorGroup(input, 1, Appearance.HairColors, _hairSwatchAt, _hairSlidersAt, ref _hairColor);
+        if (_dragGroup < 0) _panel.Update(input);
+        else input.MouseCapturedByUI = true; // a live slider drag owns the mouse
+    }
+
+    private void DrawColorGroup(SpriteBatch sb, Color[] presets, Point swatchAt, Point slidersAt, Color color)
+    {
+        var font = FontManager.Get(13);
+        for (int i = 0; i < presets.Length; i++)
+        {
+            var r = SwatchRect(swatchAt, i);
+            sb.Draw(TextureGen.Pixel, r, presets[i]);
+            bool sel = presets[i] == color;
+            var ring = sel ? new Color(240, 200, 90) : new Color(70, 66, 56);
+            int t = sel ? 3 : 1;
+            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Y, r.Width, t), ring);
+            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Bottom - t, r.Width, t), ring);
+            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Y, t, r.Height), ring);
+            sb.Draw(TextureGen.Pixel, new Rectangle(r.Right - t, r.Y, t, r.Height), ring);
+        }
+        // Current mix box after the swatches.
+        var cur = SwatchRect(swatchAt, presets.Length);
+        cur.X += 6;
+        sb.Draw(TextureGen.Pixel, cur, color);
+        sb.Draw(TextureGen.Pixel, new Rectangle(cur.X - 1, cur.Y - 1, cur.Width + 2, 1), new Color(140, 130, 100));
+        sb.Draw(TextureGen.Pixel, new Rectangle(cur.X - 1, cur.Bottom, cur.Width + 2, 1), new Color(140, 130, 100));
+        sb.Draw(TextureGen.Pixel, new Rectangle(cur.X - 1, cur.Y, 1, cur.Height), new Color(140, 130, 100));
+        sb.Draw(TextureGen.Pixel, new Rectangle(cur.Right, cur.Y, 1, cur.Height), new Color(140, 130, 100));
+
+        for (int ch = 0; ch < 3; ch++)
+        {
+            var track = TrackRect(slidersAt, ch);
+            string label = ch == 0 ? "R" : ch == 1 ? "G" : "B";
+            sb.DrawString(font, label, new Vector2(track.X - 16, track.Y - 2), new Color(180, 172, 150));
+            sb.Draw(TextureGen.Pixel, track, new Color(15, 15, 20));
+            byte v = Channel(color, ch);
+            int fillW = (int)(track.Width * (v / 255f));
+            var fillColor = ch == 0 ? new Color(170, 70, 60) : ch == 1 ? new Color(80, 150, 70) : new Color(70, 100, 180);
+            sb.Draw(TextureGen.Pixel, new Rectangle(track.X, track.Y, fillW, track.Height), fillColor);
+            sb.Draw(TextureGen.Pixel, new Rectangle(track.X + fillW - 2, track.Y - 2, 4, track.Height + 4), new Color(225, 215, 195));
+            sb.DrawString(font, v.ToString(), new Vector2(track.Right + 8, track.Y - 2), new Color(160, 154, 138));
+        }
     }
 
     public void Draw(SpriteBatch sb)
@@ -653,32 +786,29 @@ public class CharacterCreateScreen : IScreen
             }
         }
 
-        // Skin tone swatches, selected one ringed gold.
-        for (int i = 0; i < SpriteGen.SkinTones.Length; i++)
-        {
-            var r = ToneRect(i);
-            sb.Draw(TextureGen.Pixel, r, SpriteGen.SkinTones[i]);
-            var ring = i == _tone ? new Color(240, 200, 90) : new Color(70, 66, 56);
-            int t = i == _tone ? 3 : 1;
-            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Y, r.Width, t), ring);
-            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Bottom - t, r.Width, t), ring);
-            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Y, t, r.Height), ring);
-            sb.Draw(TextureGen.Pixel, new Rectangle(r.Right - t, r.Y, t, r.Height), ring);
-        }
+        DrawColorGroup(sb, Appearance.SkinTones, _skinSwatchAt, _skinSlidersAt, _skinColor);
+        DrawColorGroup(sb, Appearance.HairColors, _hairSwatchAt, _hairSlidersAt, _hairColor);
 
-        // Live preview: the actual in-game body sprite at 6x, walking in place.
+        // Live preview: the actual in-game body sprite at 6x, walking in place. Rebaked
+        // (and the stale set disposed) whenever any appearance input changes.
         sb.Draw(TextureGen.Pixel, _previewRect, new Color(15, 15, 20));
         var pborder = new Color(90, 84, 60);
         sb.Draw(TextureGen.Pixel, new Rectangle(_previewRect.X, _previewRect.Y, _previewRect.Width, 2), pborder);
         sb.Draw(TextureGen.Pixel, new Rectangle(_previewRect.X, _previewRect.Bottom - 2, _previewRect.Width, 2), pborder);
         sb.Draw(TextureGen.Pixel, new Rectangle(_previewRect.X, _previewRect.Y, 2, _previewRect.Height), pborder);
         sb.Draw(TextureGen.Pixel, new Rectangle(_previewRect.Right - 2, _previewRect.Y, 2, _previewRect.Height), pborder);
-        var frames = SpriteGen.GetPlayerFrames(_body, _tone);
-        if (frames != null)
+        string key = $"{_body}:{_hairStyle}:{_skinColor.PackedValue:x8}:{_hairColor.PackedValue:x8}";
+        if (key != _previewKey)
+        {
+            DisposePreview();
+            _previewFrames = SpriteGen.CreatePlayerFrames(_body, _hairStyle, _skinColor, _hairColor);
+            _previewKey = key;
+        }
+        if (_previewFrames != null)
         {
             // Classic 4-beat walk: idle, stride A, idle, stride B.
             int[] cycle = { 0, 1, 0, 2 };
-            var tex = frames[cycle[(int)(Environment.TickCount64 / 220 % 4)]];
+            var tex = _previewFrames[cycle[(int)(Environment.TickCount64 / 220 % 4)]];
             int scale = 6;
             int tw = tex.Width * scale, th = tex.Height * scale;
             int cx = _previewRect.Center.X, footY = _previewRect.Bottom - 28;
