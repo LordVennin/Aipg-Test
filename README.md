@@ -405,7 +405,11 @@ Hosted games now run the actual GAME LOOP instead of the old test arena
   merchants** — Weaver the Peddler (gear, the existing shop) and **Maren the
   Lorekeeper**, the skill trainer — plus **four starter chests** (press `F` to pop
   one; two plain level-1 items drop out; each chest opens once per session) and the
-  **run door** on the east wall.
+  **run door** on the east wall. The hub renders in its own **sanctum theme**:
+  purple stone-slab floors with mortar seams and brick-coursed purple walls
+  (`StoneBrick` themes bake masonry into the floor diamonds and wall prism faces),
+  while run maps keep the campaign's zone theme — the map packets carry each MAP's
+  theme id, so clients swap automatically at the door.
 - **Ready doors**: stand at a door and press `F` to toggle READY (shown over the
   door and in chat). The group transitions only when EVERY living player is ready —
   nobody gets left behind in multiplayer. Transitions rebuild the world server-side
@@ -792,7 +796,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (457 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (463 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

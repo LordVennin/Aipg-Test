@@ -240,6 +240,7 @@ public class WorldRenderer
         // per-tile shades picked by seed hash on a gridless diamond, plus tiny speckles,
         // so the ground reads as continuous terrain instead of a board.
         bool organic = Theme?.OrganicFloor == true;
+        bool brick = Theme?.StoneBrick == true;
         var floorA = Theme != null ? _floorA : new Color(58, 66, 58);
         var floorB = Theme != null ? _floorB : new Color(52, 60, 54);
         for (int y = 0; y < map.Height; y++)
@@ -277,6 +278,17 @@ public class WorldRenderer
                         sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + gx, (int)screen.Y - 16 + gy, 2, 1),
                             new Color(120, 170, 205));
                     }
+                    continue;
+                }
+                if (brick)
+                {
+                    // Laid stone slabs: the baked mortar pattern carries the masonry
+                    // look; a gentle per-tile tone from the C/D palette keeps large
+                    // floors from reading as one flat sheet.
+                    var baseTint = ((x + y) & 1) == 0 ? floorA : floorB;
+                    float bn = GroundNoise(map.Seed, x, y);
+                    var tint = LerpColor(baseTint, LerpColor(_floorD, _floorC, bn), 0.4f);
+                    sb.Draw(TextureGen.DiamondBrick, new Vector2((int)screen.X - 32, (int)screen.Y - 16), tint);
                     continue;
                 }
                 if (!organic)
@@ -461,8 +473,9 @@ public class WorldRenderer
                     float faceFade = OccluderFade(faceDepth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16));
                     var faceTint = _wallFace * faceFade;
+                    var faceTex = brick ? TextureGen.GetPrismFacesBrick(top) : TextureGen.GetPrismFaces(top);
                     _sorted.Add((faceDepth, batch =>
-                        batch.Draw(TextureGen.GetPrismFaces(top),
+                        batch.Draw(faceTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx), faceTint)));
                     float topDepth = x + y + top * 0.6f;
                     var wallTopColor = _wallTop;
@@ -475,7 +488,8 @@ public class WorldRenderer
                     }
                     var topTint = wallTopColor * OccluderFade(topDepth,
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
-                    var wtTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
+                    var wtTex = brick ? TextureGen.DiamondBrick
+                        : organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
                     _sorted.Add((topDepth, batch =>
                         batch.Draw(wtTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),

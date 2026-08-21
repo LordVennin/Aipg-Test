@@ -138,7 +138,7 @@ public partial class ServerWorld
 
         if (campaign)
         {
-            Map = new GameMap(CampaignMapSeed(0), theme, MapKind.Hub);
+            Map = new GameMap(CampaignMapSeed(0), ThemeFor(MapKind.Hub), MapKind.Hub);
             SetupHub();
             return;
         }
@@ -372,8 +372,8 @@ public partial class ServerWorld
         // maps, enemy level up 3 per loop.
         if (newIndex == 1) Loop = ++_forestEntries;
         MapIndex = newIndex;
-        Map = new GameMap(CampaignMapSeed(newIndex), _theme,
-            newIndex == 0 ? MapKind.Hub : MapKind.Forest);
+        var newKind = newIndex == 0 ? MapKind.Hub : MapKind.Forest;
+        Map = new GameMap(CampaignMapSeed(newIndex), ThemeFor(newKind), newKind);
 
         // Everyone arrives together at the new map's spawn (dead players are pulled
         // through on their feet — the run moves as a group).
@@ -411,6 +411,14 @@ public partial class ServerWorld
         if (newIndex != 0) SetupForest(); // packs spawn AFTER the map broadcast
         _events.ZoneStateChanged(this);
     }
+
+    /// <summary>The sanctum hub always renders in its own purple-stone theme; run maps
+    /// keep the campaign's zone theme. Clients follow automatically — map packets carry
+    /// the MAP's theme id, not the server's configured one.</summary>
+    private ZoneTheme ThemeFor(MapKind kind) =>
+        kind == MapKind.Hub
+            ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "sanctum") ?? _theme
+            : _theme;
 
     /// <summary>The exit door: standing near it, the interact key toggles READY. When
     /// every living player is ready the group moves on (hub -> map 1 -> 2 -> 3 -> hub).
@@ -2826,22 +2834,41 @@ public partial class ServerWorld
 
     public void SpawnDrop(ItemInstance item, Vector2 pos, float height = 0f)
     {
-        var drop = new WorldItem { Position = Jitter(pos), Item = item, Height = height };
+        var at = JitterOnSurface(pos);
+        var drop = new WorldItem { Position = at, Item = item, Height = DropHeightAt(at, height) };
         Drops[drop.DropId] = drop;
         _events.WorldItemSpawned(drop);
     }
 
     public void SpawnGoldDrop(int amount, Vector2 pos, float height = 0f)
     {
-        var drop = new WorldItem { Position = Jitter(pos), GoldAmount = amount, Height = height };
+        var at = JitterOnSurface(pos);
+        var drop = new WorldItem { Position = at, GoldAmount = amount, Height = DropHeightAt(at, height) };
         Drops[drop.DropId] = drop;
         _events.WorldItemSpawned(drop);
     }
 
-    private Vector2 Jitter(Vector2 pos)
+    /// <summary>Loot scatter that respects terrain: the jittered spot is only accepted
+    /// when it's standable at (about) the source tile's elevation — a kill at a terrace
+    /// edge must not toss loot through the cliff onto ground the killer can't reach.</summary>
+    private Vector2 JitterOnSurface(Vector2 pos)
     {
         var target = pos + new Vector2((float)(_rng.NextDouble() - 0.5), (float)(_rng.NextDouble() - 0.5)) * 0.8f;
-        return Map.IsWallAt(target) ? pos : target;
+        if (Map.IsWallAt(target)) return pos;
+        if (Map.IsWater((int)MathF.Floor(target.X), (int)MathF.Floor(target.Y))) return pos;
+        if (MathF.Abs(Map.GroundHeightAt(target) - Map.GroundHeightAt(pos)) > GameMap.StepTolerance)
+            return pos;
+        return target;
+    }
+
+    /// <summary>A drop RESTS ON the terrain at its landing spot — its stored height is
+    /// the surface height there (so pickup's height gate always matches a player
+    /// standing beside it), except a source clearly ABOVE that surface (a bridge deck)
+    /// keeps its deck height.</summary>
+    private float DropHeightAt(Vector2 at, float sourceHeight)
+    {
+        float ground = Map.GroundHeightAt(at);
+        return sourceHeight > ground + 0.75f ? sourceHeight : ground;
     }
 
     /// <summary>Authoritative pickup: existence, range and inventory space are all checked here,

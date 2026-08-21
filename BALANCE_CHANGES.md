@@ -402,3 +402,33 @@ Gravelord **100 → 80** (per-level scaling curves unchanged).
 - A right-click that quick-equips an item in the bag no longer doubles as a
   cast for skills bound to RMB — mouse-bound hotbar slots now respect UI
   capture, exactly like the left button.
+
+# Addendum — batch 22 (loot on terrain, stair quality, sanctum stonework)
+
+## Drops rest ON the terrain (bug fix)
+
+Loot scatter used to keep the dying enemy's height while jittering onto any
+non-wall tile — at a terrace edge an item could land on lower/higher ground
+with the wrong stored height, failing the pickup height gate forever ("fell
+through the cliff"). Scatter now only accepts spots standable at the source's
+elevation, and every drop's stored height snaps to the surface at its landing
+spot (bridge decks keep their deck height).
+
+## Connect-pass stairs look intentional (rework)
+
+The reachability pass used to carve a single stair at whatever boundary tile
+the scan touched first — lone steps poking out of plateau interiors, some
+climbing out of ponds. It now scores every possible spot (a clean level
+walk-up strictly dominates; mid-cliff placement preferred), carves proper
+**two-wide flights** where the cliff allows, and when a stranded pocket's only
+viable cliff is hugged by water or a pillar it opens that one approach tile (a
+stone ford) instead of leaving a stair rising out of water. Across 400 test
+seeds: awkward lone stairs down **316 → 5**; the fixed test seeds assert zero.
+
+## The Sanctum's purple stonework (new tileset)
+
+A new `sanctum` zone theme with `StoneBrick` masonry rendering: floors draw as
+laid purple stone slabs (baked mortar seams + per-slab tone), walls as
+brick-coursed purple faces (running bond, per-brick tone variation). The hub
+always uses it — run maps keep the campaign zone theme; clients swap at the
+door via the map packets' theme id.

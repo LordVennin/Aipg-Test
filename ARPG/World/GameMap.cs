@@ -749,6 +749,20 @@ public class GameMap
     /// </summary>
     private void ConnectStrandedAreas()
     {
+        // Empty, walkable, un-decorated ground — the only tiles a stair may occupy.
+        bool Clear(int x, int y)
+        {
+            if (x < 1 || y < 1 || x >= Width - 1 || y >= Height - 1) return false;
+            int i = Idx(x, y);
+            return _wall[i] == 0 && _water[i] == 0 && _ramp[i] == 0 &&
+                   _bridge[i] == 0 && _feature[i] == 0;
+        }
+        // A stair may sit at (rx,ry) ascending (dx,dy) when both its own tile and the
+        // ascent-side tile are clear with a one-level rise.
+        bool ValidStair(int rx, int ry, int dx, int dy) =>
+            Clear(rx, ry) && Clear(rx + dx, ry + dy) &&
+            _ground[Idx(rx + dx, ry + dy)] == _ground[Idx(rx, ry)] + 1;
+
         Span<(int dx, int dy, RampDirection up)> dirs = stackalloc (int, int, RampDirection)[]
         {
             (1, 0, RampDirection.PlusX), (-1, 0, RampDirection.MinusX),
@@ -757,50 +771,78 @@ public class GameMap
         for (int guard = 0; guard < 40; guard++)
         {
             var reach = ReachableFrom(PlayerSpawn);
-            bool carved = false;
-            for (int y = 1; y < Height - 1 && !carved; y++)
-                for (int x = 1; x < Width - 1 && !carved; x++)
+            // Gather EVERY spot where a stair would bridge reachable ground to a
+            // stranded area one level away, then carve the most natural-looking one —
+            // first-found placement used to leave lone stairs poking out of plateau
+            // interiors at whatever corner the scan touched first.
+            int bestScore = int.MinValue, bestX = 0, bestY = 0, bestDx = 0, bestDy = 0;
+            RampDirection bestDir = RampDirection.None;
+            for (int y = 1; y < Height - 1; y++)
+                for (int x = 1; x < Width - 1; x++)
                 {
-                    int i = Idx(x, y);
-                    if (!reach[i]) continue;
-                    if (_wall[i] != 0 || _water[i] != 0 || _ramp[i] != 0 ||
-                        _bridge[i] != 0 || _feature[i] != 0) continue;
                     foreach (var (dx, dy, up) in dirs)
                     {
-                        int nx = x + dx, ny = y + dy;
-                        if (nx < 1 || ny < 1 || nx >= Width - 1 || ny >= Height - 1) continue;
-                        int ni = Idx(nx, ny);
-                        if (reach[ni]) continue;
-                        if (_wall[ni] != 0 || _water[ni] != 0 || _ramp[ni] != 0 ||
-                            _bridge[ni] != 0 || _feature[ni] != 0) continue;
-                        if (_ground[ni] == _ground[i] + 1)
+                        // The stair tile is the LOW side; ascent side is one level up.
+                        // Connectivity needs exactly one of the two sides reachable.
+                        if (!ValidStair(x, y, dx, dy)) continue;
+                        bool lowReach = reach[Idx(x, y)];
+                        bool highReach = reach[Idx(x + dx, y + dy)];
+                        if (lowReach == highReach) continue;
+
+                        int score = 0;
+                        int g = _ground[Idx(x, y)];
+                        // A clean walk-up (level ground behind the stair) strictly
+                        // dominates every cosmetic preference — a stair you approach
+                        // through a wall never beats one you can actually walk onto.
+                        if (Clear(x - dx, y - dy) && _ground[Idx(x - dx, y - dy)] == g) score += 100;
+                        // Mid-cliff, not a corner: the ascent row continues sideways.
+                        int lx = dy == 0 ? 0 : 1, ly = dx == 0 ? 0 : 1; // lateral axis
+                        if (InBounds(x + dx + lx, y + dy + ly) &&
+                            _ground[Idx(x + dx + lx, y + dy + ly)] == g + 1) score += 1;
+                        if (InBounds(x + dx - lx, y + dy - ly) &&
+                            _ground[Idx(x + dx - lx, y + dy - ly)] == g + 1) score += 1;
+                        // Room to widen into a proper two-tile staircase.
+                        if (ValidStair(x + lx, y + ly, dx, dy) ||
+                            ValidStair(x - lx, y - ly, dx, dy)) score += 2;
+                        if (score > bestScore)
                         {
-                            // Stranded ground one step UP: stairs on the reachable
-                            // tile rising toward it.
-                            _ramp[i] = (byte)up;
-                            _rampStyle[i] = 1;
-                            carved = true;
-                            break;
-                        }
-                        if (_ground[ni] == _ground[i] - 1)
-                        {
-                            // Stranded ground one step DOWN: stairs on the stranded
-                            // tile rising back toward the reachable side.
-                            var down = up switch
-                            {
-                                RampDirection.PlusX => RampDirection.MinusX,
-                                RampDirection.MinusX => RampDirection.PlusX,
-                                RampDirection.PlusY => RampDirection.MinusY,
-                                _ => RampDirection.PlusY,
-                            };
-                            _ramp[ni] = (byte)down;
-                            _rampStyle[ni] = 1;
-                            carved = true;
-                            break;
+                            bestScore = score;
+                            bestX = x; bestY = y; bestDx = dx; bestDy = dy; bestDir = up;
                         }
                     }
                 }
-            if (!carved) break;
+            if (bestDir == RampDirection.None) break;
+            _ramp[Idx(bestX, bestY)] = (byte)bestDir;
+            _rampStyle[Idx(bestX, bestY)] = 1;
+            // No clean-approach candidate existed anywhere for this region (water or a
+            // pillar hugs the only usable cliff): open the approach tile up — one pond
+            // tile becomes a stone ford, one pillar tile gives way — so the stair never
+            // climbs out of water or a wall.
+            if (bestScore < 100)
+            {
+                int ax = bestX - bestDx, ay = bestY - bestDy;
+                if (ax >= 1 && ay >= 1 && ax < Width - 1 && ay < Height - 1)
+                {
+                    int ai = Idx(ax, ay);
+                    if ((_water[ai] != 0 || _wall[ai] != 0) && _feature[ai] == 0 &&
+                        _ground[ai] == _ground[Idx(bestX, bestY)])
+                    {
+                        _wall[ai] = 0;
+                        _water[ai] = 0;
+                    }
+                }
+            }
+            // Widen to two tiles where the cliff allows — lone one-tile stairs read
+            // as generation glitches; a two-wide flight reads as intentional.
+            int wlx = bestDy == 0 ? 0 : 1, wly = bestDx == 0 ? 0 : 1;
+            foreach (var (sx, sy) in new[] { (bestX + wlx, bestY + wly), (bestX - wlx, bestY - wly) })
+                if (ValidStair(sx, sy, bestDx, bestDy) &&
+                    _ground[Idx(sx, sy)] == _ground[Idx(bestX, bestY)])
+                {
+                    _ramp[Idx(sx, sy)] = (byte)bestDir;
+                    _rampStyle[Idx(sx, sy)] = 1;
+                    break;
+                }
         }
         // Whatever is STILL stranded becomes scenery, never fake floor.
         var final = ReachableFrom(PlayerSpawn);

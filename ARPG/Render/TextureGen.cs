@@ -21,12 +21,16 @@ public static class TextureGen
     /// so the ground reads as continuous terrain instead of a grid.</summary>
     public static Texture2D DiamondFlat { get; private set; }
     public static Texture2D DiamondOutline { get; private set; }
+    /// <summary>Opaque diamond baked as four laid stone slabs with mortar seams (white-
+    /// based, tinted at draw time) — StoneBrick themes tile their floors with it.</summary>
+    public static Texture2D DiamondBrick { get; private set; }
 
     public const int TileWidth = 64;
     public const int TileHeight = 32;
 
     private static GraphicsDevice _device;
     private static readonly Dictionary<int, Texture2D> _prismFaces = new();
+    private static readonly Dictionary<int, Texture2D> _brickFaces = new();
     private static readonly Dictionary<int, Texture2D> _earthFaces = new();
     private static Texture2D _lipBand;
     private static readonly Dictionary<(RampDirection dir, bool stairs), Texture2D> _ramps = new();
@@ -44,6 +48,88 @@ public static class TextureGen
         DiamondSolid = MakeDiamond(device, TileWidth, TileHeight, filled: true, opaqueEdge: true);
         DiamondFlat = MakeDiamond(device, TileWidth, TileHeight, filled: true, opaqueEdge: true, flat: true);
         DiamondOutline = MakeDiamond(device, TileWidth, TileHeight, filled: false);
+        DiamondBrick = MakeDiamondBrick(device);
+        _brickFaces.Clear();
+    }
+
+    /// <summary>Stone-slab floor tile: the diamond split into four quarter slabs along
+    /// the tile's own iso axes, mortar in the seams and along the tile edge, each slab
+    /// carrying its own subtle tone and a few chip specks. Baked near-white so themes
+    /// tint it (purple stone in the sanctum).</summary>
+    private static Texture2D MakeDiamondBrick(GraphicsDevice device)
+    {
+        const int w = TileWidth, h = TileHeight;
+        var tex = new Texture2D(device, w, h);
+        var data = new Color[w * h];
+        float hw = w / 2f, hh = h / 2f;
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float sx = x + 0.5f - hw, sy = y + 0.5f - hh;
+                float d = MathF.Abs(sx) / hw + MathF.Abs(sy) / hh;
+                if (d > 1f) { data[y * w + x] = Color.Transparent; continue; }
+                // Tile-local iso coordinates (u, v in [0,1]) from the screen offsets.
+                float u = (sx / hw + sy / hh + 1f) / 2f;
+                float v = (sy / hh + 1f - sx / hw) / 2f;
+                // Per-slab tone: each quarter reads as its own laid stone.
+                int slab = (u < 0.5f ? 0 : 1) + (v < 0.5f ? 0 : 2);
+                uint sh = (uint)(slab * 374761393 + 0x9E3779B9);
+                sh ^= sh >> 13; sh *= 1274126177; sh ^= sh >> 16;
+                int g = 238 + (int)(sh % 18);
+                // Mortar: the tile edge and the two mid seams.
+                bool mortar = d >= 0.90f ||
+                              MathF.Abs(u - 0.5f) < 0.045f || MathF.Abs(v - 0.5f) < 0.045f;
+                if (mortar) g = 172;
+                else
+                {
+                    // Sparse chips and pocks in the stone face.
+                    uint pn = (uint)(x * 668265263 ^ y * 2654435761);
+                    pn ^= pn >> 15; pn *= 0x846ca68b; pn ^= pn >> 13;
+                    if ((pn & 127) == 0) g -= 34;
+                    else if ((pn & 127) == 1) g = Math.Min(255, g + 14);
+                }
+                data[y * w + x] = new Color(g, g, g);
+            }
+        tex.SetData(data);
+        return tex;
+    }
+
+    /// <summary>Brick-coursed variant of <see cref="GetPrismFaces"/>: the same prism
+    /// geometry with running-bond mortar lines baked into both faces, tinted with the
+    /// theme's WallFace at draw time (the sanctum's purple brick walls).</summary>
+    public static Texture2D GetPrismFacesBrick(int levels)
+    {
+        levels = Math.Clamp(levels, 1, 12);
+        if (_brickFaces.TryGetValue(levels, out var cached)) return cached;
+
+        int drop = levels * IsoCamera.LevelHeightPx;
+        int h = TileHeight / 2 + drop;
+        var tex = new Texture2D(_device, TileWidth, h);
+        var data = new Color[TileWidth * h];
+        for (int py = 0; py < h; py++)
+            for (int px = 0; px < TileWidth; px++)
+            {
+                bool right = px >= TileWidth / 2;
+                float edge = (right ? (TileWidth - (px + 0.5f)) / 2f : (px + 0.5f) / 2f) - 1f;
+                if (edge < 0) edge = 0;
+                float y = py + 0.5f;
+                if (y < edge || y >= edge + drop) continue;
+                int g = right ? 150 : 102;
+                // Running bond: 6px courses, vertical joints every 9px offset per course.
+                int band = (int)(y - edge);
+                int course = band / 6;
+                uint bn = (uint)((course * 97 + px / 9) * 374761393);
+                bn ^= bn >> 13; bn *= 1274126177; bn ^= bn >> 16;
+                g += (int)(bn % 13) - 6; // per-brick tone variation
+                if (band % 6 == 5) g = g * 62 / 100;                          // mortar course
+                else if ((px + (course & 1) * 4) % 9 == 0) g = g * 70 / 100;  // head joint
+                if (y - edge < 1.2f || edge + drop - y < 1.2f) g = g * 2 / 3; // top/bottom seams
+                if (px == TileWidth / 2 - 1 || px == TileWidth / 2) g = g * 3 / 4; // corner ridge
+                data[py * TileWidth + px] = new Color(g, g, g);
+            }
+        tex.SetData(data);
+        _brickFaces[levels] = tex;
+        return tex;
     }
 
     /// <summary>
