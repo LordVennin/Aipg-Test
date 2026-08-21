@@ -1135,7 +1135,12 @@ public class WorldRenderer
                 screenDir.Normalize();
                 var weaponBase = p.WeaponBaseId != null ? _data.Items.GetValueOrDefault(p.WeaponBaseId) : null;
                 var offHandBase = p.OffHandBaseId != null ? _data.Items.GetValueOrDefault(p.OffHandBaseId) : null;
-                var weaponTex = SpriteGen.GetWeaponSprite(weaponBase);
+                int bodyDir = BodyDirIndex(p.Facing, out bool bodyFlip);
+                // A bow's full arc only shows when its plane faces the camera — the side
+                // views. Facing toward/away, the held bow is seen edge-on instead.
+                var weaponTex = weaponBase?.Category == Items.ItemCategory.Bow && bodyDir != SpriteGen.DirEast
+                    ? SpriteGen.GetBowFrontSprite(weaponBase)
+                    : SpriteGen.GetWeaponSprite(weaponBase);
                 var offHandTex = SpriteGen.GetWeaponSprite(offHandBase);
                 bool weaponBehind = screenDir.Y < -0.1f;
                 // With both hands full, items shift apart perpendicular to the aim — one in
@@ -1241,7 +1246,6 @@ public class WorldRenderer
                     // side profile mirrored for west. Walk cycle runs while the position
                     // is actually changing; the body tint carries the state colors the
                     // old token used (frozen blue, dodge flash, death gray).
-                    int bodyDir = BodyDirIndex(p.Facing, out bool bodyFlip);
                     int bodyFrame = p.RenderMoving ? 1 + (int)((animClock / 160 + p.Id) % 2) : 0;
                     var bodyTex = bodyFrames[bodyDir * 3 + bodyFrame];
                     var bodyTint = Color.White;
