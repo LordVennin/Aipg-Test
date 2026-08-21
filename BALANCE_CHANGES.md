@@ -481,3 +481,47 @@ weapon damage +8%/level. Both categories drop as loot.
   start, walk out to dodge). XP 14.
 - **Shambler**: the Caller's fodder — a runty zombie (12 hp, 4 damage, XP 2,
   renders at 72% size).
+
+---
+
+# Addendum (batch 24): classes, body sprites & the bow affix fix
+
+## Starting classes (kits, not restrictions)
+
+Character creation now picks one of three classes from
+`Data/Classes/classes.json`. A class is ONLY a starting kit — items, skills
+and progression never check it again:
+
+| Class | Gear | Skill (hotbar slot 1) |
+|---|---|---|
+| Warrior | Wooden Club | Mace Strike |
+| Archer | Short Bow + Leather Quiver | Arrow Shot |
+| Mage | Oak Staff | Fire Bolt |
+
+Every kit still includes the Minor Health/Mana flask pair and 100 gold. The
+old default (club + staff in the bag, two skills known) is gone — fresh
+characters know exactly ONE skill, which nudges the 75g trainer economy
+earlier.
+
+## Body sprites & appearance
+
+One shared 16x27 human rig (idle + two stride frames), two body styles
+(male/female silhouettes), six skin tones. Body style + tone are chosen at
+creation, saved on the character, and replicate through `PlayerAppearance`
+(protocol **v27**) so every client renders every player's body. State tints
+(death grey, freeze blue, dodge flash) now apply to the body sprite.
+
+## Bows & quivers could not roll affixes (bug fix)
+
+Every weapon modifier listed explicit categories that predated bows, so
+magic/rare bows and quivers generated with ZERO modifiers — blank uniques-
+without-the-unique. Now:
+
+- **Bows** roll everything maces roll: added damage (all 7 elements), phys%,
+  attack speed, crit chance/damage, health/mana, mana regen, modifier limit,
+  reduced requirements.
+- **Quivers** roll the offensive subset: added damage, phys%, attack speed,
+  crit chance/damage.
+
+A regression check in the test suite counts the bow/quiver affix pools so
+this can't silently regress (suite is now **495 checks**).

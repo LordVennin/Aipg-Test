@@ -9,7 +9,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -28,7 +30,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -47,7 +51,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -66,7 +72,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -85,7 +93,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -104,7 +114,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -123,7 +135,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -142,7 +156,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -161,7 +177,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -180,7 +198,9 @@
    "Mace",
    "Gloves",
    "Amulet",
-   "Ring"
+   "Ring",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "attack_speed",
   "StatAffected": "AttackSpeed",
@@ -2525,7 +2545,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2550,7 +2571,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2575,7 +2597,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2600,7 +2623,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2625,7 +2649,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2650,7 +2675,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2675,7 +2701,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2700,7 +2727,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2725,7 +2753,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2750,7 +2779,8 @@
    "Belt",
    "Amulet",
    "Ring",
-   "Shield"
+   "Shield",
+   "Bow"
   ],
   "ModifierGroup": "mana_regen",
   "StatAffected": "ManaRegeneration",
@@ -2767,7 +2797,9 @@
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2784,7 +2816,9 @@
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2801,7 +2835,9 @@
   "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2818,7 +2854,9 @@
   "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2835,7 +2873,9 @@
   "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2852,7 +2892,9 @@
   "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2869,7 +2911,9 @@
   "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2886,7 +2930,9 @@
   "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2903,7 +2949,9 @@
   "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2920,7 +2968,9 @@
   "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_chance",
   "StatAffected": "CriticalChance",
@@ -2937,7 +2987,9 @@
   "MinimumItemLevel": 1,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -2954,7 +3006,9 @@
   "MinimumItemLevel": 10,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -2971,7 +3025,9 @@
   "MinimumItemLevel": 20,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -2988,7 +3044,9 @@
   "MinimumItemLevel": 30,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -3005,7 +3063,9 @@
   "MinimumItemLevel": 40,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -3022,7 +3082,9 @@
   "MinimumItemLevel": 50,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -3039,7 +3101,9 @@
   "MinimumItemLevel": 60,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -3056,7 +3120,9 @@
   "MinimumItemLevel": 70,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -3073,7 +3139,9 @@
   "MinimumItemLevel": 80,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -3090,7 +3158,9 @@
   "MinimumItemLevel": 90,
   "CompatibleItemCategories": [
    "Mace",
-   "Staff"
+   "Staff",
+   "Bow",
+   "Quiver"
   ],
   "ModifierGroup": "crit_damage",
   "StatAffected": "CriticalDamage",
@@ -3975,7 +4045,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -3998,7 +4069,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -4021,7 +4093,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -4044,7 +4117,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -4067,7 +4141,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -4090,7 +4165,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -4113,7 +4189,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -4136,7 +4213,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -4159,7 +4237,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",
@@ -4182,7 +4261,8 @@
    "BodyArmor",
    "Gloves",
    "Boots",
-   "Belt"
+   "Belt",
+   "Bow"
   ],
   "ModifierGroup": "reduced_requirements_suffix",
   "StatAffected": "ReducedRequirements",

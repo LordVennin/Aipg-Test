@@ -56,6 +56,12 @@ public class ClientPlayer
     public string WeaponBaseId;
     /// <summary>Off-hand item base id (usually a shield), rendered in the other hand.</summary>
     public string OffHandBaseId;
+    /// <summary>Body silhouette + skin tone (from PlayerAppearance packets).</summary>
+    public byte BodyStyle;
+    public byte SkinTone = 2;
+    /// <summary>Render-side walk detection: last drawn position + whether it moved.</summary>
+    public Vector2 RenderPrevPos;
+    public bool RenderMoving;
 }
 
 public class ClientEnemy

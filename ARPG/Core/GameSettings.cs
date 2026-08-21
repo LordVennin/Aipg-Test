@@ -62,7 +62,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 26; // v26: stash moves, revive channel, caster AoE packet
+    public const int ProtocolVersion = 27; // v27: body style + skin tone in PlayerAppearance
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }
