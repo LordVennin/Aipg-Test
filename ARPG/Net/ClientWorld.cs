@@ -32,6 +32,8 @@ public class ClientPlayer
     /// transitions, where interpolating across the whole map reads as a streak).</summary>
     public bool SnapNext;
     // Potion flasks (HUD): charges + seconds left on the active restore ticks.
+    /// <summary>Revive channel progress on this (dead) player, 0-100 (corpse bar).</summary>
+    public byte RevivePercent;
     public float PotionHealSecondsLeft;
     public float PotionManaSecondsLeft;
     /// <summary>Latest round-trip ping in ms (from PlayerPings packets), for the player list.</summary>

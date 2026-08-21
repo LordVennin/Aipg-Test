@@ -3202,6 +3202,115 @@ public static class HeadlessNetTest
         Check(potGrunt.Dead && hpFlaskItem.FlaskCharges == 0 && mpFlaskItem.FlaskCharges == 0,
               "kills do NOT refill flasks (fountain-only economy)");
 
+        Console.WriteLine("\n-- Bows, quivers, Arrow Shot --");
+        Check(data.Items["short_bow"] is { Category: Items.ItemCategory.Bow, TwoHanded: true } &&
+              data.Items.ContainsKey("hunting_bow") && data.Items.ContainsKey("war_bow"),
+              "three two-handed bow tiers exist");
+        Check(Items.ItemBase.CompatibleSlots(Items.ItemCategory.Quiver)
+                  .SequenceEqual(new[] { Items.EquipSlot.OffHand }),
+              "quivers equip into the off-hand slot");
+        var arrowDef = data.Skills["arrow_shot"];
+        Check(arrowDef.ManaCost == 0 && arrowDef.RequiredWeapon == Items.ItemCategory.Bow &&
+              arrowDef.IsAttack && arrowDef.UsesWeaponDamage,
+              "Arrow Shot is a zero-mana bow attack");
+
+        var srvArcher = server.World.Players[bId];
+        Items.ItemInstance MkNorm(string id) => new()
+            { BaseItemId = id, ItemLevel = 1, Rarity = Items.ItemRarity.Normal };
+        srvArcher.Character.Equipment[Items.EquipSlot.OffHand] = MkNorm("wooden_buckler");
+        srvArcher.Character.Inventory.TryAdd(data, MkNorm("short_bow"));
+        srvArcher.Character.Inventory.TryAdd(data, MkNorm("leather_quiver"));
+        srvArcher.RecomputeStats(data);
+        var bowPlaced = srvArcher.Character.Inventory.Items.First(pl => pl.Item.BaseItemId == "short_bow");
+        server.World.MoveItem(bId, ItemLocation.AtGrid(bowPlaced.X, bowPlaced.Y),
+            ItemLocation.AtEquip(Items.EquipSlot.MainHand));
+        Check(srvArcher.Character.MainHand?.BaseItemId == "short_bow" &&
+              srvArcher.Character.OffHand == null,
+              "equipping the two-handed bow auto-unequips the off-hand shield");
+        var quiverPlaced = srvArcher.Character.Inventory.Items.First(pl => pl.Item.BaseItemId == "leather_quiver");
+        server.World.MoveItem(bId, ItemLocation.AtGrid(quiverPlaced.X, quiverPlaced.Y),
+            ItemLocation.AtEquip(Items.EquipSlot.OffHand));
+        Check(srvArcher.Character.OffHand?.BaseItemId == "leather_quiver",
+              "a QUIVER rides the off-hand beside the bow");
+        Check(srvArcher.Stats.AttackSpeedIncrease >= 5.9f,
+              $"the quiver's implicit attack speed applies (+{srvArcher.Stats.AttackSpeedIncrease:0}%)");
+        Check(srvArcher.Stats.PhysicalSubtype == Skills.DamageKind.Thrust,
+              "bow attacks pierce (Thrust subtype)");
+
+        clientB.RequestLearnSkill("arrow_shot");
+        Pump(0.3f);
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.3f);
+        var bowPrey = server.World.SpawnEnemy("grunt", srvArcher.Position + new Vector2(4f, 0));
+        bowPrey.Health = 300f;
+        bowPrey.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        srvArcher.Mana = 5f;
+        srvArcher.LastSyncedMana = 5f; // near-empty pool: proves the shot is free
+        srvArcher.SkillReadyAt.Clear();
+        srvArcher.GlobalSkillReadyAt = 0;
+        float bowManaBefore = srvArcher.Mana;
+        clientB.RequestUseSkill("arrow_shot", bowPrey.Position);
+        bool arrowFlew = false;
+        for (int i = 0; i < 14 && bowPrey.Health >= 299.9f; i++)
+        {
+            Pump(0.1f);
+            arrowFlew |= server.World.Projectiles.Values.Any(pr =>
+                pr.SkillId == "arrow_shot" && pr.OwnerId == bId);
+        }
+        Check(arrowFlew && bowPrey.Health < 299.9f,
+              $"Arrow Shot looses a real arrow downrange (hp {bowPrey.Health:0})");
+        Check(srvArcher.Mana >= bowManaBefore - 0.01f, "the shot cost zero mana");
+        bowPrey.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        Console.WriteLine("\n-- New enemies: Crypt Leaper + Grave Caller --");
+        Check(data.Enemies["crypt_leaper"].DashMinLevel == 1 &&
+              data.Enemies["crypt_leaper"].DashDamage > 0,
+              "the Crypt Leaper leaps from level 1 (dash-style telegraph)");
+        Check(data.Enemies["grave_caller"].AddSpawnType == "shambler" &&
+              data.Enemies["grave_caller"].CastRadius > 0 &&
+              data.Enemies["shambler"].MaxHealth < data.Enemies["grunt"].MaxHealth,
+              "the Grave Caller raises weaker Shamblers and casts a dark AoE");
+        clientB.SendDebugCommand("heal");
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
+        Pump(0.3f);
+        var srvNewE = server.World.Players[bId];
+        var leaper = server.World.SpawnEnemy("crypt_leaper", srvNewE.Position + new Vector2(4.2f, 0));
+        bool leapCommitted = false, leapLineSeen = false;
+        for (int i = 0; i < 30 && !(leapCommitted && leapLineSeen); i++)
+        {
+            clientB.SendDebugCommand("heal");
+            Pump(0.15f);
+            leapCommitted |= leaper.DashPrepareUntil > 0 || leaper.DashUntil > 0 || leaper.DashReadyAt > 0;
+            leapLineSeen |= clientB.World.Effects.Any(fx => fx.Kind == "dashline");
+        }
+        Check(leapCommitted, "the leaper commits a telegraphed leap at mid-range");
+        Check(leapLineSeen, "with the boss-style ground line telegraph");
+        leaper.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        var caller = server.World.SpawnEnemy("grave_caller", srvNewE.Position + new Vector2(5f, 0));
+        bool darkSeen = false;
+        int shamblersSeen = 0;
+        for (int i = 0; i < 45 && !(darkSeen && shamblersSeen >= 2); i++)
+        {
+            clientB.SendDebugCommand("heal");
+            Pump(0.15f);
+            darkSeen |= clientB.World.Effects.Any(fx => fx.Kind is "darkwarn" or "darkburst");
+            shamblersSeen = Math.Max(shamblersSeen,
+                server.World.Enemies.Values.Count(en => !en.Dead && en.Def.Id == "shambler"));
+        }
+        Check(darkSeen, "the Grave Caller drops a purple AoE telegraph");
+        Check(shamblersSeen >= 2, $"and raises Shambler adds mid-fight ({shamblersSeen} up)");
+        caller.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
         // The campaign's run maps grow tall-grass patches (on terraces too) and stay
         // walkable through them; density-bumped big trees come in four variants.
@@ -3376,6 +3485,37 @@ public static class HeadlessNetTest
               campMpFlask.FlaskCharges == campMpFlask.GetBase(data).FlaskChargesMax,
               "the sanctum fountain refills every carried flask");
 
+        // The stash: storage tied to a CONTAINER object — moves only work beside it.
+        var stashSpot = campServer.World.Map.StashSpot;
+        Check(stashSpot != Vector2.Zero, "the hub has a stash chest");
+        var srvStashA = campServer.World.Players[campA.World.MyPlayerId];
+        var bagStaff = srvStashA.Character.Inventory.Items
+            .FirstOrDefault(pl => pl.Item.BaseItemId == "oak_staff");
+        Check(bagStaff != null, "the starter staff sits in the bag for the stash test");
+        campA.World.Me.Position = stashSpot + new Vector2(9f, 6f); // across the room
+        CPump(0.4f);
+        campServer.World.MoveItem(srvStashA.Id, ItemLocation.AtGrid(bagStaff.X, bagStaff.Y),
+            ItemLocation.AtStash(World.GameMap.HubStashId, 0, 0));
+        Check(srvStashA.Character.GetStash(World.GameMap.HubStashId).Items.Count == 0,
+              "stash moves are refused away from the chest");
+        campA.World.Me.Position = stashSpot + new Vector2(1.0f, 0.7f);
+        CPump(0.4f);
+        campServer.World.MoveItem(srvStashA.Id, ItemLocation.AtGrid(bagStaff.X, bagStaff.Y),
+            ItemLocation.AtStash(World.GameMap.HubStashId, 0, 0));
+        var stashGrid = srvStashA.Character.GetStash(World.GameMap.HubStashId);
+        Check(stashGrid.Items.Count == 1 &&
+              srvStashA.Character.Inventory.Items.All(pl => pl.Item.BaseItemId != "oak_staff"),
+              "an item moves from the bag into the stash container");
+        CPump(0.4f);
+        Check(campA.World.MyCharacter.Stashes.GetValueOrDefault(World.GameMap.HubStashId)?.Items.Count == 1,
+              "stash contents replicate with the character");
+        campServer.World.MoveItem(srvStashA.Id,
+            ItemLocation.AtStash(World.GameMap.HubStashId, stashGrid.Items[0].X, stashGrid.Items[0].Y),
+            ItemLocation.AtGrid(0, 0));
+        Check(stashGrid.Items.Count == 0 &&
+              srvStashA.Character.Inventory.Items.Any(pl => pl.Item.BaseItemId == "oak_staff"),
+              "and moves back out into the bag");
+
         Console.WriteLine("\n-- Campaign: the run door --");
         var hubDoor = campServer.World.Map.ExitDoor;
         campA.World.Me.Position = hubDoor + new Vector2(-0.9f, 0);
@@ -3525,6 +3665,36 @@ public static class HeadlessNetTest
         Check(dashLineSeen, "the MMO ground line telegraph replicates to clients");
         Check(dashLaunched && bossTravel > 2.5f,
               $"then charges hard down the line ({bossTravel:0.0} tiles covered)");
+
+        Console.WriteLine("\n-- Campaign: death, revive, and the wipe rule --");
+        campA.SendDebugCommand("kill_nearby");
+        campA.SendDebugCommand("heal");
+        campB.SendDebugCommand("heal");
+        CPump(0.4f);
+        var srvFallenA = campServer.World.Players[campA.World.MyPlayerId];
+        var srvHelperB = campServer.World.Players[campB.World.MyPlayerId];
+        srvFallenA.Alive = false;
+        srvFallenA.Health = 0;
+        CPump(1.5f);
+        Check(!srvFallenA.Alive, "campaign corpses do NOT auto-respawn — they wait for a revive");
+        campB.World.Me.Position = srvFallenA.Position + new Vector2(0.6f, 0);
+        campB.World.Me.Height = srvFallenA.Height;
+        CPump(0.4f);
+        for (int i = 0; i < 32 && !srvFallenA.Alive; i++)
+        {
+            campB.RequestRevivePulse(srvFallenA.Id);
+            CPump(0.12f);
+        }
+        Check(srvFallenA.Alive && srvFallenA.Health > srvFallenA.Stats.MaxHealth * 0.4f,
+              $"holding the key beside a fallen teammate revives them at half health ({srvFallenA.Health:0} hp)");
+        // Wipe: everyone down ends the run — the Sanctum reclaims the whole party.
+        srvFallenA.Alive = false; srvFallenA.Health = 0;
+        srvHelperB.Alive = false; srvHelperB.Health = 0;
+        CPump(3.5f);
+        Check(campServer.World.MapIndex == 0, "a full party wipe returns the group to the hub");
+        Check(srvFallenA.Alive && srvHelperB.Alive &&
+              srvFallenA.Health >= srvFallenA.Stats.MaxHealth - 0.5f,
+              "the Sanctum reclaims the fallen alive and at full health");
 
         campA.Disconnect();
         campB.Disconnect();

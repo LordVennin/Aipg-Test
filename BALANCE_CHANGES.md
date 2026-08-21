@@ -432,3 +432,52 @@ laid purple stone slabs (baked mortar seams + per-slab tone), walls as
 brick-coursed purple faces (running bond, per-brick tone variation). The hub
 always uses it — run maps keep the campaign zone theme; clients swap at the
 door via the map packets' theme id.
+
+# Addendum — batch 23 (stash, death rules, bows, new undead)
+
+## Stash containers (new)
+
+Storage is tied to physical CONTAINER objects, not one global array: the
+character carries `Stashes[containerId]` grids (10x8), and the hub's stash
+chest is the first container (`hub_stash`) — future player rooms add more ids.
+Open it with `F` beside the chest (the bag opens alongside); every move is a
+server-validated `MoveItem` with a reach check against the container, and
+contents persist on the character save.
+
+## Death & revival (new rules, campaign)
+
+- Dying in the campaign leaves a corpse — **no auto-respawn**.
+- A living teammate revives you by standing beside the corpse and **holding
+  the interact key for 2.5s** (server-timed channel with a progress bar; an
+  interrupted channel bleeds back down). Revived at **50% health**, in place.
+- **Full party wipe = the run ends**: after a short beat the whole group is
+  returned to the Sanctum, alive at full health. Walking home through the hub
+  door also stands any dead teammates back up.
+- Arena mode keeps the old quick respawn (tests and debugging).
+
+## Bows & quivers (new weapon class)
+
+| Base | Lvl | Damage | APS | Range |
+|---|---|---|---|---|
+| Short Bow | 1 | 3-6 | 1.5 | 11 |
+| Hunting Bow | 15 | 7-12 | 1.4 | 11.5 |
+| War Bow | 35 | 13-22 | 1.25 | 12 |
+
+Bows are **two-handed but share with a quiver**: quivers equip into the
+off-hand (only alongside a bow; anything else follows the normal two-handed
+rules) and carry an implicit **+6/9/12% attack speed** by tier
+(Leather/Fletcher's/War Quiver, levels 1/15/35). Bow attacks deal **Thrust**.
+**Arrow Shot** (trainer, 75g): a **zero-mana** weapon-damage arrow, 1.1x
+weapon damage +8%/level. Both categories drop as loot.
+
+## New undead
+
+- **Crypt Leaper** (loop 1+): a small fast ghoul that LEAPS — the boss-style
+  ground-line telegraph (0.65s), then a 5.5-tile lunge for 12 contact damage
+  every 5s. XP 7.
+- **Grave Caller** (loop 2+): a robed conjurer that raises **2 Shamblers**
+  every 13s (first at 3.5s) and drops a purple-telegraphed **dark AoE**
+  (16 Dark, radius 1.9, range 7.5, 1.1s windup — the circle locks at cast
+  start, walk out to dodge). XP 14.
+- **Shambler**: the Caller's fodder — a runty zombie (12 hp, 4 damage, XP 2,
+  renders at 72% size).

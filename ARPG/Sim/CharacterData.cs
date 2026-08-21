@@ -56,6 +56,20 @@ public class CharacterData
     /// <summary>Allocated passive tree node ids (validated server-side on allocation).</summary>
     public List<string> AllocatedPassives { get; set; } = new();
 
+    /// <summary>Item storage keyed by CONTAINER id ("hub_stash" today; future player-room
+    /// furniture adds more ids). Each container is its own grid, so storage is tied to
+    /// the specific object in the world, never one global array.</summary>
+    public Dictionary<string, InventoryGrid> Stashes { get; set; } = new();
+
+    public const int StashWidth = 10, StashHeight = 8;
+
+    public InventoryGrid GetStash(string containerId)
+    {
+        if (!Stashes.TryGetValue(containerId, out var grid))
+            Stashes[containerId] = grid = new InventoryGrid { Width = StashWidth, Height = StashHeight };
+        return grid;
+    }
+
     public float XpToNextLevel() => 40f + 25f * Level;
 
     public LearnedSkill GetSkill(string skillId) => Skills.FirstOrDefault(s => s.SkillId == skillId);

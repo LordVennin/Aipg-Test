@@ -1,0 +1,52 @@
+[
+ {
+  "Id": "leather_quiver",
+  "Name": "Leather Quiver",
+  "Category": "Quiver",
+  "InventoryWidth": 1,
+  "InventoryHeight": 2,
+  "RequiredLevel": 1,
+  "BaseModifierLimit": 6,
+  "DropWeight": 100,
+  "BaseGoldValue": 6,
+  "Description": "Field-stitched leather holding a sheaf of arrows.",
+  "BaseStats": {
+   "AttackSpeed": 6
+  },
+  "SpriteColor": "8A6A42"
+ },
+ {
+  "Id": "fletchers_quiver",
+  "Name": "Fletcher's Quiver",
+  "Category": "Quiver",
+  "InventoryWidth": 1,
+  "InventoryHeight": 2,
+  "RequiredLevel": 15,
+  "BaseModifierLimit": 6,
+  "DropWeight": 75,
+  "BaseGoldValue": 22,
+  "RequiredDexterity": 6,
+  "Description": "Perfectly weighted shafts, sorted by a master's hand.",
+  "BaseStats": {
+   "AttackSpeed": 9
+  },
+  "SpriteColor": "A08050"
+ },
+ {
+  "Id": "war_quiver",
+  "Name": "War Quiver",
+  "Category": "Quiver",
+  "InventoryWidth": 1,
+  "InventoryHeight": 2,
+  "RequiredLevel": 35,
+  "BaseModifierLimit": 7,
+  "DropWeight": 45,
+  "BaseGoldValue": 55,
+  "RequiredDexterity": 12,
+  "Description": "Bodkin points in an armored case.",
+  "BaseStats": {
+   "AttackSpeed": 12
+  },
+  "SpriteColor": "6E5A3C"
+ }
+]

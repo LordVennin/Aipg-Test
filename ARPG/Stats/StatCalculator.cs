@@ -275,6 +275,7 @@ public static class StatCalculator
         // future categories map here: swords -> Slash, spears -> Thrust).
         s.PhysicalSubtype = s.WeaponCategory switch
         {
+            ItemCategory.Bow => Skills.DamageKind.Thrust, // arrows pierce
             _ => Skills.DamageKind.Blunt,
         };
         return s;

@@ -31,6 +31,7 @@ public class PlayScreen : IScreen
     private readonly SkillTreeUI _skillTree;
     private readonly ShopUI _shop;
     private readonly TrainerUI _trainer;
+    private readonly StashUI _stash;
     private readonly DebugUI _debug;
     private readonly DragState _drag = new();
 
@@ -63,6 +64,7 @@ public class PlayScreen : IScreen
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     private bool _lmbClaimedByUI;
     private bool _rmbClaimedByUI;
+    private float _revivePulseTimer;
     /// <summary>Client-side cooldown estimates per skill (server still validates).</summary>
     private readonly Dictionary<string, float> _cooldownEnds = new();
     /// <summary>Client-side mirror of the server's global use-time lockout.</summary>
@@ -150,6 +152,7 @@ public class PlayScreen : IScreen
         _skillTree = new SkillTreeUI(game.Data, client);
         _shop = new ShopUI(game.Data, client, _inventory);
         _trainer = new TrainerUI(game.Data, client);
+        _stash = new StashUI(game.Data, client, _inventory, _drag);
         // Entering the shop opens the bag in sell mode beside it; closing ends selling.
         _shop.ModeChanged += mode =>
         {
@@ -175,6 +178,7 @@ public class PlayScreen : IScreen
         _panelZ.Add(new PanelZ { Owner = _skillTree, IsOpen = () => _skillTree.Open, Contains = p => _skillTree.Contains(p), Update = (i, b) => _skillTree.Update(i, b), Draw = sb => _skillTree.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _shop, IsOpen = () => _shop.Open, Contains = p => _shop.Contains(p), Update = (i, b) => _shop.Update(i, b), Draw = sb => _shop.Draw(sb, _game.UiScreenSize) });
         _panelZ.Add(new PanelZ { Owner = _trainer, IsOpen = () => _trainer.Open, Contains = p => _trainer.Contains(p), Update = (i, b) => _trainer.Update(i, b), Draw = sb => _trainer.Draw(sb) });
+        _panelZ.Add(new PanelZ { Owner = _stash, IsOpen = () => _stash.Open, Contains = p => _stash.Contains(p), Update = (i, b) => _stash.Update(i, b), Draw = sb => _stash.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _inventory, IsOpen = () => _inventory.Open, Contains = p => _inventory.Contains(p), Update = (i, b) => _inventory.Update(i, b), Draw = sb => _inventory.Draw(sb, _game.Input) });
 
         // Dev convenience (like --sp): ARPG_DEVUI=debug[,skills][,inventory] opens
@@ -204,6 +208,7 @@ public class PlayScreen : IScreen
             if (_client.World.Me is { } me2) _camera.Center = me2.Position;
             _shop.Close();
             _trainer.Open = false;
+            _stash.Open = false;
             _pickupTargetId = Guid.Empty;
         };
         BuildPauseMenu();
@@ -314,6 +319,7 @@ public class PlayScreen : IScreen
         _skillTree.Layout(uiScreen);
         _shop.Layout(uiScreen);
         _trainer.Layout(uiScreen);
+        _stash.Layout(uiScreen);
 
         if (_client.Status != ClientStatus.InGame)
         {
@@ -411,6 +417,7 @@ public class PlayScreen : IScreen
         {
             var mouse = input.MousePosition;
             bool handled = _skillMenu.TryDropAt(mouse) || _inventory.TryDropAt(mouse) ||
+                           _stash.TryDropAt(mouse) ||
                            _debug.Contains(mouse) || _characterSheet.Contains(mouse) ||
                            _skillTree.Contains(mouse) || _shop.Contains(mouse);
             if (!handled)
@@ -531,7 +538,30 @@ public class PlayScreen : IScreen
                         _renderer.HoveredDropId = _renderer.DropLabelRects[i].dropId;
                         break;
                     }
-            if (input.WasActionPressed(InputAction.Interact))
+            // --- revive channel: HOLD the interact key beside a fallen teammate; the
+            // server does the timekeeping, these pulses only say "still channeling" ---
+            ClientPlayer reviveTarget = null;
+            foreach (var pl in _client.World.Players.Values)
+                if (!pl.IsLocal && !pl.Alive &&
+                    NumVec2.Distance(me.Position, pl.Position) <= 1.8f &&
+                    MathF.Abs(me.Height - pl.Height) <= 0.75f)
+                { reviveTarget = pl; break; }
+            if (reviveTarget != null && input.IsActionDown(InputAction.Interact))
+            {
+                _revivePulseTimer -= dt;
+                if (_revivePulseTimer <= 0f)
+                {
+                    _revivePulseTimer = 0.12f;
+                    _client.RequestRevivePulse(reviveTarget.Id);
+                }
+            }
+
+            // The stash panel closes itself when its container goes out of reach.
+            if (_stash.Open && (_client.World.Map.StashSpot == NumVec2.Zero ||
+                                NumVec2.Distance(me.Position, _client.World.Map.StashSpot) > 3.2f))
+                _stash.Open = false;
+
+            if (input.WasActionPressed(InputAction.Interact) && reviveTarget == null)
             {
                 var npcNear = _client.World.Npcs.Values
                     .FirstOrDefault(n => NumVec2.Distance(me.Position, n.Position) <= 3f);
@@ -541,6 +571,8 @@ public class PlayScreen : IScreen
                                 NumVec2.Distance(me.Position, _client.World.Map.ExitDoor) <= 2.4f;
                 bool fountainNear = _client.World.Map.FountainSpot != NumVec2.Zero &&
                                     NumVec2.Distance(me.Position, _client.World.Map.FountainSpot) <= 2.4f;
+                bool stashNear = _client.World.Map.StashSpot != NumVec2.Zero &&
+                                 NumVec2.Distance(me.Position, _client.World.Map.StashSpot) <= 2.4f;
                 if (_renderer.HoveredDropId != Guid.Empty &&
                     _client.World.Drops.TryGetValue(_renderer.HoveredDropId, out var targeted))
                 {
@@ -560,6 +592,14 @@ public class PlayScreen : IScreen
                 else if (fountainNear)
                 {
                     _client.RequestUseFountain();
+                }
+                else if (stashNear && !_stash.Open)
+                {
+                    // Open the stash with the bag beside it, ready to shuttle items.
+                    _stash.Open = true;
+                    RaisePanel(_stash);
+                    _inventory.Open = true;
+                    RaisePanel(_inventory);
                 }
                 else if (npcNear != null && !_shop.Open && !_trainer.Open)
                 {

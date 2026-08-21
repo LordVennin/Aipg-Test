@@ -20,6 +20,8 @@
     "Amulet": 60,
     "Ring": 80,
     "Shield": 90,
-    "Flask": 30
+    "Flask": 30,
+    "Bow": 70,
+    "Quiver": 45
   }
 }

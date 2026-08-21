@@ -73,10 +73,22 @@ public class EnemyDefinition
     /// first one — a boss never opens the fight with its adds.</summary>
     public float AddSpawnCooldown { get; set; } = 24f;
     public float AddSpawnFirstDelay { get; set; } = 10f;
+    /// <summary>Ranged telegraphed AoE spell (casters): a warning circle at the TARGET's
+    /// position (locked at cast start — walk out to dodge it), resolving after
+    /// CastWindup. CastRadius 0 = never casts.</summary>
+    public float CastRadius { get; set; }
+    public float CastDamage { get; set; } = 12f;
+    public float CastRange { get; set; } = 7f;
+    public float CastWindup { get; set; } = 1.1f;
+    public float CastCooldown { get; set; } = 6f;
+    public DamageKind CastKind { get; set; } = DamageKind.Dark;
     public string LootTableId { get; set; } = "default";
     public string Color { get; set; } = "C04040"; // art tint (RRGGBB hex)
-    /// <summary>Procedural sprite style: "Zombie", "Ghoul", or empty for a plain token.</summary>
+    /// <summary>Procedural sprite style: "Zombie", "Ghoul", "Skeleton", "Necro", or empty
+    /// for a plain token.</summary>
     public string SpriteStyle { get; set; } = "";
+    /// <summary>Visual size multiplier on the sprite (0.75 = a runt, 1 = normal).</summary>
+    public float SpriteScale { get; set; } = 1f;
 }
 
 /// <summary>Base dodge tuning, loaded from Data/Config/dodge.json. Final values are these

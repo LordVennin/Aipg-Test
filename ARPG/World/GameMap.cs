@@ -90,6 +90,10 @@ public class GameMap
     public List<Vector2> NpcSpots { get; } = new();
     /// <summary>The flask-refill fountain basin (hub only; zero elsewhere).</summary>
     public Vector2 FountainSpot { get; private set; }
+    /// <summary>The stash container's spot (hub only; zero elsewhere). Storage is keyed
+    /// by container id so future rooms can hold more than one.</summary>
+    public Vector2 StashSpot { get; private set; }
+    public const string HubStashId = "hub_stash";
 
     /// <summary>The zone theme this map was GENERATED with. Themes are decided before
     /// generation and replicated to clients (JoinAccept), because they shape the map
@@ -500,6 +504,7 @@ public class GameMap
         PlayerSpawn = new Vector2(5.5f, Height / 2f);
         ExitDoor = new Vector2(Width - 2.5f, Height / 2f);
         FountainSpot = new Vector2(10.5f, Height / 2f); // mid-room, on the walk to the door
+        StashSpot = new Vector2(4.5f, 2.6f);            // against the north wall by the spawn
         NpcSpots.Add(new Vector2(Width * 0.62f, 3.6f));           // gear merchant, north side
         NpcSpots.Add(new Vector2(Width * 0.62f, Height - 3.6f));  // skill trainer, south side
         ChestSpots.Add(new Vector2(2.6f, 3.5f));

@@ -18,6 +18,10 @@ public enum ItemCategory
     EnchantScroll,
     /// <summary>Potion flasks: equippable restore-over-time drinkables (two flask slots).</summary>
     Flask,
+    /// <summary>Two-handed ranged weapons; pair with a Quiver in the off-hand.</summary>
+    Bow,
+    /// <summary>Off-hand companions to bows (the one off-hand a two-handed bow allows).</summary>
+    Quiver,
 }
 
 public enum ItemRarity
@@ -103,7 +107,7 @@ public class ItemBase
 
     public string Description { get; set; }
 
-    public bool IsWeapon => Category is ItemCategory.Mace or ItemCategory.Staff;
+    public bool IsWeapon => Category is ItemCategory.Mace or ItemCategory.Staff or ItemCategory.Bow;
     /// <summary>Items rendered in the character's hands (weapons and shields).</summary>
     public bool IsHandheld => IsWeapon || Category == ItemCategory.Shield;
     public bool IsEquippable => Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll);
@@ -117,6 +121,8 @@ public class ItemBase
     {
         ItemCategory.Mace => new[] { EquipSlot.MainHand },
         ItemCategory.Staff => new[] { EquipSlot.MainHand },
+        ItemCategory.Bow => new[] { EquipSlot.MainHand },
+        ItemCategory.Quiver => new[] { EquipSlot.OffHand },
         // Shields are one-handed and fit EITHER hand (off-hand preferred by quick-equip).
         ItemCategory.Shield => new[] { EquipSlot.OffHand, EquipSlot.MainHand },
         ItemCategory.Helmet => new[] { EquipSlot.Helmet },

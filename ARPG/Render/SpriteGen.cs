@@ -31,6 +31,7 @@ public static class SpriteGen
                 DrawSkeletonKnight(tint, def.Id, 0), DrawSkeletonKnight(tint, def.Id, 1),
                 DrawSkeletonKnight(tint, def.Id, 2),
             },
+            "Necro" => new[] { DrawNecromancer(tint, 0), DrawNecromancer(tint, 1) },
             _ => null,
         };
         _cache[def.Id] = frames;
@@ -53,6 +54,7 @@ public static class SpriteGen
         {
             Items.ItemCategory.Staff => DrawStaff(accent),
             Items.ItemCategory.Shield => DrawShield(accent, tall: itemBase.InventoryHeight >= 3),
+            Items.ItemCategory.Bow => DrawBow(accent),
             _ => DrawMace(accent, big: itemBase.InventoryWidth >= 2),
         };
         _cache[key] = new[] { tex };
@@ -266,6 +268,126 @@ public static class SpriteGen
         Set(3, 17, glassEdge); Set(10, 17, glassEdge);
 
         return BakeStrip(px, w, h);
+    }
+
+    /// <summary>The Grave Caller: a hunched robed conjurer — deep hood with glowing
+    /// eyes, tint-colored robe, a crooked staff topped with a skull that pulses
+    /// between the two frames (its "chant").</summary>
+    private static Texture2D DrawNecromancer(Color robe, int frame)
+    {
+        const int w = 20, h = 28;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var robeDark = Shade(robe, 0.62f);
+        var hood = Shade(robe, 0.5f);
+        var eyes = frame == 0 ? new Color(140, 255, 150) : new Color(190, 255, 200);
+        var wood = new Color(96, 76, 52);
+        var bone = new Color(226, 222, 206);
+        var glow = frame == 0 ? new Color(120, 90, 200) : new Color(170, 130, 255);
+
+        // Robe: widens to the hem, swaying slightly between frames.
+        int sway = frame == 0 ? 0 : 1;
+        for (int y = 10; y <= 26; y++)
+        {
+            int half = 3 + (y - 10) * 3 / 16;
+            Rect(8 - half + sway, y, 9 + half + sway, y, robe);
+            Set(8 - half + sway, y, robeDark);
+            Set(9 + half + sway, y, robeDark);
+        }
+        Rect(6 + sway, 26, 11 + sway, 26, robeDark); // ragged hem
+        // Hood: a deep cowl with only the eyes inside.
+        Rect(5 + sway, 4, 12 + sway, 10, hood);
+        Rect(6 + sway, 3, 11 + sway, 3, hood);
+        Rect(7 + sway, 6, 10 + sway, 8, new Color(16, 12, 20)); // hollow face
+        Set(7 + sway, 7, eyes); Set(10 + sway, 7, eyes);
+        // Crooked staff on the right, skull on top.
+        Rect(15, 8, 15, 25, wood);
+        Set(14, 12, wood); Set(16, 18, wood);
+        Rect(14, 4, 16, 6, bone);
+        Set(14, 5, new Color(30, 26, 34)); Set(16, 5, new Color(30, 26, 34)); // sockets
+        Set(15, 3, glow); Set(14, 2, glow); Set(16, 2, glow);                 // chant glow
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>The hub's stash: an iron-banded storage chest with a purple-gem lock —
+    /// visually distinct from the loot chests so "my storage" reads at a glance.</summary>
+    public static Texture2D GetStash()
+    {
+        if (_device == null) return null;
+        if (!_cache.TryGetValue("stash", out var frames))
+        {
+            frames = new[] { DrawStashChest() };
+            _cache["stash"] = frames;
+        }
+        return frames[0];
+    }
+
+    private static Texture2D DrawStashChest()
+    {
+        const int w = 24, h = 20;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var wood = new Color(94, 74, 108);       // purple-stained wood
+        var woodDark = new Color(66, 52, 78);
+        var band = new Color(148, 148, 158);
+        var bandDark = new Color(96, 96, 106);
+        var gem = new Color(190, 120, 255);
+
+        // Tall body with a domed lid.
+        Rect(1, 7, 22, 18, wood);
+        Rect(1, 7, 22, 7, woodDark);
+        Rect(1, 18, 22, 18, woodDark);
+        Rect(1, 7, 1, 18, woodDark);
+        Rect(22, 7, 22, 18, woodDark);
+        Rect(1, 3, 22, 6, wood);
+        Rect(2, 2, 21, 2, woodDark);
+        // Iron bands: two verticals plus the lid rim.
+        Rect(5, 2, 7, 18, band); Rect(5, 2, 5, 18, bandDark);
+        Rect(16, 2, 18, 18, band); Rect(16, 2, 16, 18, bandDark);
+        Rect(1, 6, 22, 6, bandDark);
+        // Lock plate with the gem.
+        Rect(10, 9, 13, 13, band);
+        Set(11, 10, gem); Set(12, 10, gem); Set(11, 11, gem); Set(12, 11, gem);
+        Set(11, 12, new Color(120, 70, 170));
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>Inventory/held sprite for a quiver: a leather tube with fletched arrows.</summary>
+    public static Texture2D GetQuiverSprite(Items.ItemBase itemBase)
+    {
+        if (_device == null || itemBase is not { Category: Items.ItemCategory.Quiver }) return null;
+        string key = "quiver:" + itemBase.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+        var leather = WorldRenderer.ParseColor(itemBase.SpriteColor, new Color(138, 106, 66));
+        const int w = 12, h = 22;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+        var dark = Shade(leather, 0.65f);
+        var shaft = new Color(150, 120, 78);
+        var fletch = new Color(214, 214, 220);
+        // Tube.
+        Rect(2, 7, 9, 20, leather);
+        Rect(2, 7, 2, 20, dark);
+        Rect(9, 7, 9, 20, dark);
+        Rect(2, 20, 9, 20, dark);
+        Rect(2, 12, 9, 12, dark); // strap band
+        // Three arrows poking out.
+        foreach (int ax in new[] { 3, 5, 7 })
+        {
+            Rect(ax, 2, ax, 7, shaft);
+            Set(ax - 1, 2, fletch); Set(ax, 1, fletch); Set(ax + 1, 2, fletch);
+        }
+        var tex = BakeStrip(px, w, h);
+        _cache[key] = new[] { tex };
+        return tex;
     }
 
     /// <summary>A hooded peddler: earthy robe, gold trim, a bulging satchel at the hip.</summary>
@@ -1162,6 +1284,40 @@ public static class SpriteGen
         Set(hx + headW - 3, hy + 3, metalLight);
         Set(hx + headW / 2, hy + headH - 3, metalDark);
         Set(hx + headW / 2, hy + 1, metalLight);
+
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>A bow, drawn like every held weapon: pointing RIGHT (the arrow's flight
+    /// direction) with the grip at the left edge — stave arcs vertically, string near
+    /// the grip, a nocked arrow along the middle.</summary>
+    private static Texture2D DrawBow(Color wood)
+    {
+        const int w = 26, h = 18;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+
+        var woodDark = Shade(wood, 0.7f);
+        var stringC = new Color(222, 222, 210);
+        var shaft = new Color(150, 120, 78);
+        var head = new Color(200, 205, 215);
+        var fletch = new Color(214, 214, 220);
+
+        // Stave: a vertical arc bulging RIGHT (toward the shot), tips at top/bottom left.
+        for (int y = 1; y < h - 1; y++)
+        {
+            float t = (y - 1) / (float)(h - 3);           // 0..1 down the stave
+            int x = 4 + (int)(6f * MathF.Sin(t * MathF.PI)); // 4 at tips, 10 mid
+            Set(x, y, wood);
+            Set(x - 1, y, woodDark);
+        }
+        // String: straight line between the tips.
+        for (int y = 2; y < h - 2; y++) Set(3, y, stringC);
+        // Nocked arrow along the midline, drawn past the stave.
+        int mid = h / 2;
+        for (int x = 3; x <= 22; x++) Set(x, mid, shaft);
+        Set(23, mid, head); Set(24, mid, head); Set(23, mid - 1, head); Set(23, mid + 1, head);
+        Set(4, mid - 1, fletch); Set(5, mid - 1, fletch); Set(4, mid + 1, fletch); Set(5, mid + 1, fletch);
 
         return BakeStrip(px, w, h);
     }

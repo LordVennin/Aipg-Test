@@ -108,6 +108,12 @@ public enum PacketType : byte
 
     /// <summary>Client -> server: buy a previously sold item back (npc id + item instance guid).</summary>
     ShopBuybackRequest,
+
+    /// <summary>Client -> server: a revive channel pulse (target player id) — sent while
+    /// holding the interact key beside a dead teammate; the server does the timekeeping.</summary>
+    ReviveRequest,
+    /// <summary>Server -> client: a caster's ranged AoE (at, radius, windup, height, phase).</summary>
+    EnemyCastAoe,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>
@@ -116,6 +122,9 @@ public enum ItemLocationKind : byte
     Grid,
     Equipment,
     ScrollSlot,
+    /// <summary>A cell in a stash CONTAINER (the container id rides the SkillId field —
+    /// same wire shape). Server-validated against the container's reach.</summary>
+    Stash,
 }
 
 public struct ItemLocation
@@ -130,6 +139,9 @@ public struct ItemLocation
     public static ItemLocation AtGrid(int x, int y) => new() { Kind = ItemLocationKind.Grid, X = x, Y = y, SkillId = "" };
     public static ItemLocation AtEquip(Items.EquipSlot slot) => new() { Kind = ItemLocationKind.Equipment, EquipSlot = (byte)slot, SkillId = "" };
     public static ItemLocation AtScroll(string skillId, int index) => new() { Kind = ItemLocationKind.ScrollSlot, SkillId = skillId, ScrollIndex = index };
+    /// <summary>The SkillId field carries the stash CONTAINER id (identical wire shape).</summary>
+    public static ItemLocation AtStash(string containerId, int x, int y) => new() { Kind = ItemLocationKind.Stash, SkillId = containerId, X = x, Y = y };
+    public string ContainerId => SkillId;
 
     public void Write(NetDataWriter w)
     {
