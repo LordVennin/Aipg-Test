@@ -563,3 +563,16 @@ replicated to every player (protocol **v29**).
   bodies — and the same contract holds for future pre-rendered art.
 - Suite is now **499 checks** (armor visual data completeness, the
   `equip_set` dev command, and five-slot appearance replication).
+
+---
+
+# Addendum (batch 27): your character turns with your aim
+
+4-way directional facing, driven by the mouse: the body sprite now shows a
+front, back, or true side profile (mirrored for west) picked from the aim
+direction. Hair, helmets and armor are all drawn per-view — a full helm's
+eye slit only exists on the front, hoods close up from behind, long hair
+falls down the back. Walking stays the only body animation by design;
+weapons keep hovering toward the cursor. The creation screen preview now
+turns on a slow turntable so you see all four sides before committing.
+Suite: **500 checks**.

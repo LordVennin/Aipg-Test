@@ -299,10 +299,15 @@ public static class SpriteGen
             $":{Gloves?.PackedValue ?? 0:x8}:{Boots?.PackedValue ?? 0:x8}:{Belt?.PackedValue ?? 0:x8}";
     }
 
-    /// <summary>Player body frames for one look: [0] idle, [1]/[2] walk. ONE human rig —
-    /// style only changes silhouette pixels, so every armor layer fits every body.
-    /// Cached per exact look (colors are free 24-bit values, but a session only ever
-    /// holds a handful of players).</summary>
+    /// <summary>Facing directions for the baked body frames. West is the East strip
+    /// mirrored at draw time — the rig itself only knows three views.</summary>
+    public const int DirSouth = 0, DirNorth = 1, DirEast = 2;
+
+    /// <summary>Player body frames for one look, indexed [direction * 3 + frame]:
+    /// directions South (front) / North (back) / East (side, mirror for West), frames
+    /// [0] idle + [1]/[2] walk. ONE human rig — style only changes silhouette pixels,
+    /// so every armor layer fits every body. Cached per exact look (colors are free
+    /// 24-bit values, but a session only ever holds a handful of players).</summary>
     public static Texture2D[] GetPlayerFrames(in PlayerLook look)
     {
         if (_device == null) return null;
@@ -323,20 +328,22 @@ public static class SpriteGen
     public static Texture2D[] CreatePlayerFrames(in PlayerLook look)
     {
         if (_device == null) return null;
-        return new[]
-        {
-            DrawHumanBody(look, 0),
-            DrawHumanBody(look, 1),
-            DrawHumanBody(look, 2),
-        };
+        var frames = new Texture2D[9];
+        for (int dir = 0; dir < 3; dir++)
+            for (int f = 0; f < 3; f++)
+                frames[dir * 3 + f] = dir == DirEast
+                    ? DrawHumanBodySide(look, f)
+                    : DrawHumanBody(look, dir, f);
+        return frames;
     }
 
-    /// <summary>The human rig: 16x27, feet on the bottom row. Frame 0 stands; frames
-    /// 1/2 alternate the stride. Style 0 = male (broad shoulders), 1 = female (tapered
-    /// waist); hair style and both colors are independent of the body. Underclothes are
-    /// a neutral tunic so an unarmored character still reads; worn armor paints over
-    /// the same coordinates, which is why every layer fits every body.</summary>
-    private static Texture2D DrawHumanBody(in PlayerLook look, int frame)
+    /// <summary>The human rig, front (South) and back (North) views: 16x27, feet on the
+    /// bottom row. Frame 0 stands; frames 1/2 alternate the stride. Style 0 = male
+    /// (broad shoulders), 1 = female (tapered waist); hair style and both colors are
+    /// independent of the body. Underclothes are a neutral tunic so an unarmored
+    /// character still reads; worn armor paints over the same coordinates, which is why
+    /// every layer fits every body.</summary>
+    private static Texture2D DrawHumanBody(in PlayerLook look, int dir, int frame)
     {
         const int w = 16, h = 27;
         var px = new Color[w * h];
@@ -358,6 +365,7 @@ public static class SpriteGen
         var eyes = new Color(32, 28, 26);
         bool fem = look.BodyStyle == 1;
         bool robe = look.ArmorStyle == 1;      // cloth armor drapes over the legs
+        bool back = dir == DirNorth;           // the view from behind: no face, more hair
 
         // Legs + stride: frame 1 leads left, frame 2 leads right.
         int lead = frame == 0 ? 0 : frame == 1 ? 1 : -1;
@@ -421,10 +429,10 @@ public static class SpriteGen
         Rect(shR + 1, 12, shR + 1, 16 - armSwing, garbDark);
         Set(shR + 1, 17 - armSwing, hand);
 
-        // Head + face.
+        // Head: the face only exists on the front view.
         Rect(5, 3, 10, 9, skin);
-        Rect(5, 9, 10, 9, skinShade);         // jaw shade
-        Set(6, 6, eyes); Set(9, 6, eyes);
+        Rect(5, 9, 10, 9, skinShade);         // jaw / nape shade
+        if (!back) { Set(6, 6, eyes); Set(9, 6, eyes); }
         Rect(6, 10, 9, 10, skinShade);        // neck — fills the head/torso seam row
 
         // Hair by style (independent of body) — hidden entirely under any helmet.
@@ -435,6 +443,7 @@ public static class SpriteGen
                 Rect(4, 1, 11, 2, look.Hair);
                 Rect(4, 3, 4, 4, look.Hair); Rect(11, 3, 11, 4, look.Hair);
                 Set(5, 1, hairDark); Set(10, 1, hairDark);
+                if (back) Rect(5, 3, 10, 6, look.Hair);       // the back of the head is hair
             }
             else
             {
@@ -445,6 +454,7 @@ public static class SpriteGen
                 Rect(4, 3, 4, 12, look.Hair); // side falls to the shoulders
                 Rect(11, 3, 11, 12, look.Hair);
                 Set(4, 12, hairDark); Set(11, 12, hairDark);
+                if (back) Rect(5, 3, 10, 9, look.Hair);       // full curtain from behind
             }
             else if (look.HairStyle == Sim.Appearance.HairBun)
             {
@@ -459,30 +469,175 @@ public static class SpriteGen
             var metLight = Shade(met, 1.25f);
             switch (look.HelmetStyle)
             {
-                case 1: // hood: soft drape around the face, open front.
+                case 1: // hood: soft drape around the face; closed from behind.
+                    if (back) Rect(5, 3, 10, 9, met);
                     Rect(4, 1, 11, 2, met);
                     Rect(4, 3, 4, 10, met); Rect(11, 3, 11, 10, met);
                     Set(5, 2, metDark); Set(10, 2, metDark);
                     Set(4, 10, metDark); Set(11, 10, metDark);
+                    if (back) Rect(7, 4, 8, 9, metDark);      // drape fold
                     break;
                 case 2: // cowl: the hood with a peaked tip.
+                    if (back) Rect(5, 3, 10, 9, met);
                     Rect(4, 1, 11, 2, met);
                     Rect(4, 3, 4, 10, met); Rect(11, 3, 11, 10, met);
                     Rect(6, 0, 9, 0, met); Set(7, 0, metLight);
                     Set(4, 10, metDark); Set(11, 10, metDark);
+                    if (back) Rect(7, 4, 8, 9, metDark);      // drape fold
                     break;
-                case 3: // cap: a metal dome with cheek guards, face open.
+                case 3: // cap: a metal dome with cheek guards; same from behind.
                     Rect(4, 1, 11, 3, met);
                     Rect(4, 1, 11, 1, metLight);
                     Rect(4, 4, 4, 5, met); Rect(11, 4, 11, 5, met);
                     Rect(4, 3, 11, 3, metDark);               // rim
                     break;
-                case 4: // helm: full faceplate with a dark eye slit.
+                case 4: // helm: full faceplate with a dark eye slit (plain from behind).
                     Rect(4, 1, 11, 9, met);
                     Rect(4, 1, 11, 1, metLight);
-                    Rect(5, 6, 10, 6, new Color(20, 18, 16)); // eye slit
-                    Rect(7, 7, 8, 9, metDark);                // breath ridge
+                    if (!back)
+                    {
+                        Rect(5, 6, 10, 6, new Color(20, 18, 16)); // eye slit
+                        Rect(7, 7, 8, 9, metDark);                // breath ridge
+                    }
+                    else
+                        Rect(7, 2, 8, 8, metDark);                // back seam
                     Set(4, 9, metDark); Set(11, 9, metDark);
+                    break;
+            }
+        }
+
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>The side (East) view of the rig — mirrored at draw time for West. A
+    /// slimmer profile: one visible arm, legs that scissor front/back with the stride,
+    /// the face edge toward +x. Armor paints the same styles onto the narrower body.</summary>
+    private static Texture2D DrawHumanBodySide(in PlayerLook look, int frame)
+    {
+        const int w = 16, h = 27;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var skin = look.Skin;
+        var skinShade = Shade(skin, 0.78f);
+        var hairDark = Shade(look.Hair, 0.7f);
+        bool armored = look.ArmorStyle != 0;
+        var garb = armored ? look.ArmorColor : new Color(104, 98, 88);
+        var garbDark = Shade(garb, 0.72f);
+        var garbLight = Shade(garb, 1.22f);
+        var pants = new Color(70, 62, 56);
+        var pantsDark = Shade(pants, 0.75f);
+        var boots = look.Boots ?? new Color(52, 44, 38);
+        var eyes = new Color(32, 28, 26);
+        bool robe = look.ArmorStyle == 1;
+
+        // Legs scissor along the walk direction (+x = forward); each boot grows a
+        // 1px toe toward wherever that leg is stepping.
+        int lead = frame == 0 ? 0 : frame == 1 ? 1 : -1;
+        Rect(7 - lead, 20, 8 - lead, 24, pantsDark);          // far leg
+        Rect(7 - lead - (lead > 0 ? 1 : 0), 25, 8 - lead, 26, Shade(boots, 0.8f));
+        Rect(7 + lead, 20, 8 + lead, 24, pants);              // near leg
+        Rect(7 + lead, 25, 8 + lead + (lead > 0 ? 1 : 0), 26, boots);
+        if (lead == 0) Rect(7, 25, 9, 26, boots);             // standing: one merged foot
+
+        // Torso: a 5-wide profile column.
+        Rect(6, 11, 10, 16, garb);
+        Rect(6, 17, 9, 19, garb);
+        Rect(6, 11, 10, 11, garbDark);        // shoulder seam
+
+        switch (look.ArmorStyle)
+        {
+            case 1: // robe skirt falls over the legs.
+                Rect(6, 20, 10, 24, garb);
+                Rect(6, 24, 10, 24, garbDark);                // hem
+                Set(8, 14, garbDark); Set(8, 18, garbDark); Set(8, 22, garbDark);
+                break;
+            case 2: // leather: chest strap.
+                Rect(7, 14, 9, 14, garbDark);
+                Set(7, 11, garbLight);
+                break;
+            case 3: // mail rings.
+                for (int my = 12; my <= 17; my++)
+                    for (int mx = 6; mx <= 10; mx++)
+                        if (((mx + my) & 1) == 0 && px[my * w + mx] == garb)
+                            Set(mx, my, garbLight);
+                break;
+            case 4: // plate: pauldron hump + ridge.
+                Set(5, 11, garb); Set(5, 12, garbDark);
+                Rect(7, 12, 7, 17, garbLight);
+                Rect(6, 15, 10, 15, garbDark);
+                break;
+        }
+
+        if (!robe)
+            Rect(6, 19, 9, 19, look.Belt ?? Shade(pants, 0.8f));
+
+        // The near arm swings over the torso; the far arm hides behind it.
+        int armSwing = lead;
+        var hand = look.Gloves ?? skin;
+        Rect(8, 12, 8, 16 + armSwing, garbDark);
+        Set(8, 17 + armSwing, hand);
+
+        // Head in profile: face edge toward +x, eye near the front.
+        Rect(5, 3, 10, 9, skin);
+        Rect(5, 9, 10, 9, skinShade);
+        Set(9, 6, eyes);
+        Set(10, 7, skinShade);                // nose hint
+        Rect(6, 10, 9, 10, skinShade);        // neck
+
+        if (look.HelmetStyle == 0)
+        {
+            if (look.HairStyle != Sim.Appearance.HairBald)
+            {
+                Rect(4, 1, 10, 2, look.Hair);                 // crop, hugging the crown
+                Rect(4, 3, 5, 5, look.Hair);                  // back of the head
+                Set(4, 1, hairDark); Set(10, 2, hairDark);
+            }
+            else
+                Rect(5, 3, 10, 3, skinShade);
+            if (look.HairStyle == Sim.Appearance.HairLong)
+            {
+                Rect(4, 3, 5, 13, look.Hair);                 // fall down the back
+                Set(4, 13, hairDark); Set(5, 13, hairDark);
+            }
+            else if (look.HairStyle == Sim.Appearance.HairBun)
+            {
+                Rect(4, 0, 6, 1, look.Hair);                  // knot at the back crown
+                Set(4, 1, hairDark);
+            }
+        }
+        else
+        {
+            var met = look.HelmetColor;
+            var metDark = Shade(met, 0.7f);
+            var metLight = Shade(met, 1.25f);
+            switch (look.HelmetStyle)
+            {
+                case 1: // hood in profile: drape down the back of the head.
+                    Rect(4, 1, 10, 2, met);
+                    Rect(4, 3, 5, 10, met);
+                    Set(4, 10, metDark); Set(10, 2, metDark);
+                    break;
+                case 2: // cowl: hood + peak trailing back.
+                    Rect(4, 1, 10, 2, met);
+                    Rect(4, 3, 5, 10, met);
+                    Rect(4, 0, 7, 0, met); Set(4, 0, metLight);
+                    Set(4, 10, metDark);
+                    break;
+                case 3: // cap dome + cheek guard on the visible side.
+                    Rect(4, 1, 10, 3, met);
+                    Rect(4, 1, 10, 1, metLight);
+                    Rect(9, 4, 9, 5, met);
+                    Rect(4, 3, 10, 3, metDark);
+                    break;
+                case 4: // helm in profile: slit only at the face edge.
+                    Rect(4, 1, 10, 9, met);
+                    Rect(4, 1, 10, 1, metLight);
+                    Rect(8, 6, 10, 6, new Color(20, 18, 16));
+                    Rect(5, 2, 5, 8, metDark);                // back seam
+                    Set(4, 9, metDark); Set(10, 9, metDark);
                     break;
             }
         }
