@@ -491,6 +491,30 @@ public partial class ServerWorld
                 if (item != null) changed = GiveItem(p, item);
                 break;
             }
+            case "equip_set":
+            {
+                // Dev/screenshot aid: wear a full named armor family directly — no
+                // requirement checks, straight into the slots (debug only).
+                string[] setIds = arg switch
+                {
+                    "leather" => new[] { "leather_hood", "padded_vest", "worn_gloves", "sturdy_boots", "rope_belt" },
+                    "hide" => new[] { "hide_hood", "hide_tunic", "hide_gloves", "hide_boots", "rope_belt" },
+                    "cloth" => new[] { "cloth_cowl", "cloth_robe", "cloth_wraps", "cloth_slippers", "rope_belt" },
+                    "plate" => new[] { "warplate_helm", "iron_plate", "warplate_gauntlets", "warplate_greaves", "rope_belt" },
+                    _ => new[] { "iron_cap", "iron_mail", "iron_gauntlets", "iron_greaves", "rope_belt" },
+                };
+                foreach (var id in setIds)
+                    if (Data.Items.TryGetValue(id, out var b))
+                        c.Equipment[ItemBase.CompatibleSlots(b.Category).First()] = new ItemInstance
+                        {
+                            BaseItemId = id,
+                            ItemLevel = b.RequiredLevel,
+                            Rarity = ItemRarity.Normal,
+                            BaseModifierLimit = b.BaseModifierLimit,
+                        };
+                changed = true;
+                break;
+            }
             case "give_10mod":
             {
                 // Demonstrates per-item modifier limits: this item's own slot caps are raised

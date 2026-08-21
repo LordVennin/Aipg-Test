@@ -543,3 +543,23 @@ this can't silently regress (suite is now **495 checks**).
 - Test suite stays at **495 checks** (appearance replication now asserts a
   custom non-preset color round-trips; the two-handed-staff bag-swap test was
   made deterministic — it could rarely fail on random bag pressure).
+
+---
+
+# Addendum (batch 26): worn armor draws on your character
+
+Armor is no longer invisible: what you wear now paints onto the body sprite,
+replicated to every player (protocol **v29**).
+
+- **Body armor** silhouettes: cloth (full robe over the legs), leather
+  (stitched jerkin), mail (ring texture), plate (pauldrons + chest ridge).
+- **Helmets**: hood, cowl, cap (open face), helm (full faceplate with eye
+  slit). Any helmet hides hair.
+- **Gloves / boots / belt** recolor their rig pixels — cheap but visible.
+- Every armor base in `armor.json` now declares its overlay style and
+  garment color; sets keep a family palette (iron grey, warplate dark steel,
+  hide tan, hunter green, silk white...).
+- All layers paint over the same rig coordinates, so every piece fits both
+  bodies — and the same contract holds for future pre-rendered art.
+- Suite is now **499 checks** (armor visual data completeness, the
+  `equip_set` dev command, and five-slot appearance replication).

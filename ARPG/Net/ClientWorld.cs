@@ -62,6 +62,9 @@ public class ClientPlayer
     /// <summary>Exact replicated colors, packed 0xRRGGBB (players mix any color).</summary>
     public int SkinRgb = (205 << 16) | (164 << 8) | 126;
     public int HairRgb = (62 << 16) | (46 << 8) | 32;
+    /// <summary>Worn armor base ids (from PlayerAppearance packets): helmet + body armor
+    /// paint real layers on the rig, gloves/boots/belt tint rig pixels. Null = slot empty.</summary>
+    public string HelmetBaseId, BodyArmorBaseId, GlovesBaseId, BootsBaseId, BeltBaseId;
     /// <summary>Render-side walk detection: last drawn position + whether it moved.</summary>
     public Vector2 RenderPrevPos;
     public bool RenderMoving;

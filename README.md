@@ -512,12 +512,24 @@ saved and the interrupted action resumes automatically.
   The rig is front-facing and mirrors horizontally with the facing direction —
   true side/back poses are future work (they come naturally with the planned
   pre-rendered 3D asset pipeline).
-- **Appearance replicates**: body style, hair style and the exact skin/hair
-  RGB values ride the `PlayerAppearance` packet (protocol v28), so every
-  client renders every player's chosen look, walk animation and equipped
-  weapons byte-exact. Dead players render grey, frozen ones ice-blue — the
-  tints apply to the body sprite. Pre-color saves still load: their stored
-  preset index becomes the fallback color.
+- **Appearance replicates**: body style, hair style, the exact skin/hair RGB
+  values AND the five worn armor slots ride the `PlayerAppearance` packet
+  (protocol v29), so every client renders every player's chosen look, walk
+  animation, equipped weapons and worn armor byte-exact. Dead players render
+  grey, frozen ones ice-blue — the tints apply to the body sprite. Pre-color
+  saves still load: their stored preset index becomes the fallback color.
+- **Worn armor draws on the body** ("paper doll" layers on the ONE rig):
+  every body armor and helmet base declares an overlay silhouette
+  (`ArmorStyle`) plus a garment color (`SpriteColor`) in `armor.json` —
+  body armor styles **cloth** (a full robe that drapes over the legs),
+  **leather** (stitched jerkin), **mail** (ring texture) and **plate**
+  (pauldrons + chest ridge); helmet styles **hood**, **cowl**, **cap** and
+  **helm** (full faceplate with an eye slit — helmets hide hair). The small
+  slots stay lightweight: **gloves** recolor the hands, **boots** the feet,
+  **belt** the waist line. Because everything paints over the same rig
+  coordinates, every piece automatically fits both bodies and all future
+  overlays. Dev aid: `ARPG_DEVUI=gear:plate` (or leather/hide/cloth/iron)
+  wears a full set at boot for screenshot runs.
 
 ### Layered terrain (elevation, ramps, bridges)
 
@@ -847,7 +859,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (495 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (499 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

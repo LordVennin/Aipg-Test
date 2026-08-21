@@ -1207,8 +1207,30 @@ public class WorldRenderer
                 }
 
                 if (weaponBehind) DrawHands();
-                var bodyFrames = SpriteGen.GetPlayerFrames(p.BodyStyle, p.HairStyle,
-                    Sim.Appearance.Unpack(p.SkinRgb), Sim.Appearance.Unpack(p.HairRgb));
+                var look = new SpriteGen.PlayerLook
+                {
+                    BodyStyle = p.BodyStyle,
+                    HairStyle = p.HairStyle,
+                    Skin = Sim.Appearance.Unpack(p.SkinRgb),
+                    Hair = Sim.Appearance.Unpack(p.HairRgb),
+                };
+                if (p.BodyArmorBaseId != null && _data.Items.TryGetValue(p.BodyArmorBaseId, out var bodyBase))
+                {
+                    look.ArmorStyle = SpriteGen.PlayerLook.ArmorStyleId(bodyBase.ArmorStyle);
+                    look.ArmorColor = ParseColor(bodyBase.SpriteColor, new Color(120, 112, 100));
+                }
+                if (p.HelmetBaseId != null && _data.Items.TryGetValue(p.HelmetBaseId, out var helmBase))
+                {
+                    look.HelmetStyle = SpriteGen.PlayerLook.HelmetStyleId(helmBase.ArmorStyle);
+                    look.HelmetColor = ParseColor(helmBase.SpriteColor, new Color(120, 112, 100));
+                }
+                if (p.GlovesBaseId != null && _data.Items.TryGetValue(p.GlovesBaseId, out var gloveBase))
+                    look.Gloves = ParseColor(gloveBase.SpriteColor, new Color(120, 112, 100));
+                if (p.BootsBaseId != null && _data.Items.TryGetValue(p.BootsBaseId, out var bootBase))
+                    look.Boots = ParseColor(bootBase.SpriteColor, new Color(70, 60, 50));
+                if (p.BeltBaseId != null && _data.Items.TryGetValue(p.BeltBaseId, out var beltBase))
+                    look.Belt = ParseColor(beltBase.SpriteColor, new Color(100, 88, 60));
+                var bodyFrames = SpriteGen.GetPlayerFrames(look);
                 if (bodyFrames != null)
                 {
                     // Walk cycle while the position is actually changing; the body tint

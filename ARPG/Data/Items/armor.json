@@ -11,7 +11,9 @@
     "BaseStats": {
       "Armor": 8
     },
-    "RequiredStrength": 8
+    "RequiredStrength": 8,
+    "ArmorStyle": "hood",
+    "SpriteColor": "8A6A42"
   },
   {
     "Id": "padded_vest",
@@ -25,7 +27,9 @@
     "BaseStats": {
       "Armor": 15
     },
-    "RequiredStrength": 8
+    "RequiredStrength": 8,
+    "ArmorStyle": "leather",
+    "SpriteColor": "8A6A42"
   },
   {
     "Id": "worn_gloves",
@@ -39,7 +43,8 @@
     "BaseStats": {
       "Armor": 5
     },
-    "RequiredStrength": 8
+    "RequiredStrength": 8,
+    "SpriteColor": "8A6A42"
   },
   {
     "Id": "sturdy_boots",
@@ -53,7 +58,8 @@
     "BaseStats": {
       "Armor": 5
     },
-    "RequiredStrength": 8
+    "RequiredStrength": 8,
+    "SpriteColor": "8A6A42"
   },
   {
     "Id": "rope_belt",
@@ -66,7 +72,8 @@
     "DropWeight": 100,
     "BaseStats": {
       "Armor": 3
-    }
+    },
+    "SpriteColor": "8A7A55"
   },
   {
     "Id": "poachers_hood",
@@ -80,7 +87,9 @@
     "BaseStats": {
       "DeflectionRating": 18
     },
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "ArmorStyle": "hood",
+    "SpriteColor": "6F6A42"
   },
   {
     "Id": "poachers_tunic",
@@ -94,7 +103,9 @@
     "BaseStats": {
       "DeflectionRating": 33
     },
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "ArmorStyle": "leather",
+    "SpriteColor": "6F6A42"
   },
   {
     "Id": "poachers_gloves",
@@ -108,7 +119,8 @@
     "BaseStats": {
       "DeflectionRating": 13
     },
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "SpriteColor": "6F6A42"
   },
   {
     "Id": "poachers_boots",
@@ -122,7 +134,8 @@
     "BaseStats": {
       "DeflectionRating": 13
     },
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "SpriteColor": "6F6A42"
   },
   {
     "Id": "novice_cowl",
@@ -136,7 +149,9 @@
     "BaseStats": {
       "EnergyShield": 8
     },
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "ArmorStyle": "cowl",
+    "SpriteColor": "5A6A9A"
   },
   {
     "Id": "novice_robe",
@@ -150,7 +165,9 @@
     "BaseStats": {
       "EnergyShield": 15
     },
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "ArmorStyle": "cloth",
+    "SpriteColor": "5A6A9A"
   },
   {
     "Id": "novice_wraps",
@@ -164,7 +181,8 @@
     "BaseStats": {
       "EnergyShield": 5
     },
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "SpriteColor": "5A6A9A"
   },
   {
     "Id": "novice_slippers",
@@ -178,7 +196,8 @@
     "BaseStats": {
       "EnergyShield": 5
     },
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "SpriteColor": "5A6A9A"
   },
   {
     "Id": "bone_amulet",
@@ -231,7 +250,9 @@
     "BaseStats": {
       "Armor": 10
     },
-    "RequiredStrength": 8
+    "RequiredStrength": 8,
+    "ArmorStyle": "cap",
+    "SpriteColor": "9AA0A8"
   },
   {
     "Id": "iron_mail",
@@ -245,7 +266,9 @@
     "BaseStats": {
       "Armor": 19
     },
-    "RequiredStrength": 8
+    "RequiredStrength": 8,
+    "ArmorStyle": "mail",
+    "SpriteColor": "9AA0A8"
   },
   {
     "Id": "iron_gauntlets",
@@ -259,7 +282,8 @@
     "BaseStats": {
       "Armor": 7
     },
-    "RequiredStrength": 8
+    "RequiredStrength": 8,
+    "SpriteColor": "9AA0A8"
   },
   {
     "Id": "iron_greaves",
@@ -273,7 +297,8 @@
     "BaseStats": {
       "Armor": 7
     },
-    "RequiredStrength": 8
+    "RequiredStrength": 8,
+    "SpriteColor": "9AA0A8"
   },
   {
     "Id": "warplate_helm",
@@ -287,7 +312,9 @@
     "BaseStats": {
       "Armor": 16
     },
-    "RequiredStrength": 14
+    "RequiredStrength": 14,
+    "ArmorStyle": "helm",
+    "SpriteColor": "6E747E"
   },
   {
     "Id": "iron_plate",
@@ -301,7 +328,9 @@
     "BaseStats": {
       "Armor": 28
     },
-    "RequiredStrength": 14
+    "RequiredStrength": 14,
+    "ArmorStyle": "plate",
+    "SpriteColor": "AEB4BC"
   },
   {
     "Id": "warplate_gauntlets",
@@ -315,7 +344,8 @@
     "BaseStats": {
       "Armor": 11
     },
-    "RequiredStrength": 14
+    "RequiredStrength": 14,
+    "SpriteColor": "6E747E"
   },
   {
     "Id": "warplate_greaves",
@@ -329,7 +359,8 @@
     "BaseStats": {
       "Armor": 11
     },
-    "RequiredStrength": 14
+    "RequiredStrength": 14,
+    "SpriteColor": "6E747E"
   },
   {
     "Id": "hide_hood",
@@ -343,7 +374,9 @@
     "BaseStats": {
       "DeflectionRating": 24
     },
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "ArmorStyle": "hood",
+    "SpriteColor": "A08050"
   },
   {
     "Id": "hide_tunic",
@@ -357,7 +390,9 @@
     "BaseStats": {
       "DeflectionRating": 44
     },
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "ArmorStyle": "leather",
+    "SpriteColor": "A08050"
   },
   {
     "Id": "hide_gloves",
@@ -371,7 +406,8 @@
     "BaseStats": {
       "DeflectionRating": 17
     },
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "SpriteColor": "A08050"
   },
   {
     "Id": "hide_boots",
@@ -385,7 +421,8 @@
     "BaseStats": {
       "DeflectionRating": 17
     },
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "SpriteColor": "A08050"
   },
   {
     "Id": "hunters_hood",
@@ -399,7 +436,9 @@
     "BaseStats": {
       "DeflectionRating": 36
     },
-    "RequiredDexterity": 14
+    "RequiredDexterity": 14,
+    "ArmorStyle": "hood",
+    "SpriteColor": "56714A"
   },
   {
     "Id": "hunters_jerkin",
@@ -413,7 +452,9 @@
     "BaseStats": {
       "DeflectionRating": 62
     },
-    "RequiredDexterity": 14
+    "RequiredDexterity": 14,
+    "ArmorStyle": "leather",
+    "SpriteColor": "56714A"
   },
   {
     "Id": "hunters_gloves",
@@ -427,7 +468,8 @@
     "BaseStats": {
       "DeflectionRating": 26
     },
-    "RequiredDexterity": 14
+    "RequiredDexterity": 14,
+    "SpriteColor": "56714A"
   },
   {
     "Id": "hunters_treads",
@@ -441,7 +483,8 @@
     "BaseStats": {
       "DeflectionRating": 26
     },
-    "RequiredDexterity": 14
+    "RequiredDexterity": 14,
+    "SpriteColor": "56714A"
   },
   {
     "Id": "cloth_cowl",
@@ -455,7 +498,9 @@
     "BaseStats": {
       "EnergyShield": 10
     },
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "ArmorStyle": "cowl",
+    "SpriteColor": "B0A890"
   },
   {
     "Id": "cloth_robe",
@@ -469,7 +514,9 @@
     "BaseStats": {
       "EnergyShield": 19
     },
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "ArmorStyle": "cloth",
+    "SpriteColor": "B0A890"
   },
   {
     "Id": "cloth_wraps",
@@ -483,7 +530,8 @@
     "BaseStats": {
       "EnergyShield": 7
     },
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "SpriteColor": "B0A890"
   },
   {
     "Id": "cloth_slippers",
@@ -497,7 +545,8 @@
     "BaseStats": {
       "EnergyShield": 7
     },
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "SpriteColor": "B0A890"
   },
   {
     "Id": "silk_cowl",
@@ -511,7 +560,9 @@
     "BaseStats": {
       "EnergyShield": 16
     },
-    "RequiredIntelligence": 14
+    "RequiredIntelligence": 14,
+    "ArmorStyle": "cowl",
+    "SpriteColor": "C8C4BC"
   },
   {
     "Id": "apprentice_robe",
@@ -525,7 +576,9 @@
     "BaseStats": {
       "EnergyShield": 28
     },
-    "RequiredIntelligence": 14
+    "RequiredIntelligence": 14,
+    "ArmorStyle": "cloth",
+    "SpriteColor": "7A5A9A"
   },
   {
     "Id": "silk_wraps",
@@ -539,7 +592,8 @@
     "BaseStats": {
       "EnergyShield": 12
     },
-    "RequiredIntelligence": 14
+    "RequiredIntelligence": 14,
+    "SpriteColor": "C8C4BC"
   },
   {
     "Id": "silk_slippers",
@@ -553,7 +607,8 @@
     "BaseStats": {
       "EnergyShield": 12
     },
-    "RequiredIntelligence": 14
+    "RequiredIntelligence": 14,
+    "SpriteColor": "C8C4BC"
   },
   {
     "Id": "brigandine",
@@ -569,7 +624,9 @@
       "DeflectionRating": 37
     },
     "RequiredStrength": 8,
-    "RequiredDexterity": 8
+    "RequiredDexterity": 8,
+    "ArmorStyle": "mail",
+    "SpriteColor": "7E6A50"
   },
   {
     "Id": "battlemage_plate",
@@ -585,7 +642,9 @@
       "EnergyShield": 17
     },
     "RequiredStrength": 8,
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "ArmorStyle": "plate",
+    "SpriteColor": "6B5A86"
   },
   {
     "Id": "shadowweave_garb",
@@ -601,6 +660,8 @@
       "EnergyShield": 17
     },
     "RequiredDexterity": 8,
-    "RequiredIntelligence": 8
+    "RequiredIntelligence": 8,
+    "ArmorStyle": "cloth",
+    "SpriteColor": "3A3548"
   }
 ]
