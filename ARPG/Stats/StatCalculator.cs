@@ -146,6 +146,7 @@ public static class StatCalculator
         // 1) Aggregate flat/percent contributions from all equipped items.
         var total = new StatCollection();
         ItemInstance weapon = null;
+        ItemInstance offHand = null;
         bool hasShield = false;
         float shieldArmor = 0f;
         foreach (var (slot, item) in character.Equipment)
@@ -153,11 +154,23 @@ public static class StatCalculator
             if (item == null) continue;
             total.AddAll(item.TotalStats(data));
             if (slot == EquipSlot.MainHand) weapon = item;
+            if (slot == EquipSlot.OffHand) offHand = item;
             if (item.GetBase(data)?.Category == ItemCategory.Shield)
             {
                 hasShield = true;
                 shieldArmor += item.TotalStats(data).Get(StatType.Armor);
             }
+        }
+
+        // The weapon's own flat-phys and %Physical rolls are LOCAL: they fold into the
+        // weapon's damage line in step 3 (exactly the total its tooltip shows), so pull
+        // them back out of the global pool — they must never double-dip the
+        // whole-character physical multiplier.
+        if (weapon != null)
+        {
+            var wLocal = weapon.TotalStats(data);
+            total.Add(StatType.PhysicalDamage, -wLocal.Get(StatType.PhysicalDamage));
+            total.Add(StatType.AddedPhysicalDamage, -wLocal.Get(StatType.AddedPhysicalDamage));
         }
 
         // 1b) Allocated passive tree nodes contribute through the SAME pool as item
@@ -255,13 +268,19 @@ public static class StatCalculator
         s.DodgeCooldown = MathF.Max(0.2f, dodge.Cooldown / (1f + total.Get(StatType.DodgeCooldownRecovery) / 100f));
         s.DodgeInvulnerability = dodge.InvulnerabilityDuration * (1f + total.Get(StatType.DodgeInvulnerability) / 100f);
 
-        // 3) Weapon-local numbers (base stats + local added phys rolled on the weapon itself).
+        // 3) Weapon-local numbers: base stats, this weapon's own flat added phys, and
+        // its own %Physical rolls — (base + flat) x local% — the exact total the item's
+        // tooltip shows, mirroring how armor pieces total their defenses. A quiver is
+        // ammunition: its flat-phys rolls ride the bow's damage too.
         if (weapon != null)
         {
             var w = weapon.TotalStats(data);
             float added = w.Get(StatType.AddedPhysicalDamage);
-            s.WeaponMinDamage = w.Get(StatType.MinPhysicalDamage) + added;
-            s.WeaponMaxDamage = w.Get(StatType.MaxPhysicalDamage) + added;
+            if (offHand?.GetBase(data)?.Category == ItemCategory.Quiver)
+                added += offHand.TotalStats(data).Get(StatType.AddedPhysicalDamage);
+            float localScale = 1f + w.Get(StatType.PhysicalDamage) / 100f;
+            s.WeaponMinDamage = (w.Get(StatType.MinPhysicalDamage) + added) * localScale;
+            s.WeaponMaxDamage = (w.Get(StatType.MaxPhysicalDamage) + added) * localScale;
             s.WeaponAttackSpeed = w.Get(StatType.BaseAttackSpeed);
             s.WeaponRange = w.Get(StatType.WeaponRange);
             s.WeaponCategory = weapon.GetBase(data).Category;

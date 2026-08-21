@@ -3337,6 +3337,41 @@ public static class HeadlessNetTest
         Check(quiverDrops > 0 && bowDrops > 0,
               $"bows and quivers appear in the drop pool ({bowDrops} bows, {quiverDrops} quivers per 600)");
 
+        // Added-damage prefixes ride EVERY weapon attack — the bow's fire roll burns
+        // through the arrow, not just through melee swings.
+        var arrowFireStats = new Stats.ComputedStats
+        {
+            WeaponMinDamage = 5, WeaponMaxDamage = 8, WeaponAttackSpeed = 1.5f,
+            AddedFire = 10, WeaponCategory = Items.ItemCategory.Bow,
+        };
+        var arrowFireEff = Skills.SkillMath.Compute(data, data.Skills["arrow_shot"], 1,
+            Array.Empty<Skills.ScrollDefinition>(), arrowFireStats);
+        Check(arrowFireEff.Added != null &&
+              arrowFireEff.Added.Any(cmp => cmp.Kind == Skills.DamageKind.Fire && cmp.Max > 0),
+              "added-damage prefixes apply to RANGED attacks (fire rides Arrow Shot)");
+
+        // Weapon-local physical math: (base + flat added) x the weapon's OWN %phys —
+        // the exact total its tooltip shows — and that %phys never double-dips the
+        // global physical multiplier.
+        var localChar = new Sim.CharacterData();
+        var localClub = new Items.ItemInstance
+        { BaseItemId = "wooden_club", Rarity = Items.ItemRarity.Rare, MaxPrefixes = 3, MaxSuffixes = 3 };
+        localClub.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "jagged", Value = 3 }); // +3 flat phys
+        localClub.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "brutal", Value = 8 }); // +8% phys
+        localChar.Equipment[Items.EquipSlot.MainHand] = localClub;
+        var localStats = Stats.StatCalculator.Compute(data, localChar);
+        var clubBaseStats = data.Items["wooden_club"].BaseStats;
+        float expLocalMin = (clubBaseStats[Stats.StatType.MinPhysicalDamage] + 3f) * 1.08f;
+        float expLocalMax = (clubBaseStats[Stats.StatType.MaxPhysicalDamage] + 3f) * 1.08f;
+        var plainChar = new Sim.CharacterData();
+        plainChar.Equipment[Items.EquipSlot.MainHand] = new Items.ItemInstance { BaseItemId = "wooden_club" };
+        var plainStats = Stats.StatCalculator.Compute(data, plainChar);
+        Check(MathF.Abs(localStats.WeaponMinDamage - expLocalMin) < 0.01f &&
+              MathF.Abs(localStats.WeaponMaxDamage - expLocalMax) < 0.01f,
+              $"weapon damage totals its own flat + %phys locally ({localStats.WeaponMinDamage:0.00}-{localStats.WeaponMaxDamage:0.00})");
+        Check(MathF.Abs(localStats.PhysicalDamageIncrease - plainStats.PhysicalDamageIncrease) < 0.01f,
+              "the weapon's own %phys stays LOCAL — it never enters the global pool");
+
         // 4-way body facing: aim (mouse) direction picks front/back/side, side mirrors west.
         Check(Render.WorldRenderer.BodyDirIndex(new Vector2(1, 1), out bool faceS) == Render.SpriteGen.DirSouth && !faceS &&
               Render.WorldRenderer.BodyDirIndex(new Vector2(-1, -1), out _) == Render.SpriteGen.DirNorth &&

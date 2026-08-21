@@ -81,12 +81,13 @@ public static class ItemTooltip
         float maxD = bs.GetValueOrDefault(StatType.MaxPhysicalDamage);
         if (maxD > 0)
         {
-            // Local added phys from this item's own modifiers affects the shown weapon damage.
-            float added = 0;
-            foreach (var roll in item.Modifiers)
-                if (data.Modifiers.TryGetValue(roll.ModifierId, out var d) && d.StatAffected == StatType.AddedPhysicalDamage)
-                    added += roll.Value;
-            baseLines.Add(new Line($"Physical Damage: {minD + added:0}-{maxD + added:0}", white));
+            // This item's own flat AND %Physical rolls fold into the shown range —
+            // (base + flat) x local% is the total you actually swing with, mirroring
+            // the armor totals below. Global %phys from other gear layers on top.
+            float added = ModTotal(StatType.AddedPhysicalDamage);
+            float localScale = 1f + ModTotal(StatType.PhysicalDamage) / 100f;
+            baseLines.Add(new Line(
+                $"Physical Damage: {(minD + added) * localScale:0}-{(maxD + added) * localScale:0}", white));
         }
         if (bs.TryGetValue(StatType.BaseAttackSpeed, out float aps))
             baseLines.Add(new Line($"Attack Speed: {aps:0.0#}", white));
