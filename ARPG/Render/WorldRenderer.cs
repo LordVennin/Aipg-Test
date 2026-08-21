@@ -1122,6 +1122,9 @@ public class WorldRenderer
             if ((p.DebuffFlags & Server.PlayerDebuffs.Frozen) != 0)
                 color = MultiplyTint(color, new Color(140, 180, 255)); // frozen: blue
             var name = p.Name ?? "?";
+            // Walk-cycle detection: the body animates only while the position changes.
+            p.RenderMoving = System.Numerics.Vector2.DistanceSquared(pos, p.RenderPrevPos) > 0.00002f;
+            p.RenderPrevPos = pos;
             _sorted.Add((pos.X + pos.Y + p.Height * 1.0f + 0.1f + UnderDeckBias(pos, p.Height), batch =>
             {
                 // Held weapon, upright, orbiting the body toward the aim (like the old
@@ -1204,17 +1207,36 @@ public class WorldRenderer
                 }
 
                 if (weaponBehind) DrawHands();
-                DrawUnitToken(batch, screen, 34f, color);
+                var bodyFrames = SpriteGen.GetPlayerFrames(p.BodyStyle, p.SkinTone);
+                if (bodyFrames != null)
+                {
+                    // Walk cycle while the position is actually changing; the body tint
+                    // carries the state colors the old token used (frozen blue, dodge
+                    // flash, death gray).
+                    int bodyFrame = p.RenderMoving ? 1 + (int)((animClock / 160 + p.Id) % 2) : 0;
+                    var bodyTex = bodyFrames[bodyFrame];
+                    var bodyTint = Color.White;
+                    if (!p.Alive) bodyTint = new Color(120, 120, 130);
+                    else if ((p.DebuffFlags & Server.PlayerDebuffs.Frozen) != 0)
+                        bodyTint = new Color(150, 185, 255);
+                    if (p.DodgeTimeLeft > 0) bodyTint = Color.Lerp(bodyTint, Color.White, 0.6f);
+                    int bw = bodyTex.Width * 2, bh = bodyTex.Height * 2;
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)screen.X - 15, (int)screen.Y - 7, 30, 14),
+                        new Color(0, 0, 0, 90)); // shadow
+                    batch.Draw(bodyTex,
+                        new Rectangle((int)screen.X - bw / 2, (int)screen.Y - bh + 5, bw, bh), null,
+                        bodyTint, 0f, Vector2.Zero,
+                        p.Facing.X - p.Facing.Y < -0.05f ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+                        0f);
+                }
+                else
+                    DrawUnitToken(batch, screen, 34f, color);
                 if ((p.DebuffFlags & Server.PlayerDebuffs.Shocked) != 0)
                     DrawAilmentAuras(batch, Server.EnemyDebuffs.Shocked,
                         new Rectangle((int)screen.X - 17, (int)screen.Y - 40, 34, 40), p.Id + 900);
                 if (!weaponBehind) DrawHands();
                 if (swinging) DrawSwingingWeapon();
-                if (weaponTex == null && offHandTex == null)
-                {
-                    var tip = screen + screenDir * 22f;
-                    batch.Draw(TextureGen.Circle32, new Rectangle((int)tip.X - 3, (int)tip.Y - 3 - 14, 6, 6), Color.White);
-                }
 
                 var font = FontManager.Get(13);
                 var nameSize = font.MeasureString(name);

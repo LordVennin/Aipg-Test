@@ -483,10 +483,34 @@ Hosted games now run the actual GAME LOOP instead of the old test arena
   flattened by a later pass (boss arena, ponds, corridor carve) so stairs
   never sit embedded in flat ground climbing to nothing.
 
-**Starter economy**: new characters begin with **100 gold** and only **Mace
-Strike + Fire Bolt**. Every other skill is bought from the skill trainer for
-**75 gold** (server-validated: in person, gold up front). The K menu lists only
-learned skills and points at the trainer for the rest.
+**Starter economy**: new characters begin with **100 gold** and only their
+class kit's single skill. Every other skill is bought from the skill trainer
+for **75 gold** (server-validated: in person, gold up front). The K menu lists
+only learned skills and points at the trainer for the rest.
+
+### Character creation, classes & body sprites
+
+The first time a player name starts (single player, hosting or joining), the
+game routes through the **character creation screen**: pick a **class**, a
+**body style** and a **skin tone**, with a live animated preview of the actual
+in-game sprite. The finished character is saved and the interrupted action
+resumes automatically.
+
+- **Classes are starting KITS, not restrictions** (`Data/Classes/classes.json`):
+  **Warrior** (wooden club + Mace Strike), **Archer** (short bow + leather
+  quiver + Arrow Shot) and **Mage** (oak staff + Fire Bolt). The class only
+  decides what you stand up with on day one — items, skills and progression
+  never check it again.
+- **One human rig** (16x27, three frames: idle + two stride poses) drawn for
+  two body styles — **male** (broad shoulders, cropped hair) and **female**
+  (tapered waist, long hair) — over a shared **six-step skin tone palette**
+  (`SpriteGen.SkinTones`). Because every body uses the same rig, future armor
+  overlays draw once and fit everyone; other RACES are planned as their own
+  standalone patch later.
+- **Appearance replicates**: body style + skin tone ride the `PlayerAppearance`
+  packet (protocol v27), so every client renders every player's chosen body,
+  walk animation and equipped weapons. Dead players render grey, frozen ones
+  ice-blue — the tints apply to the body sprite.
 
 ### Layered terrain (elevation, ramps, bridges)
 
@@ -816,7 +840,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (488 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (495 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

@@ -37,6 +37,12 @@ public class LearnedSkill
 public class CharacterData
 {
     public string Name { get; set; } = "Exile";
+    /// <summary>Starting class id (Data/Classes) — a starting KIT only, never a gate.</summary>
+    public string ClassId { get; set; } = "warrior";
+    /// <summary>Body silhouette: 0 = male, 1 = female (one human rig; races come later).</summary>
+    public byte BodyStyle { get; set; }
+    /// <summary>Index into the shared skin-tone palette (SpriteGen.SkinTones).</summary>
+    public byte SkinTone { get; set; } = 2;
     public int Level { get; set; } = 1;
     public float Experience { get; set; }
     public int Gold { get; set; }
@@ -77,12 +83,21 @@ public class CharacterData
     public ItemInstance MainHand => Equipment.GetValueOrDefault(EquipSlot.MainHand);
     public ItemInstance OffHand => Equipment.GetValueOrDefault(EquipSlot.OffHand);
 
-    /// <summary>Starting character: a club, a staff in the bag, 100 gold, and just the
-    /// two free skills — Mace Strike and Fire Bolt. Everything else is bought from the
-    /// sanctum's skill trainer.</summary>
-    public static CharacterData CreateNew(GameData data, string name)
+    /// <summary>Starting character: the chosen class's KIT (weapon, off-hand, one skill),
+    /// the starter flask pair, and 100 gold. Everything else is bought from the sanctum's
+    /// skill trainer. Body/appearance is independent of class.</summary>
+    public static CharacterData CreateNew(GameData data, string name, string classId = "warrior",
+        byte bodyStyle = 0, byte skinTone = 2)
     {
-        var c = new CharacterData { Name = name, Gold = 100 };
+        var cls = data.Classes.FirstOrDefault(cl => cl.Id == classId) ?? data.Classes.FirstOrDefault();
+        var c = new CharacterData
+        {
+            Name = name,
+            Gold = 100,
+            ClassId = cls?.Id ?? "warrior",
+            BodyStyle = bodyStyle,
+            SkinTone = skinTone,
+        };
 
         ItemInstance MakeNormal(string baseId) => new()
         {
@@ -92,10 +107,15 @@ public class CharacterData
             BaseModifierLimit = data.Items.TryGetValue(baseId, out var b) ? b.BaseModifierLimit : 6,
         };
 
-        if (data.Items.ContainsKey("wooden_club"))
-            c.Equipment[EquipSlot.MainHand] = MakeNormal("wooden_club");
-        if (data.Items.ContainsKey("oak_staff"))
-            c.Inventory.TryAdd(data, MakeNormal("oak_staff"));
+        if (cls?.StartWeapon != null && data.Items.ContainsKey(cls.StartWeapon))
+            c.Equipment[EquipSlot.MainHand] = MakeNormal(cls.StartWeapon);
+        if (cls?.StartOffhand != null && data.Items.ContainsKey(cls.StartOffhand))
+            c.Equipment[EquipSlot.OffHand] = MakeNormal(cls.StartOffhand);
+        if (cls?.StartSkill != null && data.Skills.ContainsKey(cls.StartSkill))
+        {
+            c.Skills.Add(new LearnedSkill { SkillId = cls.StartSkill });
+            c.Hotbar[0] = cls.StartSkill;
+        }
 
         // The starter flask pair, full. Charges never regenerate — the sanctum
         // fountain refills them between runs.
@@ -110,17 +130,6 @@ public class CharacterData
             var mpFlask = MakeNormal("minor_mana_flask");
             mpFlask.FlaskCharges = mpFlaskBase.FlaskChargesMax;
             c.Equipment[EquipSlot.Flask2] = mpFlask;
-        }
-
-        if (data.Skills.ContainsKey("basic_strike"))
-        {
-            c.Skills.Add(new LearnedSkill { SkillId = "basic_strike" });
-            c.Hotbar[0] = "basic_strike";
-        }
-        if (data.Skills.ContainsKey("fire_bolt"))
-        {
-            c.Skills.Add(new LearnedSkill { SkillId = "fire_bolt" });
-            c.Hotbar[1] = "fire_bolt";
         }
         return c;
     }

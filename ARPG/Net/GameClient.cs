@@ -1029,10 +1029,14 @@ public class GameClient
                 int playerId = r.GetInt();
                 string weaponBaseId = r.GetString();
                 string offHandBaseId = r.GetString();
+                byte bodyStyle = r.GetByte();
+                byte skinTone = r.GetByte();
                 if (World.Players.TryGetValue(playerId, out var p))
                 {
                     p.WeaponBaseId = string.IsNullOrEmpty(weaponBaseId) ? null : weaponBaseId;
                     p.OffHandBaseId = string.IsNullOrEmpty(offHandBaseId) ? null : offHandBaseId;
+                    p.BodyStyle = bodyStyle;
+                    p.SkinTone = skinTone;
                 }
                 break;
             }

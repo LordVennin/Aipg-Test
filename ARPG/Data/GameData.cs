@@ -91,6 +91,19 @@ public class EnemyDefinition
     public float SpriteScale { get; set; } = 1f;
 }
 
+/// <summary>A starting class, loaded from Data/Classes/classes.json: purely a STARTING
+/// KIT (weapon, off-hand, first skill) — classes never gate items or skills later, and
+/// body/appearance is chosen independently.</summary>
+public class ClassDefinition
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
+    public string StartWeapon { get; set; }
+    public string StartOffhand { get; set; }
+    public string StartSkill { get; set; }
+}
+
 /// <summary>Base dodge tuning, loaded from Data/Config/dodge.json. Final values are these
 /// bases scaled by the character's Dodge* stats (equipment/modifiers can change them).</summary>
 public class DodgeConfig
@@ -182,6 +195,8 @@ public class GameData
     public Dictionary<string, EnemyDefinition> Enemies { get; } = new();
     public Dictionary<string, LootTable> LootTables { get; } = new();
     public Dictionary<string, NpcDefinition> Npcs { get; } = new();
+    /// <summary>Starting classes in file order (Data/Classes/classes.json).</summary>
+    public List<ClassDefinition> Classes { get; } = new();
     /// <summary>Zone visual themes in file order (Data/Zones/themes.json).</summary>
     public List<ZoneTheme> ZoneThemes { get; } = new();
 
@@ -213,6 +228,7 @@ public class GameData
             data.Npcs[npc.Id] = npc;
 
         data.ZoneThemes.AddRange(LoadAll<ZoneTheme>(Path.Combine(dataDir, "Zones")));
+        data.Classes.AddRange(LoadAll<ClassDefinition>(Path.Combine(dataDir, "Classes")));
 
         string slotsPath = Path.Combine(dataDir, "Config", "scroll_slots.json");
         if (File.Exists(slotsPath))

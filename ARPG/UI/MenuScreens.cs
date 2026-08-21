@@ -1,6 +1,8 @@
 using FontStashSharp;
 using ARPG.Core;
+using ARPG.Persistence;
 using ARPG.Render;
+using ARPG.Sim;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -507,4 +509,181 @@ public class OptionsScreen : IScreen
     }
 
     public void Draw(SpriteBatch sb) => _options.Draw(sb);
+}
+
+/// <summary>
+/// First-run character creation: pick a starting class (a starting KIT — classes never
+/// gate items or skills later), a body style and a skin tone, with a live animated
+/// preview of the body sprite. Shown once per player name; the finished character is
+/// saved and the interrupted action (single player / host / join) re-entered.
+/// </summary>
+public class CharacterCreateScreen : IScreen
+{
+    private readonly GameMain _game;
+    private readonly Action _proceed;
+    private Panel _panel;
+    private Button[] _classButtons;
+    private Button _maleButton, _femaleButton;
+    private Point _builtSize;
+
+    private int _classIdx;
+    private byte _body;      // 0 = male, 1 = female
+    private byte _tone = 2;
+
+    // Layout anchors captured by Build() so Draw/Update can place the custom widgets
+    // (tone swatches, preview, description) that aren't UIElements.
+    private Rectangle _toneRects0; // first swatch; the rest step right from it
+    private Rectangle _previewRect;
+    private int _descX, _descY, _descWidth;
+
+    private const int ToneSwatch = 34, ToneGap = 8;
+
+    public CharacterCreateScreen(GameMain game, Action proceed)
+    {
+        _game = game;
+        _proceed = proceed;
+        Build();
+    }
+
+    private void Build()
+    {
+        var size = _game.UiScreenSize;
+        _builtSize = size;
+        int w = 720, h = 470;
+        int px = size.X / 2 - w / 2, py = Math.Max(12, size.Y / 2 - h / 2);
+        _panel = new Panel { Bounds = new Rectangle(px, py, w, h) };
+        _panel.Children.Add(new Label("Create Your Character", px + 24, py + 16, 26, bold: true));
+        _panel.Children.Add(new Label($"Playing as '{_game.Settings.PlayerName}'", px + 24, py + 52, 14)
+            { Color = new Color(150, 145, 130) });
+
+        // --- left column: class cards ---
+        int colX = px + 24, colY = py + 92;
+        _panel.Children.Add(new Label("Class", colX, colY - 24, 16, bold: true));
+        var classes = _game.Data.Classes;
+        _classButtons = new Button[classes.Count];
+        for (int i = 0; i < classes.Count; i++)
+        {
+            int idx = i;
+            _classButtons[i] = new Button(classes[i].Name ?? classes[i].Id,
+                new Rectangle(colX, colY + i * 52, 190, 42),
+                () => { _classIdx = idx; RefreshSelection(); });
+            _panel.Children.Add(_classButtons[i]);
+        }
+        _descX = colX;
+        _descY = colY + classes.Count * 52 + 14;
+        _descWidth = 300;
+
+        // --- middle column: body + skin tone ---
+        int midX = px + 250;
+        _panel.Children.Add(new Label("Body", midX, colY - 24, 16, bold: true));
+        _maleButton = new Button("Male", new Rectangle(midX, colY, 100, 36),
+            () => { _body = 0; RefreshSelection(); });
+        _femaleButton = new Button("Female", new Rectangle(midX + 108, colY, 100, 36),
+            () => { _body = 1; RefreshSelection(); });
+        _panel.Children.Add(_maleButton);
+        _panel.Children.Add(_femaleButton);
+        _panel.Children.Add(new Label("Skin Tone", midX, colY + 58, 16, bold: true));
+        _toneRects0 = new Rectangle(midX, colY + 82, ToneSwatch, ToneSwatch);
+
+        // --- right column: live preview ---
+        _previewRect = new Rectangle(px + w - 200, py + 88, 168, 240);
+
+        // --- bottom row ---
+        _panel.Children.Add(new Button("Begin", new Rectangle(px + w - 224, py + h - 60, 200, 42), Create));
+        _panel.Children.Add(new Button("Back", new Rectangle(px + 24, py + h - 60, 140, 36),
+            () => _game.SwitchScreen(new MainMenuScreen(_game))));
+        RefreshSelection();
+    }
+
+    private void RefreshSelection()
+    {
+        var classes = _game.Data.Classes;
+        for (int i = 0; i < _classButtons.Length; i++)
+        {
+            bool sel = i == _classIdx;
+            _classButtons[i].Text = sel ? $"[ {classes[i].Name ?? classes[i].Id} ]" : classes[i].Name ?? classes[i].Id;
+            _classButtons[i].Background = sel ? new Color(84, 76, 56) : new Color(52, 48, 40);
+        }
+        _maleButton.Text = _body == 0 ? "[ Male ]" : "Male";
+        _maleButton.Background = _body == 0 ? new Color(84, 76, 56) : new Color(52, 48, 40);
+        _femaleButton.Text = _body == 1 ? "[ Female ]" : "Female";
+        _femaleButton.Background = _body == 1 ? new Color(84, 76, 56) : new Color(52, 48, 40);
+    }
+
+    private void Create()
+    {
+        var classes = _game.Data.Classes;
+        string classId = classes.Count > 0 ? classes[Math.Clamp(_classIdx, 0, classes.Count - 1)].Id : "warrior";
+        SaveManager.SaveCharacter(CharacterData.CreateNew(_game.Data, _game.Settings.PlayerName, classId, _body, _tone));
+        _proceed();
+    }
+
+    private Rectangle ToneRect(int i) =>
+        new(_toneRects0.X + i * (ToneSwatch + ToneGap), _toneRects0.Y, ToneSwatch, ToneSwatch);
+
+    public void Update(float dt)
+    {
+        if (_game.UiScreenSize != _builtSize) Build(); // resolution changed under us
+        var input = _game.Input;
+        if (input.MouseLeftPressed)
+            for (int i = 0; i < SpriteGen.SkinTones.Length; i++)
+                if (ToneRect(i).Contains(input.MousePosition))
+                {
+                    _tone = (byte)i;
+                    input.MouseCapturedByUI = true;
+                    break;
+                }
+        _panel.Update(input);
+    }
+
+    public void Draw(SpriteBatch sb)
+    {
+        _panel.Draw(sb);
+
+        // Class description under the cards, word-wrapped.
+        var cls = _game.Data.Classes.Count > 0 ? _game.Data.Classes[Math.Clamp(_classIdx, 0, _game.Data.Classes.Count - 1)] : null;
+        if (cls?.Description != null)
+        {
+            var font = FontManager.Get(14);
+            float dy = _descY;
+            foreach (var line in TextUtil.WrapToWidth(cls.Description, font, _descWidth))
+            {
+                sb.DrawString(font, line, new Vector2(_descX, dy), new Color(185, 178, 160));
+                dy += 20;
+            }
+        }
+
+        // Skin tone swatches, selected one ringed gold.
+        for (int i = 0; i < SpriteGen.SkinTones.Length; i++)
+        {
+            var r = ToneRect(i);
+            sb.Draw(TextureGen.Pixel, r, SpriteGen.SkinTones[i]);
+            var ring = i == _tone ? new Color(240, 200, 90) : new Color(70, 66, 56);
+            int t = i == _tone ? 3 : 1;
+            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Y, r.Width, t), ring);
+            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Bottom - t, r.Width, t), ring);
+            sb.Draw(TextureGen.Pixel, new Rectangle(r.X, r.Y, t, r.Height), ring);
+            sb.Draw(TextureGen.Pixel, new Rectangle(r.Right - t, r.Y, t, r.Height), ring);
+        }
+
+        // Live preview: the actual in-game body sprite at 6x, walking in place.
+        sb.Draw(TextureGen.Pixel, _previewRect, new Color(15, 15, 20));
+        var pborder = new Color(90, 84, 60);
+        sb.Draw(TextureGen.Pixel, new Rectangle(_previewRect.X, _previewRect.Y, _previewRect.Width, 2), pborder);
+        sb.Draw(TextureGen.Pixel, new Rectangle(_previewRect.X, _previewRect.Bottom - 2, _previewRect.Width, 2), pborder);
+        sb.Draw(TextureGen.Pixel, new Rectangle(_previewRect.X, _previewRect.Y, 2, _previewRect.Height), pborder);
+        sb.Draw(TextureGen.Pixel, new Rectangle(_previewRect.Right - 2, _previewRect.Y, 2, _previewRect.Height), pborder);
+        var frames = SpriteGen.GetPlayerFrames(_body, _tone);
+        if (frames != null)
+        {
+            // Classic 4-beat walk: idle, stride A, idle, stride B.
+            int[] cycle = { 0, 1, 0, 2 };
+            var tex = frames[cycle[(int)(Environment.TickCount64 / 220 % 4)]];
+            int scale = 6;
+            int tw = tex.Width * scale, th = tex.Height * scale;
+            int cx = _previewRect.Center.X, footY = _previewRect.Bottom - 28;
+            sb.Draw(TextureGen.Circle32, new Rectangle(cx - tw / 3, footY - 10, tw * 2 / 3, 20), new Color(0, 0, 0, 90));
+            sb.Draw(tex, new Rectangle(cx - tw / 2, footY - th, tw, th), Color.White);
+        }
+    }
 }

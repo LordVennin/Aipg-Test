@@ -770,6 +770,8 @@ public class GameServer : IServerEvents
         w.Put(p.Id);
         w.Put(p.Character.MainHand?.BaseItemId ?? "");
         w.Put(p.Character.OffHand?.BaseItemId ?? "");
+        w.Put(p.Character.BodyStyle);
+        w.Put(p.Character.SkinTone);
         return w;
     }
 

@@ -1,0 +1,24 @@
+[
+ {
+  "Id": "warrior",
+  "Name": "Warrior",
+  "Description": "Close and personal: a club in hand and enemies within reach. Starts with Mace Strike.",
+  "StartWeapon": "wooden_club",
+  "StartSkill": "basic_strike"
+ },
+ {
+  "Id": "archer",
+  "Name": "Archer",
+  "Description": "Death at a distance: a bow, a full quiver, and room to breathe. Starts with Arrow Shot.",
+  "StartWeapon": "short_bow",
+  "StartOffhand": "leather_quiver",
+  "StartSkill": "arrow_shot"
+ },
+ {
+  "Id": "mage",
+  "Name": "Mage",
+  "Description": "Raw elements on a hardwood staff. Starts with Fire Bolt.",
+  "StartWeapon": "oak_staff",
+  "StartSkill": "fire_bolt"
+ }
+]

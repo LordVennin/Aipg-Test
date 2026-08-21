@@ -270,6 +270,104 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
+    /// <summary>The shared human skin-tone palette (character creation shows these
+    /// swatches; the index is what replicates). One list for every body style.</summary>
+    public static readonly Color[] SkinTones =
+    {
+        new(244, 219, 190), new(229, 194, 160), new(205, 164, 126),
+        new(176, 130, 90), new(141, 98, 62), new(102, 69, 43),
+    };
+
+    /// <summary>Player body frames for one (body style, skin tone) pair: [0] idle,
+    /// [1]/[2] walk. ONE human rig — style only changes silhouette pixels, so armor
+    /// overlays drawn against the rig fit every body. Cached per pair.</summary>
+    public static Texture2D[] GetPlayerFrames(byte bodyStyle, byte skinTone)
+    {
+        if (_device == null) return null;
+        skinTone = (byte)Math.Clamp(skinTone, 0, SkinTones.Length - 1);
+        string key = $"player:{bodyStyle}:{skinTone}";
+        if (_cache.TryGetValue(key, out var cached)) return cached;
+        var frames = new[]
+        {
+            DrawHumanBody(bodyStyle, skinTone, 0),
+            DrawHumanBody(bodyStyle, skinTone, 1),
+            DrawHumanBody(bodyStyle, skinTone, 2),
+        };
+        _cache[key] = frames;
+        return frames;
+    }
+
+    /// <summary>The human rig: 16x27, feet on the bottom row. Frame 0 stands; frames
+    /// 1/2 alternate the stride. Style 0 = male (broad shoulders, short hair),
+    /// style 1 = female (tapered waist, long hair). Underclothes are a neutral tunic
+    /// so an unarmored character still reads; armor overlays replace these pixels.</summary>
+    private static Texture2D DrawHumanBody(byte style, byte tone, int frame)
+    {
+        const int w = 16, h = 27;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var skin = SkinTones[tone];
+        var skinShade = Shade(skin, 0.78f);
+        var hair = style == 0 ? new Color(62, 46, 32) : new Color(88, 58, 34);
+        var hairDark = Shade(hair, 0.7f);
+        var tunic = new Color(104, 98, 88);
+        var tunicDark = Shade(tunic, 0.72f);
+        var pants = new Color(70, 62, 56);
+        var boots = new Color(52, 44, 38);
+        var eyes = new Color(32, 28, 26);
+        bool fem = style == 1;
+
+        // Legs + stride: frame 1 leads left, frame 2 leads right.
+        int lead = frame == 0 ? 0 : frame == 1 ? 1 : -1;
+        Rect(6, 20, 7, 24 + Math.Min(0, lead), pants);        // left leg
+        Rect(8, 20, 9, 24 - Math.Max(0, lead), pants);        // right leg
+        Set(6 - Math.Max(0, lead), 25, boots); Set(7 - Math.Max(0, lead), 25, boots);
+        Set(8 + Math.Max(0, -lead), 25, boots); Set(9 + Math.Max(0, -lead), 25, boots);
+        Rect(6, 25, 7, 26, boots);
+        Rect(8, 25, 9, 26, boots);
+
+        // Torso: broad and straight for the male rig, tapered for the female.
+        int shL = fem ? 5 : 4, shR = fem ? 10 : 11;
+        Rect(shL, 11, shR, 16, tunic);
+        if (fem)
+        {
+            Rect(6, 17, 9, 19, tunic);       // waist taper
+            Set(5, 17, tunicDark); Set(10, 17, tunicDark);
+        }
+        else
+            Rect(5, 17, 10, 19, tunic);
+        Rect(shL, 11, shR, 11, tunicDark);    // shoulder seam
+        Rect(6, 19, 9, 19, Shade(pants, 0.8f)); // belt line
+
+        // Arms: sleeves at the sides with skin hands; a light swing with the stride.
+        int armSwing = lead;
+        Rect(shL - 1, 12, shL - 1, 16 + armSwing, tunicDark);
+        Set(shL - 1, 17 + armSwing, skin);
+        Rect(shR + 1, 12, shR + 1, 16 - armSwing, tunicDark);
+        Set(shR + 1, 17 - armSwing, skin);
+
+        // Head + face.
+        Rect(5, 3, 10, 9, skin);
+        Rect(5, 9, 10, 9, skinShade);         // jaw shade
+        Set(6, 6, eyes); Set(9, 6, eyes);
+        Rect(6, 10, 9, 10, skinShade);        // neck — fills the head/torso seam row
+        // Hair: male crop vs female long fall.
+        Rect(4, 1, 11, 2, hair);
+        Rect(4, 3, 4, 4, hair); Rect(11, 3, 11, 4, hair);
+        Set(5, 1, hairDark); Set(10, 1, hairDark);
+        if (fem)
+        {
+            Rect(4, 3, 4, 12, hair);          // side falls to the shoulders
+            Rect(11, 3, 11, 12, hair);
+            Set(4, 12, hairDark); Set(11, 12, hairDark);
+        }
+
+        return BakeStrip(px, w, h);
+    }
+
     /// <summary>The Grave Caller: a hunched robed conjurer — deep hood with glowing
     /// eyes, tint-colored robe, a crooked staff topped with a skull that pulses
     /// between the two frames (its "chant").</summary>

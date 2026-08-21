@@ -267,6 +267,10 @@ public static class HeadlessNetTest
         }
 
         Console.WriteLine("\n-- Skills, levels, scroll slots, scrolls --");
+        // v27 class kits: fresh characters start with ONE class skill (these server-made
+        // defaults are warriors), so fire_bolt is learned here — arena learning is free.
+        clientA.RequestLearnSkill("fire_bolt");
+        clientB.RequestLearnSkill("fire_bolt");
         clientB.RequestLearnSkill("arcane_burst");
         clientB.SendDebugCommand("skill_xp"); // level up skills -> unlock scroll slots
         clientB.SendDebugCommand("give_scroll");
@@ -470,26 +474,28 @@ public static class HeadlessNetTest
         Check(!Items.EnchantSystem.Apply(data, craftRng, craftLoot, Items.EnchantType.AddRandomRare, rare, out string sealError),
               $"sealed item rejects further enchanting ('{sealError}')");
 
-        // Networked crafting: B awakens its white oak staff with a debug-given scroll stack.
+        // Networked crafting: B awakens its white starter club — which is EQUIPPED, so
+        // this also proves ApplyEnchant reaches equipped items, not just the bag.
         clientB.SendDebugCommand("give_enchant", "es_awakening");
         Pump(0.5f);
         var bChar = clientB.World.MyCharacter;
         var bScroll = bChar.Inventory.Items.FirstOrDefault(pl => pl.Item.BaseItemId == "es_awakening");
-        var bStaff = bChar.Inventory.Items.FirstOrDefault(pl =>
-            pl.Item.BaseItemId == "oak_staff" && pl.Item.Rarity == Items.ItemRarity.Normal);
+        var bClub = bChar.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand);
         // B may already own an es_awakening (e.g. won one in the pickup race), in which
         // case the debug stack MERGES — assert relative counts, not absolutes.
         Check(bScroll != null && bScroll.Item.StackCount >= 3, $"scroll stack arrived (x{bScroll?.Item.StackCount})");
-        if (bScroll != null && bStaff != null)
+        Check(bClub != null && bClub.Rarity == Items.ItemRarity.Normal,
+              "B's starter club is white and equipped for the crafting test");
+        if (bScroll != null && bClub != null)
         {
             int stackBefore = bScroll.Item.StackCount;
-            clientB.RequestApplyEnchant(bScroll.Item.InstanceId, bStaff.Item.InstanceId);
+            clientB.RequestApplyEnchant(bScroll.Item.InstanceId, bClub.InstanceId);
             Pump(0.5f);
             bChar = clientB.World.MyCharacter;
-            var staffAfter = bChar.Inventory.FindByInstance(bStaff.Item.InstanceId)?.Item;
+            var clubAfter = bChar.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand);
             var scrollAfter = bChar.Inventory.FindByInstance(bScroll.Item.InstanceId)?.Item;
-            Check(staffAfter != null && staffAfter.Rarity == Items.ItemRarity.Magic && staffAfter.Modifiers.Count == 1,
-                  $"networked Awakening turned the staff blue with 1 modifier");
+            Check(clubAfter != null && clubAfter.Rarity == Items.ItemRarity.Magic && clubAfter.Modifiers.Count == 1,
+                  $"networked Awakening turned the equipped club blue with 1 modifier");
             Check(scrollAfter != null && scrollAfter.StackCount == stackBefore - 1,
                   $"one scroll charge consumed (stack {stackBefore} -> {scrollAfter?.StackCount})");
         }
@@ -598,8 +604,9 @@ public static class HeadlessNetTest
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&
               data.Modifiers["of_ferocity"].StatAffected == Stats.StatType.CriticalDamage &&
               data.Modifiers["of_precision"].CompatibleItemCategories.All(c =>
-                  c is Items.ItemCategory.Mace or Items.ItemCategory.Staff),
-              "critical hit chance/damage suffixes roll on weapons only");
+                  c is Items.ItemCategory.Mace or Items.ItemCategory.Staff
+                    or Items.ItemCategory.Bow or Items.ItemCategory.Quiver),
+              "critical hit chance/damage suffixes roll on weapons (and quivers) only");
         Check(!data.Modifiers["of_haste"].CompatibleItemCategories.Contains(Items.ItemCategory.Staff) &&
               !data.Modifiers["of_casting"].CompatibleItemCategories.Contains(Items.ItemCategory.Mace),
               "attack speed and cast speed suffixes are separated (no staff haste, no mace focus)");
@@ -621,16 +628,19 @@ public static class HeadlessNetTest
               $"crit chance/damage computed from weapon suffixes ({critStats.CritChance}% / {critStats.CritDamage}%)");
         Check(data.Modifiers["of_nullification"].StatAffected == Stats.StatType.ArcaneResistance,
               "Arcane Resistance suffix family loaded");
-        Check(data.Modifiers["occult"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Mace }) &&
+        Check(!data.Modifiers["occult"].CompatibleWith(Items.ItemCategory.Staff) &&
+              data.Modifiers["occult"].CompatibleWith(Items.ItemCategory.Bow) &&
               data.Modifiers["eldritch"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Staff }),
-              "Arcane added-damage prefixes split melee (mace) / spell (staff)");
+              "Arcane added-damage prefixes split attack (mace/bow) / spell (staff)");
         Check(data.Modifiers["sapphire"].StatAffected == Stats.StatType.MaximumMana &&
               data.Modifiers["of_clarity"].StatAffected == Stats.StatType.ManaRegeneration,
               "Maximum Mana prefix and Mana Regeneration suffix families loaded");
 
-        // Added-damage split: attack adds are melee-weapon-only, spell adds caster-weapon-only.
-        Check(data.Modifiers["searing"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Mace }),
-              "attack added-damage prefixes roll only on melee weapons (maces)");
+        // Added-damage split: attack adds are attack-gear-only, spell adds caster-weapon-only.
+        Check(!data.Modifiers["searing"].CompatibleWith(Items.ItemCategory.Staff) &&
+              data.Modifiers["searing"].CompatibleItemCategories.All(c =>
+                  c is Items.ItemCategory.Mace or Items.ItemCategory.Bow or Items.ItemCategory.Quiver),
+              "attack added-damage prefixes roll only on attack gear (mace/bow/quiver)");
         Check(data.Modifiers["blazing"].CompatibleItemCategories.SequenceEqual(new[] { Items.ItemCategory.Staff }),
               "spell added-damage prefixes roll only on caster weapons (staffs)");
 
@@ -3213,6 +3223,18 @@ public static class HeadlessNetTest
         Check(arrowDef.ManaCost == 0 && arrowDef.RequiredWeapon == Items.ItemCategory.Bow &&
               arrowDef.IsAttack && arrowDef.UsesWeaponDamage,
               "Arrow Shot is a zero-mana bow attack");
+        // Regression: bows/quivers must have a real affix pool — a magic bow that can
+        // roll ZERO modifiers would drop blank.
+        int bowPrefixGroups = data.Modifiers.Values
+            .Where(m => m.AffixType == Items.AffixType.Prefix && m.MinimumItemLevel <= 1 &&
+                        m.CompatibleWith(Items.ItemCategory.Bow))
+            .Select(m => m.ModifierGroup).Distinct().Count();
+        int quiverSuffixGroups = data.Modifiers.Values
+            .Where(m => m.AffixType == Items.AffixType.Suffix && m.MinimumItemLevel <= 1 &&
+                        m.CompatibleWith(Items.ItemCategory.Quiver))
+            .Select(m => m.ModifierGroup).Distinct().Count();
+        Check(bowPrefixGroups >= 5 && quiverSuffixGroups >= 2,
+              $"bows and quivers roll real affixes ({bowPrefixGroups} bow prefix / {quiverSuffixGroups} quiver suffix groups)");
 
         var srvArcher = server.World.Players[bId];
         Items.ItemInstance MkNorm(string id) => new()
@@ -3383,7 +3405,10 @@ public static class HeadlessNetTest
         var campServer = new GameServer(data, 777001, "forest", campaign: true);
         Check(campServer.Start(0), "campaign server started");
         var campA = new GameClient(data, "RunnerA", null);
-        var campB = new GameClient(data, "RunnerB", null);
+        // B joins with a CLIENT-SAVED character: a female mage with skin tone 4, so this
+        // section also proves class kits and appearance survive the join handshake.
+        var campB = new GameClient(data, "RunnerB",
+            Sim.CharacterData.CreateNew(data, "RunnerB", "mage", bodyStyle: 1, skinTone: 4));
         campA.Connect("127.0.0.1", campServer.LocalPort, out _);
         campB.Connect("127.0.0.1", campServer.LocalPort, out _);
         void CPump(float seconds)
@@ -3421,9 +3446,36 @@ public static class HeadlessNetTest
               "four closed starter chests replicate");
         var freshChar = campA.World.MyCharacter;
         Check(freshChar.Gold == 100 &&
-              freshChar.Skills.Count == 2 &&
-              freshChar.GetSkill("basic_strike") != null && freshChar.GetSkill("fire_bolt") != null,
-              $"fresh characters: 100 gold, Mace Strike + Fire Bolt only ({freshChar.Skills.Count} skills, {freshChar.Gold}g)");
+              freshChar.Skills.Count == 1 &&
+              freshChar.GetSkill("basic_strike") != null &&
+              freshChar.Hotbar[0] == "basic_strike" &&
+              freshChar.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand)?.BaseItemId == "wooden_club",
+              $"fresh characters default to the warrior kit: 100g, club, Mace Strike ({freshChar.Skills.Count} skills, {freshChar.Gold}g)");
+        Check(freshChar.ClassId == "warrior" && freshChar.BodyStyle == 0 && freshChar.SkinTone == 2,
+              "server-made characters carry the default appearance (male, mid tone)");
+
+        // Classes are STARTING KITS — three of them, each granting gear + one skill.
+        Check(data.Classes.Count == 3 &&
+              data.Classes.Any(cl => cl.Id == "warrior") &&
+              data.Classes.Any(cl => cl.Id == "archer") &&
+              data.Classes.Any(cl => cl.Id == "mage"),
+              "three starting classes load from Data/Classes");
+        var archerKit = Sim.CharacterData.CreateNew(data, "KitTest", "archer", bodyStyle: 1, skinTone: 5);
+        Check(archerKit.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand)?.BaseItemId == "short_bow" &&
+              archerKit.Equipment.GetValueOrDefault(Items.EquipSlot.OffHand)?.BaseItemId == "leather_quiver" &&
+              archerKit.GetSkill("arrow_shot") != null && archerKit.Hotbar[0] == "arrow_shot" &&
+              archerKit.BodyStyle == 1 && archerKit.SkinTone == 5,
+              "the archer kit equips bow + quiver with Arrow Shot hotbarred, appearance stored");
+
+        // v27 appearance replication: A sees B's saved mage body over PlayerAppearance.
+        var mageSeenByA = campA.World.Players[campB.World.MyPlayerId];
+        Check(mageSeenByA.BodyStyle == 1 && mageSeenByA.SkinTone == 4,
+              "body style + skin tone replicate through PlayerAppearance");
+        var srvCampB = campServer.World.Players[campB.World.MyPlayerId];
+        Check(srvCampB.Character.ClassId == "mage" &&
+              srvCampB.Character.GetSkill("fire_bolt") != null &&
+              srvCampB.Character.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand)?.BaseItemId == "oak_staff",
+              "a client-saved mage keeps its class kit server-side");
 
         // Chests: first open pops the lid and drops plain starter gear; reopening is refused.
         var chest1 = campServer.World.Chests[0];
@@ -3486,35 +3538,38 @@ public static class HeadlessNetTest
               "the sanctum fountain refills every carried flask");
 
         // The stash: storage tied to a CONTAINER object — moves only work beside it.
+        // (Class kits equip everything, so the test stashes A's equipped starter club.)
         var stashSpot = campServer.World.Map.StashSpot;
         Check(stashSpot != Vector2.Zero, "the hub has a stash chest");
         var srvStashA = campServer.World.Players[campA.World.MyPlayerId];
-        var bagStaff = srvStashA.Character.Inventory.Items
-            .FirstOrDefault(pl => pl.Item.BaseItemId == "oak_staff");
-        Check(bagStaff != null, "the starter staff sits in the bag for the stash test");
+        var stashClub = srvStashA.Character.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand);
+        Check(stashClub?.BaseItemId == "wooden_club", "the starter club is in hand for the stash test");
         campA.World.Me.Position = stashSpot + new Vector2(9f, 6f); // across the room
         CPump(0.4f);
-        campServer.World.MoveItem(srvStashA.Id, ItemLocation.AtGrid(bagStaff.X, bagStaff.Y),
+        campServer.World.MoveItem(srvStashA.Id, ItemLocation.AtEquip(Items.EquipSlot.MainHand),
             ItemLocation.AtStash(World.GameMap.HubStashId, 0, 0));
-        Check(srvStashA.Character.GetStash(World.GameMap.HubStashId).Items.Count == 0,
+        Check(srvStashA.Character.GetStash(World.GameMap.HubStashId).Items.Count == 0 &&
+              srvStashA.Character.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand) != null,
               "stash moves are refused away from the chest");
         campA.World.Me.Position = stashSpot + new Vector2(1.0f, 0.7f);
         CPump(0.4f);
-        campServer.World.MoveItem(srvStashA.Id, ItemLocation.AtGrid(bagStaff.X, bagStaff.Y),
+        campServer.World.MoveItem(srvStashA.Id, ItemLocation.AtEquip(Items.EquipSlot.MainHand),
             ItemLocation.AtStash(World.GameMap.HubStashId, 0, 0));
         var stashGrid = srvStashA.Character.GetStash(World.GameMap.HubStashId);
         Check(stashGrid.Items.Count == 1 &&
-              srvStashA.Character.Inventory.Items.All(pl => pl.Item.BaseItemId != "oak_staff"),
-              "an item moves from the bag into the stash container");
+              srvStashA.Character.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand) == null,
+              "an item moves from the equipped hand into the stash container");
         CPump(0.4f);
         Check(campA.World.MyCharacter.Stashes.GetValueOrDefault(World.GameMap.HubStashId)?.Items.Count == 1,
               "stash contents replicate with the character");
         campServer.World.MoveItem(srvStashA.Id,
             ItemLocation.AtStash(World.GameMap.HubStashId, stashGrid.Items[0].X, stashGrid.Items[0].Y),
             ItemLocation.AtGrid(0, 0));
+        campServer.World.MoveItem(srvStashA.Id, ItemLocation.AtGrid(0, 0),
+            ItemLocation.AtEquip(Items.EquipSlot.MainHand));
         Check(stashGrid.Items.Count == 0 &&
-              srvStashA.Character.Inventory.Items.Any(pl => pl.Item.BaseItemId == "oak_staff"),
-              "and moves back out into the bag");
+              srvStashA.Character.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand)?.BaseItemId == "wooden_club",
+              "and moves back out through the bag into the hand");
 
         Console.WriteLine("\n-- Campaign: the run door --");
         var hubDoor = campServer.World.Map.ExitDoor;
