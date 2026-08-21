@@ -62,6 +62,9 @@ public class PlayScreen : IScreen
     /// <summary>ARPG_DEVUI=gear[:family]: wear a full armor set shortly after joining
     /// (GUI automation — verifies the worn-armor overlays).</summary>
     private string _devEquipSet;
+    /// <summary>ARPG_DEVUI=face:S|N|E|W — pin the aim facing (GUI automation: headless
+    /// X servers don't deliver real mouse motion, so screenshots can't aim).</summary>
+    private NumVec2? _devFaceOverride;
     private bool _devWarpNext;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
@@ -204,6 +207,15 @@ public class PlayScreen : IScreen
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
             if (gearToken != null)
                 _devEquipSet = gearToken.Contains(':') ? gearToken.Split(':')[1] : "iron";
+            var faceToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("face:"));
+            if (faceToken != null)
+                _devFaceOverride = faceToken.Split(':')[1] switch
+                {
+                    "N" => NumVec2.Normalize(new NumVec2(-1, -1)),
+                    "E" => NumVec2.Normalize(new NumVec2(1, -1)),
+                    "W" => NumVec2.Normalize(new NumVec2(-1, 1)),
+                    _ => NumVec2.Normalize(new NumVec2(1, 1)), // S
+                };
         }
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
@@ -515,6 +527,7 @@ public class PlayScreen : IScreen
             var facing = mouseWorld - me.Position;
             if (facing.LengthSquared() > 0.001f)
                 me.Facing = NumVec2.Normalize(facing);
+            if (_devFaceOverride is { } devFace) me.Facing = devFace;
 
             // --- skills (chargeable skills fire on RELEASE, scaled by held time) ---
             // Any MOUSE-bound action respects UI capture — a right-click that quick-

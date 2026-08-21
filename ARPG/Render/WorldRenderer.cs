@@ -1233,11 +1233,13 @@ public class WorldRenderer
                 var bodyFrames = SpriteGen.GetPlayerFrames(look);
                 if (bodyFrames != null)
                 {
-                    // Walk cycle while the position is actually changing; the body tint
-                    // carries the state colors the old token used (frozen blue, dodge
-                    // flash, death gray).
+                    // The body TURNS with the aim (mouse) direction: front, back, or a
+                    // side profile mirrored for west. Walk cycle runs while the position
+                    // is actually changing; the body tint carries the state colors the
+                    // old token used (frozen blue, dodge flash, death gray).
+                    int bodyDir = BodyDirIndex(p.Facing, out bool bodyFlip);
                     int bodyFrame = p.RenderMoving ? 1 + (int)((animClock / 160 + p.Id) % 2) : 0;
-                    var bodyTex = bodyFrames[bodyFrame];
+                    var bodyTex = bodyFrames[bodyDir * 3 + bodyFrame];
                     var bodyTint = Color.White;
                     if (!p.Alive) bodyTint = new Color(120, 120, 130);
                     else if ((p.DebuffFlags & Server.PlayerDebuffs.Frozen) != 0)
@@ -1250,7 +1252,7 @@ public class WorldRenderer
                     batch.Draw(bodyTex,
                         new Rectangle((int)screen.X - bw / 2, (int)screen.Y - bh + 5, bw, bh), null,
                         bodyTint, 0f, Vector2.Zero,
-                        p.Facing.X - p.Facing.Y < -0.05f ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+                        bodyFlip ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
                         0f);
                 }
                 else
@@ -2078,6 +2080,21 @@ public class WorldRenderer
         ItemRarity.Rare => new Color(255, 220, 80),
         _ => Color.White,
     };
+
+    /// <summary>4-way body facing from a world-space aim direction. World +X projects
+    /// toward screen lower-right and +Y toward lower-left, so screen-x = fx - fy and
+    /// screen-y = fx + fy. Vertical wins ties (front/back views dominate); the side
+    /// view mirrors for west via <paramref name="flip"/>.</summary>
+    public static int BodyDirIndex(System.Numerics.Vector2 facing, out bool flip)
+    {
+        float sx = facing.X - facing.Y;
+        float sy = facing.X + facing.Y;
+        flip = false;
+        if (Math.Abs(sy) >= Math.Abs(sx))
+            return sy >= 0 ? SpriteGen.DirSouth : SpriteGen.DirNorth;
+        flip = sx < 0;
+        return SpriteGen.DirEast;
+    }
 
     public static Color ParseColor(string hex, Color fallback)
     {

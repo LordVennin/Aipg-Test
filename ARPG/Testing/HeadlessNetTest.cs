@@ -3323,6 +3323,12 @@ public static class HeadlessNetTest
               armoredB.GlovesBaseId == "warplate_gauntlets" && armoredB.BootsBaseId == "warplate_greaves" &&
               armoredB.BeltBaseId == "rope_belt",
               "all five worn armor slots replicate through PlayerAppearance");
+        // 4-way body facing: aim (mouse) direction picks front/back/side, side mirrors west.
+        Check(Render.WorldRenderer.BodyDirIndex(new Vector2(1, 1), out bool faceS) == Render.SpriteGen.DirSouth && !faceS &&
+              Render.WorldRenderer.BodyDirIndex(new Vector2(-1, -1), out _) == Render.SpriteGen.DirNorth &&
+              Render.WorldRenderer.BodyDirIndex(new Vector2(1, -1), out bool faceE) == Render.SpriteGen.DirEast && !faceE &&
+              Render.WorldRenderer.BodyDirIndex(new Vector2(-1, 1), out bool faceW) == Render.SpriteGen.DirEast && faceW,
+              "aim direction maps to the four body facings (S / N / E / W-mirrored)");
 
         Console.WriteLine("\n-- New enemies: Crypt Leaper + Grave Caller --");
         Check(data.Enemies["crypt_leaper"].DashMinLevel == 1 &&

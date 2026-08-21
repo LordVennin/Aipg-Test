@@ -806,14 +806,19 @@ public class CharacterCreateScreen : IScreen
         }
         if (_previewFrames != null)
         {
-            // Classic 4-beat walk: idle, stride A, idle, stride B.
+            // Classic 4-beat walk (idle, stride A, idle, stride B) on a slow turntable:
+            // south, east, north, then the east strip mirrored for west.
             int[] cycle = { 0, 1, 0, 2 };
-            var tex = _previewFrames[cycle[(int)(Environment.TickCount64 / 220 % 4)]];
+            int[] dirOrder = { SpriteGen.DirSouth, SpriteGen.DirEast, SpriteGen.DirNorth, SpriteGen.DirEast };
+            long t = Environment.TickCount64;
+            int spin = (int)(t / 1600 % 4);
+            var tex = _previewFrames[dirOrder[spin] * 3 + cycle[(int)(t / 220 % 4)]];
             int scale = 6;
             int tw = tex.Width * scale, th = tex.Height * scale;
             int cx = _previewRect.Center.X, footY = _previewRect.Bottom - 28;
             sb.Draw(TextureGen.Circle32, new Rectangle(cx - tw / 3, footY - 10, tw * 2 / 3, 20), new Color(0, 0, 0, 90));
-            sb.Draw(tex, new Rectangle(cx - tw / 2, footY - th, tw, th), Color.White);
+            sb.Draw(tex, new Rectangle(cx - tw / 2, footY - th, tw, th), null, Color.White, 0f,
+                Vector2.Zero, spin == 3 ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
         }
     }
 }
