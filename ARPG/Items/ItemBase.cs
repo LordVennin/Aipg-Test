@@ -101,9 +101,16 @@ public class ItemBase
     public int FlaskChargesMax { get; set; } = 3;
     public float FlaskDuration { get; set; } = 4f;
 
-    /// <summary>Accent color (RRGGBB hex) for the procedural held-weapon sprite
-    /// (mace head metal / staff orb). Falls back to a per-category default.</summary>
+    /// <summary>Accent color (RRGGBB hex) for the procedural sprite: held-weapon metal /
+    /// staff orb, and for worn armor the garment color painted onto the body rig.
+    /// Falls back to a per-category default.</summary>
     public string SpriteColor { get; set; }
+
+    /// <summary>Worn-armor overlay silhouette painted onto the body rig. BodyArmor:
+    /// "cloth" (full robe), "leather", "mail", "plate". Helmet: "hood", "cowl", "cap",
+    /// "helm". Null/unknown = no visible overlay (small slots recolor rig pixels via
+    /// SpriteColor instead).</summary>
+    public string ArmorStyle { get; set; }
 
     public string Description { get; set; }
 

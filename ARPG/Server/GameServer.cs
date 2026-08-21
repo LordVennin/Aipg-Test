@@ -774,6 +774,12 @@ public class GameServer : IServerEvents
         w.Put(p.Character.EffectiveHairStyle);
         w.Put(Sim.Appearance.Pack(p.Character.EffectiveSkinColor));
         w.Put(Sim.Appearance.Pack(p.Character.EffectiveHairColor));
+        // Visible armor slots — the client paints these onto the body rig.
+        w.Put(p.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Helmet)?.BaseItemId ?? "");
+        w.Put(p.Character.Equipment.GetValueOrDefault(Items.EquipSlot.BodyArmor)?.BaseItemId ?? "");
+        w.Put(p.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Gloves)?.BaseItemId ?? "");
+        w.Put(p.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Boots)?.BaseItemId ?? "");
+        w.Put(p.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Belt)?.BaseItemId ?? "");
         return w;
     }
 

@@ -1033,6 +1033,11 @@ public class GameClient
                 byte hairStyle = r.GetByte();
                 int skinRgb = r.GetInt();
                 int hairRgb = r.GetInt();
+                string helmetId = r.GetString();
+                string bodyArmorId = r.GetString();
+                string glovesId = r.GetString();
+                string bootsId = r.GetString();
+                string beltId = r.GetString();
                 if (World.Players.TryGetValue(playerId, out var p))
                 {
                     p.WeaponBaseId = string.IsNullOrEmpty(weaponBaseId) ? null : weaponBaseId;
@@ -1041,6 +1046,11 @@ public class GameClient
                     p.HairStyle = hairStyle;
                     p.SkinRgb = skinRgb;
                     p.HairRgb = hairRgb;
+                    p.HelmetBaseId = string.IsNullOrEmpty(helmetId) ? null : helmetId;
+                    p.BodyArmorBaseId = string.IsNullOrEmpty(bodyArmorId) ? null : bodyArmorId;
+                    p.GlovesBaseId = string.IsNullOrEmpty(glovesId) ? null : glovesId;
+                    p.BootsBaseId = string.IsNullOrEmpty(bootsId) ? null : bootsId;
+                    p.BeltBaseId = string.IsNullOrEmpty(beltId) ? null : beltId;
                 }
                 break;
             }

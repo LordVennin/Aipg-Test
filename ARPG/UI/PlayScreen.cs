@@ -59,6 +59,9 @@ public class PlayScreen : IScreen
     private bool _devLearnSummons, _devRaiseSummons;
     /// <summary>ARPG_DEVUI=knight: spawn Barrow Knights next to the player (GUI automation).</summary>
     private bool _devSpawnKnights;
+    /// <summary>ARPG_DEVUI=gear[:family]: wear a full armor set shortly after joining
+    /// (GUI automation — verifies the worn-armor overlays).</summary>
+    private string _devEquipSet;
     private bool _devWarpNext;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
@@ -198,6 +201,9 @@ public class PlayScreen : IScreen
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
             if (devUi.Contains("knight")) _devSpawnKnights = true;
             if (devUi.Contains("warp")) _devWarpNext = true;
+            var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
+            if (gearToken != null)
+                _devEquipSet = gearToken.Contains(':') ? gearToken.Split(':')[1] : "iron";
         }
 
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
@@ -288,6 +294,11 @@ public class PlayScreen : IScreen
         {
             _devSpawnKnights = false;
             _client.SendDebugCommand("spawn_enemy", "bone_knight");
+        }
+        if (_devEquipSet != null && _clientTime > 1.5f)
+        {
+            _client.SendDebugCommand("equip_set", _devEquipSet);
+            _devEquipSet = null;
         }
         if (_devWarpNext && _clientTime > 3f)
         {

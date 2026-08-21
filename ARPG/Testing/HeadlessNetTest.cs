@@ -3302,6 +3302,28 @@ public static class HeadlessNetTest
         clientB.SendDebugCommand("kill_nearby");
         Pump(0.3f);
 
+        Console.WriteLine("\n-- Worn armor overlays --");
+        Check(data.Items.Values
+                  .Where(b => b.Category is Items.ItemCategory.BodyArmor or Items.ItemCategory.Helmet)
+                  .All(b => !string.IsNullOrEmpty(b.ArmorStyle) && !string.IsNullOrEmpty(b.SpriteColor)),
+              "every body armor and helmet carries an overlay style + color");
+        Check(data.Items.Values
+                  .Where(b => b.Category is Items.ItemCategory.Gloves or Items.ItemCategory.Boots
+                                          or Items.ItemCategory.Belt)
+                  .All(b => !string.IsNullOrEmpty(b.SpriteColor)),
+              "every small armor slot carries a tint color");
+        clientB.SendDebugCommand("equip_set", "plate");
+        Pump(0.5f);
+        Check(srvArcher.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Helmet)?.BaseItemId == "warplate_helm" &&
+              srvArcher.Character.Equipment.GetValueOrDefault(Items.EquipSlot.BodyArmor)?.BaseItemId == "iron_plate" &&
+              srvArcher.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Belt)?.BaseItemId == "rope_belt",
+              "the equip_set dev command wears a full plate family");
+        var armoredB = clientA.World.Players[bId];
+        Check(armoredB.HelmetBaseId == "warplate_helm" && armoredB.BodyArmorBaseId == "iron_plate" &&
+              armoredB.GlovesBaseId == "warplate_gauntlets" && armoredB.BootsBaseId == "warplate_greaves" &&
+              armoredB.BeltBaseId == "rope_belt",
+              "all five worn armor slots replicate through PlayerAppearance");
+
         Console.WriteLine("\n-- New enemies: Crypt Leaper + Grave Caller --");
         Check(data.Enemies["crypt_leaper"].DashMinLevel == 1 &&
               data.Enemies["crypt_leaper"].DashDamage > 0,
