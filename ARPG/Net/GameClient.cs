@@ -283,6 +283,15 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    /// <summary>One revive-channel pulse (send repeatedly while the key is held beside a
+    /// dead teammate — the server does the timekeeping).</summary>
+    public void RequestRevivePulse(int targetPlayerId)
+    {
+        var w = Packets.Make(PacketType.ReviveRequest);
+        w.Put(targetPlayerId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     /// <summary>Refill equipped flasks at the sanctum fountain. Server-validated.</summary>
     public void RequestUseFountain() =>
         Send(Packets.Make(PacketType.UseFountainRequest), DeliveryMethod.ReliableOrdered);
@@ -504,6 +513,7 @@ public class GameClient
                 float es = r.GetFloat(), maxEs = r.GetFloat();
                 float manaReserved = r.GetFloat();
                 float healLeft = r.GetFloat(), manaLeft = r.GetFloat();
+                byte revivePct = r.GetByte();
                 if (World.Players.TryGetValue(id, out var p))
                 {
                     p.Health = hp;
@@ -512,6 +522,7 @@ public class GameClient
                     p.EnergyShield = es;
                     p.MaxEnergyShield = maxEs;
                     p.ManaReserved = manaReserved;
+                    p.RevivePercent = revivePct;
                     p.PotionHealSecondsLeft = healLeft;
                     p.PotionManaSecondsLeft = manaLeft;
                 }
@@ -534,6 +545,19 @@ public class GameClient
                     World.AddEffect(at, radius, 0.45f, "slam", height);
                     World.AddEffect(at, radius * 0.8f, 0.9f, "debris", height);
                 }
+                break;
+            }
+            case PacketType.EnemyCastAoe:
+            {
+                var castAt = r.GetVec2();
+                float castRadius = r.GetFloat();
+                float castWindup = r.GetFloat();
+                float castHeight = r.GetFloat();
+                byte castPhase = r.GetByte();
+                if (castPhase == 1)
+                    World.AddEffect(castAt, castRadius, MathF.Max(0.2f, castWindup), "darkwarn", castHeight);
+                else
+                    World.AddEffect(castAt, castRadius, 0.5f, "darkburst", castHeight);
                 break;
             }
             case PacketType.EnemyDash:

@@ -36,6 +36,9 @@ public interface IServerEvents
     void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false);
     /// <summary>A boss ground-slam burst, for the AoE visual on all clients.</summary>
     void EnemySlammed(ServerEnemy e, float radius, byte phase);
+    /// <summary>A caster's ranged AoE: warning circle at the locked target spot
+    /// (phase 1, windup seconds), then the dark burst (phase 2).</summary>
+    void EnemyCastAoe(ServerEnemy e, Vector2 at, float radius, float windup, byte phase);
     /// <summary>Telegraphed dash charge: phase 1 = ground line telegraph, 2 = launch.</summary>
     void EnemyDashed(ServerEnemy e, byte phase);
     /// <summary>Telegraphed melee swing: phase 1 = wind-up started, 2 = swing resolved.</summary>
@@ -286,14 +289,17 @@ public partial class ServerWorld
         int level = CampaignEnemyLevel;
         bool knights = Loop >= 2;
         var packRng = new Random(Map.Seed ^ 0x5041434B); // "PACK" — deterministic per map
+        // Loop 1 mixes in Crypt Leapers; loop 2+ adds Graveguard AND Grave Callers.
         foreach (var spot in Map.PackSpots)
         {
-            (string, int)[] entries = packRng.Next(knights ? 4 : 3) switch
+            (string, int)[] entries = packRng.Next(knights ? 6 : 4) switch
             {
                 0 => new[] { ("grunt", 3) },
                 1 => new[] { ("grunt", 2), ("spitter", 1) },
                 2 => new[] { ("grunt", 1), ("spitter", 2) },
-                _ => new[] { ("bone_knight", 2), ("grunt", 1) },
+                3 => new[] { ("crypt_leaper", 2), ("grunt", 1) },
+                4 => new[] { ("bone_knight", 2), ("grunt", 1) },
+                _ => new[] { ("grave_caller", 1), ("crypt_leaper", 1), ("grunt", 1) },
             };
             var affix = packRng.Next(5) switch
             {
@@ -374,6 +380,10 @@ public partial class ServerWorld
         MapIndex = newIndex;
         var newKind = newIndex == 0 ? MapKind.Hub : MapKind.Forest;
         Map = new GameMap(CampaignMapSeed(newIndex), ThemeFor(newKind), newKind);
+        // Coming home wakes the fallen: anyone still down stands back up in the hub.
+        if (newIndex == 0)
+            foreach (var pl in Players.Values.Where(pl => !pl.Alive))
+                RevivePlayer(pl, atSpawn: false, healthFraction: 1f); // repositioned below
 
         // Everyone arrives together at the new map's spawn (dead players are pulled
         // through on their feet — the run moves as a group).
@@ -497,6 +507,70 @@ public partial class ServerWorld
         }
         _events.CharacterChanged(p);
         _events.PlayerHealthChanged(p);
+    }
+
+    /// <summary>Bring a player back: at the map spawn (arena respawn / hub return) or in
+    /// place (a teammate's revive), with the given fraction of max health.</summary>
+    private void RevivePlayer(ServerPlayer p, bool atSpawn, float healthFraction)
+    {
+        p.Alive = true;
+        if (atSpawn)
+        {
+            p.Position = Map.PlayerSpawn;
+            p.Height = Map.GroundHeightAt(Map.PlayerSpawn);
+        }
+        p.Health = p.Stats.MaxHealth * healthFraction;
+        p.Mana = MathF.Max(0f, p.Stats.MaxMana - p.ManaReserved);
+        p.EnergyShield = p.Stats.MaxEnergyShield;
+        p.LastSyncedHealth = p.Health;
+        p.ReviveProgress = 0f;
+        _events.PlayerRespawned(p);
+    }
+
+    public const float ReviveChannelTime = 2.5f;
+    private float _wipeReturnAt;
+
+    /// <summary>One revive-channel pulse: a living teammate is holding the interact key
+    /// beside this corpse. The server accrues REAL time between pulses, so pulse spam
+    /// can't speed the channel up. At the full channel the fallen stand back up in
+    /// place at half health.</summary>
+    public void RevivePulse(int reviverId, int targetId)
+    {
+        if (!Campaign) return;
+        if (!Players.TryGetValue(reviverId, out var reviver) || !reviver.Alive) return;
+        if (!Players.TryGetValue(targetId, out var target) || target.Alive) return;
+        if (Vector2.Distance(reviver.Position, target.Position) > 2.0f) return;
+        if (MathF.Abs(reviver.Height - target.Height) > 0.75f) return;
+        float since = Time - target.LastRevivePulseAt;
+        target.LastRevivePulseAt = Time;
+        if (since is > 0f and < 0.4f) target.ReviveProgress += since;
+        if (target.ReviveProgress >= ReviveChannelTime)
+        {
+            RevivePlayer(target, atSpawn: false, healthFraction: 0.5f);
+            foreach (var pl in Players.Values)
+                _events.MessageFor(pl, $"{reviver.Name} revived {target.Name}.");
+        }
+        else
+            _events.PlayerHealthChanged(target); // carries the revive % for the bar
+    }
+
+    /// <summary>Campaign wipe rule: when EVERY player is down, the run is over — after a
+    /// short beat the Sanctum reclaims the whole party (alive, full health).</summary>
+    private void CheckPartyWipe()
+    {
+        if (!Campaign || Players.Count == 0) return;
+        if (Players.Values.Any(pl => pl.Alive)) { _wipeReturnAt = 0f; return; }
+        if (_wipeReturnAt <= 0f)
+        {
+            _wipeReturnAt = Time + 2.5f;
+            foreach (var pl in Players.Values)
+                _events.MessageFor(pl, "The party has fallen — the Sanctum reclaims you.");
+            return;
+        }
+        if (Time < _wipeReturnAt) return;
+        _wipeReturnAt = 0f;
+        foreach (var pl in Players.Values) RevivePlayer(pl, atSpawn: true, healthFraction: 1f);
+        if (MapIndex != 0) TransitionTo(0);
     }
 
     /// <summary>The sanctum fountain: refills every flask the player carries (equipped
@@ -653,6 +727,7 @@ public partial class ServerWorld
         TickProjectiles(dt);
         TickSpawners();
         TickPlayers(dt);
+        CheckPartyWipe();
     }
 
     private void TickPlayers(float dt)
@@ -672,17 +747,18 @@ public partial class ServerWorld
             }
             if (!p.Alive)
             {
-                p.RespawnTimer -= dt;
-                if (p.RespawnTimer <= 0)
+                if (!Campaign)
                 {
-                    p.Alive = true;
-                    p.Position = Map.PlayerSpawn;
-                    p.Height = Map.GroundHeightAt(Map.PlayerSpawn);
-                    p.Health = p.Stats.MaxHealth;
-                    p.Mana = MathF.Max(0f, p.Stats.MaxMana - p.ManaReserved);
-                    p.EnergyShield = p.Stats.MaxEnergyShield;
-                    p.LastSyncedHealth = p.Health;
-                    _events.PlayerRespawned(p);
+                    // Arena keeps the quick respawn for tests and debugging.
+                    p.RespawnTimer -= dt;
+                    if (p.RespawnTimer <= 0) RevivePlayer(p, atSpawn: true, healthFraction: 1f);
+                }
+                else if (p.ReviveProgress > 0 && Time - p.LastRevivePulseAt > 0.4f)
+                {
+                    // Campaign corpses wait for a teammate's channel; an interrupted
+                    // channel bleeds back down instead of banking progress forever.
+                    p.ReviveProgress = MathF.Max(0f, p.ReviveProgress - dt * 0.8f);
+                    _events.PlayerHealthChanged(p);
                 }
                 continue;
             }
@@ -974,6 +1050,7 @@ public partial class ServerWorld
                 e.SlamResolveAt = 0;
                 e.DashPrepareUntil = 0;
                 e.DashUntil = 0;
+                e.CastResolveAt = 0;
                 continue; // no movement, no attacks
             }
 
@@ -1040,6 +1117,25 @@ public partial class ServerWorld
                 continue;
             }
 
+            // Committed to a ranged AoE cast: the warning circle burns at the LOCKED
+            // target spot; whoever is still inside when it resolves eats the hit.
+            if (e.CastResolveAt > 0)
+            {
+                if (Time < e.CastResolveAt) continue;
+                e.CastResolveAt = 0;
+                _events.EnemyCastAoe(e, e.CastTarget, e.Def.CastRadius, 0f, phase: 2);
+                foreach (var victim in Players.Values)
+                {
+                    if (!victim.Alive || Time < victim.InvulnerableUntil) continue;
+                    if (MathF.Abs(victim.Height - e.Height) > 0.75f) continue;
+                    if (Vector2.Distance(victim.Position, e.CastTarget) > e.Def.CastRadius) continue;
+                    // A ground spell, never a deflectable Attack.
+                    DamagePlayerTyped(victim, new List<(DamageKind, float)>
+                        { (e.Def.CastKind, e.Def.CastDamage * e.DamageScale) }, attackHit: false);
+                }
+                continue;
+            }
+
             // Committed to a telegraphed swing: stand still until it resolves. Sword
             // wielders keep re-aiming at their victim until just before impact; lunge
             // attackers locked their direction at wind-up start (strafing beats them).
@@ -1090,6 +1186,20 @@ public partial class ServerWorld
                 e.DashDir = (target.Position - e.Position).NormalizedOrZero();
                 _events.EnemyDashed(e, phase: 1);
                 continue; // rooted in the prepare stance this tick
+            }
+
+            // Ranged AoE cast: an engaged caster drops a telegraphed circle on its
+            // target's CURRENT spot — the spot locks at cast start, so moving out of
+            // the warning dodges the whole thing.
+            if (e.Def.CastRadius > 0 && e.State != EnemyState.Idle && Time >= e.CastReadyAt &&
+                target != null && sameSurface && dist <= e.Def.CastRange &&
+                !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f))
+            {
+                e.CastReadyAt = Time + e.Def.CastCooldown;
+                e.CastResolveAt = Time + e.Def.CastWindup;
+                e.CastTarget = target.Position;
+                _events.EnemyCastAoe(e, e.CastTarget, e.Def.CastRadius, e.Def.CastWindup, phase: 1);
+                continue; // rooted while channeling this tick
             }
 
             // Boss reinforcements: an ENGAGED summoner conjures its adds on a long

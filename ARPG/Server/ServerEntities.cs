@@ -64,6 +64,11 @@ public class ServerPlayer
     /// tab's stock, offered back at exactly what they fetched. Slot = list index.</summary>
     public readonly List<ShopEntry> Buyback = new();
 
+    // Campaign revive channel (teammates hold the interact key beside this corpse).
+    // The SERVER does the timekeeping — pulses only mark that someone is channeling.
+    public float ReviveProgress;
+    public float LastRevivePulseAt = -10f;
+
     /// <summary>Blocking goes on cooldown after each successful block (server-authoritative).</summary>
     public float NextBlockReadyAt;
 
@@ -190,6 +195,10 @@ public class ServerEnemy
     public float DashReadyAt;
     /// <summary>Players already struck by the CURRENT dash (one hit per pass).</summary>
     public readonly HashSet<int> DashHitIds = new();
+    // Ranged telegraphed AoE cast (casters): the circle LOCKS at cast start.
+    public float CastResolveAt;
+    public Vector2 CastTarget;
+    public float CastReadyAt;
 
     // Damage-over-time ailments. Ticks apply every frame but damage events/health
     // updates are batched via accumulators to avoid packet spam.

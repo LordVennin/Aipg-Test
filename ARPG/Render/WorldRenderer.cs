@@ -811,7 +811,8 @@ public class WorldRenderer
                     int frame = animated ? (int)((animClock / 170 + e.Id) % frames.Length) : 0;
                     var tex = frames[frame];
                     int scale = e.IsBoss ? 3 : 2; // the boss reads bigger at a glance
-                    int w = tex.Width * scale, h = tex.Height * scale;
+                    float sMul = def?.SpriteScale ?? 1f;   // runts render smaller
+                    int w = (int)(tex.Width * scale * sMul), h = (int)(tex.Height * scale * sMul);
                     var spriteRect = new Rectangle((int)(screen.X + animOff.X) - w / 2,
                         (int)(screen.Y + animOff.Y) - h + 6, w, h);
                     EnemyHitRects.Add((spriteRect, e.Id));
@@ -1067,6 +1068,25 @@ public class WorldRenderer
         }
         DrawDoor(world.Map.ExitDoor, exit: true);
         DrawDoor(world.Map.EntryDoor, exit: false);
+
+        // The stash chest (hub only): the player's object-bound storage.
+        if (world.Map.StashSpot != System.Numerics.Vector2.Zero)
+        {
+            var stPos = world.Map.StashSpot;
+            float stHeight = world.Map.GroundHeightAt(stPos);
+            var stScreen = camera.WorldToScreen(stPos, stHeight);
+            var stashTex = SpriteGen.GetStash();
+            if (stashTex != null)
+                _sorted.Add((stPos.X + stPos.Y + stHeight * 1.0f + 0.1f, batch =>
+                {
+                    int w = stashTex.Width * 2, h = stashTex.Height * 2;
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(stScreen.X - 20), (int)(stScreen.Y - 8), 40, 16),
+                        new Color(0, 0, 0, 80));
+                    batch.Draw(stashTex,
+                        new Rectangle((int)stScreen.X - w / 2, (int)stScreen.Y - h + 8, w, h), Color.White);
+                }));
+        }
 
         // The sanctum fountain (hub only): flask refills between runs.
         if (world.Map.FountainSpot != System.Numerics.Vector2.Zero)
@@ -1559,6 +1579,57 @@ public class WorldRenderer
                 continue;
             }
 
+            if (fx.Kind == "darkwarn")
+            {
+                // A caster's AoE telegraph: same MMO decal language as the slam, but in
+                // grave-purple so "spell incoming" reads apart from "boss slam".
+                float rPx = fx.Radius * 2f * IsoCamera.HalfTileW;
+                long clockN = Environment.TickCount64;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    float pulse = 0.75f + 0.25f * MathF.Sin(clockN * 0.02f);
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - rPx), (int)(screen.Y - rPx / 2f),
+                            (int)(rPx * 2), (int)rPx), new Color(120, 50, 200) * 0.24f);
+                    float fillPx = rPx * t;
+                    if (fillPx > 2)
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(screen.X - fillPx), (int)(screen.Y - fillPx / 2f),
+                                (int)(fillPx * 2), (int)fillPx), new Color(170, 80, 255) * (0.32f * pulse));
+                    for (int seg4 = 0; seg4 < 22; seg4++)
+                    {
+                        float a4 = seg4 / 22f * MathF.Tau;
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(a4) * rPx) - 1,
+                            (int)(screen.Y + MathF.Sin(a4) * rPx * 0.5f) - 1, 3, 2),
+                            new Color(190, 100, 255) * (0.85f * pulse));
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "darkburst")
+            {
+                // The cast landing: a purple flash that collapses inward with rising motes.
+                float rPx = fx.Radius * 2f * IsoCamera.HalfTileW * (1f - t * 0.5f);
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    float fade = 1f - t;
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - rPx), (int)(screen.Y - rPx / 2f),
+                            (int)(rPx * 2), (int)rPx), new Color(150, 70, 240) * (0.5f * fade));
+                    for (int m = 0; m < 7; m++)
+                    {
+                        float ma = m / 7f * MathF.Tau + t * 2f;
+                        int mx = (int)(screen.X + MathF.Cos(ma) * rPx * 0.6f);
+                        int my = (int)(screen.Y + MathF.Sin(ma) * rPx * 0.3f - t * 26f);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(mx, my, 2, 3),
+                            new Color(210, 150, 255) * fade);
+                    }
+                }));
+                continue;
+            }
+
             if (fx.Kind == "dashline" && fx.Points is { Count: > 1 })
             {
                 // MMO-style dash telegraph: a burning red strip on the ground along the
@@ -1765,6 +1836,37 @@ public class WorldRenderer
                 var fnSize = labelFont.MeasureString(fnHint);
                 sb.DrawString(labelFont, fnHint,
                     new Vector2(fnScreen.X - fnSize.X / 2, fnScreen.Y - 64), new Color(150, 200, 255));
+            }
+            if (world.Map.StashSpot != System.Numerics.Vector2.Zero &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.StashSpot) <= 2.4f)
+            {
+                var stScreen = camera.WorldToScreen(world.Map.StashSpot,
+                    world.Map.GroundHeightAt(world.Map.StashSpot));
+                const string stHint = "F  Stash";
+                var stSize = labelFont.MeasureString(stHint);
+                sb.DrawString(labelFont, stHint,
+                    new Vector2(stScreen.X - stSize.X / 2, stScreen.Y - 58), new Color(210, 170, 255));
+            }
+            // Fallen teammates: the hold-to-revive hint and the channel bar.
+            foreach (var mate in world.Players.Values)
+            {
+                if (mate.IsLocal || mate.Alive) continue;
+                var mateScreen = camera.WorldToScreen(mate.Position, mate.Height);
+                if (System.Numerics.Vector2.Distance(hintMe.Position, mate.Position) <= 1.8f)
+                {
+                    const string rvHint = "Hold F  Revive";
+                    var rvSize = labelFont.MeasureString(rvHint);
+                    sb.DrawString(labelFont, rvHint,
+                        new Vector2(mateScreen.X - rvSize.X / 2, mateScreen.Y - 58), new Color(150, 255, 170));
+                }
+                if (mate.RevivePercent > 0)
+                {
+                    var bar = new Rectangle((int)mateScreen.X - 22, (int)mateScreen.Y - 44, 44, 5);
+                    sb.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 210));
+                    sb.Draw(TextureGen.Pixel,
+                        new Rectangle(bar.X, bar.Y, bar.Width * mate.RevivePercent / 100, bar.Height),
+                        new Color(120, 240, 150));
+                }
             }
         }
 

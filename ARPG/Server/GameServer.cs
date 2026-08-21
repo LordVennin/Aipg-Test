@@ -271,6 +271,9 @@ public class GameServer : IServerEvents
             case PacketType.ShopBuybackRequest:
                 World.ShopBuyback(playerId, r.GetInt(), r.GetGuid());
                 break;
+            case PacketType.ReviveRequest:
+                World.RevivePulse(playerId, r.GetInt());
+                break;
         }
     }
 
@@ -573,6 +576,17 @@ public class GameServer : IServerEvents
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void EnemyCastAoe(ServerEnemy e, Vector2 at, float radius, float windup, byte phase)
+    {
+        var w = Packets.Make(PacketType.EnemyCastAoe);
+        w.PutVec2(at);
+        w.Put(radius);
+        w.Put(windup);
+        w.Put(e.Height);
+        w.Put(phase);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void EnemyAttacked(ServerEnemy e, byte phase, System.Numerics.Vector2 dir)
     {
         var w = Packets.Make(PacketType.EnemyAttack);
@@ -618,6 +632,8 @@ public class GameServer : IServerEvents
         w.Put(p.ManaReserved);
         w.Put(MathF.Max(0f, p.PotionHealUntil - World.Time));
         w.Put(MathF.Max(0f, p.PotionManaUntil - World.Time));
+        // Revive channel progress on this (dead) player, 0-100, for the corpse bar.
+        w.Put((byte)Math.Clamp((int)(p.ReviveProgress * 100f / ServerWorld.ReviveChannelTime), 0, 100));
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

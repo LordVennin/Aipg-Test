@@ -410,6 +410,26 @@ Hosted games now run the actual GAME LOOP instead of the old test arena
   (`StoneBrick` themes bake masonry into the floor diamonds and wall prism faces),
   while run maps keep the campaign's zone theme — the map packets carry each MAP's
   theme id, so clients swap automatically at the door.
+- **The stash**: a banded chest by the hub's north wall — press `F` beside it to
+  open your storage (the bag opens alongside for dragging). Storage is tied to
+  the CONTAINER object, not a global array: the character holds one 10x8 grid
+  per container id (`hub_stash` today; future player rooms add more), every
+  move is server-validated with a reach check, and contents persist on the save.
+- **Death & revival**: dying in the campaign leaves a corpse — no auto-respawn.
+  A living teammate revives you by standing at the corpse and **holding `F`**
+  for 2.5 seconds (server-timed, with a progress bar over the body; letting go
+  bleeds the channel back down). You stand back up in place at half health. If
+  the WHOLE party goes down, the run ends: the Sanctum reclaims everyone alive
+  at full health, and coming home through the door also revives any dead.
+- **Bows & quivers**: a second weapon class — bows are two-handed ranged
+  weapons that uniquely share with a **quiver** in the off-hand (implicit
+  attack speed by tier). **Arrow Shot** (from the trainer) is a zero-mana
+  weapon-damage arrow — a bow build's bread-and-butter. Bow attacks deal
+  Thrust; three bow and quiver tiers drop as loot at levels 1/15/35.
+- **New undead**: **Crypt Leapers** (loop 1+) telegraph a ground line, then
+  leap it; **Grave Callers** (loop 2+) raise runty Shamblers mid-fight and
+  drop purple-telegraphed dark AoE circles that lock at cast start — step out
+  before they fill.
 - **Ready doors**: stand at a door and press `F` to toggle READY (shown over the
   door and in chat). The group transitions only when EVERY living player is ready —
   nobody gets left behind in multiplayer. Transitions rebuild the world server-side
@@ -796,7 +816,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (463 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (488 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

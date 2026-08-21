@@ -365,6 +365,16 @@ public class InventoryUI
             return;
         }
 
+        // Quivers show their tube-of-arrows sprite.
+        var quiverTex = SpriteGen.GetQuiverSprite(b);
+        if (quiverTex != null)
+        {
+            int qH = rect.Height - 8;
+            int qW = qH * quiverTex.Width / quiverTex.Height;
+            sb.Draw(quiverTex, new Rectangle(rect.Center.X - qW / 2, rect.Center.Y - qH / 2, qW, qH), Color.White);
+            return;
+        }
+
         // Weapons show their actual sprite (upright); everything else keeps initials.
         var weaponTex = SpriteGen.GetWeaponSprite(b);
         if (weaponTex != null)

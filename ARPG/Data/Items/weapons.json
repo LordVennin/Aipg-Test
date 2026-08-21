@@ -1,123 +1,182 @@
 [
-  {
-    "Id": "wooden_club",
-    "Name": "Wooden Club",
-    "Category": "Mace",
-    "InventoryWidth": 1,
-    "InventoryHeight": 3,
-    "RequiredLevel": 1,
-    "BaseModifierLimit": 6,
-    "DropWeight": 120,
-    "Description": "A crude but dependable club.",
-    "BaseStats": {
-      "MinPhysicalDamage": 4,
-      "MaxPhysicalDamage": 7,
-      "BaseAttackSpeed": 1.3,
-      "WeaponRange": 1.5
-    },
-    "SpriteColor": "8B6A3F"
+ {
+  "Id": "wooden_club",
+  "Name": "Wooden Club",
+  "Category": "Mace",
+  "InventoryWidth": 1,
+  "InventoryHeight": 3,
+  "RequiredLevel": 1,
+  "BaseModifierLimit": 6,
+  "DropWeight": 120,
+  "Description": "A crude but dependable club.",
+  "BaseStats": {
+   "MinPhysicalDamage": 4,
+   "MaxPhysicalDamage": 7,
+   "BaseAttackSpeed": 1.3,
+   "WeaponRange": 1.5
   },
-  {
-    "Id": "iron_mace",
-    "Name": "Iron Mace",
-    "Category": "Mace",
-    "InventoryWidth": 1,
-    "InventoryHeight": 3,
-    "RequiredLevel": 15,
-    "BaseModifierLimit": 6,
-    "DropWeight": 90,
-    "Description": "Solid iron on a hardwood haft.",
-    "BaseStats": {
-      "MinPhysicalDamage": 9,
-      "MaxPhysicalDamage": 14,
-      "BaseAttackSpeed": 1.2,
-      "WeaponRange": 1.6
-    },
-    "SpriteColor": "9AA0A8",
-    "RequiredStrength": 8
+  "SpriteColor": "8B6A3F"
+ },
+ {
+  "Id": "iron_mace",
+  "Name": "Iron Mace",
+  "Category": "Mace",
+  "InventoryWidth": 1,
+  "InventoryHeight": 3,
+  "RequiredLevel": 15,
+  "BaseModifierLimit": 6,
+  "DropWeight": 90,
+  "Description": "Solid iron on a hardwood haft.",
+  "BaseStats": {
+   "MinPhysicalDamage": 9,
+   "MaxPhysicalDamage": 14,
+   "BaseAttackSpeed": 1.2,
+   "WeaponRange": 1.6
   },
-  {
-    "Id": "heavy_war_mace",
-    "Name": "Heavy War Mace",
-    "Category": "Mace",
-    "InventoryWidth": 2,
-    "InventoryHeight": 3,
-    "RequiredLevel": 35,
-    "BaseModifierLimit": 7,
-    "DropWeight": 50,
-    "Description": "A brutal two-fisted head-crusher.",
-    "BaseStats": {
-      "MinPhysicalDamage": 16,
-      "MaxPhysicalDamage": 26,
-      "BaseAttackSpeed": 1.0,
-      "WeaponRange": 1.7
-    },
-    "SpriteColor": "6E747E",
-    "RequiredStrength": 10
+  "SpriteColor": "9AA0A8",
+  "RequiredStrength": 8
+ },
+ {
+  "Id": "heavy_war_mace",
+  "Name": "Heavy War Mace",
+  "Category": "Mace",
+  "InventoryWidth": 2,
+  "InventoryHeight": 3,
+  "RequiredLevel": 35,
+  "BaseModifierLimit": 7,
+  "DropWeight": 50,
+  "Description": "A brutal two-fisted head-crusher.",
+  "BaseStats": {
+   "MinPhysicalDamage": 16,
+   "MaxPhysicalDamage": 26,
+   "BaseAttackSpeed": 1.0,
+   "WeaponRange": 1.7
   },
-  {
-    "Id": "oak_staff",
-    "Name": "Oak Staff",
-    "Category": "Staff",
-    "InventoryWidth": 2,
-    "InventoryHeight": 4,
-    "RequiredLevel": 1,
-    "BaseModifierLimit": 6,
-    "DropWeight": 110,
-    "Description": "A plain oak focus for novice casters.",
-    "BaseStats": {
-      "SpellDamage": 20,
-      "CastSpeed": 5,
-      "MinPhysicalDamage": 3,
-      "MaxPhysicalDamage": 5,
-      "BaseAttackSpeed": 1.1,
-      "WeaponRange": 1.6
-    },
-    "SpriteColor": "7FBF5F",
-    "TwoHanded": true
+  "SpriteColor": "6E747E",
+  "RequiredStrength": 10
+ },
+ {
+  "Id": "oak_staff",
+  "Name": "Oak Staff",
+  "Category": "Staff",
+  "InventoryWidth": 2,
+  "InventoryHeight": 4,
+  "RequiredLevel": 1,
+  "BaseModifierLimit": 6,
+  "DropWeight": 110,
+  "Description": "A plain oak focus for novice casters.",
+  "BaseStats": {
+   "SpellDamage": 20,
+   "CastSpeed": 5,
+   "MinPhysicalDamage": 3,
+   "MaxPhysicalDamage": 5,
+   "BaseAttackSpeed": 1.1,
+   "WeaponRange": 1.6
   },
-  {
-    "Id": "mystic_staff",
-    "Name": "Mystic Staff",
-    "Category": "Staff",
-    "InventoryWidth": 2,
-    "InventoryHeight": 4,
-    "RequiredLevel": 15,
-    "BaseModifierLimit": 6,
-    "DropWeight": 80,
-    "Description": "Carved runes hum along its length.",
-    "BaseStats": {
-      "SpellDamage": 35,
-      "CastSpeed": 8,
-      "MinPhysicalDamage": 4,
-      "MaxPhysicalDamage": 7,
-      "BaseAttackSpeed": 1.1,
-      "WeaponRange": 1.6
-    },
-    "SpriteColor": "5F8FEF",
-    "TwoHanded": true,
-    "RequiredIntelligence": 8
+  "SpriteColor": "7FBF5F",
+  "TwoHanded": true
+ },
+ {
+  "Id": "mystic_staff",
+  "Name": "Mystic Staff",
+  "Category": "Staff",
+  "InventoryWidth": 2,
+  "InventoryHeight": 4,
+  "RequiredLevel": 15,
+  "BaseModifierLimit": 6,
+  "DropWeight": 80,
+  "Description": "Carved runes hum along its length.",
+  "BaseStats": {
+   "SpellDamage": 35,
+   "CastSpeed": 8,
+   "MinPhysicalDamage": 4,
+   "MaxPhysicalDamage": 7,
+   "BaseAttackSpeed": 1.1,
+   "WeaponRange": 1.6
   },
-  {
-    "Id": "arcane_staff",
-    "Name": "Arcane Staff",
-    "Category": "Staff",
-    "InventoryWidth": 2,
-    "InventoryHeight": 4,
-    "RequiredLevel": 35,
-    "BaseModifierLimit": 8,
-    "DropWeight": 45,
-    "Description": "Raw power crackles at its tip.",
-    "BaseStats": {
-      "SpellDamage": 50,
-      "CastSpeed": 12,
-      "MinPhysicalDamage": 5,
-      "MaxPhysicalDamage": 9,
-      "BaseAttackSpeed": 1.0,
-      "WeaponRange": 1.6
-    },
-    "SpriteColor": "B06FEF",
-    "TwoHanded": true,
-    "RequiredIntelligence": 10
-  }
+  "SpriteColor": "5F8FEF",
+  "TwoHanded": true,
+  "RequiredIntelligence": 8
+ },
+ {
+  "Id": "arcane_staff",
+  "Name": "Arcane Staff",
+  "Category": "Staff",
+  "InventoryWidth": 2,
+  "InventoryHeight": 4,
+  "RequiredLevel": 35,
+  "BaseModifierLimit": 8,
+  "DropWeight": 45,
+  "Description": "Raw power crackles at its tip.",
+  "BaseStats": {
+   "SpellDamage": 50,
+   "CastSpeed": 12,
+   "MinPhysicalDamage": 5,
+   "MaxPhysicalDamage": 9,
+   "BaseAttackSpeed": 1.0,
+   "WeaponRange": 1.6
+  },
+  "SpriteColor": "B06FEF",
+  "TwoHanded": true,
+  "RequiredIntelligence": 10
+ },
+ {
+  "Id": "short_bow",
+  "Name": "Short Bow",
+  "Category": "Bow",
+  "InventoryWidth": 2,
+  "InventoryHeight": 3,
+  "RequiredLevel": 1,
+  "BaseModifierLimit": 6,
+  "DropWeight": 110,
+  "TwoHanded": true,
+  "Description": "A simple hunter's bow of springy yew.",
+  "BaseStats": {
+   "MinPhysicalDamage": 3,
+   "MaxPhysicalDamage": 6,
+   "BaseAttackSpeed": 1.5,
+   "WeaponRange": 11
+  },
+  "SpriteColor": "A8834F"
+ },
+ {
+  "Id": "hunting_bow",
+  "Name": "Hunting Bow",
+  "Category": "Bow",
+  "InventoryWidth": 2,
+  "InventoryHeight": 3,
+  "RequiredLevel": 15,
+  "BaseModifierLimit": 6,
+  "DropWeight": 85,
+  "TwoHanded": true,
+  "RequiredDexterity": 8,
+  "Description": "Laminated limbs with a smooth, heavy draw.",
+  "BaseStats": {
+   "MinPhysicalDamage": 7,
+   "MaxPhysicalDamage": 12,
+   "BaseAttackSpeed": 1.4,
+   "WeaponRange": 11.5
+  },
+  "SpriteColor": "8F6B3B"
+ },
+ {
+  "Id": "war_bow",
+  "Name": "War Bow",
+  "Category": "Bow",
+  "InventoryWidth": 2,
+  "InventoryHeight": 3,
+  "RequiredLevel": 35,
+  "BaseModifierLimit": 7,
+  "DropWeight": 50,
+  "TwoHanded": true,
+  "RequiredDexterity": 14,
+  "Description": "A soldier's longbow, made to punch through mail.",
+  "BaseStats": {
+   "MinPhysicalDamage": 13,
+   "MaxPhysicalDamage": 22,
+   "BaseAttackSpeed": 1.25,
+   "WeaponRange": 12
+  },
+  "SpriteColor": "6E4F2A"
+ }
 ]

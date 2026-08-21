@@ -53,7 +53,7 @@
  {
   "Id": "ground_slam",
   "Name": "Ground Slam",
-  "Description": "Raise your mace overhead and smash the earth — the ground cracks around you, hurling enemies back and briefly stunning them.",
+  "Description": "Raise your mace overhead and smash the earth \u2014 the ground cracks around you, hurling enemies back and briefly stunning them.",
   "Tags": [
    "Attack",
    "Melee",
@@ -243,5 +243,30 @@
   "SummonMelee": true,
   "Cooldown": 0.5,
   "UseTime": 0.35
+ },
+ {
+  "Id": "arrow_shot",
+  "Name": "Arrow Shot",
+  "Description": "Loose an arrow at the cursor. Costs nothing but the draw \u2014 a bow's bread and butter.",
+  "Tags": [
+   "Attack",
+   "Ranged",
+   "Projectile",
+   "Physical",
+   "Bow"
+  ],
+  "Archetype": "Projectile",
+  "DamageKind": "Thrust",
+  "UsesWeaponDamage": true,
+  "WeaponDamageMultiplier": 1.1,
+  "WeaponDamageMultiplierPerLevel": 0.08,
+  "RequiredWeapon": "Bow",
+  "Cooldown": 0.3,
+  "Range": 11,
+  "ProjectileSpeed": 13,
+  "ProjectileCount": 1,
+  "ManaCost": 0,
+  "UseTime": 0.3,
+  "ProjectileSprite": "Arrow"
  }
 ]

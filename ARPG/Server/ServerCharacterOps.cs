@@ -4,6 +4,7 @@ using ARPG.Items;
 using ARPG.Net;
 using ARPG.Sim;
 using ARPG.Skills;
+using ARPG.World;
 
 namespace ARPG.Server;
 
@@ -102,7 +103,55 @@ public partial class ServerWorld
                     inv.Items.Add(new PlacedItem { Item = item, X = dst.X, Y = dst.Y });
                     return true;
                 }
+                if (src.Kind == ItemLocationKind.Stash)
+                {
+                    if (!StashInReach(p, src.ContainerId)) { error = "You are not at the stash."; return false; }
+                    var srcStash = c.GetStash(src.ContainerId);
+                    if (!inv.CanPlaceAt(Data, item, dst.X, dst.Y))
+                    {
+                        if (!inv.TryFindFreeSlot(Data, item, out int fx, out int fy)) { error = "Inventory is full."; return false; }
+                        dst.X = fx; dst.Y = fy;
+                    }
+                    srcStash.Items.Remove(srcStash.FindByInstance(item.InstanceId));
+                    inv.Items.Add(new PlacedItem { Item = item, X = dst.X, Y = dst.Y });
+                    return true;
+                }
                 return false;
+            }
+
+            case ItemLocationKind.Stash:
+            {
+                if (!StashInReach(p, dst.ContainerId)) { error = "You are not at the stash."; return false; }
+                var stash = c.GetStash(dst.ContainerId);
+                if (src.Kind == ItemLocationKind.Stash && src.ContainerId == dst.ContainerId)
+                {
+                    // Reposition within the container.
+                    var placedS = stash.FindByInstance(item.InstanceId);
+                    if (stash.CanPlaceAt(Data, item, dst.X, dst.Y, item.InstanceId))
+                    {
+                        placedS.X = dst.X;
+                        placedS.Y = dst.Y;
+                        return true;
+                    }
+                    error = "No room there.";
+                    return false;
+                }
+                if (!stash.CanPlaceAt(Data, item, dst.X, dst.Y))
+                {
+                    if (!stash.TryFindFreeSlot(Data, item, out int sx, out int sy)) { error = "The stash is full."; return false; }
+                    dst.X = sx; dst.Y = sy;
+                }
+                if (src.Kind == ItemLocationKind.Grid)
+                    inv.Items.Remove(inv.FindByInstance(item.InstanceId));
+                else if (src.Kind == ItemLocationKind.Equipment)
+                    c.Equipment.Remove((EquipSlot)src.EquipSlot);
+                else
+                {
+                    error = "Cannot stash that from there.";
+                    return false;
+                }
+                stash.Items.Add(new PlacedItem { Item = item, X = dst.X, Y = dst.Y });
+                return true;
             }
 
             case ItemLocationKind.Equipment:
@@ -141,9 +190,11 @@ public partial class ServerWorld
                     return false;
                 }
 
-                // Hand rules: a two-handed weapon occupies both hands.
+                // Hand rules: a two-handed weapon occupies both hands — EXCEPT a bow,
+                // which shares with (only) a quiver.
                 if (slot == EquipSlot.OffHand &&
-                    c.Equipment.GetValueOrDefault(EquipSlot.MainHand)?.GetBase(Data) is { IsWeapon: true, TwoHanded: true } mainBase)
+                    c.Equipment.GetValueOrDefault(EquipSlot.MainHand)?.GetBase(Data) is { IsWeapon: true, TwoHanded: true } mainBase &&
+                    !(mainBase.Category == ItemCategory.Bow && itemBase.Category == ItemCategory.Quiver))
                 {
                     error = $"Cannot use the off-hand while the two-handed {mainBase.Name} is equipped.";
                     return false;
@@ -151,7 +202,9 @@ public partial class ServerWorld
                 if (slot == EquipSlot.MainHand && itemBase.IsWeapon && itemBase.TwoHanded)
                 {
                     var offHand = c.Equipment.GetValueOrDefault(EquipSlot.OffHand);
-                    if (offHand != null)
+                    bool offHandStays = itemBase.Category == ItemCategory.Bow &&
+                                        offHand?.GetBase(Data).Category == ItemCategory.Quiver;
+                    if (offHand != null && !offHandStays)
                     {
                         // Auto-unequip the off-hand item to the bag; fail if there is no room.
                         if (!inv.TryFindFreeSlot(Data, offHand, out int ox, out int oy))
@@ -276,8 +329,16 @@ public partial class ServerWorld
                                        loc.ScrollIndex >= 0 && loc.ScrollIndex < s.Scrolls.Count
             ? s.Scrolls[loc.ScrollIndex]
             : null,
+        ItemLocationKind.Stash => c.GetStash(loc.ContainerId).ItemAtCell(loc.X, loc.Y, Data)?.Item,
         _ => null,
     };
+
+    /// <summary>Whether this player can use the given stash container RIGHT NOW —
+    /// storage is tied to a physical object, so moves require standing beside it.
+    /// Today there is one container: the hub's stash chest.</summary>
+    private bool StashInReach(ServerPlayer p, string containerId) =>
+        containerId == GameMap.HubStashId && Map.Kind == MapKind.Hub &&
+        Vector2.Distance(p.Position, Map.StashSpot) <= 3.0f;
 
     /// <summary>
     /// Apply an Enchanting Scroll (by instance id) to a target item (grid or equipped).
