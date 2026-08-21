@@ -501,6 +501,7 @@ public partial class ServerWorld
                     "hide" => new[] { "hide_hood", "hide_tunic", "hide_gloves", "hide_boots", "rope_belt" },
                     "cloth" => new[] { "cloth_cowl", "cloth_robe", "cloth_wraps", "cloth_slippers", "rope_belt" },
                     "plate" => new[] { "warplate_helm", "iron_plate", "warplate_gauntlets", "warplate_greaves", "rope_belt" },
+                    "archer" => new[] { "short_bow", "leather_quiver", "hunters_hood", "hunters_jerkin", "hunters_gloves", "hunters_treads", "rope_belt" },
                     _ => new[] { "iron_cap", "iron_mail", "iron_gauntlets", "iron_greaves", "rope_belt" },
                 };
                 foreach (var id in setIds)

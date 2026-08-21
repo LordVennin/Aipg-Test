@@ -3323,6 +3323,20 @@ public static class HeadlessNetTest
               armoredB.GlovesBaseId == "warplate_gauntlets" && armoredB.BootsBaseId == "warplate_greaves" &&
               armoredB.BeltBaseId == "rope_belt",
               "all five worn armor slots replicate through PlayerAppearance");
+        // Quivers genuinely drop from the shared loot pool (they're uncommon: weight 45
+        // against ~100 per base — this pins the pool wiring, not the exact rate).
+        var probeGen = new Items.LootGenerator(data, new Random(4242));
+        var probeTable = data.GetLootTable("default");
+        int quiverDrops = 0, bowDrops = 0;
+        for (int i = 0; i < 600; i++)
+        {
+            var probeItem = probeGen.GenerateEquipment(probeTable, 8);
+            if (probeItem?.GetBase(data).Category == Items.ItemCategory.Quiver) quiverDrops++;
+            if (probeItem?.GetBase(data).Category == Items.ItemCategory.Bow) bowDrops++;
+        }
+        Check(quiverDrops > 0 && bowDrops > 0,
+              $"bows and quivers appear in the drop pool ({bowDrops} bows, {quiverDrops} quivers per 600)");
+
         // 4-way body facing: aim (mouse) direction picks front/back/side, side mirrors west.
         Check(Render.WorldRenderer.BodyDirIndex(new Vector2(1, 1), out bool faceS) == Render.SpriteGen.DirSouth && !faceS &&
               Render.WorldRenderer.BodyDirIndex(new Vector2(-1, -1), out _) == Render.SpriteGen.DirNorth &&

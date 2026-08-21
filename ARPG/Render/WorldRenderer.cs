@@ -1145,6 +1145,9 @@ public class WorldRenderer
                 var perp = new Vector2(-screenDir.Y, screenDir.X);
                 bool bothHands = weaponTex != null && offHandTex != null;
                 bool swinging = p.SwingTimeLeft > 0 && weaponTex != null;
+                // A swing aimed away from the camera arcs above the head — layer it
+                // BEHIND the body so the weapon never floats on top of the sprite.
+                bool swingBehind = swinging && p.SwingDir.X + p.SwingDir.Y < -0.1f;
 
                 void DrawHeld(Texture2D tex, float side)
                 {
@@ -1207,6 +1210,7 @@ public class WorldRenderer
                 }
 
                 if (weaponBehind) DrawHands();
+                if (swingBehind) DrawSwingingWeapon();
                 var look = new SpriteGen.PlayerLook
                 {
                     BodyStyle = p.BodyStyle,
@@ -1261,7 +1265,7 @@ public class WorldRenderer
                     DrawAilmentAuras(batch, Server.EnemyDebuffs.Shocked,
                         new Rectangle((int)screen.X - 17, (int)screen.Y - 40, 34, 40), p.Id + 900);
                 if (!weaponBehind) DrawHands();
-                if (swinging) DrawSwingingWeapon();
+                if (swinging && !swingBehind) DrawSwingingWeapon();
 
                 var font = FontManager.Get(13);
                 var nameSize = font.MeasureString(name);

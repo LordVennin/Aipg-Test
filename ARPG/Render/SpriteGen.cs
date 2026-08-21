@@ -61,6 +61,199 @@ public static class SpriteGen
         return tex;
     }
 
+    /// <summary>Inventory icon for worn armor and jewelry: a small upright glyph per
+    /// category, shaped by the base's ArmorStyle and tinted by its SpriteColor — so a
+    /// hood, a cap and a full helm read apart at a glance in the bag. Cached per base.</summary>
+    public static Texture2D GetArmorSprite(Items.ItemBase itemBase)
+    {
+        if (_device == null || itemBase == null) return null;
+        bool armorish = itemBase.Category is Items.ItemCategory.Helmet or Items.ItemCategory.BodyArmor
+            or Items.ItemCategory.Gloves or Items.ItemCategory.Boots or Items.ItemCategory.Belt
+            or Items.ItemCategory.Amulet or Items.ItemCategory.Ring;
+        if (!armorish) return null;
+        string key = "armor:" + itemBase.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+        var tint = WorldRenderer.ParseColor(itemBase.SpriteColor, new Color(140, 128, 110));
+        var tex = itemBase.Category switch
+        {
+            Items.ItemCategory.Helmet => DrawHelmetIcon(PlayerLook.HelmetStyleId(itemBase.ArmorStyle), tint),
+            Items.ItemCategory.BodyArmor => DrawBodyArmorIcon(PlayerLook.ArmorStyleId(itemBase.ArmorStyle), tint),
+            Items.ItemCategory.Gloves => DrawGlovesIcon(tint),
+            Items.ItemCategory.Boots => DrawBootsIcon(tint),
+            Items.ItemCategory.Belt => DrawBeltIcon(tint),
+            Items.ItemCategory.Amulet => DrawAmuletIcon(tint),
+            _ => DrawRingIcon(tint),
+        };
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    private static Texture2D DrawHelmetIcon(byte style, Color c)
+    {
+        const int w = 14, h = 13;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color k) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = k; }
+        void Rect(int x0, int y0, int x1, int y1, Color k)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, k); }
+        var dark = Shade(c, 0.68f);
+        var light = Shade(c, 1.25f);
+        var hollow = new Color(24, 22, 20);
+        switch (style)
+        {
+            case 3: // cap: open dome, rim, cheek guards.
+                Rect(3, 2, 10, 5, c);
+                Rect(4, 1, 9, 1, light);
+                Rect(2, 6, 11, 6, dark);
+                Rect(2, 7, 3, 10, c); Rect(10, 7, 11, 10, c);
+                Rect(5, 7, 8, 10, hollow);
+                break;
+            case 4: // helm: closed box with an eye slit.
+                Rect(2, 1, 11, 11, c);
+                Rect(3, 0, 10, 0, light);
+                Rect(3, 5, 10, 5, hollow);
+                Rect(6, 7, 7, 10, dark);
+                Set(2, 11, dark); Set(11, 11, dark);
+                break;
+            default: // hood (and cowl adds the peak): soft drape with a dark opening.
+                Rect(3, 2, 10, 4, c);
+                Rect(2, 5, 3, 11, c); Rect(10, 5, 11, 11, c);
+                Rect(2, 11, 11, 11, dark);
+                Rect(4, 5, 9, 10, hollow);
+                Set(3, 2, light); Set(10, 2, light);
+                if (style == 2) { Rect(6, 0, 7, 1, c); Set(6, 0, light); } // cowl peak
+                break;
+        }
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawBodyArmorIcon(byte style, Color c)
+    {
+        const int w = 14, h = 15;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color k) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = k; }
+        void Rect(int x0, int y0, int x1, int y1, Color k)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, k); }
+        var dark = Shade(c, 0.68f);
+        var light = Shade(c, 1.25f);
+        // Shared shoulders + neck hole.
+        Rect(1, 1, 12, 3, c);
+        Rect(5, 1, 8, 1, new Color(24, 22, 20));
+        Set(1, 1, dark); Set(12, 1, dark);
+        switch (style)
+        {
+            case 1: // cloth: a long robe with a center fold and hem.
+                Rect(2, 4, 11, 13, c);
+                Rect(2, 13, 11, 13, dark);
+                Rect(6, 4, 6, 12, dark);
+                break;
+            case 3: // mail: cropped torso in rings.
+                Rect(2, 4, 11, 11, c);
+                for (int y = 4; y <= 11; y++)
+                    for (int x = 2; x <= 11; x++)
+                        if (((x + y) & 1) == 0) Set(x, y, light);
+                Rect(2, 11, 11, 11, dark);
+                break;
+            case 4: // plate: cuirass with ridge and waist cut.
+                Rect(2, 4, 11, 10, c);
+                Rect(4, 4, 4, 10, light);
+                Rect(2, 8, 11, 8, dark);
+                Rect(3, 11, 10, 12, c);
+                Rect(3, 12, 10, 12, dark);
+                break;
+            default: // leather: jerkin with a chest strap and stitches.
+                Rect(2, 4, 11, 12, c);
+                Rect(2, 7, 11, 7, dark);
+                Rect(2, 12, 11, 12, dark);
+                Set(3, 5, dark); Set(10, 5, dark); Set(3, 10, dark); Set(10, 10, dark);
+                break;
+        }
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawGlovesIcon(Color c)
+    {
+        const int w = 14, h = 11;
+        var px = new Color[w * h];
+        void Rect(int x0, int y0, int x1, int y1, Color k)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = k; }
+        var dark = Shade(c, 0.68f);
+        // A mirrored pair of mitts with cuffs and thumbs.
+        Rect(1, 1, 5, 2, dark); Rect(8, 1, 12, 2, dark);      // cuffs
+        Rect(1, 3, 5, 8, c); Rect(8, 3, 12, 8, c);
+        Rect(0, 4, 0, 6, c); Rect(13, 4, 13, 6, c);           // thumbs
+        Rect(1, 8, 5, 8, dark); Rect(8, 8, 12, 8, dark);
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawBootsIcon(Color c)
+    {
+        const int w = 15, h = 12;
+        var px = new Color[w * h];
+        void Rect(int x0, int y0, int x1, int y1, Color k)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = k; }
+        var dark = Shade(c, 0.68f);
+        var sole = new Color(40, 34, 28);
+        // Two boots, toes pointing right.
+        Rect(1, 1, 4, 8, c); Rect(8, 1, 11, 8, c);            // shafts
+        Rect(1, 8, 6, 10, c); Rect(8, 8, 13, 10, c);          // feet
+        Rect(1, 10, 6, 10, sole); Rect(8, 10, 13, 10, sole);  // soles
+        Rect(1, 1, 4, 1, dark); Rect(8, 1, 11, 1, dark);      // cuffs
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawBeltIcon(Color c)
+    {
+        const int w = 15, h = 9;
+        var px = new Color[w * h];
+        void Rect(int x0, int y0, int x1, int y1, Color k)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = k; }
+        var dark = Shade(c, 0.68f);
+        var buckle = new Color(184, 178, 150);
+        Rect(0, 3, 14, 6, c);                                 // strap
+        Rect(0, 3, 14, 3, Shade(c, 1.2f));
+        Rect(0, 6, 14, 6, dark);
+        Rect(5, 2, 9, 7, buckle);                             // buckle frame
+        Rect(6, 3, 8, 6, c);                                  // buckle window
+        Rect(7, 3, 7, 6, Shade(buckle, 0.7f));                // prong
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawAmuletIcon(Color c)
+    {
+        const int w = 13, h = 14;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color k) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = k; }
+        var cord = new Color(120, 100, 70);
+        // Cord: a V from the top corners down to the pendant.
+        for (int i = 0; i <= 5; i++) { Set(1 + i, i, cord); Set(11 - i, i, cord); }
+        // Pendant: a diamond of the tint with a glint.
+        for (int dy = -3; dy <= 3; dy++)
+            for (int dx = -3; dx <= 3; dx++)
+                if (Math.Abs(dx) + Math.Abs(dy) <= 3) Set(6 + dx, 9 + dy, c);
+        Set(5, 8, Shade(c, 1.45f));
+        Set(6, 12, Shade(c, 0.6f));
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawRingIcon(Color c)
+    {
+        const int w = 11, h = 11;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color k) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = k; }
+        var band = new Color(196, 186, 150);
+        var bandDark = Shade(band, 0.7f);
+        // The band: a ring of pixels; the stone: the tint on top.
+        for (int a = 0; a < 24; a++)
+        {
+            double ang = a * Math.PI / 12;
+            Set(5 + (int)Math.Round(3.2 * Math.Cos(ang)), 6 + (int)Math.Round(3.2 * Math.Sin(ang)),
+                ang < Math.PI ? band : bandDark);
+        }
+        Set(4, 1, c); Set(5, 1, c); Set(6, 1, c); Set(5, 0, c);
+        Set(4, 1, Shade(c, 1.4f));
+        return BakeStrip(px, w, h);
+    }
+
     /// <summary>Friendly NPC sprites. Cached per type id — the skill trainer is the
     /// same hooded silhouette in scholar's violet with a tome instead of a satchel.</summary>
     public static Texture2D GetNpcSprite(string typeId)
@@ -1668,31 +1861,30 @@ public static class SpriteGen
     /// the grip, a nocked arrow along the middle.</summary>
     private static Texture2D DrawBow(Color wood)
     {
-        const int w = 26, h = 18;
+        // Drawn ALONG X like every held weapon (the renderer rotates -90°, so in hand
+        // the bow stands upright): a clean stave arc with the string on the chord —
+        // no nocked arrow (arrows exist only as flying projectiles).
+        const int w = 30, h = 12;
         var px = new Color[w * h];
         void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
 
         var woodDark = Shade(wood, 0.7f);
         var stringC = new Color(222, 222, 210);
-        var shaft = new Color(150, 120, 78);
-        var head = new Color(200, 205, 215);
-        var fletch = new Color(214, 214, 220);
+        var grip = new Color(88, 64, 42);
 
-        // Stave: a vertical arc bulging RIGHT (toward the shot), tips at top/bottom left.
-        for (int y = 1; y < h - 1; y++)
+        // String first: the straight chord between the tips.
+        for (int x = 3; x <= 26; x++) Set(x, 3, stringC);
+        // Stave: tips at the string, belly bulging away from it.
+        for (int x = 2; x <= 27; x++)
         {
-            float t = (y - 1) / (float)(h - 3);           // 0..1 down the stave
-            int x = 4 + (int)(6f * MathF.Sin(t * MathF.PI)); // 4 at tips, 10 mid
+            float t = (x - 2) / 25f;
+            int y = 3 + (int)(5.6f * MathF.Sin(t * MathF.PI)); // 3 at tips, ~9 mid
             Set(x, y, wood);
-            Set(x - 1, y, woodDark);
+            Set(x, y + 1, woodDark);
         }
-        // String: straight line between the tips.
-        for (int y = 2; y < h - 2; y++) Set(3, y, stringC);
-        // Nocked arrow along the midline, drawn past the stave.
-        int mid = h / 2;
-        for (int x = 3; x <= 22; x++) Set(x, mid, shaft);
-        Set(23, mid, head); Set(24, mid, head); Set(23, mid - 1, head); Set(23, mid + 1, head);
-        Set(4, mid - 1, fletch); Set(5, mid - 1, fletch); Set(4, mid + 1, fletch); Set(5, mid + 1, fletch);
+        Set(2, 2, woodDark); Set(27, 2, woodDark);            // tip nocks
+        // Leather grip wrap at the middle of the belly.
+        for (int x = 13; x <= 16; x++) { Set(x, 8, grip); Set(x, 9, grip); Set(x, 10, Shade(grip, 0.7f)); }
 
         return BakeStrip(px, w, h);
     }

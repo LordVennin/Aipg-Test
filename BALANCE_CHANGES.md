@@ -576,3 +576,25 @@ falls down the back. Walking stays the only body animation by design;
 weapons keep hovering toward the cursor. The creation screen preview now
 turns on a slow turntable so you see all four sides before committing.
 Suite: **500 checks**.
+
+---
+
+# Addendum (batch 28): readability pass — swing layering, armor icons, the bow
+
+- **Up-swings layer behind the body.** A melee swing aimed away from the
+  camera used to draw the weapon on top of the character's head; it now
+  arcs behind the sprite like the held weapon already did.
+- **Armor shows as icons in the bag.** Every worn-armor category renders a
+  shaped, tinted glyph instead of text initials — hoods/cowls/caps/helms,
+  robes/jerkins/mail/cuirasses, gloves, boots, belts, plus amulets and
+  rings. Shapes follow the piece's ArmorStyle and colors its SpriteColor,
+  so an iron cap and a silk cowl read apart instantly.
+- **The bow is a bow now.** New held sprite: an upright stave with the
+  string on the chord and a leather grip — no baked-in arrow (arrows only
+  exist as flying projectiles). It hangs vertically at the side like a
+  carried bow.
+- **Quivers confirmed live**: they were always in the drop pool and the
+  merchant's roll (and the archer kit starts with one) — just uncommon at
+  weight 45. A new deterministic test pins the pool wiring (~2% of drops).
+  Dev aid: equip_set gained an "archer" family (bow + quiver + hunter set).
+- Suite: **501 checks**.
