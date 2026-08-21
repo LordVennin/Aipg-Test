@@ -16,6 +16,19 @@ public static class ItemTooltip
 {
     private record Line(string Text, Color Color, bool Bold = false, bool Separator = false);
 
+    /// <summary>The generic attack added-damage stats and their damage types — one
+    /// affix family that works identically on maces, bows and quivers.</summary>
+    private static readonly (StatType Stat, Skills.DamageKind Kind)[] AttackAddStats =
+    {
+        (StatType.AddedFireDamage, Skills.DamageKind.Fire),
+        (StatType.AddedColdDamage, Skills.DamageKind.Cold),
+        (StatType.AddedLightningDamage, Skills.DamageKind.Lightning),
+        (StatType.AddedAcidDamage, Skills.DamageKind.Acid),
+        (StatType.AddedDarkDamage, Skills.DamageKind.Dark),
+        (StatType.AddedLightDamage, Skills.DamageKind.Light),
+        (StatType.AddedArcaneDamage, Skills.DamageKind.Arcane),
+    };
+
     public static void Draw(SpriteBatch sb, GameData data, ItemInstance item, Point mouse, Point screenSize)
     {
         var lines = BuildLines(data, item);
@@ -88,6 +101,17 @@ public static class ItemTooltip
             float localScale = 1f + ModTotal(StatType.PhysicalDamage) / 100f;
             baseLines.Add(new Line(
                 $"Physical Damage: {(minD + added) * localScale:0}-{(maxD + added) * localScale:0}", white));
+        }
+        // Elemental ATTACK adds rolled on this item show as computed damage lines up
+        // top, colored by type — the same 0.8x-1.2x spread the combat math rolls onto
+        // every weapon attack, melee and ranged alike. (Staff SPELL adds are different
+        // stats entirely and stay in the modifier list: they scale spells, not swings.)
+        foreach (var (addStat, addKind) in AttackAddStats)
+        {
+            float v = ModTotal(addStat);
+            if (v > 0)
+                baseLines.Add(new Line($"{addKind} Damage: {v * 0.8f:0}-{v * 1.2f:0}",
+                    WorldRenderer.DamageKindColor(addKind)));
         }
         if (bs.TryGetValue(StatType.BaseAttackSpeed, out float aps))
             baseLines.Add(new Line($"Attack Speed: {aps:0.0#}", white));
