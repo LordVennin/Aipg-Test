@@ -375,6 +375,16 @@ public class InventoryUI
             return;
         }
 
+        // Worn armor and jewelry show a shaped, tinted glyph per category.
+        var armorTex = SpriteGen.GetArmorSprite(b);
+        if (armorTex != null)
+        {
+            float aScale = MathF.Min((rect.Width - 8f) / armorTex.Width, (rect.Height - 8f) / armorTex.Height);
+            int aW = (int)(armorTex.Width * aScale), aH = (int)(armorTex.Height * aScale);
+            sb.Draw(armorTex, new Rectangle(rect.Center.X - aW / 2, rect.Center.Y - aH / 2, aW, aH), Color.White);
+            return;
+        }
+
         // Weapons show their actual sprite (upright); everything else keeps initials.
         var weaponTex = SpriteGen.GetWeaponSprite(b);
         if (weaponTex != null)
