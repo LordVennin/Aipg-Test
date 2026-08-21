@@ -61,6 +61,36 @@ public static class SpriteGen
         return tex;
     }
 
+    /// <summary>The bow seen EDGE-ON — used when the character faces toward or away
+    /// from the camera, where the bow's plane is perpendicular to the screen and the
+    /// full arc shouldn't show. Same axis convention as every held weapon (drawn along
+    /// X, rotated upright by the renderer). Cached per base id.</summary>
+    public static Texture2D GetBowFrontSprite(Items.ItemBase itemBase)
+    {
+        if (itemBase == null || _device == null || itemBase.Category != Items.ItemCategory.Bow) return null;
+        string key = "bowfront:" + itemBase.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+
+        var wood = WorldRenderer.ParseColor(itemBase.SpriteColor, new Color(150, 150, 160));
+        var woodDark = Shade(wood, 0.7f);
+        var grip = new Color(88, 64, 42);
+        const int w = 30, h = 8;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+
+        // A near-straight stave: the limbs foreshorten to a stick, tips flare a pixel
+        // toward the viewer, and the grip bulges at the middle. No visible string.
+        for (int x = 3; x <= 26; x++) { Set(x, 3, wood); Set(x, 4, woodDark); }
+        Set(2, 3, woodDark); Set(27, 3, woodDark);            // tips
+        Set(2, 2, wood); Set(27, 2, wood);                    // tip flare toward the viewer
+        Set(6, 3, Shade(wood, 1.2f)); Set(23, 3, Shade(wood, 1.2f)); // limb sheen
+        for (int x = 13; x <= 16; x++) { Set(x, 2, grip); Set(x, 3, grip); Set(x, 4, grip); Set(x, 5, Shade(grip, 0.7f)); }
+
+        var tex = BakeStrip(px, w, h);
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
     /// <summary>Inventory icon for worn armor and jewelry: a small upright glyph per
     /// category, shaped by the base's ArmorStyle and tinted by its SpriteColor — so a
     /// hood, a cap and a full helm read apart at a glance in the bag. Cached per base.</summary>

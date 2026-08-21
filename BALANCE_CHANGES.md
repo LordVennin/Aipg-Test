@@ -598,3 +598,12 @@ Suite: **500 checks**.
   weight 45. A new deterministic test pins the pool wiring (~2% of drops).
   Dev aid: equip_set gained an "archer" family (bow + quiver + hunter set).
 - Suite: **501 checks**.
+
+---
+
+# Addendum (batch 29): the bow foreshortens with your facing
+
+Facing left or right you see the bow's full arc and string; facing toward or
+away from the camera the bow's plane is perpendicular to the screen, so it
+now draws EDGE-ON — a slim stave with the grip wrap and flared tips, no arc.
+Pure rendering; the bag icon keeps the full-arc silhouette for readability.
