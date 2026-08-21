@@ -628,3 +628,18 @@ Pure rendering; the bag icon keeps the full-arc silhouette for readability.
   both sides instead of drawing backwards on the left.
 - Suite: **504 checks** (ranged added-damage, local-vs-global %phys,
   quiver flat-phys wiring).
+
+---
+
+# Addendum (batch 31): elemental adds display on attack weapons
+
+Elemental added-damage rolls (fire / cold / lightning / acid / dark / light /
+arcane) on maces, bows and quivers now show as COMPUTED damage lines at the
+top of the tooltip — "Fire Damage: 4-6", colored by type, using the same
+0.8x-1.2x spread the combat math rolls. Combined with batch 30, the design
+is now one clean rule: a single generic "adds X damage" affix family works
+identically on every attack weapon, melee or ranged — no melee-only or
+ranged-only variants needed. Staffs are untouched: their spell-damage adds
+are separate stats that scale spells, and they stay in the modifier list.
+The character sheet's per-type DPS breakdown already included these
+components, so tooltip, sheet and hits all agree.
