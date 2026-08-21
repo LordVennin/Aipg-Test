@@ -115,6 +115,10 @@ public class ZoneTheme
     public string DeckA { get; set; } = "7A603E";
     public string DeckB { get; set; } = "70583A";
     public string DeckLip { get; set; } = "463624";
+    /// <summary>Masonry rendering: floors draw as laid stone slabs with mortar seams and
+    /// walls as coursed brick faces (the sanctum's purple stonework) instead of plain
+    /// tinted tiles.</summary>
+    public bool StoneBrick { get; set; }
     /// <summary>Clutter/feature sprite set: "graveyard", "tomb", "arid" or "forest".</summary>
     public string PropStyle { get; set; } = "graveyard";
     /// <summary>Chance per walkable tile of a small non-colliding clutter sprite.</summary>

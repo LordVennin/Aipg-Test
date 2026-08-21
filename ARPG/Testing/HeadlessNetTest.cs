@@ -3119,6 +3119,36 @@ public static class HeadlessNetTest
                   "an over-window ilvl falls back to the full pool instead of dropping nothing");
         }
 
+        Console.WriteLine("\n-- Drops rest ON the terrain --");
+        // Loot scattered at a terrace edge must never fall through the cliff: every
+        // drop's stored height matches the surface at its landing spot, so the pickup
+        // height gate always agrees with a player standing beside it.
+        {
+            var srvMap = server.World.Map;
+            int ex = -1, ey = -1;
+            for (int ty = 2; ty < srvMap.Height - 2 && ex < 0; ty++)
+                for (int tx = 2; tx < srvMap.Width - 2 && ex < 0; tx++)
+                    if (!srvMap.IsSolid(tx, ty) && !srvMap.IsWater(tx, ty) &&
+                        srvMap.Ramp(tx, ty) == World.RampDirection.None &&
+                        srvMap.GroundLevel(tx, ty) == 1 &&
+                        !srvMap.IsSolid(tx + 1, ty) && !srvMap.IsWater(tx + 1, ty) &&
+                        srvMap.Ramp(tx + 1, ty) == World.RampDirection.None &&
+                        srvMap.GroundLevel(tx + 1, ty) == 0)
+                    { ex = tx; ey = ty; }
+            Check(ex > 0, "the arena offers a terrace edge for the drop test");
+            var dropKeysBefore = server.World.Drops.Keys.ToHashSet();
+            for (int i = 0; i < 30; i++)
+                server.World.SpawnDrop(
+                    new Items.ItemInstance { BaseItemId = "wooden_club", Rarity = Items.ItemRarity.Normal },
+                    new Vector2(ex + 0.85f, ey + 0.5f), 1f); // hugging the cliff lip
+            int sunk = 0;
+            foreach (var (key, d) in server.World.Drops)
+                if (!dropKeysBefore.Contains(key) &&
+                    MathF.Abs(d.Height - srvMap.GroundHeightAt(d.Position)) > 0.05f) sunk++;
+            Check(sunk == 0,
+                  $"cliff-edge loot always rests on the surface it lands on ({sunk} sunk/floating of 30)");
+        }
+
         Console.WriteLine("\n-- Potion flasks (equipped ITEMS, restore over time) --");
         clientB.SendDebugCommand("kill_nearby");
         Pump(0.3f);
@@ -3199,18 +3229,45 @@ public static class HeadlessNetTest
             // Reachability guarantee across several seeds: stairs never lead into (or
             // hide) pockets you can't actually walk to. And no ORPHAN stairs — a ramp
             // embedded in flat ground whose ascent side climbs to nothing.
-            int strandedTotal = 0, orphanTotal = 0;
+            int strandedTotal = 0, orphanTotal = 0, glitchStairs = 0;
             foreach (int rSeed in new[] { 424242, 987654, 1337, 20260815, 555001, 90210 })
             {
                 var seedMap = new World.GameMap(rSeed,
                     data.ZoneThemes.First(t => t.Id == "forest"), World.MapKind.Forest);
                 strandedTotal += seedMap.CountUnreachableWalkable();
                 orphanTotal += seedMap.CountOrphanRamps();
+                // A LONE stair whose walk-up side is blocked reads as a generation
+                // glitch — connect-pass stairs must land mid-cliff with a clean
+                // approach (or come in proper 2-wide flights).
+                for (int sy = 1; sy < seedMap.Height - 1; sy++)
+                    for (int sx = 1; sx < seedMap.Width - 1; sx++)
+                    {
+                        var rd = seedMap.Ramp(sx, sy);
+                        if (rd == World.RampDirection.None) continue;
+                        (int rdx, int rdy) = rd switch
+                        {
+                            World.RampDirection.PlusX => (1, 0),
+                            World.RampDirection.MinusX => (-1, 0),
+                            World.RampDirection.PlusY => (0, 1),
+                            _ => (0, -1),
+                        };
+                        bool horiz = rdy == 0;
+                        bool hasLateral =
+                            (horiz ? seedMap.Ramp(sx, sy - 1) : seedMap.Ramp(sx - 1, sy)) != World.RampDirection.None ||
+                            (horiz ? seedMap.Ramp(sx, sy + 1) : seedMap.Ramp(sx + 1, sy)) != World.RampDirection.None;
+                        int lowX = sx - rdx, lowY = sy - rdy;
+                        bool lowOk = !seedMap.IsSolid(lowX, lowY) && !seedMap.IsWater(lowX, lowY) &&
+                                     (seedMap.GroundLevel(lowX, lowY) == seedMap.GroundLevel(sx, sy) ||
+                                      seedMap.Ramp(lowX, lowY) != World.RampDirection.None);
+                        if (!hasLateral && !lowOk) glitchStairs++;
+                    }
             }
             Check(strandedTotal == 0,
                   $"every walkable tile on run maps is reachable from spawn ({strandedTotal} stranded over 6 seeds)");
             Check(orphanTotal == 0,
                   $"no staircases to nowhere generate ({orphanTotal} orphan ramps over 6 seeds)");
+            Check(glitchStairs == 0,
+                  $"no lone stairs with blocked approaches generate ({glitchStairs} over 6 seeds)");
         }
 
         Console.WriteLine("\n-- Campaign: hub sanctum --");
@@ -3241,6 +3298,10 @@ public static class HeadlessNetTest
         Check(campA.World.Map.Kind == World.MapKind.Hub &&
               campA.World.Map.Seed == campServer.World.Map.Seed,
               "clients build the same hub map from the seed");
+        Check(campServer.World.Map.Theme?.Id == "sanctum" && campA.World.Map.Theme?.Id == "sanctum",
+              "the hub carries its own purple-stone SANCTUM theme (both sides)");
+        Check(data.ZoneThemes.First(t => t.Id == "sanctum").StoneBrick,
+              "the sanctum theme renders stone-brick floors and walls");
         Check(campServer.World.Npcs.Count == 2 &&
               campServer.World.Npcs.Any(n => n.TypeId == "merchant") &&
               campServer.World.Npcs.Any(n => n.TypeId == "skill_trainer"),
@@ -3335,6 +3396,8 @@ public static class HeadlessNetTest
               campA.World.Map.Seed == campServer.World.Map.Seed &&
               campB.World.Map.Seed == campServer.World.Map.Seed,
               "clients rebuild the forest map from the broadcast seed");
+        Check(campServer.World.Map.Theme?.Id == "forest" && campA.World.Map.Theme?.Id == "forest",
+              "run maps keep the campaign zone theme (the stonework stays home)");
         Check(campA.World.ZoneMapIndex == 1 && campA.World.ZoneEnemyLevel == 1,
               "zone state replicates (map 1, enemy level 1)");
         Check(campServer.World.Enemies.Values.Count(e => !e.Dead) >= 8,

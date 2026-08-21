@@ -54,6 +54,27 @@
     "WallFeatureChance": 0.45
   },
   {
+    "Id": "sanctum",
+    "Name": "The Sanctum",
+    "Background": "0D0A13",
+    "FloorA": "584A6E",
+    "FloorB": "4F4263",
+    "FloorC": "615278",
+    "FloorD": "463A58",
+    "CliffFace": "71628C",
+    "ElevatedTop": "544868",
+    "WallFace": "8A76AC",
+    "WallTop": "5E5078",
+    "RampTint": "9C8CBB",
+    "DeckA": "6E5A3C",
+    "DeckB": "645236",
+    "DeckLip": "3C3222",
+    "PropStyle": "tomb",
+    "ClutterDensity": 0.02,
+    "WallFeatureChance": 0.25,
+    "StoneBrick": true
+  },
+  {
     "Id": "forest",
     "Name": "Mirewood",
     "Background": "08110B",
