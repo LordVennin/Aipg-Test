@@ -48,6 +48,11 @@ public struct ComputedStats
     public float SummonDamageIncrease;   // percent
     public float SummonHealthIncrease;   // percent
     public int SummonLimitBonus;         // flat extra minions
+    public float LightRadiusIncrease;    // percent — personal torchglow in dark zones
+
+    /// <summary>Base personal light radius in screen pixels (dark-zone torchglow).</summary>
+    public const float BaseLightRadius = 235f;
+    public float LightRadius => BaseLightRadius * (1f + LightRadiusIncrease / 100f);
 
     // Blocking (requires shields only in practice: BlockChance rolls solely on shields)
     public float BlockChance;            // percent chance to fully avoid one hit
@@ -245,6 +250,7 @@ public static class StatCalculator
             SummonDamageIncrease = total.Get(StatType.SummonDamage),
             SummonHealthIncrease = total.Get(StatType.SummonHealth),
             SummonLimitBonus = (int)total.Get(StatType.SummonLimit),
+            LightRadiusIncrease = total.Get(StatType.LightRadius),
         };
 
         // Strength's melee-physical benefit rides the existing percent-increased pool.

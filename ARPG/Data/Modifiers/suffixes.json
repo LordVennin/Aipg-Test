@@ -4270,5 +4270,175 @@
   "MaximumValue": 38,
   "Weight": 10,
   "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_1",
+  "Name": "of Radiance I",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 12,
+  "MaximumValue": 18,
+  "Weight": 85,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_2",
+  "Name": "of Radiance II",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 18,
+  "MaximumValue": 24,
+  "Weight": 80,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_3",
+  "Name": "of Radiance III",
+  "AffixType": "Suffix",
+  "Tier": 3,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 24,
+  "MaximumValue": 30,
+  "Weight": 75,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_4",
+  "Name": "of Radiance IV",
+  "AffixType": "Suffix",
+  "Tier": 4,
+  "MinimumItemLevel": 30,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 30,
+  "MaximumValue": 36,
+  "Weight": 70,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_5",
+  "Name": "of Radiance V",
+  "AffixType": "Suffix",
+  "Tier": 5,
+  "MinimumItemLevel": 40,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 36,
+  "MaximumValue": 42,
+  "Weight": 65,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_6",
+  "Name": "of Radiance VI",
+  "AffixType": "Suffix",
+  "Tier": 6,
+  "MinimumItemLevel": 50,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 42,
+  "MaximumValue": 48,
+  "Weight": 60,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_7",
+  "Name": "of Radiance VII",
+  "AffixType": "Suffix",
+  "Tier": 7,
+  "MinimumItemLevel": 60,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 48,
+  "MaximumValue": 54,
+  "Weight": 55,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_8",
+  "Name": "of Radiance VIII",
+  "AffixType": "Suffix",
+  "Tier": 8,
+  "MinimumItemLevel": 70,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 54,
+  "MaximumValue": 60,
+  "Weight": 50,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_9",
+  "Name": "of Radiance IX",
+  "AffixType": "Suffix",
+  "Tier": 9,
+  "MinimumItemLevel": 80,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 60,
+  "MaximumValue": 66,
+  "Weight": 45,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_radiance_10",
+  "Name": "of Radiance X",
+  "AffixType": "Suffix",
+  "Tier": 10,
+  "MinimumItemLevel": 90,
+  "CompatibleItemCategories": [
+   "BodyArmor",
+   "Helmet"
+  ],
+  "ModifierGroup": "light_radius",
+  "StatAffected": "LightRadius",
+  "MinimumValue": 66,
+  "MaximumValue": 72,
+  "Weight": 40,
+  "IsPercent": true
  }
 ]

@@ -1083,8 +1083,10 @@ public class GameClient
                 string glovesId = r.GetString();
                 string bootsId = r.GetString();
                 string beltId = r.GetString();
+                float lightRadius = r.GetByte() * 4f;
                 if (World.Players.TryGetValue(playerId, out var p))
                 {
+                    p.LightRadius = lightRadius;
                     p.WeaponBaseId = string.IsNullOrEmpty(weaponBaseId) ? null : weaponBaseId;
                     p.OffHandBaseId = string.IsNullOrEmpty(offHandBaseId) ? null : offHandBaseId;
                     p.BodyStyle = bodyStyle;

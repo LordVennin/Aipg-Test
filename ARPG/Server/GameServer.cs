@@ -780,6 +780,8 @@ public class GameServer : IServerEvents
         w.Put(p.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Gloves)?.BaseItemId ?? "");
         w.Put(p.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Boots)?.BaseItemId ?? "");
         w.Put(p.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Belt)?.BaseItemId ?? "");
+        // Personal light radius (px/4 — fits a byte to 1020px) for the lighting pass.
+        w.Put((byte)Math.Clamp((int)(p.Stats.LightRadius / 4f), 1, 255));
         return w;
     }
 
