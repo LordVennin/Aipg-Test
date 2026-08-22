@@ -109,7 +109,10 @@ public class Button : UIElement
         if (!Visible) return;
         _hover = Bounds.Contains(input.MousePosition);
         if (_hover && Enabled && input.MouseLeftPressed)
+        {
+            Audio.AudioManager.PlayUi("ui_click");
             OnClick?.Invoke();
+        }
     }
 
     public override void Draw(SpriteBatch sb)

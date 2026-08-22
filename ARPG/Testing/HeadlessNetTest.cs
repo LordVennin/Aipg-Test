@@ -3323,6 +3323,17 @@ public static class HeadlessNetTest
               armoredB.GlovesBaseId == "warplate_gauntlets" && armoredB.BootsBaseId == "warplate_greaves" &&
               armoredB.BeltBaseId == "rope_belt",
               "all five worn armor slots replicate through PlayerAppearance");
+        // The sound registry: every entry has a unique id, a valid procedural
+        // placeholder synth, and a drop-in WAV file name (silent headless — the
+        // manager stays inert without a device, but the manifest must parse).
+        var soundDefs = Audio.AudioManager.LoadRegistry(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Sounds", "sounds.json"));
+        Check(soundDefs.Count >= 18 &&
+              soundDefs.Select(sd => sd.Id).Distinct().Count() == soundDefs.Count &&
+              soundDefs.All(sd => Audio.AudioManager.SynthKinds.Contains(sd.Synth) &&
+                                  !string.IsNullOrEmpty(sd.File) && sd.Volume > 0),
+              $"sound registry loads: unique ids, valid synth placeholders, WAV names ({soundDefs.Count} sounds)");
+
         // Quivers genuinely drop from the shared loot pool (they're uncommon: weight 45
         // against ~100 per base — this pins the pool wiring, not the exact rate).
         var probeGen = new Items.LootGenerator(data, new Random(4242));

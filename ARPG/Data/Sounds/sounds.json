@@ -1,0 +1,21 @@
+[
+  { "Id": "ui_click", "File": "ui_click.wav", "Synth": "ui", "Volume": 0.35, "PitchVariance": 0.02, "CooldownMs": 30 },
+  { "Id": "swing", "File": "swing.wav", "Synth": "swish", "Volume": 0.6, "PitchVariance": 0.1, "CooldownMs": 60 },
+  { "Id": "slam", "File": "slam.wav", "Synth": "slam", "Volume": 0.9, "PitchVariance": 0.06, "CooldownMs": 120 },
+  { "Id": "cast_bolt", "File": "cast_bolt.wav", "Synth": "bolt", "Volume": 0.5, "PitchVariance": 0.08, "CooldownMs": 60 },
+  { "Id": "cast_generic", "File": "cast_generic.wav", "Synth": "bolt", "Volume": 0.45, "PitchVariance": 0.1, "CooldownMs": 60 },
+  { "Id": "arrow", "File": "arrow.wav", "Synth": "arrow", "Volume": 0.55, "PitchVariance": 0.12, "CooldownMs": 60 },
+  { "Id": "hit", "File": "hit.wav", "Synth": "hit", "Volume": 0.5, "PitchVariance": 0.14, "CooldownMs": 70 },
+  { "Id": "block", "File": "block.wav", "Synth": "block", "Volume": 0.7, "PitchVariance": 0.08, "CooldownMs": 100 },
+  { "Id": "hurt", "File": "hurt.wav", "Synth": "hurt", "Volume": 0.7, "PitchVariance": 0.08, "CooldownMs": 150 },
+  { "Id": "player_death", "File": "player_death.wav", "Synth": "die", "Volume": 0.9, "PitchVariance": 0.0, "CooldownMs": 400 },
+  { "Id": "die_generic", "File": "die_generic.wav", "Synth": "die", "Volume": 0.6, "PitchVariance": 0.16, "CooldownMs": 90 },
+  { "Id": "coins", "File": "coins.wav", "Synth": "coins", "Volume": 0.5, "PitchVariance": 0.05, "CooldownMs": 80 },
+  { "Id": "pickup", "File": "pickup.wav", "Synth": "pickup", "Volume": 0.5, "PitchVariance": 0.05, "CooldownMs": 80 },
+  { "Id": "chest", "File": "chest.wav", "Synth": "chest", "Volume": 0.7, "PitchVariance": 0.04, "CooldownMs": 200 },
+  { "Id": "door", "File": "door.wav", "Synth": "door", "Volume": 0.8, "PitchVariance": 0.0, "CooldownMs": 500 },
+  { "Id": "levelup", "File": "levelup.wav", "Synth": "levelup", "Volume": 0.8, "PitchVariance": 0.0, "CooldownMs": 500 },
+  { "Id": "sip", "File": "sip.wav", "Synth": "sip", "Volume": 0.6, "PitchVariance": 0.06, "CooldownMs": 200 },
+  { "Id": "revive", "File": "revive.wav", "Synth": "revive", "Volume": 0.8, "PitchVariance": 0.0, "CooldownMs": 400 },
+  { "Id": "warn", "File": "warn.wav", "Synth": "warn", "Volume": 0.45, "PitchVariance": 0.03, "CooldownMs": 250 }
+]

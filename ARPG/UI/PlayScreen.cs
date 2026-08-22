@@ -218,6 +218,8 @@ public class PlayScreen : IScreen
                 };
         }
 
+        // Positioned sounds attenuate against wherever WE stand.
+        Audio.AudioManager.ListenerPos = () => _client.World.Me?.Position;
         _client.Disconnected += reason => _pendingDisconnect = reason ?? "Disconnected.";
         _client.ServerMessageReceived += msg => _hud.AddMessage(msg);
         _client.MapChanged += () =>
@@ -717,9 +719,15 @@ public class PlayScreen : IScreen
 
             // Potion flasks: a sip over time, server-validated (charges, already-active).
             if (input.WasActionPressed(InputAction.HealthPotion))
+            {
                 _client.RequestUsePotion(0);
+                Audio.AudioManager.PlayUi("sip");
+            }
             if (input.WasActionPressed(InputAction.ManaPotion))
+            {
                 _client.RequestUsePotion(1);
+                Audio.AudioManager.PlayUi("sip");
+            }
         }
 
         // Camera follows the player.

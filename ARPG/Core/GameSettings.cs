@@ -16,6 +16,8 @@ public class GameSettings
     /// GENERATION (the forest grows big trees), so this is decided before the map exists
     /// and replicated to joining clients.</summary>
     public string ZoneThemeId { get; set; } = "forest";
+    /// <summary>Master sound volume, 0..1 (cycled in Options → Gameplay).</summary>
+    public float SoundVolume { get; set; } = 0.8f;
     public bool Fullscreen { get; set; }
     public int ResolutionWidth { get; set; } = 1280;
     public int ResolutionHeight { get; set; } = 720;

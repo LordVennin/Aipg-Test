@@ -488,6 +488,26 @@ class kit's single skill. Every other skill is bought from the skill trainer
 for **75 gold** (server-validated: in person, gold up front). The K menu lists
 only learned skills and points at the trainer for the rest.
 
+### Sound (drop-in WAV pipeline)
+
+The audio stack is fully data-driven and works TODAY with **procedural
+placeholder sounds** (synthesized at runtime, same philosophy as the sprites):
+UI clicks, swings, slams, casts, arrows, hits, blocks, hurt/death, loot and
+gold pickups, chests, doors, level-ups, flask sips, revives and enemy
+telegraph warnings — all positioned in the world with distance falloff and
+stereo pan against the local player, throttled per sound, with a master
+volume in Options → Gameplay.
+
+**To add real sounds:** drop WAV files (44.1kHz 16-bit PCM) into
+`ARPG/Assets/Sounds/` using the names listed in that folder's README — each
+file automatically replaces its placeholder, no code changes. The registry
+(`Data/Sounds/sounds.json`) maps sound ids to files with per-sound volume,
+pitch variance and spam throttles; add entries there for new sounds (e.g.
+`cast_<skillId>.wav` for a per-skill cast, `die_<enemyId>.wav` for a
+per-enemy death — the hooks already look those ids up first and fall back to
+the generics). Machines without an audio device (and the headless test) run
+silent with zero errors.
+
 ### Character creation, classes & body sprites
 
 The first time a player name starts (single player, hosting or joining), the
@@ -863,7 +883,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (504 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (505 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.
