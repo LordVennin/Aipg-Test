@@ -22,6 +22,8 @@
   <ItemGroup>
     <None Include="Data/**/*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content/**/*.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Drop-in art/audio assets (e.g. Assets/Sounds/*.wav) ride along verbatim. -->
+    <None Include="Assets/**/*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

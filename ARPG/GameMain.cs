@@ -75,6 +75,8 @@ public class GameMain : Game
         FontManager.Initialize();
         Data = GameData.LoadDefault();
         Settings = GameSettings.Load();
+        Audio.AudioManager.Initialize();
+        Audio.AudioManager.SetVolume(Settings.SoundVolume);
         ApplyDisplaySettings();
         Input.ApplyBindings(Settings.Bindings);
         Window.TextInput += (_, e) => Input.PushTypedChar(e.Character);

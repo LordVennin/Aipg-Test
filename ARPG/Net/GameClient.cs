@@ -537,13 +537,17 @@ public class GameClient
                 byte slamPhase = r.GetByte();
                 float slamWindup = r.GetFloat();
                 if (slamPhase == 1)
+                {
                     // Telegraph: the red MMO-style warning decal covering the full slam
                     // radius for the wind-up — get out of the circle or eat the hit.
                     World.AddEffect(at, radius, MathF.Max(0.2f, slamWindup), "slamwarn", height);
+                    Audio.AudioManager.PlayWorld(at, "warn");
+                }
                 else
                 {
                     World.AddEffect(at, radius, 0.45f, "slam", height);
                     World.AddEffect(at, radius * 0.8f, 0.9f, "debris", height);
+                    Audio.AudioManager.PlayWorld(at, "slam");
                 }
                 break;
             }
@@ -555,9 +559,15 @@ public class GameClient
                 float castHeight = r.GetFloat();
                 byte castPhase = r.GetByte();
                 if (castPhase == 1)
+                {
                     World.AddEffect(castAt, castRadius, MathF.Max(0.2f, castWindup), "darkwarn", castHeight);
+                    Audio.AudioManager.PlayWorld(castAt, "warn");
+                }
                 else
+                {
                     World.AddEffect(castAt, castRadius, 0.5f, "darkburst", castHeight);
+                    Audio.AudioManager.PlayWorld(castAt, "slam");
+                }
                 break;
             }
             case PacketType.EnemyDash:
@@ -635,6 +645,7 @@ public class GameClient
                     traveler.Position = traveler.NetTarget = mcPos;
                     traveler.Height = traveler.NetTargetHeight = mcHeight;
                 }
+                Audio.AudioManager.PlayUi("door");
                 MapChanged?.Invoke();
                 break;
             }
@@ -654,6 +665,9 @@ public class GameClient
                 chest.Position = r.GetVec2();
                 chest.Height = r.GetFloat();
                 chest.Opened = r.GetBool();
+                // The lid POPPING (known-closed -> open) is audible; snapshots are not.
+                if (chest.Opened && World.Chests.TryGetValue(chest.Id, out var prevChest) && !prevChest.Opened)
+                    Audio.AudioManager.PlayWorld(chest.Position, "chest");
                 World.Chests[chest.Id] = chest;
                 break;
             }
@@ -759,7 +773,12 @@ public class GameClient
             }
             case PacketType.PlayerDeath:
             {
-                if (World.Players.TryGetValue(r.GetInt(), out var p)) { p.Alive = false; p.Health = 0; }
+                if (World.Players.TryGetValue(r.GetInt(), out var p))
+                {
+                    p.Alive = false;
+                    p.Health = 0;
+                    Audio.AudioManager.PlayWorld(p.Position, "player_death");
+                }
                 break;
             }
             case PacketType.PlayerRespawn:
@@ -771,6 +790,7 @@ public class GameClient
                 float respawnMana = r.GetFloat();
                 if (World.Players.TryGetValue(id, out var p))
                 {
+                    if (!p.Alive) Audio.AudioManager.PlayWorld(pos, "revive");
                     p.Alive = true;
                     p.Position = p.NetTarget = pos;
                     p.Height = p.NetTargetHeight = respawnHeight;
@@ -826,6 +846,7 @@ public class GameClient
                 float deathHeight = World.Enemies.TryGetValue(id, out var dying) ? dying.Height : 0f;
                 World.Enemies.Remove(id);
                 World.AddEffect(pos, 0.6f, 0.35f, "hit", deathHeight);
+                Audio.AudioManager.PlayWorld(pos, dying != null ? "die_" + dying.TypeId : null, "die_generic");
                 break;
             }
 
@@ -899,13 +920,18 @@ public class GameClient
             {
                 var dropId = r.GetGuid();
                 r.GetInt(); // pickedUpBy (unused client-side beyond removal)
+                if (World.Drops.TryGetValue(dropId, out var taken))
+                    Audio.AudioManager.PlayWorld(taken.Position, taken.GoldAmount > 0 ? "coins" : "pickup");
                 World.Drops.Remove(dropId);
                 break;
             }
 
             case PacketType.CharacterState:
             {
+                int levelBefore = World.MyCharacter?.Level ?? 0;
                 World.MyCharacter = Json.Load<CharacterData>(r.GetString());
+                if (levelBefore > 0 && World.MyCharacter?.Level > levelBefore)
+                    Audio.AudioManager.PlayUi("levelup");
                 World.RecomputeMyStats(_data);
                 CharacterUpdated?.Invoke();
                 break;
@@ -924,6 +950,19 @@ public class GameClient
                 // moved during the wind-up, so this point supersedes the cast point).
                 byte phase = r.GetByte();
                 var def = _data.Skills.GetValueOrDefault(skillId);
+                if (def != null && phase != 2)
+                {
+                    // Cast/swing sound: a per-skill id wins when the registry has one,
+                    // else the archetype's generic. Phase 2 is the delayed IMPACT.
+                    bool meleeArch = def.Archetype is Skills.SkillArchetype.MeleeStrike
+                        or Skills.SkillArchetype.MeleeSingle or Skills.SkillArchetype.MeleeArea;
+                    string fallbackSnd = skillId == "arrow_shot" ? "arrow"
+                        : meleeArch ? "swing"
+                        : def.Tags?.Contains("Projectile") == true ? "cast_bolt" : "cast_generic";
+                    Audio.AudioManager.PlayWorld(effectPoint, "cast_" + skillId, fallbackSnd);
+                }
+                else if (def != null && def.Tags?.Contains("Slam") == true)
+                    Audio.AudioManager.PlayWorld(effectPoint, "slam");
                 if (def != null && World.Players.ContainsKey(playerId))
                 {
                     // Melee strikes play a real weapon-swing animation on the caster's
@@ -1015,6 +1054,12 @@ public class GameClient
                 fn.Position = r.GetVec2();
                 fn.Blocked = r.GetBool();
                 if (fn.Blocked) World.BlockedEventsSeen++;
+                if (fn.Blocked)
+                    Audio.AudioManager.PlayWorld(fn.Position, "block");
+                else if (fn.TargetIsPlayer && targetId == World.MyPlayerId && fn.Amount > 0.5f)
+                    Audio.AudioManager.PlayUi("hurt");
+                else if (!fn.TargetIsPlayer && fn.Amount > 0.5f)
+                    Audio.AudioManager.PlayWorld(fn.Position, "hit");
                 // Anchor to the entity's current client-side position when we know it.
                 if (fn.TargetIsPlayer && World.Players.TryGetValue(targetId, out var tp))
                 { fn.Position = tp.Position; fn.Height = tp.Height; }
