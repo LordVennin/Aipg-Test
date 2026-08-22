@@ -50,6 +50,11 @@ public struct ComputedStats
     public int SummonLimitBonus;         // flat extra minions
     public float LightRadiusIncrease;    // percent — personal torchglow in dark zones
 
+    /// <summary>Equipped items whose requirements are no longer met — still worn but
+    /// contributing nothing (the UI paints them red). Null when constructed bare
+    /// (tests/defaults), so consumers must null-check.</summary>
+    public HashSet<Guid> InactiveItems;
+
     /// <summary>Base personal light radius in screen pixels (dark-zone torchglow).</summary>
     public const float BaseLightRadius = 235f;
     public float LightRadius => BaseLightRadius * (1f + LightRadiusIncrease / 100f);
@@ -148,7 +153,59 @@ public static class StatCalculator
 
     public static ComputedStats Compute(GameData data, CharacterData character, StatCollection temporaryEffects = null)
     {
-        // 1) Aggregate flat/percent contributions from all equipped items.
+        // 0) ACTIVE-GEAR pass: an equipped piece only counts while its requirements
+        // are met by attributes computed from everything EXCEPT itself. This kills the
+        // bootstrap exploit (+INT amulet -> equip INT robe -> remove amulet, keep robe):
+        // deactivation cascades until the set is stable, so a whole chain of gear that
+        // only stood on a removed piece collapses with it. Inactive gear stays worn but
+        // contributes NOTHING (the UI flags it in red).
+        var wornItems = character.Equipment.Values.Where(it => it != null).ToList();
+        var wornStats = wornItems.ToDictionary(it => it.InstanceId, it => it.TotalStats(data));
+        var inactive = new HashSet<Guid>();
+        float PassiveAttr(StatType t)
+        {
+            float v = 0f;
+            foreach (var nodeId in character.AllocatedPassives)
+                if (data.PassiveTree.ById.TryGetValue(nodeId, out var node))
+                    foreach (var fx in node.Effects)
+                        if (fx.Stat == t) v += fx.Value;
+            return v;
+        }
+        float pStr = PassiveAttr(StatType.Strength);
+        float pDex = PassiveAttr(StatType.Dexterity);
+        float pInt = PassiveAttr(StatType.Intelligence);
+        for (int pass = 0; pass <= wornItems.Count; pass++)
+        {
+            bool changed = false;
+            foreach (var item in wornItems)
+            {
+                if (inactive.Contains(item.InstanceId)) continue;
+                var b = item.GetBase(data);
+                if (b == null) continue;
+                float aStr = character.BaseStrength + pStr;
+                float aDex = character.BaseDexterity + pDex;
+                float aInt = character.BaseIntelligence + pInt;
+                foreach (var other in wornItems)
+                {
+                    if (other.InstanceId == item.InstanceId || inactive.Contains(other.InstanceId)) continue;
+                    var os = wornStats[other.InstanceId];
+                    aStr += os.Get(StatType.Strength);
+                    aDex += os.Get(StatType.Dexterity);
+                    aInt += os.Get(StatType.Intelligence);
+                }
+                if (character.Level < b.RequiredLevel ||
+                    item.EffectiveRequirement(data, b.RequiredStrength) > aStr + 0.01f ||
+                    item.EffectiveRequirement(data, b.RequiredDexterity) > aDex + 0.01f ||
+                    item.EffectiveRequirement(data, b.RequiredIntelligence) > aInt + 0.01f)
+                {
+                    inactive.Add(item.InstanceId);
+                    changed = true;
+                }
+            }
+            if (!changed) break;
+        }
+
+        // 1) Aggregate flat/percent contributions from all ACTIVE equipped items.
         var total = new StatCollection();
         ItemInstance weapon = null;
         ItemInstance offHand = null;
@@ -156,7 +213,7 @@ public static class StatCalculator
         float shieldArmor = 0f;
         foreach (var (slot, item) in character.Equipment)
         {
-            if (item == null) continue;
+            if (item == null || inactive.Contains(item.InstanceId)) continue;
             total.AddAll(item.TotalStats(data));
             if (slot == EquipSlot.MainHand) weapon = item;
             if (slot == EquipSlot.OffHand) offHand = item;
@@ -251,6 +308,7 @@ public static class StatCalculator
             SummonHealthIncrease = total.Get(StatType.SummonHealth),
             SummonLimitBonus = (int)total.Get(StatType.SummonLimit),
             LightRadiusIncrease = total.Get(StatType.LightRadius),
+            InactiveItems = inactive,
         };
 
         // Strength's melee-physical benefit rides the existing percent-increased pool.

@@ -768,6 +768,11 @@ attributes as a BASELINE: maces and shields want Strength, staffs Intelligence,
 Armor pieces Strength, Deflection pieces Dexterity, ES pieces Intelligence
 (tier 1 ≈ 8, tier 2 ≈ 14), alongside character level. Requirements are enforced
 server-side (attributes from OTHER equipped gear count) and shown in tooltips —
+and re-validated CONTINUOUSLY: an equipped piece only grants its stats while its
+requirements hold against everything except itself, so pulling the +INT amulet
+that carried your robe deactivates the robe (and anything standing on IT) in a
+cascading pass. Inactive gear stays worn but contributes nothing; the inventory
+flags it with a red border and the tooltip warns REQUIREMENTS NOT MET in red —
 and the **of Ease** suffix locally reduces ITS item's attribute requirements by a
 rolled percent (capped 60%), displayed pre-reduced and marked "(reduced)".
 Tooltips also show pre-summed Deflection/ES totals and a short explainer of how
@@ -902,7 +907,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (510 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (516 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

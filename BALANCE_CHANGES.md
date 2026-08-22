@@ -699,3 +699,25 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   drifting smoke — and its own flickering firelight.
 - Added-damage modifier text corrected to "to Attacks" (they stopped being
   melee-only in batch 30). Suite: **512 checks**. Protocol v30.
+
+---
+
+# Addendum (batch 36): continuous gear requirement validation
+
+- **The attribute-bootstrap exploit is dead.** Previously requirements were
+  checked only at equip time: wear a +INT amulet, equip an INT robe, remove
+  the amulet — the robe kept working. Now `StatCalculator` re-validates every
+  equipped piece on every recompute: an item only counts while its level and
+  attribute requirements are met by everything EXCEPT itself (base attributes
+  + passives + the OTHER active pieces). Deactivation cascades to a fixed
+  point, so a chain of gear that only stood on a removed piece collapses
+  with it.
+- **Inactive gear = not worn.** It stays in the slot but grants no stats, no
+  Armor/ES/Deflection, no weapon damage (an inactive weapon swings as
+  unarmed). Server and client share the same computation, so gameplay and UI
+  always agree.
+- **Red-letter warning.** The inventory paints an unmet piece with a red
+  tint, border and `!` badge; its tooltip leads with **REQUIREMENTS NOT
+  MET — This item grants no benefits.** and the Requires line turns red.
+- Suite: **516 checks** (bootstrap + cascade regressions; ES/deflection test
+  puppets now genuinely qualify for their gear).
