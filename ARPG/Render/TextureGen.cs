@@ -49,7 +49,32 @@ public static class TextureGen
         DiamondFlat = MakeDiamond(device, TileWidth, TileHeight, filled: true, opaqueEdge: true, flat: true);
         DiamondOutline = MakeDiamond(device, TileWidth, TileHeight, filled: false);
         DiamondBrick = MakeDiamondBrick(device);
+        RadialLight = MakeRadialLight(device, 256);
         _brickFaces.Clear();
+    }
+
+    /// <summary>Soft radial light blob for the lighting pass: white core easing to
+    /// transparent at the rim (smoothstep-squared falloff — bright heart, long feather).
+    /// Drawn additively into the lightmap, then the lightmap multiplies the scene.</summary>
+    public static Texture2D RadialLight { get; private set; }
+
+    private static Texture2D MakeRadialLight(GraphicsDevice device, int size)
+    {
+        var tex = new Texture2D(device, size, size);
+        var data = new Color[size * size];
+        float half = size / 2f;
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x + 0.5f - half) / half, dy = (y + 0.5f - half) / half;
+                float d = MathF.Sqrt(dx * dx + dy * dy);
+                float t = Math.Clamp(1f - d, 0f, 1f);
+                float a = t * t * (3f - 2f * t);      // smoothstep
+                a *= a;                               // squared: tighter hot core
+                data[y * size + x] = Color.White * a; // premultiplied-friendly
+            }
+        tex.SetData(data);
+        return tex;
     }
 
     /// <summary>Stone-slab floor tile: the diamond split into four quarter slabs along

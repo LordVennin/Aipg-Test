@@ -185,9 +185,11 @@ public static class StatCalculator
 
         // 2b) Primary attributes resolve FIRST; their derived bonuses (AttributeBalance —
         // the one place those conversions live) then feed the stats below.
-        float strength = AttributeBalance.BaseAttribute + total.Get(StatType.Strength);
-        float dexterity = AttributeBalance.BaseAttribute + total.Get(StatType.Dexterity);
-        float intelligence = AttributeBalance.BaseAttribute + total.Get(StatType.Intelligence);
+        // Base attributes come from the character's CLASS spread (default 10s for
+        // pre-class saves); gear and passives stack on top.
+        float strength = character.BaseStrength + total.Get(StatType.Strength);
+        float dexterity = character.BaseDexterity + total.Get(StatType.Dexterity);
+        float intelligence = character.BaseIntelligence + total.Get(StatType.Intelligence);
 
         var s = new ComputedStats
         {

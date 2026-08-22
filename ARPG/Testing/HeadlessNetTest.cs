@@ -3588,6 +3588,24 @@ public static class HeadlessNetTest
               archerKit.BodyStyle == 1,
               "the archer kit equips bow + quiver with Arrow Shot hotbarred, body stored");
 
+        // Class attribute spreads: they exist so early gear requirements BITE —
+        // a fresh warrior can't wear silk, a fresh mage can't lift iron mail.
+        var mageKit = Sim.CharacterData.CreateNew(data, "KitTest2", "mage");
+        var warriorKit = Sim.CharacterData.CreateNew(data, "KitTest3", "warrior");
+        Check(mageKit.BaseStrength == 4 && mageKit.BaseDexterity == 2 && mageKit.BaseIntelligence == 12 &&
+              warriorKit.BaseStrength == 11 && warriorKit.BaseDexterity == 4 && warriorKit.BaseIntelligence == 3 &&
+              archerKit.BaseStrength == 3 && archerKit.BaseDexterity == 12 && archerKit.BaseIntelligence == 4,
+              "class attribute spreads apply (mage 4/2/12, warrior 11/4/3, archer 3/12/4)");
+        var warriorStats = Stats.StatCalculator.Compute(data, warriorKit);
+        var mageStats = Stats.StatCalculator.Compute(data, mageKit);
+        Check(MathF.Abs(warriorStats.Strength - 11f) < 0.01f && MathF.Abs(mageStats.Intelligence - 12f) < 0.01f &&
+              warriorStats.MaxHealth > mageStats.MaxHealth,
+              $"computed stats flow from the class base attributes (warrior {warriorStats.MaxHealth:0}hp vs mage {mageStats.MaxHealth:0}hp)");
+        Check(data.Items["cloth_robe"].RequiredIntelligence > warriorKit.BaseIntelligence &&
+              data.Items["iron_mail"].RequiredStrength > mageKit.BaseStrength &&
+              data.Items["cloth_robe"].RequiredIntelligence <= mageKit.BaseIntelligence,
+              "early armor requirements actually gate cross-class wear");
+
         // v28 appearance replication: A sees B's saved mage — body, hair style, and the
         // CUSTOM colors — byte-exact over PlayerAppearance.
         var mageSeenByA = campA.World.Players[campB.World.MyPlayerId];

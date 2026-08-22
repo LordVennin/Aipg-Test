@@ -18,6 +18,8 @@ public class GameSettings
     public string ZoneThemeId { get; set; } = "forest";
     /// <summary>Master sound volume, 0..1 (cycled in Options → Gameplay).</summary>
     public float SoundVolume { get; set; } = 0.8f;
+    /// <summary>The alpha-blend lighting pass in dark zones (sanctum, graveyard, tomb).</summary>
+    public bool Lighting { get; set; } = true;
     public bool Fullscreen { get; set; }
     public int ResolutionWidth { get; set; } = 1280;
     public int ResolutionHeight { get; set; } = 720;

@@ -60,8 +60,57 @@ public class WorldRenderer
         _deckA = ParseColor(theme.DeckA, new Color(122, 96, 62));
         _deckB = ParseColor(theme.DeckB, new Color(112, 88, 58));
         _deckLip = ParseColor(theme.DeckLip, new Color(70, 54, 36));
+        // Zone light level: near-white (or absent) means daylight — skip the whole
+        // lighting pass rather than multiplying by ~1.
+        if (string.IsNullOrEmpty(theme.AmbientLight))
+            AmbientLight = null;
+        else
+        {
+            var amb = ParseColor(theme.AmbientLight, Color.White);
+            AmbientLight = amb.R >= 240 && amb.G >= 240 && amb.B >= 240 ? null : amb;
+        }
         GeneratePaths(map);
         RebuildProps(map);
+    }
+
+    // ------------------------------------------------------------------ lighting
+
+    /// <summary>The zone's base light level (null = full daylight, no pass).</summary>
+    public Color? AmbientLight { get; private set; }
+
+    /// <summary>Screen-space light sources gathered while drawing the world; the NEXT
+    /// frame's lightmap consumes them (one frame of lag is imperceptible and lets the
+    /// lightmap render before the backbuffer pass, which a mid-frame render-target
+    /// switch would otherwise discard).</summary>
+    private readonly List<(Vector2 Pos, float Radius, Color Color)> _lights = new();
+    private RenderTarget2D _lightTarget;
+
+    private void AddLight(Vector2 screenPos, float radius, Color color) =>
+        _lights.Add((screenPos, radius, color));
+
+    /// <summary>Render the alpha-blend lightmap: clear to the zone's ambient, punch
+    /// additive radial lights through it. The caller multiplies it over the scene.
+    /// Returns null in daylight zones. Must run BEFORE the backbuffer pass.</summary>
+    public RenderTarget2D RenderLightmap(GraphicsDevice gd, SpriteBatch sb)
+    {
+        if (AmbientLight is not { } ambient) return null;
+        int w = gd.PresentationParameters.BackBufferWidth;
+        int h = gd.PresentationParameters.BackBufferHeight;
+        if (_lightTarget == null || _lightTarget.Width != w || _lightTarget.Height != h)
+        {
+            _lightTarget?.Dispose();
+            _lightTarget = new RenderTarget2D(gd, w, h);
+        }
+        gd.SetRenderTarget(_lightTarget);
+        gd.Clear(ambient);
+        sb.Begin(blendState: BlendState.Additive, samplerState: SamplerState.LinearClamp);
+        foreach (var (pos, radius, color) in _lights)
+            sb.Draw(TextureGen.RadialLight,
+                new Rectangle((int)(pos.X - radius), (int)(pos.Y - radius),
+                    (int)(radius * 2), (int)(radius * 2)), color);
+        sb.End();
+        gd.SetRenderTarget(null);
+        return _lightTarget;
     }
 
     /// <summary>Deterministic per-tile hash (independent of process randomization) so
@@ -234,6 +283,7 @@ public class WorldRenderer
             SetTheme(map.Theme ?? _data.ZoneThemes.FirstOrDefault(), map);
         DropLabelRects.Clear();
         EnemyHitRects.Clear();
+        _lights.Clear();   // refilled below; next frame's lightmap consumes them
 
         // --- base pass: flat level-0 floor tiles (nothing ever renders beneath them) ---
         // Grid style: the classic checker with subtle tile edges. Organic style (forest):
@@ -1006,6 +1056,7 @@ public class WorldRenderer
         {
             var pos = npc.Position;
             var screen = camera.WorldToScreen(pos, npc.Height);
+            AddLight(screen, 140f, new Color(255, 232, 190));
             var npcTex = SpriteGen.GetNpcSprite(npc.TypeId);
             if (npcTex == null) continue;
             _sorted.Add((pos.X + pos.Y + npc.Height * 1.0f + 0.1f + UnderDeckBias(pos, npc.Height), batch =>
@@ -1044,6 +1095,7 @@ public class WorldRenderer
             if (doorPos == System.Numerics.Vector2.Zero) return;
             float doorHeight = world.Map.GroundHeightAt(doorPos);
             var screen = camera.WorldToScreen(doorPos, doorHeight);
+            AddLight(screen, 150f, new Color(255, 214, 150));
             bool locked = exit && world.ZoneExitLocked;
             var glow = locked ? new Color(220, 60, 40) : new Color(240, 200, 90);
             long clock = Environment.TickCount64;
@@ -1094,6 +1146,7 @@ public class WorldRenderer
             var fPos = world.Map.FountainSpot;
             float fHeight = world.Map.GroundHeightAt(fPos);
             var fScreen = camera.WorldToScreen(fPos, fHeight);
+            AddLight(fScreen, 160f, new Color(165, 215, 255));
             var fountainTex = SpriteGen.GetFountain();
             if (fountainTex != null)
                 _sorted.Add((fPos.X + fPos.Y + fHeight * 1.0f + 0.1f, batch =>
@@ -1116,6 +1169,8 @@ public class WorldRenderer
         {
             var pos = p.Position;
             var screen = camera.WorldToScreen(pos, p.Height);
+            // Every player carries their own warm torchglow through dark zones.
+            if (p.Alive) AddLight(screen + new Vector2(0, -20), 235f, new Color(255, 240, 212));
             var color = p.IsLocal ? new Color(90, 170, 255) : new Color(110, 235, 140);
             if (!p.Alive) color = new Color(80, 80, 90);
             if (p.DodgeTimeLeft > 0) color = Color.Lerp(color, Color.White, 0.65f); // dash flash / i-frame hint
@@ -1289,6 +1344,7 @@ public class WorldRenderer
         foreach (var pr in world.Projectiles.Values)
         {
             var screen = camera.WorldToScreen(pr.Position, pr.Height);
+            AddLight(screen, 110f, new Color(255, 208, 150));
             var projDef = pr.SkillId != null ? _data.Skills.GetValueOrDefault(pr.SkillId) : null;
             var projSprite = SpriteGen.GetProjectileSprite(pr.SpriteOverride ?? projDef?.ProjectileSprite);
             if (projSprite != null)
@@ -1313,6 +1369,21 @@ public class WorldRenderer
             if (fx.Delay > 0) continue; // wind-up effects haven't landed yet
             var screen = camera.WorldToScreen(fx.Position, fx.Height);
             float t = 1f - fx.TimeLeft / fx.Duration;
+
+            // Impact flashes light up dark zones for their lifetime, fading out.
+            float flashFade = 1f - t;
+            switch (fx.Kind)
+            {
+                case "slam" or "debris":
+                    AddLight(screen, 90f + fx.Radius * 40f, new Color(255, 200, 140) * flashFade);
+                    break;
+                case "darkburst":
+                    AddLight(screen, 80f + fx.Radius * 40f, new Color(190, 130, 255) * flashFade);
+                    break;
+                case "hit":
+                    AddLight(screen, 70f, new Color(255, 220, 180) * flashFade);
+                    break;
+            }
 
             if (fx.Kind == "debris")
             {

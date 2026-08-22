@@ -220,22 +220,41 @@ public class GameMain : Game
         base.Update(gameTime);
     }
 
+    /// <summary>Lightmap composite: scene pixel x lightmap pixel (alpha untouched).</summary>
+    private static readonly BlendState MultiplyBlend = new()
+    {
+        ColorSourceBlend = Blend.DestinationColor,
+        ColorDestinationBlend = Blend.Zero,
+        AlphaSourceBlend = Blend.Zero,
+        AlphaDestinationBlend = Blend.One,
+    };
+
     protected override void Draw(GameTime gameTime)
     {
-        GraphicsDevice.Clear(_screen is PlayScreen p ? p.BackgroundColor : new Color(16, 17, 22));
         var uiMatrix = Matrix.CreateScale(UIScale.Value);
         if (_screen is PlayScreen play)
         {
+            // The lightmap renders FIRST (a render-target switch after the world pass
+            // would discard the backbuffer), then world -> multiply -> UI on top unlit.
+            var lightmap = play.PrepareLightmap(GraphicsDevice, _spriteBatch);
+            GraphicsDevice.Clear(play.BackgroundColor);
             // World renders unscaled (its own camera); menus/HUD render through the UI scale.
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             play.DrawWorld(_spriteBatch);
             _spriteBatch.End();
+            if (lightmap != null)
+            {
+                _spriteBatch.Begin(blendState: MultiplyBlend, samplerState: SamplerState.LinearClamp);
+                _spriteBatch.Draw(lightmap, new Rectangle(0, 0, ScreenSize.X, ScreenSize.Y), Color.White);
+                _spriteBatch.End();
+            }
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: uiMatrix);
             play.DrawUI(_spriteBatch);
             _spriteBatch.End();
         }
         else
         {
+            GraphicsDevice.Clear(new Color(16, 17, 22));
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: uiMatrix);
             _screen?.Draw(_spriteBatch);
             _spriteBatch.End();
