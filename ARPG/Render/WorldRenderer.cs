@@ -1056,7 +1056,6 @@ public class WorldRenderer
         {
             var pos = npc.Position;
             var screen = camera.WorldToScreen(pos, npc.Height);
-            AddLight(screen, 140f, new Color(255, 232, 190));
             var npcTex = SpriteGen.GetNpcSprite(npc.TypeId);
             if (npcTex == null) continue;
             _sorted.Add((pos.X + pos.Y + npc.Height * 1.0f + 0.1f + UnderDeckBias(pos, npc.Height), batch =>
@@ -1169,8 +1168,9 @@ public class WorldRenderer
         {
             var pos = p.Position;
             var screen = camera.WorldToScreen(pos, p.Height);
-            // Every player carries their own warm torchglow through dark zones.
-            if (p.Alive) AddLight(screen + new Vector2(0, -20), 235f, new Color(255, 240, 212));
+            // Every player carries their own warm torchglow through dark zones — its
+            // radius is a replicated stat (Radiant suffixes on chest/helm grow it).
+            if (p.Alive) AddLight(screen + new Vector2(0, -20), p.LightRadius, new Color(255, 240, 212));
             var color = p.IsLocal ? new Color(90, 170, 255) : new Color(110, 235, 140);
             if (!p.Alive) color = new Color(80, 80, 90);
             if (p.DodgeTimeLeft > 0) color = Color.Lerp(color, Color.White, 0.65f); // dash flash / i-frame hint
@@ -1344,7 +1344,13 @@ public class WorldRenderer
         foreach (var pr in world.Projectiles.Values)
         {
             var screen = camera.WorldToScreen(pr.Position, pr.Height);
-            AddLight(screen, 110f, new Color(255, 208, 150));
+            // Only spells whose element actually GLOWS light the world — a flying
+            // arrow doesn't. Fire burns warm, lightning crackles blue-white.
+            switch (_data.Skills.GetValueOrDefault(pr.SkillId)?.DamageKind)
+            {
+                case Skills.DamageKind.Fire: AddLight(screen, 130f, new Color(255, 185, 110)); break;
+                case Skills.DamageKind.Lightning: AddLight(screen, 120f, new Color(185, 210, 255)); break;
+            }
             var projDef = pr.SkillId != null ? _data.Skills.GetValueOrDefault(pr.SkillId) : null;
             var projSprite = SpriteGen.GetProjectileSprite(pr.SpriteOverride ?? projDef?.ProjectileSprite);
             if (projSprite != null)
@@ -1436,33 +1442,73 @@ public class WorldRenderer
 
             if (fx.Kind == "firepatch")
             {
-                // Scorched Earth: a flickering ring of ground fire with small flames
-                // dancing inside for the patch's whole 3-second life.
+                // Scorched Earth: charred ground under a bed of coals, tall licking
+                // flames, drifting embers and smoke wisps — with its own flickering
+                // firelight punched through dark zones.
                 float radiusFp = fx.Radius * IsoCamera.HalfTileW * 2f;
                 long clock2 = Environment.TickCount64;
                 int seedFp = (int)(fx.Position.X * 311) ^ (int)(fx.Position.Y * 733);
                 float fade = fx.TimeLeft < 0.5f ? fx.TimeLeft / 0.5f : 1f;
+                float flicker = 0.82f + 0.18f * MathF.Sin((clock2 + seedFp) * 0.02f)
+                                       * MathF.Sin((clock2 + seedFp) * 0.031f);
+                AddLight(screen, radiusFp * 1.7f * flicker, new Color(255, 165, 70) * fade);
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
+                    // Char: the ground itself blackens as the patch burns.
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - radiusFp * 1.05f), (int)(screen.Y - radiusFp * 0.52f),
+                            (int)(radiusFp * 2.1f), (int)(radiusFp * 1.05f)),
+                        new Color(24, 16, 12) * (0.5f * t + 0.2f) * fade);
+                    // Coal bed: two warm layers pulsing with the flicker.
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)(screen.X - radiusFp), (int)(screen.Y - radiusFp / 2f),
                             (int)(radiusFp * 2), (int)radiusFp),
-                        new Color(200, 80, 20) * (0.28f * fade));
+                        new Color(210, 80, 18) * (0.30f * fade * flicker));
                     batch.Draw(TextureGen.Circle32,
-                        new Rectangle((int)(screen.X - radiusFp * 0.7f), (int)(screen.Y - radiusFp * 0.35f),
-                            (int)(radiusFp * 1.4f), (int)(radiusFp * 0.7f)),
-                        new Color(255, 140, 40) * (0.22f * fade));
-                    for (int i = 0; i < 8; i++)
+                        new Rectangle((int)(screen.X - radiusFp * 0.65f), (int)(screen.Y - radiusFp * 0.33f),
+                            (int)(radiusFp * 1.3f), (int)(radiusFp * 0.66f)),
+                        new Color(255, 150, 45) * (0.26f * fade * flicker));
+                    // Flames: two-tone tongues (orange body, yellow core) rising and dying.
+                    for (int i = 0; i < 12; i++)
                     {
-                        float phase = ((clock2 + seedFp + i * 397) % 600) / 600f;
-                        float ang = (seedFp / 31 + i) * 0.785f + i;
-                        float dist = radiusFp * (0.2f + 0.65f * (((seedFp >> 3) + i * 97) % 100) / 100f);
+                        float phase = ((clock2 + seedFp + i * 397) % 520) / 520f;
+                        float ang = (seedFp / 31 + i) * 0.524f + i;
+                        float dist = radiusFp * (0.15f + 0.7f * (((seedFp >> 3) + i * 97) % 100) / 100f);
                         var basePos = new Vector2(screen.X + MathF.Cos(ang) * dist,
                                                   screen.Y + MathF.Sin(ang) * dist * 0.5f);
-                        int fh = (int)(5 + 5 * (1f - phase));
+                        int fh = (int)(6 + 7 * (1f - phase));
+                        float fa = (1f - phase) * fade;
                         batch.Draw(TextureGen.Pixel,
-                            new Rectangle((int)basePos.X, (int)(basePos.Y - phase * 10), 3, fh),
-                            new Color(255, (byte)(120 + 100 * phase), 30) * ((1f - phase) * fade));
+                            new Rectangle((int)basePos.X - 1, (int)(basePos.Y - phase * 12), 4, fh),
+                            new Color(255, (byte)(110 + 90 * phase), 25) * fa);
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)basePos.X, (int)(basePos.Y - phase * 12 + 1), 2, Math.Max(2, fh - 4)),
+                            new Color(255, 235, 140) * (fa * 0.9f));
+                    }
+                    // Embers: bright motes spiraling up and out.
+                    for (int i = 0; i < 7; i++)
+                    {
+                        float phase = ((clock2 + seedFp * 3 + i * 601) % 900) / 900f;
+                        float ang = (seedFp / 17 + i) * 0.898f;
+                        float dist = radiusFp * (0.2f + 0.5f * phase);
+                        var ePos = new Vector2(
+                            screen.X + MathF.Cos(ang + phase * 2f) * dist,
+                            screen.Y + MathF.Sin(ang) * dist * 0.5f - phase * 26f);
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)ePos.X, (int)ePos.Y, 2, 2),
+                            new Color(255, 200, 90) * ((1f - phase) * fade));
+                    }
+                    // Smoke: soft dark puffs drifting off the top of the fire.
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float phase = ((clock2 + seedFp * 7 + i * 733) % 1400) / 1400f;
+                        int size = (int)(8 + 14 * phase);
+                        var sPos = new Vector2(
+                            screen.X + MathF.Sin((seedFp + i) * 1.7f + phase * 3f) * radiusFp * 0.3f,
+                            screen.Y - radiusFp * 0.3f - phase * 30f);
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(sPos.X - size), (int)(sPos.Y - size / 2f), size * 2, size),
+                            new Color(35, 30, 28) * ((1f - phase) * 0.30f * fade));
                     }
                 }));
                 continue;
@@ -1471,6 +1517,7 @@ public class WorldRenderer
             if (fx.Kind == "zap")
             {
                 // Electrocute seize: a burst of jagged arcs around the frozen victim.
+                AddLight(screen, 100f, new Color(185, 210, 255) * (1f - t));
                 long clock3 = Environment.TickCount64;
                 int seedZ = (int)(clock3 / 60);
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 1.1f, batch =>
@@ -1528,6 +1575,9 @@ public class WorldRenderer
                 var coreColor = new Color(225, 240, 255) * (fade * 0.9f);
                 int flickerSeed = (int)(Environment.TickCount64 / 45);
                 var pts = fx.Points;
+                // Each strike point crackles with electric light while the bolt lives.
+                foreach (var chainPt in pts)
+                    AddLight(camera.WorldToScreen(chainPt, fx.Height), 95f, new Color(170, 200, 255) * fade);
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 1.2f, batch =>
                 {
                     for (int seg = 0; seg < pts.Count - 1; seg++)

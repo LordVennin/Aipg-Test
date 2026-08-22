@@ -65,6 +65,8 @@ public class ClientPlayer
     /// <summary>Worn armor base ids (from PlayerAppearance packets): helmet + body armor
     /// paint real layers on the rig, gloves/boots/belt tint rig pixels. Null = slot empty.</summary>
     public string HelmetBaseId, BodyArmorBaseId, GlovesBaseId, BootsBaseId, BeltBaseId;
+    /// <summary>Personal torchglow radius in screen px (replicated; Radiant suffixes grow it).</summary>
+    public float LightRadius = Stats.ComputedStats.BaseLightRadius;
     /// <summary>Render-side walk detection: last drawn position + whether it moved.</summary>
     public Vector2 RenderPrevPos;
     public bool RenderMoving;

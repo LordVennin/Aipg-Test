@@ -598,9 +598,9 @@ public static class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 453, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
-        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 45,
-              "every full family has a tier X (45 tiered families reach tier 10)");
+        Check(data.Modifiers.Count == 463, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 46,
+              "every full family has a tier X (46 tiered families reach tier 10)");
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&
               data.Modifiers["of_ferocity"].StatAffected == Stats.StatType.CriticalDamage &&
               data.Modifiers["of_precision"].CompatibleItemCategories.All(c =>
@@ -3361,6 +3361,18 @@ public static class HeadlessNetTest
         Check(quiverDrops > 0 && bowDrops > 0,
               $"bows and quivers appear in the drop pool ({bowDrops} bows, {quiverDrops} quivers per 600)");
 
+        // Light radius: a Radiance suffix on chest/helm grows the personal torchglow.
+        var glowChar = new Sim.CharacterData();
+        var glowHelm = new Items.ItemInstance { BaseItemId = "iron_cap", Rarity = Items.ItemRarity.Magic };
+        glowHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_radiance_1", Value = 15 });
+        glowChar.Equipment[Items.EquipSlot.Helmet] = glowHelm;
+        var glowStats = Stats.StatCalculator.Compute(data, glowChar);
+        Check(data.Modifiers.Values.Count(m => m.ModifierGroup == "light_radius") == 10 &&
+              data.Modifiers["of_radiance_1"].CompatibleItemCategories.All(
+                  cc => cc is Items.ItemCategory.BodyArmor or Items.ItemCategory.Helmet) &&
+              MathF.Abs(glowStats.LightRadius - Stats.ComputedStats.BaseLightRadius * 1.15f) < 0.5f,
+              $"Radiance suffixes (10 tiers, chest/helm) grow the light radius ({glowStats.LightRadius:0}px)");
+
         // Added-damage prefixes ride EVERY weapon attack — the bow's fire roll burns
         // through the arrow, not just through melee swings.
         var arrowFireStats = new Stats.ComputedStats
@@ -3612,6 +3624,8 @@ public static class HeadlessNetTest
         Check(mageSeenByA.BodyStyle == 1 && mageSeenByA.HairStyle == Sim.Appearance.HairBun &&
               mageSeenByA.SkinRgb == campBChar.SkinRgb && mageSeenByA.HairRgb == campBChar.HairRgb,
               "body, hair style and free RGB colors replicate through PlayerAppearance");
+        Check(MathF.Abs(mageSeenByA.LightRadius - Stats.ComputedStats.BaseLightRadius) <= 4f,
+              $"the personal light radius replicates ({mageSeenByA.LightRadius:0}px)");
         var srvCampB = campServer.World.Players[campB.World.MyPlayerId];
         Check(srvCampB.Character.ClassId == "mage" &&
               srvCampB.Character.GetSkill("fire_bolt") != null &&

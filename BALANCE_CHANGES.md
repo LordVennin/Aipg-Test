@@ -680,3 +680,22 @@ Dark zones (sanctum, graveyard, tomb) now multiply the scene by an ambient
 light level, with additive radial lights cutting through: player torchglow,
 projectile streaks, NPC/fountain/door glows, impact flashes. Daylight zones
 skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
+
+---
+
+# Addendum (batch 35): light as a stat, elemental spell lights, burning ground
+
+- **Light radius is a character stat.** Base 235px torchglow, grown by the
+  new "of Radiance" suffix family (10 tiers, +12% to +72%, rolls on BODY
+  ARMOR and HELMETS only) — replicated, so your party sees your bigger
+  glow. NPCs no longer emit their own light; the merchants wait in the dusk.
+- **Spell lights follow the element.** Projectiles only glow when their
+  damage type does: fire bolts burn warm orange, lightning crackles
+  blue-white; arrows and other physical projectiles fly dark. Chain
+  lightning lights every strike point along the chain; electrocute's zap
+  arcs flash too.
+- **Scorched Earth ground fire reworked:** charred ground that blackens as
+  it burns, a pulsing coal bed, two-tone licking flames, rising embers,
+  drifting smoke — and its own flickering firelight.
+- Added-damage modifier text corrected to "to Attacks" (they stopped being
+  melee-only in batch 30). Suite: **512 checks**. Protocol v30.

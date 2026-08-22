@@ -63,6 +63,10 @@ public enum StatType
     SummonHealth,
     SummonLimit,
 
+    /// <summary>Percent-increased personal light radius (the torchglow in dark zones).
+    /// Rolls as a suffix on body armor and helmets.</summary>
+    LightRadius,
+
     // Weapon-local stats
     MinPhysicalDamage,
     MaxPhysicalDamage,
