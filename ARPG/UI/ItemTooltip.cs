@@ -29,9 +29,13 @@ public static class ItemTooltip
         (StatType.AddedArcaneDamage, Skills.DamageKind.Arcane),
     };
 
-    public static void Draw(SpriteBatch sb, GameData data, ItemInstance item, Point mouse, Point screenSize)
+    /// <summary>Red warning color for gear whose requirements are no longer met.</summary>
+    public static readonly Color UnmetColor = new(255, 95, 85);
+
+    public static void Draw(SpriteBatch sb, GameData data, ItemInstance item, Point mouse, Point screenSize,
+        bool requirementsNotMet = false)
     {
-        var lines = BuildLines(data, item);
+        var lines = BuildLines(data, item, requirementsNotMet);
 
         var font = FontManager.Get(15);
         var boldFont = FontManager.GetBold(16);
@@ -75,7 +79,7 @@ public static class ItemTooltip
         }
     }
 
-    private static List<Line> BuildLines(GameData data, ItemInstance item)
+    private static List<Line> BuildLines(GameData data, ItemInstance item, bool requirementsNotMet)
     {
         var lines = new List<Line>();
         var itemBase = item.GetBase(data);
@@ -86,6 +90,11 @@ public static class ItemTooltip
         lines.Add(new Line(item.DisplayName(data), WorldRenderer.RarityColor(item.Rarity), Bold: true));
         string handedness = itemBase.IsWeapon ? (itemBase.TwoHanded ? "Two-Handed " : "One-Handed ") : "";
         lines.Add(new Line($"{item.Rarity} {handedness}{CategoryName(itemBase.Category)}", gray));
+        if (requirementsNotMet)
+        {
+            lines.Add(new Line("REQUIREMENTS NOT MET", UnmetColor, Bold: true));
+            lines.Add(new Line("This item grants no benefits.", UnmetColor));
+        }
 
         // --- base properties ---
         var bs = itemBase.BaseStats;
@@ -214,7 +223,7 @@ public static class ItemTooltip
         if (rInt > 0) reqs.Add($"{rInt} Int");
         if (reqs.Count > 0)
             lines.Add(new Line($"Requires: {string.Join(", ", reqs)}{(reduced ? "  (reduced)" : "")}",
-                new Color(220, 170, 130)));
+                requirementsNotMet ? UnmetColor : new Color(220, 170, 130)));
         if (totalDeflection > 0)
         {
             foreach (var dLine in WrapText(

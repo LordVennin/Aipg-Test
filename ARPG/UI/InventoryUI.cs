@@ -256,13 +256,26 @@ public class InventoryUI
         sb.DrawString(goldFont, goldText, new Vector2(goldX, goldY), new Color(240, 200, 90));
 
         // --- equipment slots ---
+        var inactiveGear = _client.World.MyStats.InactiveItems;
         foreach (var (slot, rect) in _slotRects)
         {
             sb.Draw(TextureGen.Pixel, rect, new Color(14, 14, 20));
             DrawBorder(sb, rect, new Color(70, 66, 54));
             var item = character.Equipment.GetValueOrDefault(slot);
             if (item != null && (!_drag.Active || _drag.Item.InstanceId != item.InstanceId))
+            {
                 DrawItemBox(sb, rect, item);
+                // Requirements no longer met: the piece is dead weight — flag it red.
+                if (inactiveGear != null && inactiveGear.Contains(item.InstanceId))
+                {
+                    sb.Draw(TextureGen.Pixel, rect, new Color(190, 35, 25, 80));
+                    DrawBorder(sb, rect, ItemTooltip.UnmetColor);
+                    var xFont = FontManager.GetBold(14);
+                    var xSize = xFont.MeasureString("!");
+                    sb.DrawString(xFont, "!",
+                        new Vector2(rect.Right - xSize.X - 4, rect.Y + 1), ItemTooltip.UnmetColor);
+                }
+            }
             else if (item == null)
             {
                 var font = FontManager.Get(11);

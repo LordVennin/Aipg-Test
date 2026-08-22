@@ -669,7 +669,7 @@ public static class HeadlessNetTest
 
         // Added elemental damage flows: a Searing (added fire) weapon roll produces a fire
         // damage component on attack skills.
-        var fireChar = new Sim.CharacterData();
+        var fireChar = new Sim.CharacterData { Level = 15 }; // iron_mace wants level 15
         var fireMace = new Items.ItemInstance { BaseItemId = "iron_mace", Rarity = Items.ItemRarity.Magic, MaxPrefixes = 3, MaxSuffixes = 3 };
         fireMace.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "searing_t5", Value = 12 });
         fireChar.Equipment[Items.EquipSlot.MainHand] = fireMace;
@@ -2535,6 +2535,8 @@ public static class HeadlessNetTest
         // Deflection aggregation: ALL equipped pieces + dexterity pool into ONE rating.
         strHelm.Modifiers.Clear();
         strHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "deflecting", Value = 30 });
+        attrChar.Level = 30;         // hunters_jerkin is tier-2: level 30, 14 DEX —
+        attrChar.BaseDexterity = 14; // the wearer must genuinely qualify now
         attrChar.Equipment[Items.EquipSlot.BodyArmor] =
             new Items.ItemInstance { BaseItemId = "hunters_jerkin", Rarity = Items.ItemRarity.Normal };
         var defStats = Stats.StatCalculator.Compute(data, attrChar);
@@ -2600,8 +2602,11 @@ public static class HeadlessNetTest
               "meeting the requirement through other gear's attributes allows the equip");
 
         Console.WriteLine("\n-- Energy Shield --");
-        // Battlemage Plate (Armor + ES hybrid, 8 Str / 8 Int — met at base 10s).
+        // Battlemage Plate (Armor + ES hybrid, 8 Str / 8 Int). B is a warrior (3 INT),
+        // and worn gear only counts while its requirements hold — so give the test
+        // puppet the Intelligence to genuinely qualify.
         var esPlate = new Items.ItemInstance { BaseItemId = "battlemage_plate", Rarity = Items.ItemRarity.Normal };
+        srvSum.Character.BaseIntelligence = Math.Max(srvSum.Character.BaseIntelligence, 8);
         srvSum.Character.Equipment[Items.EquipSlot.BodyArmor] = esPlate;
         srvSum.RecomputeStats(data);
         Check(srvSum.Stats.MaxEnergyShield > 15f,
@@ -3362,7 +3367,7 @@ public static class HeadlessNetTest
               $"bows and quivers appear in the drop pool ({bowDrops} bows, {quiverDrops} quivers per 600)");
 
         // Light radius: a Radiance suffix on chest/helm grows the personal torchglow.
-        var glowChar = new Sim.CharacterData();
+        var glowChar = new Sim.CharacterData { Level = 5 }; // iron_cap wants level 5
         var glowHelm = new Items.ItemInstance { BaseItemId = "iron_cap", Rarity = Items.ItemRarity.Magic };
         glowHelm.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_radiance_1", Value = 15 });
         glowChar.Equipment[Items.EquipSlot.Helmet] = glowHelm;
@@ -3407,6 +3412,52 @@ public static class HeadlessNetTest
               $"weapon damage totals its own flat + %phys locally ({localStats.WeaponMinDamage:0.00}-{localStats.WeaponMaxDamage:0.00})");
         Check(MathF.Abs(localStats.PhysicalDamageIncrease - plainStats.PhysicalDamageIncrease) < 0.01f,
               "the weapon's own %phys stays LOCAL — it never enters the global pool");
+
+        // Continuous requirement validation: an equipped piece only counts while its
+        // requirements are met by everything EXCEPT itself. The classic bootstrap
+        // exploit — wear a +INT amulet, equip an INT robe, remove the amulet, keep the
+        // robe's stats — must die: the robe stays worn but contributes NOTHING and is
+        // reported through ComputedStats.InactiveItems for the red UI treatment.
+        var bootChar = new Sim.CharacterData
+        { BaseStrength = 11, BaseDexterity = 4, BaseIntelligence = 3 }; // warrior spread
+        var owlAmulet = new Items.ItemInstance { BaseItemId = "bone_amulet", Rarity = Items.ItemRarity.Magic };
+        owlAmulet.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_the_owl", Value = 6 }); // INT 3 -> 9
+        var bootRobe = new Items.ItemInstance { BaseItemId = "novice_robe" };  // requires INT 8
+        var bootCowl = new Items.ItemInstance { BaseItemId = "novice_cowl" };  // requires INT 8
+        bootChar.Equipment[Items.EquipSlot.Amulet] = owlAmulet;
+        bootChar.Equipment[Items.EquipSlot.BodyArmor] = bootRobe;
+        bootChar.Equipment[Items.EquipSlot.Helmet] = bootCowl;
+        var bootOn = Stats.StatCalculator.Compute(data, bootChar);
+        Check(bootOn.InactiveItems.Count == 0 && bootOn.MaxEnergyShield > 0,
+              $"amulet INT carries the robe+cowl: all gear active, ES {bootOn.MaxEnergyShield:0.#}");
+        bootChar.Equipment.Remove(Items.EquipSlot.Amulet);
+        var bootOff = Stats.StatCalculator.Compute(data, bootChar);
+        Check(bootOff.InactiveItems.Contains(bootRobe.InstanceId) &&
+              bootOff.InactiveItems.Contains(bootCowl.InstanceId) &&
+              bootOff.MaxEnergyShield < 0.01f,
+              "removing the amulet deactivates BOTH INT pieces — their stats vanish");
+        Check(MathF.Abs(bootOff.MaxHealth - bootOn.MaxHealth + 10f) < 0.5f,
+              "only the amulet's own +10 health left with it (inactive gear = not worn)");
+        // Cascade: the robe itself rolls +INT that props up the cowl. Pulling the
+        // amulet must collapse the whole chain in one recompute, robe first, then the
+        // cowl that only stood on the robe's roll.
+        var chainChar = new Sim.CharacterData
+        { BaseStrength = 11, BaseDexterity = 4, BaseIntelligence = 3 };
+        var chainAmulet = new Items.ItemInstance { BaseItemId = "bone_amulet", Rarity = Items.ItemRarity.Magic };
+        chainAmulet.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_the_owl", Value = 5 }); // INT 3 -> 8
+        var chainRobe = new Items.ItemInstance { BaseItemId = "novice_robe", Rarity = Items.ItemRarity.Magic };
+        chainRobe.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "of_the_owl", Value = 5 });   // robe feeds the cowl
+        var chainCowl = new Items.ItemInstance { BaseItemId = "novice_cowl" };
+        chainChar.Equipment[Items.EquipSlot.Amulet] = chainAmulet;
+        chainChar.Equipment[Items.EquipSlot.BodyArmor] = chainRobe;
+        chainChar.Equipment[Items.EquipSlot.Helmet] = chainCowl;
+        var chainOn = Stats.StatCalculator.Compute(data, chainChar);
+        chainChar.Equipment.Remove(Items.EquipSlot.Amulet);
+        var chainOff = Stats.StatCalculator.Compute(data, chainChar);
+        Check(chainOn.InactiveItems.Count == 0 &&
+              chainOff.InactiveItems.Contains(chainRobe.InstanceId) &&
+              chainOff.InactiveItems.Contains(chainCowl.InstanceId),
+              "deactivation cascades: the cowl standing on the robe's +INT falls with it");
 
         // 4-way body facing: aim (mouse) direction picks front/back/side, side mirrors west.
         Check(Render.WorldRenderer.BodyDirIndex(new Vector2(1, 1), out bool faceS) == Render.SpriteGen.DirSouth && !faceS &&

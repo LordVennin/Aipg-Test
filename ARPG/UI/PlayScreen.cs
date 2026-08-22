@@ -963,7 +963,11 @@ public class PlayScreen : IScreen
         {
             var hovered = _inventory.HoveredItem ?? _skillMenu.HoveredScrollItem;
             if (hovered != null)
-                ItemTooltip.Draw(sb, _game.Data, hovered, input.MousePosition, screen);
+            {
+                // Equipped-but-inactive gear (requirements no longer met) warns in red.
+                bool unmet = _client.World.MyStats.InactiveItems?.Contains(hovered.InstanceId) == true;
+                ItemTooltip.Draw(sb, _game.Data, hovered, input.MousePosition, screen, unmet);
+            }
         }
 
         var me = _client.World.Me;
