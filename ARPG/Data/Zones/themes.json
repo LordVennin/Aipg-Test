@@ -15,7 +15,8 @@
     "DeckLip": "463624",
     "PropStyle": "graveyard",
     "ClutterDensity": 0.05,
-    "WallFeatureChance": 0.3
+    "WallFeatureChance": 0.3,
+    "AmbientLight": "9AA2B8"
   },
   {
     "Id": "tomb",
@@ -33,7 +34,8 @@
     "DeckLip": "3A362F",
     "PropStyle": "tomb",
     "ClutterDensity": 0.035,
-    "WallFeatureChance": 0.4
+    "WallFeatureChance": 0.4,
+    "AmbientLight": "8A8CA6"
   },
   {
     "Id": "arid",
@@ -72,7 +74,8 @@
     "PropStyle": "tomb",
     "ClutterDensity": 0.02,
     "WallFeatureChance": 0.25,
-    "StoneBrick": true
+    "StoneBrick": true,
+    "AmbientLight": "B4A9CC"
   },
   {
     "Id": "forest",

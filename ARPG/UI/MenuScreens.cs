@@ -234,7 +234,7 @@ public class OptionsPanel
     private int _controlsScroll;
     private int _controlsContentTop, _controlsContentBottom, _controlRowsHeight;
     private Button _damageNumbersButton, _healthBarsButton, _playerListButton;
-    private Button _fullscreenButton, _resolutionButton, _soundButton;
+    private Button _fullscreenButton, _resolutionButton, _soundButton, _lightingButton;
 
     public OptionsPanel(GameMain game, Action onClose)
     {
@@ -337,6 +337,13 @@ public class OptionsPanel
                 RefreshLabels();
             }) { FontSize = 15 };
         gameplay.Children.Add(_soundButton);
+        _lightingButton = new Button(ToggleLabel("Lighting", game.Settings.Lighting),
+            new Rectangle(cx + 250, contentY + 80, 240, 30), () =>
+            {
+                game.Settings.Lighting = !game.Settings.Lighting;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        gameplay.Children.Add(_lightingButton);
         gameplay.Children.Add(new Label("Zone theme shapes the NEXT map you host (forest grows big trees).",
             cx, contentY + 120, 14));
 
@@ -419,6 +426,7 @@ public class OptionsPanel
             _playerListButton.Text = ToggleLabel("Player List & Pings", _game.Settings.ShowPlayerList);
             if (_zoneThemeButton != null) _zoneThemeButton.Text = ZoneThemeLabel();
             if (_soundButton != null) _soundButton.Text = SoundLabel();
+            if (_lightingButton != null) _lightingButton.Text = ToggleLabel("Lighting", _game.Settings.Lighting);
             _fullscreenButton.Text = ToggleLabel("Fullscreen", _game.Settings.Fullscreen);
             _resolutionButton.Text = ResolutionLabel();
         }
@@ -939,17 +947,20 @@ public class CharacterCreateScreen : IScreen
     {
         _panel.Draw(sb);
 
-        // Class description under the cards, word-wrapped.
+        // Class description + attribute spread under the cards, word-wrapped.
         var cls = _game.Data.Classes.Count > 0 ? _game.Data.Classes[Math.Clamp(_classIdx, 0, _game.Data.Classes.Count - 1)] : null;
-        if (cls?.Description != null)
+        if (cls != null)
         {
             var font = FontManager.Get(14);
             float dy = _descY;
-            foreach (var line in TextUtil.WrapToWidth(cls.Description, font, _descWidth))
+            foreach (var line in TextUtil.WrapToWidth(cls.Description ?? "", font, _descWidth))
             {
                 sb.DrawString(font, line, new Vector2(_descX, dy), new Color(185, 178, 160));
                 dy += 20;
             }
+            sb.DrawString(FontManager.GetBold(14),
+                $"STR {cls.StartStrength}  ·  DEX {cls.StartDexterity}  ·  INT {cls.StartIntelligence}",
+                new Vector2(_descX, dy + 8), new Color(150, 180, 220));
         }
 
         DrawColorGroup(sb, Appearance.SkinTones, _skinSwatchAt, _skinSlidersAt, _skinColor);

@@ -900,6 +900,15 @@ public class PlayScreen : IScreen
         _renderer.Draw(sb, _camera, _client.World);
     }
 
+    /// <summary>Render this frame's lightmap (null in daylight zones or with lighting
+    /// off). Called by GameMain BEFORE the world pass — see the note there.</summary>
+    public Microsoft.Xna.Framework.Graphics.RenderTarget2D PrepareLightmap(
+        Microsoft.Xna.Framework.Graphics.GraphicsDevice gd, SpriteBatch sb)
+    {
+        if (!_game.Settings.Lighting || _client.Status != ClientStatus.InGame) return null;
+        return _renderer.RenderLightmap(gd, sb);
+    }
+
     /// <summary>HUD + menus — drawn in UI (virtual) space through the global UI scale matrix.</summary>
     public void DrawUI(SpriteBatch sb)
     {

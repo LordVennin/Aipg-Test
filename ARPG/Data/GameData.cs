@@ -102,6 +102,12 @@ public class ClassDefinition
     public string StartWeapon { get; set; }
     public string StartOffhand { get; set; }
     public string StartSkill { get; set; }
+    /// <summary>Base attributes the class starts with (gear/passives add on top).
+    /// These spreads make gear requirements BITE early: a fresh warrior can't wear
+    /// silk, a fresh mage can't lift iron.</summary>
+    public int StartStrength { get; set; } = 10;
+    public int StartDexterity { get; set; } = 10;
+    public int StartIntelligence { get; set; } = 10;
 }
 
 /// <summary>Base dodge tuning, loaded from Data/Config/dodge.json. Final values are these
@@ -144,6 +150,11 @@ public class ZoneTheme
     /// walls as coursed brick faces (the sanctum's purple stonework) instead of plain
     /// tinted tiles.</summary>
     public bool StoneBrick { get; set; }
+    /// <summary>Zone-wide light level (RRGGBB) for the alpha-blend lighting pass: the
+    /// scene multiplies by this everywhere no light source reaches. Null or near-white
+    /// = full daylight, no lighting pass. Entity lights (players, bolts, the fountain)
+    /// punch brightness back through the gloom.</summary>
+    public string AmbientLight { get; set; }
     /// <summary>Clutter/feature sprite set: "graveyard", "tomb", "arid" or "forest".</summary>
     public string PropStyle { get; set; } = "graveyard";
     /// <summary>Chance per walkable tile of a small non-colliding clutter sprite.</summary>

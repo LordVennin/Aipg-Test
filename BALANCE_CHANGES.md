@@ -654,3 +654,29 @@ name, level, class, gold — pick to play, or delete with a two-stage confirm.
 Creation gained a NAME field (unique per save, auto-suggests a free name),
 so alts are first-class. The chosen character is your multiplayer identity;
 the name inputs on the Host/Join screens are gone.
+
+---
+
+# Addendum (batch 34): class attributes + the lighting pass
+
+## Class base attributes
+
+| Class | STR | DEX | INT |
+|---|---|---|---|
+| Warrior | 11 | 4 | 3 |
+| Archer | 3 | 12 | 4 |
+| Mage | 4 | 2 | 12 |
+
+Base attributes now come from your CLASS instead of a flat 10/10/10 — which
+makes early gear requirements (the tier-1 8s) actually gate: warriors wear
+leather and iron but not silk, mages wear cloth but can't lift mail, archers
+live in hide. Gear and passives stack on top as before; saves from before
+this patch keep flat 10s. HP/mana/phys%/deflection all flow from the new
+numbers (a fresh warrior fields ~82hp to the mage's ~68).
+
+## Alpha-blend lighting
+
+Dark zones (sanctum, graveyard, tomb) now multiply the scene by an ambient
+light level, with additive radial lights cutting through: player torchglow,
+projectile streaks, NPC/fountain/door glows, impact flashes. Daylight zones
+skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.

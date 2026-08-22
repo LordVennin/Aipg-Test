@@ -508,6 +508,18 @@ per-enemy death — the hooks already look those ids up first and fall back to
 the generics). Machines without an audio device (and the headless test) run
 silent with zero errors.
 
+### Lighting (alpha-blend lightmap)
+
+Dark zones render through a **screen-space lightmap**: the scene multiplies by
+the zone's ambient light level, and additive radial lights punch brightness
+back through — every player carries a warm torchglow, projectiles streak
+light, NPCs / the fountain / the run door glow, and impacts (slams, dark
+bursts, hits) flash. Ambient comes from the zone theme (`AmbientLight` in
+`themes.json`): the sanctum is violet dusk, graveyard and tomb darker still,
+forest and arid stay full daylight (the pass is skipped entirely). Toggle in
+Options → Gameplay. The lightmap renders before the world pass each frame and
+composites with a multiply blend; UI draws on top unlit.
+
 ### Character creation, classes & body sprites
 
 Starting any game (single player, hosting or joining) first stops at the
@@ -521,6 +533,10 @@ skin and hair each offer quick-pick swatches **plus free RGB sliders**, so any
 bakes the actual in-game sprite as the sliders move. The finished character is
 saved and the interrupted action resumes automatically.
 
+- Classes carry **base attribute spreads** — warrior STR 11 / DEX 4 / INT 3,
+  archer DEX 12 / INT 4 / STR 3, mage INT 12 / STR 4 / DEX 2 — so early armor
+  requirements bite: a fresh warrior can't wear silk, a fresh mage can't lift
+  iron mail. (Old saves keep flat 10s.)
 - **Classes are starting KITS, not restrictions** (`Data/Classes/classes.json`):
   **Warrior** (wooden club + Mace Strike), **Archer** (short bow + leather
   quiver + Arrow Shot) and **Mage** (oak staff + Fire Bolt). The class only
@@ -886,7 +902,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (507 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (510 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

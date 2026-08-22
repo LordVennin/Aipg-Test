@@ -52,6 +52,12 @@ public class CharacterData
     public int? SkinRgb { get; set; }
     public int? HairRgb { get; set; }
 
+    /// <summary>Base attributes from the starting class (gear/passives add on top).
+    /// Default 10s keep pre-class saves exactly as they were.</summary>
+    public int BaseStrength { get; set; } = 10;
+    public int BaseDexterity { get; set; } = 10;
+    public int BaseIntelligence { get; set; } = 10;
+
     public byte EffectiveHairStyle =>
         HairStyle == Appearance.HairAuto
             ? (BodyStyle == 1 ? Appearance.HairLong : Appearance.HairShort)
@@ -117,6 +123,9 @@ public class CharacterData
             Gold = 100,
             ClassId = cls?.Id ?? "warrior",
             BodyStyle = bodyStyle,
+            BaseStrength = cls?.StartStrength ?? 10,
+            BaseDexterity = cls?.StartDexterity ?? 10,
+            BaseIntelligence = cls?.StartIntelligence ?? 10,
         };
 
         ItemInstance MakeNormal(string baseId) => new()
