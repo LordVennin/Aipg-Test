@@ -526,6 +526,39 @@ public static class SpriteGen
     /// mirrored at draw time — the rig itself only knows three views.</summary>
     public const int DirSouth = 0, DirNorth = 1, DirEast = 2;
 
+    /// <summary>Build the full baked look straight from a CharacterData — creation
+    /// choices plus worn armor. Used by menus (character select) that render a saved
+    /// character without a connected session.</summary>
+    public static PlayerLook LookForCharacter(Data.GameData data, Sim.CharacterData c)
+    {
+        var look = new PlayerLook
+        {
+            BodyStyle = c.BodyStyle,
+            HairStyle = c.EffectiveHairStyle,
+            Skin = c.EffectiveSkinColor,
+            Hair = c.EffectiveHairColor,
+        };
+        Items.ItemBase BaseAt(Items.EquipSlot slot) =>
+            c.Equipment.GetValueOrDefault(slot) is { } it ? data.Items.GetValueOrDefault(it.BaseItemId) : null;
+        if (BaseAt(Items.EquipSlot.BodyArmor) is { } body)
+        {
+            look.ArmorStyle = PlayerLook.ArmorStyleId(body.ArmorStyle);
+            look.ArmorColor = WorldRenderer.ParseColor(body.SpriteColor, new Color(120, 112, 100));
+        }
+        if (BaseAt(Items.EquipSlot.Helmet) is { } helm)
+        {
+            look.HelmetStyle = PlayerLook.HelmetStyleId(helm.ArmorStyle);
+            look.HelmetColor = WorldRenderer.ParseColor(helm.SpriteColor, new Color(120, 112, 100));
+        }
+        if (BaseAt(Items.EquipSlot.Gloves) is { } glove)
+            look.Gloves = WorldRenderer.ParseColor(glove.SpriteColor, new Color(120, 112, 100));
+        if (BaseAt(Items.EquipSlot.Boots) is { } boot)
+            look.Boots = WorldRenderer.ParseColor(boot.SpriteColor, new Color(70, 60, 50));
+        if (BaseAt(Items.EquipSlot.Belt) is { } belt)
+            look.Belt = WorldRenderer.ParseColor(belt.SpriteColor, new Color(100, 88, 60));
+        return look;
+    }
+
     /// <summary>Player body frames for one look, indexed [direction * 3 + frame]:
     /// directions South (front) / North (back) / East (side, mirror for West), frames
     /// [0] idle + [1]/[2] walk. ONE human rig — style only changes silhouette pixels,

@@ -510,8 +510,11 @@ silent with zero errors.
 
 ### Character creation, classes & body sprites
 
-The first time a player name starts (single player, hosting or joining), the
-game routes through the **character creation screen**: pick a **class**, a
+Starting any game (single player, hosting or joining) first stops at the
+**character select screen**: every save on disk as a clickable row with a live
+sprite preview (body + worn armor), name, level and class — pick one to play,
+or delete with a two-stage confirm. **New Character** opens the **creation
+screen**: pick a **class**, a
 **body style**, a **hair style** (Short / Long / Bun / Bald), and BOTH colors —
 skin and hair each offer quick-pick swatches **plus free RGB sliders**, so any
 24-bit color goes (green skin, pink hair, whatever). A live animated preview
@@ -883,7 +886,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (505 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (507 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.
