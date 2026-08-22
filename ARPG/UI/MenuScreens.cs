@@ -74,7 +74,7 @@ public class MainMenuScreen : IScreen
         }
         _panel.Draw(sb);
 
-        var hint = $"Playing as '{_game.Settings.PlayerName}' — change name in Host/Join screens";
+        var hint = "You pick (or create) a character when starting any game.";
         var hSize = subFont.MeasureString(hint);
         sb.DrawString(subFont, hint, new Vector2(size.X / 2f - hSize.X / 2, size.Y - 60), new Color(120, 118, 108));
     }
@@ -85,7 +85,7 @@ public class HostScreen : IScreen
 {
     private readonly GameMain _game;
     private readonly Panel _panel;
-    private readonly TextInput _name, _port;
+    private readonly TextInput _port;
     private readonly Label _error;
 
     public HostScreen(GameMain game)
@@ -93,28 +93,25 @@ public class HostScreen : IScreen
         _game = game;
         var size = game.UiScreenSize;
         int cx = size.X / 2 - 170;
-        int y = size.Y / 2 - 170;
-        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 452) };
+        int y = size.Y / 2 - 140;
+        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 384) };
         _panel.Children.Add(new Label("Host Game", cx, y - 40, 26, bold: true));
-        _panel.Children.Add(new Label("Player Name", cx, y + 8, 15));
-        _name = new TextInput(new Rectangle(cx, y + 30, 340, 36), game.Settings.PlayerName);
-        _panel.Children.Add(_name);
-        _panel.Children.Add(new Label($"Port (default {GameNetConfig.DefaultPort})", cx, y + 78, 15));
-        _port = new TextInput(new Rectangle(cx, y + 100, 340, 36), game.Settings.LastPort.ToString()) { NumericOnly = true, MaxLength = 5 };
+        _panel.Children.Add(new Label($"Port (default {GameNetConfig.DefaultPort})", cx, y + 8, 15));
+        _port = new TextInput(new Rectangle(cx, y + 30, 340, 36), game.Settings.LastPort.ToString()) { NumericOnly = true, MaxLength = 5 };
         _panel.Children.Add(_port);
         // The host's own addresses (LAN + VPN adapters like Meshnet/ZeroTier): this is
         // exactly what a friend types into Join — and proof the game sees the adapter.
-        _panel.Children.Add(new Label("Friends connect to one of YOUR addresses:", cx, y + 148, 15));
-        int addrY = y + 168;
+        _panel.Children.Add(new Label("Friends connect to one of YOUR addresses:", cx, y + 78, 15));
+        int addrY = y + 98;
         foreach (var line in LocalAddressLines())
         {
             _panel.Children.Add(new Label(line, cx, addrY, 14) { Color = new Color(240, 200, 90) });
             addrY += 20;
         }
-        _error = new Label("", cx, y + 230, 15) { Color = new Color(255, 120, 110) };
+        _error = new Label("", cx, y + 160, 15) { Color = new Color(255, 120, 110) };
         _panel.Children.Add(_error);
-        _panel.Children.Add(new Button("Start Hosting", new Rectangle(cx, y + 262, 340, 42), StartHosting));
-        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 314, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
+        _panel.Children.Add(new Button("Start Hosting", new Rectangle(cx, y + 192, 340, 42), StartHosting));
+        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 244, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
     }
 
     /// <summary>Up to three lines of this machine's IPv4 addresses on live non-loopback
@@ -150,12 +147,6 @@ public class HostScreen : IScreen
             _error.Text = "Invalid port.";
             return;
         }
-        if (string.IsNullOrWhiteSpace(_name.Text))
-        {
-            _error.Text = "Enter a player name.";
-            return;
-        }
-        _game.Settings.PlayerName = _name.Text.Trim();
         _game.Settings.LastPort = port;
         _game.Settings.Save();
         string error = _game.StartHost(port);
@@ -171,7 +162,7 @@ public class JoinScreen : IScreen
 {
     private readonly GameMain _game;
     private readonly Panel _panel;
-    private readonly TextInput _name, _ip, _port;
+    private readonly TextInput _ip, _port;
     private readonly Label _error;
 
     public JoinScreen(GameMain game)
@@ -179,22 +170,19 @@ public class JoinScreen : IScreen
         _game = game;
         var size = game.UiScreenSize;
         int cx = size.X / 2 - 170;
-        int y = size.Y / 2 - 170;
-        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 420) };
+        int y = size.Y / 2 - 140;
+        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 350) };
         _panel.Children.Add(new Label("Join Game", cx, y - 40, 26, bold: true));
-        _panel.Children.Add(new Label("Player Name", cx, y + 8, 15));
-        _name = new TextInput(new Rectangle(cx, y + 30, 340, 36), game.Settings.PlayerName);
-        _panel.Children.Add(_name);
-        _panel.Children.Add(new Label("Host IP (e.g. 192.168.1.50 or a ZeroTier/Meshnet IP)", cx, y + 78, 15));
-        _ip = new TextInput(new Rectangle(cx, y + 100, 340, 36), game.Settings.LastJoinIp) { MaxLength = 45 };
+        _panel.Children.Add(new Label("Host IP (e.g. 192.168.1.50 or a ZeroTier/Meshnet IP)", cx, y + 8, 15));
+        _ip = new TextInput(new Rectangle(cx, y + 30, 340, 36), game.Settings.LastJoinIp) { MaxLength = 45 };
         _panel.Children.Add(_ip);
-        _panel.Children.Add(new Label("Port", cx, y + 148, 15));
-        _port = new TextInput(new Rectangle(cx, y + 170, 340, 36), game.Settings.LastPort.ToString()) { NumericOnly = true, MaxLength = 5 };
+        _panel.Children.Add(new Label("Port", cx, y + 78, 15));
+        _port = new TextInput(new Rectangle(cx, y + 100, 340, 36), game.Settings.LastPort.ToString()) { NumericOnly = true, MaxLength = 5 };
         _panel.Children.Add(_port);
-        _error = new Label("", cx, y + 218, 15) { Color = new Color(255, 120, 110) };
+        _error = new Label("", cx, y + 148, 15) { Color = new Color(255, 120, 110) };
         _panel.Children.Add(_error);
-        _panel.Children.Add(new Button("Connect", new Rectangle(cx, y + 250, 340, 42), Connect));
-        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 302, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
+        _panel.Children.Add(new Button("Connect", new Rectangle(cx, y + 180, 340, 42), Connect));
+        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 232, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
     }
 
     private void Connect()
@@ -210,12 +198,6 @@ public class JoinScreen : IScreen
             _error.Text = "Enter a host IP address.";
             return;
         }
-        if (string.IsNullOrWhiteSpace(_name.Text))
-        {
-            _error.Text = "Enter a player name.";
-            return;
-        }
-        _game.Settings.PlayerName = _name.Text.Trim();
         _game.Settings.LastJoinIp = ip;
         _game.Settings.LastPort = port;
         _game.Settings.Save();
@@ -524,11 +506,163 @@ public class OptionsScreen : IScreen
 }
 
 /// <summary>
-/// First-run character creation: pick a starting class (a starting KIT — classes never
-/// gate items or skills later), a body style, a hair style, and BOTH colors — quick-pick
-/// swatches plus free RGB sliders, so any 24-bit skin or hair color goes. A live
-/// animated preview bakes the real in-game sprite as the sliders move. Shown once per
-/// player name; the finished character is saved and the interrupted action re-entered.
+/// The character roster: every save on disk as a clickable row (live sprite preview,
+/// name, level, class), a two-stage delete, and the door into character creation.
+/// Picking a character makes it the active identity (Settings.PlayerName) and resumes
+/// whatever was interrupted — single player, hosting, or joining.
+/// </summary>
+public class CharacterSelectScreen : IScreen
+{
+    private readonly GameMain _game;
+    private readonly Action _proceed;
+    private Panel _panel;
+    private Point _builtSize;
+    private List<CharacterData> _roster;
+    private int _deleteArmedIndex = -1;   // row whose delete button awaits confirmation
+    private double _deleteArmedAt;
+    private Rectangle _listAt;
+
+    private const int RowH = 58, RowGap = 8, MaxRows = 7;
+
+    public CharacterSelectScreen(GameMain game, Action proceed)
+    {
+        _game = game;
+        _proceed = proceed;
+        Build();
+    }
+
+    private void Build()
+    {
+        var size = _game.UiScreenSize;
+        _builtSize = size;
+        _roster = SaveManager.ListCharacters();
+        int w = 560, h = 170 + MaxRows * (RowH + RowGap);
+        int px = size.X / 2 - w / 2, py = Math.Max(12, size.Y / 2 - h / 2);
+        _panel = new Panel { Bounds = new Rectangle(px, py, w, h) };
+        _panel.Children.Add(new Label("Choose Your Character", px + 24, py + 16, 26, bold: true));
+        _listAt = new Rectangle(px + 24, py + 64, w - 48, MaxRows * (RowH + RowGap));
+        _panel.Children.Add(new Button("New Character", new Rectangle(px + w - 224, py + h - 60, 200, 42),
+            () => _game.SwitchScreen(new CharacterCreateScreen(_game, _proceed))));
+        _panel.Children.Add(new Button("Back", new Rectangle(px + 24, py + h - 60, 140, 36),
+            () => _game.SwitchScreen(new MainMenuScreen(_game))));
+    }
+
+    private Rectangle RowRect(int i) =>
+        new(_listAt.X, _listAt.Y + i * (RowH + RowGap), _listAt.Width, RowH);
+
+    private Rectangle DeleteRect(int i)
+    {
+        var row = RowRect(i);
+        return new Rectangle(row.Right - 86, row.Y + 14, 74, 30);
+    }
+
+    public void Update(float dt)
+    {
+        if (_game.UiScreenSize != _builtSize) Build();
+        var input = _game.Input;
+        if (_deleteArmedIndex >= 0 && Environment.TickCount64 - _deleteArmedAt > 3000)
+            _deleteArmedIndex = -1;   // confirmation window expired
+        if (input.MouseLeftPressed)
+        {
+            for (int i = 0; i < Math.Min(_roster.Count, MaxRows); i++)
+            {
+                if (DeleteRect(i).Contains(input.MousePosition))
+                {
+                    Audio.AudioManager.PlayUi("ui_click");
+                    if (_deleteArmedIndex == i)
+                    {
+                        SaveManager.DeleteCharacter(_roster[i].Name);
+                        _deleteArmedIndex = -1;
+                        _roster = SaveManager.ListCharacters();
+                    }
+                    else
+                    {
+                        _deleteArmedIndex = i;
+                        _deleteArmedAt = Environment.TickCount64;
+                    }
+                    input.MouseCapturedByUI = true;
+                    return;
+                }
+                if (RowRect(i).Contains(input.MousePosition))
+                {
+                    Audio.AudioManager.PlayUi("ui_click");
+                    _game.Settings.PlayerName = _roster[i].Name;
+                    _game.Settings.Save();
+                    _proceed();
+                    input.MouseCapturedByUI = true;
+                    return;
+                }
+            }
+        }
+        _panel.Update(input);
+    }
+
+    public void Draw(SpriteBatch sb)
+    {
+        _panel.Draw(sb);
+        var font = FontManager.Get(15);
+        var bold = FontManager.GetBold(17);
+        var small = FontManager.Get(13);
+
+        if (_roster.Count == 0)
+        {
+            string empty = "No characters yet — create your first.";
+            var eSize = font.MeasureString(empty);
+            sb.DrawString(font, empty,
+                new Vector2(_listAt.Center.X - eSize.X / 2, _listAt.Y + 40), new Color(150, 145, 130));
+            return;
+        }
+
+        for (int i = 0; i < Math.Min(_roster.Count, MaxRows); i++)
+        {
+            var c = _roster[i];
+            var row = RowRect(i);
+            bool hover = row.Contains(_game.Input.MousePosition) &&
+                         !DeleteRect(i).Contains(_game.Input.MousePosition);
+            sb.Draw(TextureGen.Pixel, row, hover ? new Color(52, 48, 40) : new Color(30, 28, 38));
+            var edge = hover ? new Color(180, 160, 90) : new Color(70, 66, 56);
+            sb.Draw(TextureGen.Pixel, new Rectangle(row.X, row.Y, row.Width, 1), edge);
+            sb.Draw(TextureGen.Pixel, new Rectangle(row.X, row.Bottom - 1, row.Width, 1), edge);
+            sb.Draw(TextureGen.Pixel, new Rectangle(row.X, row.Y, 1, row.Height), edge);
+            sb.Draw(TextureGen.Pixel, new Rectangle(row.Right - 1, row.Y, 1, row.Height), edge);
+
+            // Live sprite: the character's actual body + worn armor, idle, facing us.
+            var frames = SpriteGen.GetPlayerFrames(SpriteGen.LookForCharacter(_game.Data, c));
+            if (frames != null)
+            {
+                var tex = frames[0];
+                int th = row.Height - 10, tw = th * tex.Width / tex.Height;
+                sb.Draw(tex, new Rectangle(row.X + 12, row.Y + 5, tw, th), Color.White);
+            }
+
+            var cls = _game.Data.Classes.FirstOrDefault(cl => cl.Id == c.ClassId);
+            sb.DrawString(bold, c.Name, new Vector2(row.X + 58, row.Y + 9), new Color(235, 226, 200));
+            sb.DrawString(small,
+                $"Level {c.Level} · {cls?.Name ?? c.ClassId} · {(c.BodyStyle == 1 ? "female" : "male")} · {c.Gold}g",
+                new Vector2(row.X + 58, row.Y + 32), new Color(160, 154, 138));
+
+            var del = DeleteRect(i);
+            bool armed = _deleteArmedIndex == i;
+            bool delHover = del.Contains(_game.Input.MousePosition);
+            sb.Draw(TextureGen.Pixel, del, armed ? new Color(150, 60, 55) : delHover ? new Color(84, 60, 56) : new Color(45, 42, 40));
+            string delText = armed ? "Sure?" : "Delete";
+            var dSize = small.MeasureString(delText);
+            sb.DrawString(small, delText,
+                new Vector2(del.Center.X - dSize.X / 2, del.Center.Y - dSize.Y / 2), new Color(225, 205, 200));
+        }
+        if (_roster.Count > MaxRows)
+            sb.DrawString(small, $"(+{_roster.Count - MaxRows} more not shown)",
+                new Vector2(_listAt.X, _listAt.Bottom + 2), new Color(140, 135, 125));
+    }
+}
+
+/// <summary>
+/// Character creation: name the character, pick a starting class (a starting KIT —
+/// classes never gate items or skills later), a body style, a hair style, and BOTH
+/// colors — quick-pick swatches plus free RGB sliders, so any 24-bit skin or hair color
+/// goes. A live animated preview bakes the real in-game sprite as the sliders move.
+/// The finished character is saved, becomes the active identity, and the interrupted
+/// action (single player / host / join) resumes.
 /// </summary>
 public class CharacterCreateScreen : IScreen
 {
@@ -538,6 +672,8 @@ public class CharacterCreateScreen : IScreen
     private Button[] _classButtons;
     private Button _maleButton, _femaleButton;
     private Button[] _hairButtons;
+    private TextInput _nameInput;
+    private Label _error;
     private Point _builtSize;
 
     private int _classIdx;
@@ -578,11 +714,13 @@ public class CharacterCreateScreen : IScreen
         int px = size.X / 2 - w / 2, py = Math.Max(12, size.Y / 2 - h / 2);
         _panel = new Panel { Bounds = new Rectangle(px, py, w, h) };
         _panel.Children.Add(new Label("Create Your Character", px + 24, py + 16, 26, bold: true));
-        _panel.Children.Add(new Label($"Playing as '{_game.Settings.PlayerName}'", px + 24, py + 52, 14)
-            { Color = new Color(150, 145, 130) });
+        _panel.Children.Add(new Label("Name", px + 24, py + 55, 15, bold: true));
+        _nameInput = new TextInput(new Rectangle(px + 80, py + 48, 230, 30),
+            _nameInput?.Text ?? NextFreeName()) { MaxLength = 16 };
+        _panel.Children.Add(_nameInput);
 
         // --- left column: class cards + description ---
-        int colX = px + 24, colY = py + 92;
+        int colX = px + 24, colY = py + 112;
         _panel.Children.Add(new Label("Class", colX, colY - 24, 16, bold: true));
         var classes = _game.Data.Classes;
         _classButtons = new Button[classes.Count];
@@ -631,13 +769,24 @@ public class CharacterCreateScreen : IScreen
         _previewRect = new Rectangle(px + w - 196, py + 88, 168, 240);
 
         // --- bottom row ---
+        _error = new Label("", px + 180, py + h - 90, 15) { Color = new Color(255, 120, 110) };
+        _panel.Children.Add(_error);
         _panel.Children.Add(new Button("Begin", new Rectangle(px + w - 224, py + h - 60, 200, 42), Create));
         _panel.Children.Add(new Button("Back", new Rectangle(px + 24, py + h - 60, 140, 36), () =>
         {
             DisposePreview();
-            _game.SwitchScreen(new MainMenuScreen(_game));
+            _game.SwitchScreen(new CharacterSelectScreen(_game, _proceed));
         }));
         RefreshSelection();
+    }
+
+    /// <summary>Suggest the first unused default name (Exile, Exile2, Exile3...).</summary>
+    private static string NextFreeName()
+    {
+        if (!SaveManager.CharacterExists("Exile")) return "Exile";
+        for (int i = 2; i < 100; i++)
+            if (!SaveManager.CharacterExists($"Exile{i}")) return $"Exile{i}";
+        return "Exile";
     }
 
     private static void Highlight(Button b, bool sel, string baseText)
@@ -659,13 +808,18 @@ public class CharacterCreateScreen : IScreen
 
     private void Create()
     {
+        string name = _nameInput.Text.Trim();
+        if (name.Length == 0) { _error.Text = "Enter a name."; return; }
+        if (SaveManager.CharacterExists(name)) { _error.Text = $"'{name}' already exists."; return; }
         var classes = _game.Data.Classes;
         string classId = classes.Count > 0 ? classes[Math.Clamp(_classIdx, 0, classes.Count - 1)].Id : "warrior";
-        var c = CharacterData.CreateNew(_game.Data, _game.Settings.PlayerName, classId, _body);
+        var c = CharacterData.CreateNew(_game.Data, name, classId, _body);
         c.HairStyle = _hairStyle;
         c.SkinRgb = Appearance.Pack(_skinColor);
         c.HairRgb = Appearance.Pack(_hairColor);
         SaveManager.SaveCharacter(c);
+        _game.Settings.PlayerName = name;
+        _game.Settings.Save();
         DisposePreview();
         _proceed();
     }

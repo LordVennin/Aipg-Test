@@ -128,24 +128,31 @@ public class GameMain : Game
     private static bool HostCampaign =>
         Environment.GetEnvironmentVariable("ARPG_ARENA") != "1";
 
-    /// <summary>First run under this name: route through the character-creation screen
-    /// (class, body, skin tone) and re-enter the caller when done. Dev/automation boots
-    /// (--sp) skip the screen with a default warrior so harnesses never stall.</summary>
-    private bool RouteThroughCreation(Action proceed)
+    /// <summary>Every session start stops at the CHARACTER SELECT screen first: pick a
+    /// saved character (or create one) and the interrupted action resumes with it. The
+    /// chosen name becomes Settings.PlayerName. Dev/automation boots (--sp) skip the
+    /// screen — a default warrior is minted if the name has no save — so harnesses
+    /// never stall.</summary>
+    private bool RouteThroughSelect(Action proceed)
     {
-        if (SaveManager.LoadCharacter(Settings.PlayerName) != null) return false;
         if (AutoSinglePlayer)
         {
-            SaveManager.SaveCharacter(Sim.CharacterData.CreateNew(Data, Settings.PlayerName));
+            if (SaveManager.LoadCharacter(Settings.PlayerName) == null)
+                SaveManager.SaveCharacter(Sim.CharacterData.CreateNew(Data, Settings.PlayerName));
             return false;
         }
-        SwitchScreen(new UI.CharacterCreateScreen(this, proceed));
+        SwitchScreen(new UI.CharacterSelectScreen(this, proceed));
         return true;
     }
 
     public void StartSinglePlayer()
     {
-        if (RouteThroughCreation(StartSinglePlayer)) return;
+        if (RouteThroughSelect(StartSinglePlayerNow)) return;
+        StartSinglePlayerNow();
+    }
+
+    private void StartSinglePlayerNow()
+    {
         var server = new GameServer(Data, SeedRng.Next(), HostZoneThemeId, campaign: HostCampaign);
         if (!server.Start(0))
         {
@@ -159,7 +166,16 @@ public class GameMain : Game
     /// <summary>Host = the same local server, but listening on 0.0.0.0:port for remote players.</summary>
     public string StartHost(int port)
     {
-        if (RouteThroughCreation(() => StartHost(port))) return null;
+        if (RouteThroughSelect(() =>
+        {
+            string err = StartHostNow(port);
+            if (err != null) SwitchScreen(new MainMenuScreen(this, err));
+        })) return null;
+        return StartHostNow(port);
+    }
+
+    private string StartHostNow(int port)
+    {
         var server = new GameServer(Data, SeedRng.Next(), HostZoneThemeId, campaign: HostCampaign);
         if (!server.Start(port))
             return $"Could not listen on port {port} (already in use?).";
@@ -170,7 +186,11 @@ public class GameMain : Game
 
     public string StartJoin(string ip, int port)
     {
-        if (RouteThroughCreation(() => StartJoin(ip, port))) return null;
+        if (RouteThroughSelect(() =>
+        {
+            string err = StartClientSession(null, ip, port);
+            if (err != null) SwitchScreen(new MainMenuScreen(this, err));
+        })) return null;
         return StartClientSession(null, ip, port);
     }
 

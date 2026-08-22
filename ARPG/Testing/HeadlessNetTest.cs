@@ -3323,6 +3323,19 @@ public static class HeadlessNetTest
               armoredB.GlovesBaseId == "warplate_gauntlets" && armoredB.BootsBaseId == "warplate_greaves" &&
               armoredB.BeltBaseId == "rope_belt",
               "all five worn armor slots replicate through PlayerAppearance");
+        // The character roster behind the select screen: list / exists / delete.
+        Persistence.SaveManager.SaveCharacter(Sim.CharacterData.CreateNew(data, "RosterTestA", "warrior"));
+        Persistence.SaveManager.SaveCharacter(Sim.CharacterData.CreateNew(data, "RosterTestB", "mage", bodyStyle: 1));
+        var roster = Persistence.SaveManager.ListCharacters();
+        Check(roster.Any(rc => rc.Name == "RosterTestA") && roster.Any(rc => rc.Name == "RosterTestB") &&
+              Persistence.SaveManager.CharacterExists("RosterTestB"),
+              $"the save roster lists every saved character ({roster.Count} on disk)");
+        Persistence.SaveManager.DeleteCharacter("RosterTestA");
+        roster = Persistence.SaveManager.ListCharacters();
+        Check(!roster.Any(rc => rc.Name == "RosterTestA") && roster.Any(rc => rc.Name == "RosterTestB"),
+              "deleting a character removes only that save");
+        Persistence.SaveManager.DeleteCharacter("RosterTestB");
+
         // The sound registry: every entry has a unique id, a valid procedural
         // placeholder synth, and a drop-in WAV file name (silent headless — the
         // manager stays inert without a device, but the manifest must parse).

@@ -46,4 +46,48 @@ public static class SaveManager
             Console.WriteLine($"[Save] Failed to save character: {e.Message}");
         }
     }
+
+    /// <summary>Every saved character in the save directory, newest-played first
+    /// (file write time). Unreadable files are skipped, never fatal.</summary>
+    public static List<CharacterData> ListCharacters()
+    {
+        var found = new List<(CharacterData Character, DateTime Touched)>();
+        try
+        {
+            if (Directory.Exists(GameSettings.SaveDirectory))
+                foreach (var path in Directory.GetFiles(GameSettings.SaveDirectory, "char_*.json"))
+                {
+                    try
+                    {
+                        var c = Json.LoadFile<CharacterData>(path);
+                        if (c?.Name != null) found.Add((c, File.GetLastWriteTimeUtc(path)));
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"[Save] Skipping unreadable save '{Path.GetFileName(path)}': {e.Message}");
+                    }
+                }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"[Save] Could not list saves: {e.Message}");
+        }
+        return found.OrderByDescending(f => f.Touched).Select(f => f.Character).ToList();
+    }
+
+    public static bool CharacterExists(string name) => File.Exists(CharacterPath(name));
+
+    public static void DeleteCharacter(string name)
+    {
+        try
+        {
+            string path = CharacterPath(name);
+            if (File.Exists(path)) File.Delete(path);
+            Console.WriteLine($"[Save] Deleted character '{name}'.");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"[Save] Failed to delete character '{name}': {e.Message}");
+        }
+    }
 }

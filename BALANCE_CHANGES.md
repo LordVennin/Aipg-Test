@@ -643,3 +643,14 @@ ranged-only variants needed. Staffs are untouched: their spell-damage adds
 are separate stats that scale spells, and they stay in the modifier list.
 The character sheet's per-type DPS breakdown already included these
 components, so tooltip, sheet and hits all agree.
+
+---
+
+# Addendum (batch 33): the character roster
+
+No more one-save-per-install: starting any game now opens a CHARACTER SELECT
+screen listing every save on disk — live sprite preview (body + worn armor),
+name, level, class, gold — pick to play, or delete with a two-stage confirm.
+Creation gained a NAME field (unique per save, auto-suggests a free name),
+so alts are first-class. The chosen character is your multiplayer identity;
+the name inputs on the Host/Join screens are gone.
