@@ -2329,6 +2329,45 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
+    // ------------------------------------------------------------------ weapon gore
+
+    /// <summary>A splatter mask for a melee weapon: white droplets clinging to the
+    /// striking HALF of its sprite, tinted at draw time with the victim's blood color
+    /// and faded by the gore timer. Deterministic per base id; cached.</summary>
+    public static Texture2D GetWeaponGoreMask(Items.ItemBase itemBase)
+    {
+        if (itemBase == null || _device == null) return null;
+        var baseTex = GetWeaponSprite(itemBase);
+        if (baseTex == null) return null;
+        string key = "goremask:" + itemBase.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+
+        var src = new Color[baseTex.Width * baseTex.Height];
+        baseTex.GetData(src);
+        var dst = new Color[src.Length];
+        int head = (int)(baseTex.Width * 0.45f); // splatter clings to the striking end
+        uint idHash = 2166136261u;
+        foreach (char ch in itemBase.Id) idHash = (idHash ^ ch) * 16777619u;
+        for (int y = 0; y < baseTex.Height; y++)
+            for (int x = head; x < baseTex.Width; x++)
+            {
+                int i = y * baseTex.Width + x;
+                if (src[i].A == 0) continue;
+                uint n = (uint)(x * 73856093 ^ y * 19349663) ^ idHash;
+                n ^= n >> 13; n *= 0x5bd1e995; n ^= n >> 15;
+                // Densest at the very tip, sparser toward the grip.
+                int chance = 60 + (x - head) * 140 / Math.Max(1, baseTex.Width - head);
+                if ((n & 0xFF) < chance)
+                {
+                    byte v = (byte)(195 + (n >> 8) % 61);
+                    dst[i] = new Color(v, v, v);
+                }
+            }
+        var tex = BakeStrip(dst, baseTex.Width, baseTex.Height);
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
     // ------------------------------------------------------------------ skill scrolls
 
     /// <summary>

@@ -114,6 +114,13 @@ public enum PacketType : byte
     ReviveRequest,
     /// <summary>Server -> client: a caster's ranged AoE (at, radius, windup, height, phase).</summary>
     EnemyCastAoe,
+
+    // Corpses (batch 41)
+    /// <summary>Server -> client: an enemy corpse now exists (id, enemy type id, position,
+    /// height). Corpses are authoritative server records — future skills can target them.</summary>
+    CorpseSpawn,
+    /// <summary>Server -> client: a corpse was consumed/expired (id).</summary>
+    CorpseRemove,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

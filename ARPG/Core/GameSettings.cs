@@ -66,7 +66,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 30; // v30: light radius in PlayerAppearance
+    public const int ProtocolVersion = 31; // v31: corpse replication
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

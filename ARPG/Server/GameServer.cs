@@ -329,6 +329,8 @@ public class GameServer : IServerEvents
         }
         foreach (var enemy in World.Enemies.Values.Where(e => !e.Dead))
             peer.Send(EnemySpawnPacket(enemy), DeliveryMethod.ReliableOrdered);
+        foreach (var corpse in World.Corpses)
+            peer.Send(CorpsePacket(corpse), DeliveryMethod.ReliableOrdered);
         foreach (var drop in World.Drops.Values)
             peer.Send(WorldItemSpawnPacket(drop), DeliveryMethod.ReliableOrdered);
 
@@ -617,6 +619,25 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.EnemyDeath);
         w.Put(e.Id);
         w.PutVec2(e.Position);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    private NetDataWriter CorpsePacket(ServerCorpse c)
+    {
+        var w = Packets.Make(PacketType.CorpseSpawn);
+        w.Put(c.Id);
+        w.Put(c.TypeId);
+        w.PutVec2(c.Position);
+        w.Put(c.Height);
+        return w;
+    }
+
+    public void CorpseAdded(ServerCorpse c) => Broadcast(CorpsePacket(c), DeliveryMethod.ReliableOrdered);
+
+    public void CorpseRemoved(ServerCorpse c)
+    {
+        var w = Packets.Make(PacketType.CorpseRemove);
+        w.Put(c.Id);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

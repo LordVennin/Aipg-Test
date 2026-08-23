@@ -37,7 +37,7 @@
   "AttackStyle": "lunge"
  },
  {
-  "Id": "spitter",
+  "Id": "spitter", "Blood": "5FA32A",
   "Name": "Grave Spitter",
   "Level": 2,
   "MaxHealth": 24,
@@ -70,7 +70,7 @@
   "SpriteStyle": "Ghoul"
  },
  {
-  "Id": "gravelord",
+  "Id": "gravelord", "Blood": "4E1030",
   "Name": "The Gravelord",
   "Level": 4,
   "MaxHealth": 380,
@@ -121,7 +121,7 @@
   "AttackStyle": "lunge"
  },
  {
-  "Id": "bone_knight",
+  "Id": "bone_knight", "Blood": "D8CFB4",
   "Name": "Barrow Knight",
   "Level": 3,
   "MaxHealth": 55,

@@ -3596,6 +3596,26 @@ public static class HeadlessNetTest
         clientB.World.Me.Height = 0f;
         Pump(0.3f);
 
+        Console.WriteLine("\n-- Corpses: the dead stay behind --");
+        // Every kill above left an authoritative corpse record on the server (future
+        // skills — raise dead, corpse explosion — target these), replicated everywhere.
+        Check(server.World.Corpses.Count >= 2 &&
+              server.World.Corpses.Any(c => c.TypeId == "grave_caller") &&
+              server.World.Corpses.Any(c => c.TypeId == "gravelord"),
+              $"kills leave authoritative server corpses ({server.World.Corpses.Count} bodies, " +
+              "caller + gravelord among them)");
+        Check(clientA.World.Corpses.Count == server.World.Corpses.Count &&
+              clientB.World.Corpses.Count == server.World.Corpses.Count &&
+              server.World.Corpses.All(c => clientA.World.Corpses.ContainsKey(c.Id) &&
+                                            clientA.World.Corpses[c.Id].TypeId == c.TypeId),
+              $"corpses replicate to every client ({clientA.World.Corpses.Count} on A)");
+        // Blood colors are data-driven per enemy: zombies bleed dark red, spitters
+        // acid green, skeletons pale bone dust (drives hit bursts, pools, weapon gore).
+        Check(data.Enemies["grunt"].Blood == "7E1A1A" &&
+              data.Enemies["spitter"].Blood == "5FA32A" &&
+              data.Enemies["bone_knight"].Blood == "D8CFB4",
+              "blood is data-driven: red flesh, acid spitters, bone-dust skeletons");
+
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
         // The campaign's run maps grow tall-grass patches (on terraces too) and stay
         // walkable through them; density-bumped big trees come in four variants.
@@ -4021,6 +4041,8 @@ public static class HeadlessNetTest
         campA.SendDebugCommand("warp_next");
         CPump(0.8f);
         Check(campServer.World.MapIndex == 3, "warped ahead to the loop-2 boss map");
+        Check(campServer.World.Corpses.Count == 0 && campA.World.Corpses.Count == 0,
+              "the dead do not follow: corpses clear on map transitions");
         var boss2 = campServer.World.Enemies.Values.FirstOrDefault(e => e.Def.Id == "gravelord");
         Check(boss2 != null && boss2.Level >= boss2.Def.DashMinLevel,
               $"the loop-2 Gravelord (level {boss2?.Level}) has its dash unlocked (min {boss2?.Def.DashMinLevel})");

@@ -58,6 +58,10 @@ public interface IServerEvents
     void ZoneStateChanged(ServerWorld world);
     /// <summary>A chest opened (replicate the popped lid).</summary>
     void ChestChanged(ServerChest chest);
+    /// <summary>An enemy corpse appeared (death) — clients play the fall and keep the body.</summary>
+    void CorpseAdded(ServerCorpse c);
+    /// <summary>A corpse left the world (cap eviction; later: consumed by a skill).</summary>
+    void CorpseRemoved(ServerCorpse c);
 }
 
 /// <summary>One merchant stock slot as offered to a specific player.</summary>
@@ -118,6 +122,12 @@ public partial class ServerWorld
     public int ReadyCount => _readyAtDoor.Count;
     /// <summary>Openable starter-gear chests (hub only; opened state persists per run).</summary>
     public readonly List<ServerChest> Chests = new();
+
+    /// <summary>Fallen enemies' remains, oldest first — authoritative records future
+    /// skills can target. Capped (oldest evicted) and cleared on map transitions.</summary>
+    public readonly List<ServerCorpse> Corpses = new();
+    public const int MaxCorpses = 120;
+    private int _nextCorpseId = 1;
 
     private readonly int _runSeed;
     private readonly ZoneTheme _theme;
@@ -369,6 +379,7 @@ public partial class ServerWorld
         Enemies.Clear();       // clients wipe on MapChange — no death broadcasts needed
         Projectiles.Clear();
         Drops.Clear();
+        Corpses.Clear();       // the dead stay behind (clients wipe on MapChange too)
         _windups.Clear();
         _flow.Clear();
         _rallyFields.Clear();
@@ -2840,6 +2851,21 @@ public partial class ServerWorld
     /// <summary>Enemy death: award XP (character + skill) and generate loot authoritatively.</summary>
     private void OnEnemyKilled(ServerEnemy e)
     {
+        // The body stays: an authoritative corpse record (replicated; future skills —
+        // raise dead, corpse explosion — will target these). Oldest evicted at the cap.
+        var corpse = new ServerCorpse
+        {
+            Id = _nextCorpseId++, TypeId = e.Def.Id,
+            Position = e.Position, Height = e.Height, DiedAt = Time,
+        };
+        Corpses.Add(corpse);
+        _events.CorpseAdded(corpse);
+        if (Corpses.Count > MaxCorpses)
+        {
+            _events.CorpseRemoved(Corpses[0]);
+            Corpses.RemoveAt(0);
+        }
+
         if (Players.TryGetValue(e.LastHitByPlayer, out var killer))
         {
             // Party XP: the killer earns full value, every OTHER player earns
