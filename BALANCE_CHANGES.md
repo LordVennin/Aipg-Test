@@ -877,3 +877,24 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   silhouette edges — the body stays recognizably THAT enemy (helmet, cape,
   colors and all), just unmistakably dead. Skeletons additionally shake a
   few loose bone pixels out of the pile.
+
+---
+
+# Addendum (batch 43): staining, smaller sprays, jitter fix, living light
+
+- **Weapon gore reads as a STAIN now**: the splatter mask is sparser and
+  darker (soak marks, not paint), capped at ~55% opacity — blood soaks INTO
+  the weapon head instead of coating it. Build-up stages unchanged.
+- **Per-hit blood is smaller**: every strike sprays, so each spray is now a
+  handful of 1-2px droplets in a tight arc with a 3-pixel landing speckle —
+  gore accumulates across a fight instead of arriving all at once.
+- **Fixed the map-wide ±1px shimmer while walking.** The camera followed the
+  player at sub-pixel precision, so every rock/mushroom/grass tuft crossed
+  its own integer-rounding boundary on a different frame. The camera's
+  iso-space offset now snaps to whole pixels: the world scrolls in lockstep
+  and static scenery is rock solid (ScreenToWorld mirrors the snap so aim
+  stays exact).
+- **Forest sun pools live**: each pool slowly swells and shrinks (~100s
+  cycle), creeps sideways a few pixels like the sun's angle drifting, and
+  shimmers on two overlapping periods — no more single frozen shape for the
+  lifetime of the map.

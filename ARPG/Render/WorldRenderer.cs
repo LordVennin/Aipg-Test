@@ -348,11 +348,17 @@ public class WorldRenderer
             foreach (var (pPos, pRadius, pPhase) in _sunPatches)
             {
                 var pScreen = camera.WorldToScreen(pPos, map.GroundHeightAt(pPos));
-                if (pScreen.X < -pRadius || pScreen.X > sw + pRadius ||
-                    pScreen.Y < -pRadius || pScreen.Y > sh + pRadius) continue;
-                float breathe = 0.78f + 0.22f * MathF.Sin(sunClock * 0.35f + pPhase);
-                AddLight(pScreen, pRadius * (0.92f + 0.08f * breathe),
-                    new Color(255, 248, 216) * breathe);
+                if (pScreen.X < -pRadius * 1.4f || pScreen.X > sw + pRadius * 1.4f ||
+                    pScreen.Y < -pRadius * 1.4f || pScreen.Y > sh + pRadius * 1.4f) continue;
+                // Each pool lives: it slowly swells and shrinks (canopy gaps opening,
+                // ~100s cycle), creeps sideways a few pixels (the sun's angle drifting)
+                // and shimmers on two overlapping periods — never one frozen shape.
+                float size = 0.72f + 0.28f * MathF.Sin(sunClock * 0.06f + pPhase * 1.7f);
+                float shimmer = 0.72f + 0.18f * MathF.Sin(sunClock * 0.31f + pPhase)
+                                      + 0.10f * MathF.Sin(sunClock * 0.83f + pPhase * 2.3f);
+                var drift = new Vector2(MathF.Sin(sunClock * 0.045f + pPhase) * 14f,
+                                        MathF.Cos(sunClock * 0.037f + pPhase * 1.3f) * 7f);
+                AddLight(pScreen + drift, pRadius * size, new Color(255, 248, 216) * shimmer);
             }
         }
 
@@ -1359,7 +1365,7 @@ public class WorldRenderer
                     ? SpriteGen.GetWeaponGoreMask(weaponBase, goreStage) : null;
                 var goreTint = goreMask == null ? default :
                     ParseColor(p.GoreRgb.ToString("X6"), new Color(126, 26, 26)) *
-                    Math.Clamp(goreLeft * 2.6f, 0f, 0.85f);
+                    Math.Clamp(goreLeft * 2.2f, 0f, 0.55f); // a stain, never bright paint
 
                 void DrawHeld(Texture2D tex, float side)
                 {
@@ -1602,21 +1608,23 @@ public class WorldRenderer
                 // deterministic from the position hash (same trick as slam debris).
                 var bloodC = ParseColor(fx.Kind[6..], new Color(126, 26, 26));
                 int bseed = (int)(fx.Position.X * 733) ^ (int)(fx.Position.Y * 911);
+                // Small per-hit burst — every strike sprays, so each spray stays modest
+                // (a handful of 1-2px droplets in a tight arc, not a fountain).
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.26f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    for (int k = 0; k < 9; k++)
+                    for (int k = 0; k < 5; k++)
                     {
                         var rng = new Random(bseed + k * 71);
                         float ang = (float)(rng.NextDouble() * Math.PI * 2);
-                        float speed = 26f + 60f * (float)rng.NextDouble();
-                        float v0 = 25f + 60f * (float)rng.NextDouble();
+                        float speed = 18f + 38f * (float)rng.NextDouble();
+                        float v0 = 20f + 45f * (float)rng.NextDouble();
                         float age = t * fx.Duration;
                         float px = screen.X + MathF.Cos(ang) * speed * age;
                         float py = screen.Y - 14 + MathF.Sin(ang) * speed * age * 0.5f
                                    - v0 * age + 260f * age * age;
-                        int sz = 2 + (k & 1);
+                        int sz = 1 + (k & 1);
                         batch.Draw(TextureGen.Pixel, new Rectangle((int)px, (int)py, sz, sz),
-                            bloodC * (0.85f * (1f - t * t)));
+                            bloodC * (0.75f * (1f - t * t)));
                     }
                 }));
                 if (t > 0.35f) // droplets landing: a fading ground speckle — sorted
@@ -1624,12 +1632,12 @@ public class WorldRenderer
                     _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.02f + UnderDeckBias(fx.Position, fx.Height), batch =>
                     {
                         var rng2 = new Random(bseed * 13);
-                        for (int k = 0; k < 5; k++)
+                        for (int k = 0; k < 3; k++)
                         {
-                            int ox = rng2.Next(-14, 15), oy = rng2.Next(-6, 7);
+                            int ox = rng2.Next(-10, 11), oy = rng2.Next(-4, 5);
                             batch.Draw(TextureGen.Pixel,
                                 new Rectangle((int)screen.X + ox, (int)screen.Y + oy, 2, 1),
-                                bloodC * (0.6f * (1f - t)));
+                                bloodC * (0.55f * (1f - t)));
                         }
                     }));
                 }

@@ -2424,13 +2424,14 @@ public static class SpriteGen
                 if (src[i].A == 0) continue;
                 uint n = (uint)(x * 73856093 ^ y * 19349663) ^ idHash;
                 n ^= n >> 13; n *= 0x5bd1e995; n ^= n >> 15;
-                // Densest at the very tip, sparser toward the grip; the stage scales
-                // the whole coat (same hash -> earlier droplets persist as more land).
-                int chance = (60 + (x - head) * 140 / Math.Max(1, baseTex.Width - head))
+                // A STAIN, not a coat of paint: sparse dark soak marks, densest at the
+                // very tip; the stage scales the spread (same hash -> earlier marks
+                // persist as more soak in).
+                int chance = (26 + (x - head) * 70 / Math.Max(1, baseTex.Width - head))
                              * stage / 3;
                 if ((n & 0xFF) < chance)
                 {
-                    byte v = (byte)(195 + (n >> 8) % 61);
+                    byte v = (byte)(120 + (n >> 8) % 55); // dark: tint soaks IN, not on
                     dst[i] = new Color(v, v, v);
                 }
             }
