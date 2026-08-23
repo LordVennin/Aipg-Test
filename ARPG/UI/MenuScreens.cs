@@ -234,7 +234,7 @@ public class OptionsPanel
     private int _controlsScroll;
     private int _controlsContentTop, _controlsContentBottom, _controlRowsHeight;
     private Button _damageNumbersButton, _healthBarsButton, _playerListButton;
-    private Button _fullscreenButton, _resolutionButton, _soundButton, _lightingButton;
+    private Button _fullscreenButton, _resolutionButton, _soundButton, _lightingButton, _statusBarsButton;
 
     public OptionsPanel(GameMain game, Action onClose)
     {
@@ -344,8 +344,15 @@ public class OptionsPanel
                 RefreshLabels();
             }) { FontSize = 15 };
         gameplay.Children.Add(_lightingButton);
+        _statusBarsButton = new Button(ToggleLabel("Overhead Status Bars", game.Settings.ShowOverheadStatusBars),
+            new Rectangle(cx, contentY + 120, 240, 30), () =>
+            {
+                game.Settings.ShowOverheadStatusBars = !game.Settings.ShowOverheadStatusBars;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        gameplay.Children.Add(_statusBarsButton);
         gameplay.Children.Add(new Label("Zone theme shapes the NEXT map you host (forest grows big trees).",
-            cx, contentY + 120, 14));
+            cx, contentY + 160, 14));
 
         // --- Controls tab ---
         var controls = new Panel { Bounds = Rectangle.Empty, Background = Color.Transparent, Border = Color.Transparent };
@@ -427,6 +434,7 @@ public class OptionsPanel
             if (_zoneThemeButton != null) _zoneThemeButton.Text = ZoneThemeLabel();
             if (_soundButton != null) _soundButton.Text = SoundLabel();
             if (_lightingButton != null) _lightingButton.Text = ToggleLabel("Lighting", _game.Settings.Lighting);
+            if (_statusBarsButton != null) _statusBarsButton.Text = ToggleLabel("Overhead Status Bars", _game.Settings.ShowOverheadStatusBars);
             _fullscreenButton.Text = ToggleLabel("Fullscreen", _game.Settings.Fullscreen);
             _resolutionButton.Text = ResolutionLabel();
         }

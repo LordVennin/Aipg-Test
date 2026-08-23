@@ -1041,6 +1041,8 @@ public partial class ServerWorld
             // Chill decays constantly; electrocute rolls a freeze-in-place every 2s.
             if (e.ChillMagnitude > 0)
                 e.ChillMagnitude = MathF.Max(0f, e.ChillMagnitude - ChillDecayPerSecond * dt);
+            if (e.StunBuildup > 0)
+                e.StunBuildup = MathF.Max(0f, e.StunBuildup - StunBuildupDecayPerSecond * dt);
             if (Time < e.ElectrocutedUntil && Time >= e.NextShockRollAt)
             {
                 e.NextShockRollAt = Time + ShockRollInterval;
@@ -1975,9 +1977,7 @@ public partial class ServerWorld
                         if (push == Vector2.Zero) push = p.Facing;
                         e.Position = Map.MoveWithCollision(e.Position, push * def.Knockback * chargeMult, e.Def.Radius, ref e.Height);
                     }
-                    if (RollStun(def))
-                        e.StunnedUntil = Time + def.StunDuration *
-                            (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.3f : 1f);
+                    ApplyStunBuildup(e, def);
                     if (def.SlowChance > 0 && _rng.NextDouble() < def.SlowChance)
                         e.SlowedUntil = Time + def.SlowDuration;
                 }
@@ -2002,9 +2002,7 @@ public partial class ServerWorld
                         if (push == Vector2.Zero) push = p.Facing;
                         victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback * chargeMult, victim.Def.Radius, ref victim.Height);
                     }
-                    if (!victim.Dead && RollStun(def))
-                        victim.StunnedUntil = Time + def.StunDuration *
-                            (victim.Affixes.HasFlag(EliteAffix.Boss) ? 0.3f : 1f);
+                    if (!victim.Dead) ApplyStunBuildup(victim, def);
                 }
                 break;
             }
@@ -2022,9 +2020,7 @@ public partial class ServerWorld
                         if (push == Vector2.Zero) push = p.Facing;
                         e.Position = Map.MoveWithCollision(e.Position, push * def.Knockback, e.Def.Radius, ref e.Height);
                     }
-                    if (RollStun(def))
-                        e.StunnedUntil = Time + def.StunDuration *
-                            (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.3f : 1f);
+                    ApplyStunBuildup(e, def);
                 }
                 break;
             }
@@ -2712,8 +2708,27 @@ public partial class ServerWorld
         }
     }
 
-    private bool RollStun(SkillDefinition def) =>
-        def.StunDuration > 0 && _rng.NextDouble() < def.StunChance;
+    public const float StunThreshold = 100f;
+    public const float StunResistPerStack = 0.2f;
+    public const float StunBuildupDecayPerSecond = 18f;
+    public const float DefaultStunDuration = 0.5f;
+
+    /// <summary>Stun works like freeze, but faster and self-limiting: hits ADD buildup
+    /// (never stun outright), the meter decays constantly, 100 triggers a short stun
+    /// and resets it — and every triggered stun stacks 20% resistance onto the enemy,
+    /// so the second stun takes noticeably longer to reach and chains die out.</summary>
+    public void ApplyStunBuildup(ServerEnemy e, SkillDefinition def)
+    {
+        if (def.StunBuildup <= 0 || e.Dead) return;
+        float gain = def.StunBuildup * MathF.Pow(1f - StunResistPerStack, e.StunResistStacks);
+        if (e.Affixes.HasFlag(EliteAffix.Boss)) gain *= 0.5f;
+        e.StunBuildup += gain;
+        if (e.StunBuildup < StunThreshold) return;
+        e.StunBuildup = 0f;
+        e.StunResistStacks++;
+        e.StunnedUntil = Time + (def.StunDuration > 0 ? def.StunDuration : DefaultStunDuration) *
+                         (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.5f : 1f);
+    }
 
     private static Vector2 ClampToRange(Vector2 from, Vector2 target, float range)
     {

@@ -1108,6 +1108,25 @@ public class WorldRenderer
                     batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));
                     batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
                         new Color(200, 50, 50));
+                    // Optional buildup strips under the overhead bar: stun (golden)
+                    // and chill (icy). The top-of-screen hover display always has them.
+                    if (_settings.ShowOverheadStatusBars)
+                    {
+                        int sy2 = bar.Bottom + 1;
+                        if (e.StunPercent > 0)
+                        {
+                            batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, sy2, barW, 2), new Color(30, 26, 18, 200));
+                            batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, sy2, barW * e.StunPercent / 100, 2),
+                                new Color(235, 195, 80));
+                            sy2 += 3;
+                        }
+                        if (e.ChillPercent > 0)
+                        {
+                            batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, sy2, barW, 2), new Color(18, 24, 32, 200));
+                            batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, sy2, barW * e.ChillPercent / 100, 2),
+                                new Color(120, 190, 250));
+                        }
+                    }
                 }
                 DrawDebuffIcons(batch, e.DebuffFlags, e.ChillPercent, (int)screen.X, barY - 16);
             }));

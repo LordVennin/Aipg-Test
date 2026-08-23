@@ -232,6 +232,12 @@ public class ServerEnemy
     public float ChillMagnitude;
     public float FrozenUntil;
 
+    // Stun: buildup 0..100 from Stun-building hits (Shield Bash mostly), decaying
+    // constantly; at 100 the enemy is briefly stunned, the meter resets, and it gains
+    // a stacking 20% resistance to further buildup — chain-stunning falls off fast.
+    public float StunBuildup;
+    public int StunResistStacks;
+
     // Electrocute: while active, a periodic roll can freeze the enemy in place briefly.
     public float ElectrocutedUntil;
     public float NextShockRollAt;

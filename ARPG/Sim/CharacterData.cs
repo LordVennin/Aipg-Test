@@ -103,7 +103,22 @@ public class CharacterData
         return grid;
     }
 
-    public float XpToNextLevel() => 40f + 25f * Level;
+    /// <summary>Compounding level curve: each level's requirement is the previous
+    /// one grown by a percent PLUS the flat step — gentle early, harsh late (the flat
+    /// +25 dominates the first levels, the 12% compounding dominates past ~15).</summary>
+    public const float XpCurveGrowth = 0.12f;
+    public const float XpCurveStep = 25f;
+    public const float XpCurveBase = 65f; // level 1 -> 2 (the old 40 + 25*1)
+
+    public float XpToNextLevel() => XpRequirementFor(Level);
+
+    public static float XpRequirementFor(int level)
+    {
+        float req = XpCurveBase;
+        for (int l = 2; l <= level; l++)
+            req = req * (1f + XpCurveGrowth) + XpCurveStep;
+        return MathF.Round(req);
+    }
 
     public LearnedSkill GetSkill(string skillId) => Skills.FirstOrDefault(s => s.SkillId == skillId);
 

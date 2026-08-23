@@ -115,6 +115,10 @@ public class SkillDefinition
 
     /// <summary>Seconds hit enemies are stunned (no movement, no attacks).</summary>
     public float StunDuration { get; set; }
+    /// <summary>Stun BUILDUP points a hit adds (100 fills the meter and stuns for
+    /// StunDuration). Buildup decays constantly, and each triggered stun grants the
+    /// enemy a stacking 20% resistance — no chain-stun loops. 0 = never builds.</summary>
+    public float StunBuildup { get; set; }
 
     /// <summary>Chance (0..1) that a hit actually applies StunDuration. Defaults to always.</summary>
     public float StunChance { get; set; } = 1f;

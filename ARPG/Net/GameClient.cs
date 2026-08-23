@@ -823,11 +823,13 @@ public class GameClient
                     byte state = r.GetByte();
                     byte debuffs = r.GetByte();
                     byte chillPct = r.GetByte();
+                    byte stunPct = r.GetByte();
                     float height = r.GetFloat();
                     if (World.Enemies.TryGetValue(id, out var e))
                     {
                         e.NetTarget = pos; e.State = state; e.DebuffFlags = debuffs;
-                        e.ChillPercent = chillPct; e.NetTargetHeight = height;
+                        e.ChillPercent = chillPct; e.StunPercent = stunPct;
+                        e.NetTargetHeight = height;
                     }
                 }
                 break;

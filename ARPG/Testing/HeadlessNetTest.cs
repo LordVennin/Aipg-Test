@@ -871,8 +871,8 @@ public static class HeadlessNetTest
 
         // Shield Bash scales with shield armor: same weapon, +ShieldArmor -> more damage.
         var bashDef = data.Skills["shield_bash"];
-        Check(bashDef.ShieldArmorScaling > 0 && bashDef.StunChance is > 0.5f and < 1f,
-              $"Shield Bash has armor scaling ({bashDef.ShieldArmorScaling}) and a high stun chance ({bashDef.StunChance:P0})");
+        Check(bashDef.ShieldArmorScaling > 0 && bashDef.StunBuildup >= 50f,
+              $"Shield Bash has armor scaling ({bashDef.ShieldArmorScaling}) and heavy stun BUILDUP ({bashDef.StunBuildup})");
         var bareStats = new Stats.ComputedStats { WeaponMinDamage = 10, WeaponMaxDamage = 10, WeaponAttackSpeed = 1f };
         var shieldedStats = bareStats;
         shieldedStats.ShieldArmor = 20;
@@ -3617,6 +3617,52 @@ public static class HeadlessNetTest
               data.Enemies["grave_caller"].Blood == "7E1A1A",
               "blood is data-driven: green zombie ichor, acid spitters, bloodless " +
               "skeletons, red human cultists");
+
+        Console.WriteLine("\n-- Stun buildup + the harsher XP curve --");
+        // Shield Bash no longer stuns outright: it BUILDS toward a stun on a longer
+        // cooldown; maces contribute a little buildup of their own.
+        Check(data.Skills["shield_bash"].Cooldown >= 1.0f &&
+              data.Skills["shield_bash"].StunBuildup >= 50f &&
+              data.Skills["basic_strike"].StunBuildup is > 0f and < 15f &&
+              data.Skills["mace_strike"].StunBuildup is > 0f and < 25f,
+              "stun data: bash builds 60 on a 1.1s cooldown; maces add 7/15");
+        var stunDummy = server.World.SpawnEnemy("grunt", srvNewE.Position + new Vector2(12f, 4f));
+        var bashDef2 = data.Skills["shield_bash"];
+        server.World.ApplyStunBuildup(stunDummy, bashDef2);
+        bool oneHitNoStun = server.World.Time >= stunDummy.StunnedUntil &&
+                            stunDummy.StunBuildup > 50f;
+        server.World.ApplyStunBuildup(stunDummy, bashDef2);
+        Check(oneHitNoStun && stunDummy.StunnedUntil > server.World.Time &&
+              stunDummy.StunBuildup == 0f && stunDummy.StunResistStacks == 1,
+              "bash builds, never insta-stuns: hit 1 no stun, hit 2 stuns + resets + stacks resist");
+        // With one 20% resist stack each hit adds 48 — the SECOND stun takes 3 hits.
+        server.World.ApplyStunBuildup(stunDummy, bashDef2);
+        server.World.ApplyStunBuildup(stunDummy, bashDef2);
+        bool noSecondStunYet = stunDummy.StunResistStacks == 1;
+        server.World.ApplyStunBuildup(stunDummy, bashDef2);
+        Check(noSecondStunYet && stunDummy.StunResistStacks == 2,
+              "stacking 20% resistance: the second stun needs three hits, not two");
+        server.World.ApplyStunBuildup(stunDummy, bashDef2); // ~31 with two stacks
+        float builtBefore = stunDummy.StunBuildup;
+        Pump(1.0f);
+        Check(builtBefore > 25f && stunDummy.StunBuildup < builtBefore - 8f,
+              $"stun buildup decays over time ({builtBefore:0} -> {stunDummy.StunBuildup:0})");
+        stunDummy.StunBuildup = 76f;
+        Pump(0.4f);
+        Check(clientA.World.Enemies.TryGetValue(stunDummy.Id, out var stunSeen) &&
+              stunSeen.StunPercent is > 55 and <= 77,
+              $"stun buildup replicates for the client bar ({stunSeen?.StunPercent ?? 0}%)");
+        stunDummy.Health = 1f;
+        stunDummy.StunBuildup = 0f;
+
+        // XP curve: compounding — each level's requirement is the previous grown 12%
+        // plus the flat step, so late levels balloon instead of creeping linearly.
+        float r1 = Sim.CharacterData.XpRequirementFor(1);
+        float r10 = Sim.CharacterData.XpRequirementFor(10);
+        float r11 = Sim.CharacterData.XpRequirementFor(11);
+        float r30 = Sim.CharacterData.XpRequirementFor(30);
+        Check(r1 == 65f && MathF.Abs(r11 - (r10 * 1.12f + 25f)) < 2f && r30 / r10 > 10f,
+              $"XP requirements compound: L1 {r1:0}, L10 {r10:0}, L30 {r30:0}");
 
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
         // The campaign's run maps grow tall-grass patches (on terraces too) and stay
