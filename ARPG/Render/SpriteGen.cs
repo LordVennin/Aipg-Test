@@ -39,6 +39,79 @@ public static class SpriteGen
     }
 
     /// <summary>
+    /// A DEAD body sprite per enemy style — deliberately not the walking frame tipped
+    /// over: zombies/ghouls collapse into a slumped heap with an outflung arm,
+    /// skeletons scatter into a bone pile around the skull, necromancers become a
+    /// crumpled robe. Tinted from the enemy's color; cached per definition.
+    /// </summary>
+    public static Texture2D GetEnemyCorpseSprite(EnemyDefinition def)
+    {
+        if (def == null || _device == null || string.IsNullOrEmpty(def.SpriteStyle)) return null;
+        string key = "corpse:" + def.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+
+        var tint = WorldRenderer.ParseColor(def.Color, new Color(180, 60, 60));
+        var dark = Shade(tint, 0.55f);
+        var mid = Shade(tint, 0.8f);
+        const int w = 22, h = 11;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int rw, int rh, Color c)
+        { for (int y = y0; y < y0 + rh; y++) for (int x = x0; x < x0 + rw; x++) Set(x, y, c); }
+        uint idHash = 2166136261u;
+        foreach (char ch in def.Id) idHash = (idHash ^ ch) * 16777619u;
+
+        if (def.SpriteStyle == "Skeleton")
+        {
+            var bone = new Color(224, 216, 194);
+            var boneDark = new Color(176, 166, 142);
+            // Skull on its side with an eye socket, jaw ajar.
+            Rect(4, 4, 4, 4, bone);
+            Set(4, 5, boneDark); Set(5, 5, new Color(40, 36, 32));  // socket
+            Set(4, 7, boneDark); Set(5, 8, boneDark);               // jaw
+            // Rib cage arcs collapsed flat.
+            for (int i = 0; i < 3; i++)
+            { Rect(10 + i * 2, 5, 1, 3, bone); Set(10 + i * 2, 8, boneDark); }
+            Rect(9, 6, 7, 1, boneDark);                             // spine
+            // Scattered long bones + the odd armor scrap in the enemy's tint.
+            Rect(12, 2, 4, 1, bone); Set(11, 2, boneDark); Set(16, 2, boneDark);
+            Rect(16, 8, 4, 1, bone); Set(15, 8, boneDark);
+            Rect(2, 9, 3, 1, boneDark);
+            Rect(17, 4, 2, 2, dark); Set(18, 5, mid);               // pauldron scrap
+        }
+        else if (def.SpriteStyle == "Necro")
+        {
+            // A crumpled robe: cloth folds pooling flat, hood collapsed on empty dark.
+            Rect(5, 5, 13, 4, dark);
+            Rect(6, 4, 10, 1, mid);
+            Rect(8, 6, 7, 2, tint);
+            Set(7, 5, mid); Set(15, 5, mid); Set(11, 4, Shade(tint, 1.15f));
+            Rect(3, 5, 3, 3, mid);                                  // hood
+            Set(4, 6, new Color(24, 20, 30)); Set(5, 6, new Color(24, 20, 30));
+            Rect(18, 7, 2, 1, new Color(210, 200, 180));            // a pale hand
+        }
+        else
+        {
+            // Zombie/Ghoul heap: torso mound, lolled head, one arm flung out, leg stub.
+            var skin = Shade(tint, 1.1f);
+            Rect(7, 4, 8, 4, mid);                                  // torso mound
+            Rect(8, 3, 6, 1, tint);
+            Rect(7, 8, 8, 1, dark);
+            Set(9, 4, Shade(tint, 1.2f)); Set(12, 5, dark);         // ragged shading
+            Rect(4, 5, 3, 3, skin);                                 // head, lolled left
+            Set(5, 6, Shade(skin, 0.6f));                           // slack face shadow
+            Rect(15, 6, 5, 1, skin);                                // outflung arm
+            Set(20, 6, Shade(skin, 0.8f));                          // hand
+            Rect(9, 9, 4, 1, dark);                                 // leg stub
+            if ((idHash & 1) == 0) Rect(14, 2, 2, 1, dark);         // per-type variation
+        }
+
+        var tex = BakeStrip(px, w, h);
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    /// <summary>
     /// Held-weapon sprite for a weapon ItemBase, drawn pointing RIGHT with the grip at the
     /// left edge; the renderer rotates it toward the player's aim. Cached per base id.
     /// </summary>
@@ -1229,26 +1302,26 @@ public static class SpriteGen
     /// from the Ice Spike: shorter, angular, with a frosted glassy edge.</summary>
     private static Texture2D DrawIceShard()
     {
-        const int w = 11, h = 7;
+        // A small broken-off PIECE of ice — a compact faceted chunk, nothing like the
+        // long tapered Ice Spike it burst from.
+        const int w = 8, h = 8;
         var px = new Color[w * h];
         void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
 
-        var glass = new Color(190, 235, 255);
-        var glassDeep = new Color(110, 170, 235);
-        var edge = new Color(70, 120, 200);
+        var glass = new Color(196, 238, 255);
+        var glassDeep = new Color(116, 176, 238);
+        var edge = new Color(66, 116, 196);
         var glint = Color.White;
 
-        // Chunky angular splinter: a broken-off wedge, thick then snapping to a point.
-        for (int x = 1; x <= 9; x++)
-        {
-            int hw = x <= 3 ? 2 : x <= 6 ? 1 : 0;
-            for (int y = 3 - hw; y <= 3 + hw; y++)
-                Set(x, y, y == 3 ? glass : y < 3 ? glassDeep : edge);
-        }
-        // Fracture notch at the back and a glint near the tip.
-        Set(1, 2, edge); Set(0, 3, edge); Set(1, 4, Color.Transparent);
-        Set(8, 3, glint); Set(9, 3, glint);
-        Set(4, 1, glassDeep); Set(5, 5, edge);
+        // Irregular lump: a squat pentagon with one sheared corner.
+        Set(3, 1, glassDeep); Set(4, 1, glassDeep);
+        Set(2, 2, glassDeep); Set(3, 2, glass); Set(4, 2, glass); Set(5, 2, edge);
+        Set(1, 3, edge); Set(2, 3, glass); Set(3, 3, glint); Set(4, 3, glass); Set(5, 3, glassDeep); Set(6, 3, edge);
+        Set(1, 4, edge); Set(2, 4, glassDeep); Set(3, 4, glass); Set(4, 4, glassDeep); Set(5, 4, edge);
+        Set(2, 5, edge); Set(3, 5, glassDeep); Set(4, 5, edge);
+        Set(3, 6, edge);
+        // Facet line + sparkle.
+        Set(4, 2, Shade(glass, 1.05f)); Set(5, 1, glint);
 
         return BakeStrip(px, w, h);
     }
