@@ -3366,6 +3366,26 @@ public static class HeadlessNetTest
         Check(quiverDrops > 0 && bowDrops > 0,
               $"bows and quivers appear in the drop pool ({bowDrops} bows, {quiverDrops} quivers per 600)");
 
+        // Rarity pacing: golds are the JACKPOT, blues the bread and butter — the
+        // default table keeps rare well under magic, and even bosses lean blue.
+        var defTable = data.GetLootTable("default");
+        var bossTable = data.GetLootTable("boss");
+        Check(defTable.RarityWeightRare <= 10 &&
+              defTable.RarityWeightMagic > defTable.RarityWeightRare * 4 &&
+              bossTable.RarityWeightMagic >= bossTable.RarityWeightRare,
+              $"rare drops stay scarce (default N/M/R {defTable.RarityWeightNormal}/{defTable.RarityWeightMagic}/" +
+              $"{defTable.RarityWeightRare}, boss M/R {bossTable.RarityWeightMagic}/{bossTable.RarityWeightRare})");
+
+        // Skill Scrolls carry a themed accent color for their hanging-scroll sprite
+        // (the GPU-side texture bakes only in a real session, but the data must be
+        // complete for every scroll or one of them falls back to text initials).
+        var skillScrollBases = data.Items.Values
+            .Where(ib => ib.Category == Items.ItemCategory.SkillScroll).ToList();
+        Check(skillScrollBases.Count >= 9 &&
+              skillScrollBases.All(ib => !string.IsNullOrEmpty(ib.SpriteColor) &&
+                                         !string.IsNullOrEmpty(ib.ScrollId)),
+              $"every Skill Scroll base has a sprite accent color ({skillScrollBases.Count} scrolls)");
+
         // Light radius: a Radiance suffix on chest/helm grows the personal torchglow.
         var glowChar = new Sim.CharacterData { Level = 5 }; // iron_cap wants level 5
         var glowHelm = new Items.ItemInstance { BaseItemId = "iron_cap", Rarity = Items.ItemRarity.Magic };

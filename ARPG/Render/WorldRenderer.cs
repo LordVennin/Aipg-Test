@@ -799,6 +799,12 @@ public class WorldRenderer
                     batch.Draw(enchantTex, new Rectangle((int)screen.X - 12, (int)screen.Y - 16, 24, 24), Color.White);
                     return;
                 }
+                var skillScrollTex = SpriteGen.GetSkillScrollSprite(item.GetBase(_data));
+                if (skillScrollTex != null)
+                {
+                    batch.Draw(skillScrollTex, new Rectangle((int)screen.X - 10, (int)screen.Y - 24, 21, 29), Color.White);
+                    return;
+                }
                 var weaponTex = SpriteGen.GetWeaponSprite(item.GetBase(_data));
                 if (weaponTex != null)
                 {

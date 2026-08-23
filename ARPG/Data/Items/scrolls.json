@@ -6,7 +6,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "58C0A8",
   "ScrollId": "multishot",
   "Description": "Attach to a Projectile skill via the Skill Menu."
  },
@@ -17,7 +17,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "C9873A",
   "ScrollId": "greater_impact",
   "Description": "Attach to an Area skill via the Skill Menu."
  },
@@ -28,7 +28,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "E0662C",
   "ScrollId": "burning",
   "Description": "Attach to a Fire skill via the Skill Menu."
  },
@@ -39,7 +39,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "9B6AE0",
   "ScrollId": "rapid_casting",
   "Description": "Attach to a Spell via the Skill Menu."
  },
@@ -50,7 +50,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "7CC03A",
   "ScrollId": "venom",
   "Description": "Attach to a Melee skill: 35% chance on hit to poison."
  },
@@ -61,7 +61,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "C03A46",
   "ScrollId": "rending",
   "Description": "Attach to a Melee skill: 35% chance on hit to bleed."
  },
@@ -72,7 +72,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "E0B33A",
   "ScrollId": "frenzy",
   "Description": "Attach to a Melee skill: 20% increased attack speed."
  },
@@ -83,7 +83,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "6AB8E8",
   "ScrollId": "shattering",
   "Description": "Attach to a Cold skill: projectiles shatter into 5 shards behind the target."
  },
@@ -94,7 +94,7 @@
   "InventoryWidth": 1,
   "InventoryHeight": 1,
   "BaseModifierLimit": 0,
-  "DropWeight": 100,
+  "DropWeight": 100, "SpriteColor": "D0502A",
   "ScrollId": "scorched_earth",
   "Description": "Attach to a Fire skill: projectiles scorch the ground on hit."
  }

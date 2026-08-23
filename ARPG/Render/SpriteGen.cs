@@ -2329,6 +2329,97 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
+    // ------------------------------------------------------------------ skill scrolls
+
+    /// <summary>
+    /// Sprite for a Skill Scroll: an UNROLLED hanging scroll — wooden dowel on top,
+    /// dangling parchment, curled foot — a deliberately different silhouette from the
+    /// rolled-horizontal Enchanting Scrolls, so the two scroll families read apart at
+    /// a glance. The accent color comes from the base's SpriteColor (themed per
+    /// effect) and a rune glyph picked by the scroll id marks the parchment.
+    /// </summary>
+    public static Texture2D GetSkillScrollSprite(Items.ItemBase itemBase)
+    {
+        if (itemBase == null || _device == null || itemBase.Category != Items.ItemCategory.SkillScroll)
+            return null;
+        string key = "skillscroll:" + itemBase.Id;
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+
+        var accent = WorldRenderer.ParseColor(itemBase.SpriteColor, new Color(200, 150, 255));
+        int runeSeed = 0;
+        foreach (char c in itemBase.ScrollId ?? itemBase.Id) runeSeed = runeSeed * 31 + c;
+        var tex = DrawSkillScroll(accent, Math.Abs(runeSeed));
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    private static Texture2D DrawSkillScroll(Color accent, int runeSeed)
+    {
+        const int w = 16, h = 22;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int rw, int rh, Color c)
+        { for (int y = y0; y < y0 + rh; y++) for (int x = x0; x < x0 + rw; x++) Set(x, y, c); }
+
+        var parchment = new Color(232, 222, 192);
+        var parchDark = new Color(196, 184, 152);
+        var wood = new Color(112, 80, 48);
+        var woodDark = new Color(76, 52, 32);
+        var accentDark = Shade(accent, 0.6f);
+
+        // Top dowel with end knobs poking past the sheet.
+        Rect(1, 1, 14, 2, wood);
+        Rect(1, 3, 14, 1, woodDark);
+        Set(0, 1, woodDark); Set(15, 1, woodDark);
+        Set(0, 2, wood); Set(15, 2, wood);
+
+        // Hanging parchment sheet with an accent trim band under the rod.
+        Rect(3, 4, 10, 14, parchment);
+        Rect(3, 4, 10, 1, parchDark);
+        Rect(3, 5, 10, 1, accentDark);
+        for (int y = 7; y < 17; y += 3) Set(12, y, parchDark); // worn right edge
+
+        // Curled foot: the un-read remainder still rolled up.
+        Rect(2, 18, 12, 2, parchDark);
+        Rect(2, 20, 12, 1, Shade(parchDark, 0.75f));
+        Set(2, 19, Shade(parchDark, 0.7f));
+        Set(13, 19, Shade(parchDark, 0.7f));
+
+        // Rune glyph in the accent color — five stroke patterns keyed by scroll id.
+        switch (runeSeed % 5)
+        {
+            case 0: // ascending chevron (projectile / motion)
+                for (int i = 0; i < 3; i++)
+                { Set(7 - i, 10 + i, accent); Set(8 + i, 10 + i, accent); }
+                Rect(7, 9, 2, 5, accentDark);
+                Set(7, 8, accent); Set(8, 8, accent);
+                break;
+            case 1: // crossed strike (impact)
+                for (int i = 0; i < 5; i++)
+                { Set(5 + i, 8 + i, accent); Set(9 - i, 8 + i, i == 2 ? Shade(accent, 1.3f) : accent); }
+                Set(5, 13, accentDark); Set(9, 13, accentDark);
+                break;
+            case 2: // jagged bolt (energy)
+                Set(9, 7, accent); Set(8, 8, accent); Set(7, 9, accent);
+                Rect(6, 10, 4, 1, accent);
+                Set(8, 11, accent); Set(7, 12, accent); Set(6, 13, accentDark);
+                break;
+            case 3: // open ring with a core (aura / ground)
+                Rect(6, 8, 4, 1, accent); Rect(6, 13, 4, 1, accent);
+                Rect(5, 9, 1, 4, accent); Rect(10, 9, 1, 4, accent);
+                Set(7, 10, accentDark); Set(8, 11, accentDark);
+                break;
+            default: // rooted triangle (form / body)
+                Rect(5, 13, 6, 1, accent);
+                for (int i = 0; i < 3; i++) { Set(7 - i, 10 + i, accent); Set(8 + i, 10 + i, accent); }
+                Set(7, 9, accent); Set(8, 9, accent);
+                Set(7, 14, accentDark); Set(8, 14, accentDark);
+                break;
+        }
+
+        return BakeStrip(px, w, h);
+    }
+
     // ------------------------------------------------------------------ gold pile
 
     private static Texture2D _goldPile;
