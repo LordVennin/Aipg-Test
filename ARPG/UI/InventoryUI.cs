@@ -363,6 +363,16 @@ public class InventoryUI
             return;
         }
 
+        // Skill Scrolls hang unrolled — a different silhouette from crafting scrolls.
+        var skillScrollTex = SpriteGen.GetSkillScrollSprite(b);
+        if (skillScrollTex != null)
+        {
+            int kH = rect.Height - 6;
+            int kW = kH * skillScrollTex.Width / skillScrollTex.Height;
+            sb.Draw(skillScrollTex, new Rectangle(rect.Center.X - kW / 2, rect.Center.Y - kH / 2, kW, kH), Color.White);
+            return;
+        }
+
         // Flasks show the bottle with the item's remaining charges.
         var flaskTex = SpriteGen.GetFlaskSprite(b);
         if (flaskTex != null)

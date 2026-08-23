@@ -319,10 +319,20 @@ public class SkillMenuUI
                 sb.Draw(TextureGen.Pixel, rect, new Color(70, 44, 74));
                 Border(sb, rect, new Color(200, 150, 255));
                 var b = scroll.GetBase(_data);
-                var scrollFont = FontManager.GetBold(13);
-                string initial = b.Name.Length > 0 ? b.Name[..1] : "?";
-                var iSize = scrollFont.MeasureString(initial);
-                sb.DrawString(scrollFont, initial, new Vector2(rect.Center.X - iSize.X / 2, rect.Center.Y - iSize.Y / 2), Color.White);
+                var scrollTex = Render.SpriteGen.GetSkillScrollSprite(b);
+                if (scrollTex != null)
+                {
+                    int tH = rect.Height - 6;
+                    int tW = tH * scrollTex.Width / scrollTex.Height;
+                    sb.Draw(scrollTex, new Rectangle(rect.Center.X - tW / 2, rect.Center.Y - tH / 2, tW, tH), Color.White);
+                }
+                else
+                {
+                    var scrollFont = FontManager.GetBold(13);
+                    string initial = b.Name.Length > 0 ? b.Name[..1] : "?";
+                    var iSize = scrollFont.MeasureString(initial);
+                    sb.DrawString(scrollFont, initial, new Vector2(rect.Center.X - iSize.X / 2, rect.Center.Y - iSize.Y / 2), Color.White);
+                }
             }
             _scrollSlots.Add((rect, i, unlocked, scroll));
         }

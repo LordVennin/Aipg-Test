@@ -7,8 +7,8 @@
   "GoldMin": 4,
   "GoldMax": 14,
   "RarityWeightNormal": 45,
-  "RarityWeightMagic": 38,
-  "RarityWeightRare": 17,
+  "RarityWeightMagic": 47,
+  "RarityWeightRare": 8,
   "CategoryWeights": {
     "Mace": 80,
     "Staff": 80,

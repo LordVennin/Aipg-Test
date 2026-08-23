@@ -721,3 +721,21 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   MET — This item grants no benefits.** and the Requires line turns red.
 - Suite: **516 checks** (bootstrap + cascade regressions; ES/deflection test
   puppets now genuinely qualify for their gear).
+
+---
+
+# Addendum (batch 37): rarity pacing + skill scroll sprites
+
+- **Gold (rare) drops are now the jackpot, not the routine.** Default loot
+  table rarity weights went 45/38/17 (Normal/Magic/Rare) -> **45/47/8**:
+  rares cut roughly in half, blues absorbing the difference so total drop
+  volume is unchanged. Boss kills lean the same way: 30/70 Magic/Rare ->
+  **55/45** — still far richer than trash, but a gold is no longer near-
+  guaranteed.
+- **Skill Scrolls have real sprites.** An UNROLLED hanging scroll (wooden
+  dowel, dangling parchment, curled foot) — a deliberately different
+  silhouette from the rolled-horizontal Enchanting Scrolls — with a themed
+  accent color and a rune glyph per scroll (fire orange bolt, poison green,
+  bleed crimson cross, ice blue, arcane violet, ...). Drawn in the inventory
+  / shop / stash grids, on the ground as world drops, and in the Skill Menu's
+  attached-scroll slots (which used to show a bare initial).
