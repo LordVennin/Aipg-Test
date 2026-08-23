@@ -39,74 +39,67 @@ public static class SpriteGen
     }
 
     /// <summary>
-    /// A DEAD body sprite per enemy style — deliberately not the walking frame tipped
-    /// over: zombies/ghouls collapse into a slumped heap with an outflung arm,
-    /// skeletons scatter into a bone pile around the skull, necromancers become a
-    /// crumpled robe. Tinted from the enemy's color; cached per definition.
+    /// A DEAD body sprite derived from the enemy's OWN standing sprite, so the corpse
+    /// stays recognizably that enemy: frame 0 rotated onto its side, squashed flat
+    /// against the ground, darkened, with ragged silhouette edges — plus a few loose
+    /// bones shaken out of skeletons. Cached per definition.
     /// </summary>
     public static Texture2D GetEnemyCorpseSprite(EnemyDefinition def)
     {
-        if (def == null || _device == null || string.IsNullOrEmpty(def.SpriteStyle)) return null;
+        if (def == null || _device == null) return null;
+        var frames = GetEnemyFrames(def);
+        if (frames == null || frames.Length == 0) return null;
         string key = "corpse:" + def.Id;
         if (_cache.TryGetValue(key, out var cached)) return cached[0];
 
-        var tint = WorldRenderer.ParseColor(def.Color, new Color(180, 60, 60));
-        var dark = Shade(tint, 0.55f);
-        var mid = Shade(tint, 0.8f);
-        const int w = 22, h = 11;
-        var px = new Color[w * h];
-        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
-        void Rect(int x0, int y0, int rw, int rh, Color c)
-        { for (int y = y0; y < y0 + rh; y++) for (int x = x0; x < x0 + rw; x++) Set(x, y, c); }
+        var srcTex = frames[0];
+        int sw = srcTex.Width, sh = srcTex.Height;
+        var src = new Color[sw * sh];
+        srcTex.GetData(src);
+
+        // Rotate 90° clockwise: the body lies on its side, head to the right.
+        int rw = sh, rh = sw;
+        var rot = new Color[rw * rh];
+        for (int y = 0; y < rh; y++)
+            for (int x = 0; x < rw; x++)
+                rot[y * rw + x] = src[(sh - 1 - x) * sw + y];
+
+        // Squash flat against the ground (the body has no strength left in it),
+        // darken, and roughen the silhouette so it reads crumpled — not just tipped.
+        int fh = Math.Max(5, (int)(rh * 0.62f));
+        var px = new Color[rw * (fh + 2)];
         uint idHash = 2166136261u;
         foreach (char ch in def.Id) idHash = (idHash ^ ch) * 16777619u;
-
+        for (int y = 0; y < fh; y++)
+        {
+            int syRow = Math.Min(rh - 1, y * rh / fh);
+            for (int x = 0; x < rw; x++)
+            {
+                var c = rot[syRow * rw + x];
+                if (c.A == 0) continue;
+                // Ragged edges: silhouette-border pixels drop out by hash.
+                bool border =
+                    x == 0 || x == rw - 1 || rot[syRow * rw + Math.Max(0, x - 1)].A == 0 ||
+                    rot[syRow * rw + Math.Min(rw - 1, x + 1)].A == 0;
+                uint n = (uint)(x * 73856093 ^ y * 19349663) ^ idHash;
+                n ^= n >> 13; n *= 0x5bd1e995; n ^= n >> 15;
+                if (border && (n & 0xFF) < 70) continue;
+                px[(y + 2) * rw + x] = new Color(
+                    (byte)(c.R * 0.8f), (byte)(c.G * 0.78f), (byte)(c.B * 0.8f), c.A);
+            }
+        }
+        // Skeletons shake a few loose bones out of the pile.
         if (def.SpriteStyle == "Skeleton")
         {
-            var bone = new Color(224, 216, 194);
-            var boneDark = new Color(176, 166, 142);
-            // Skull on its side with an eye socket, jaw ajar.
-            Rect(4, 4, 4, 4, bone);
-            Set(4, 5, boneDark); Set(5, 5, new Color(40, 36, 32));  // socket
-            Set(4, 7, boneDark); Set(5, 8, boneDark);               // jaw
-            // Rib cage arcs collapsed flat.
-            for (int i = 0; i < 3; i++)
-            { Rect(10 + i * 2, 5, 1, 3, bone); Set(10 + i * 2, 8, boneDark); }
-            Rect(9, 6, 7, 1, boneDark);                             // spine
-            // Scattered long bones + the odd armor scrap in the enemy's tint.
-            Rect(12, 2, 4, 1, bone); Set(11, 2, boneDark); Set(16, 2, boneDark);
-            Rect(16, 8, 4, 1, bone); Set(15, 8, boneDark);
-            Rect(2, 9, 3, 1, boneDark);
-            Rect(17, 4, 2, 2, dark); Set(18, 5, mid);               // pauldron scrap
-        }
-        else if (def.SpriteStyle == "Necro")
-        {
-            // A crumpled robe: cloth folds pooling flat, hood collapsed on empty dark.
-            Rect(5, 5, 13, 4, dark);
-            Rect(6, 4, 10, 1, mid);
-            Rect(8, 6, 7, 2, tint);
-            Set(7, 5, mid); Set(15, 5, mid); Set(11, 4, Shade(tint, 1.15f));
-            Rect(3, 5, 3, 3, mid);                                  // hood
-            Set(4, 6, new Color(24, 20, 30)); Set(5, 6, new Color(24, 20, 30));
-            Rect(18, 7, 2, 1, new Color(210, 200, 180));            // a pale hand
-        }
-        else
-        {
-            // Zombie/Ghoul heap: torso mound, lolled head, one arm flung out, leg stub.
-            var skin = Shade(tint, 1.1f);
-            Rect(7, 4, 8, 4, mid);                                  // torso mound
-            Rect(8, 3, 6, 1, tint);
-            Rect(7, 8, 8, 1, dark);
-            Set(9, 4, Shade(tint, 1.2f)); Set(12, 5, dark);         // ragged shading
-            Rect(4, 5, 3, 3, skin);                                 // head, lolled left
-            Set(5, 6, Shade(skin, 0.6f));                           // slack face shadow
-            Rect(15, 6, 5, 1, skin);                                // outflung arm
-            Set(20, 6, Shade(skin, 0.8f));                          // hand
-            Rect(9, 9, 4, 1, dark);                                 // leg stub
-            if ((idHash & 1) == 0) Rect(14, 2, 2, 1, dark);         // per-type variation
+            var bone = new Color(210, 202, 180);
+            void Set(int x, int y, Color c)
+            { if (x >= 0 && x < rw && y >= 0 && y < fh + 2) px[y * rw + x] = c; }
+            Set(1, fh - 1, bone); Set(2, fh - 1, bone);
+            Set(rw - 3, 3, bone); Set(rw - 2, 3, bone);
+            Set(rw / 2, 0, bone);
         }
 
-        var tex = BakeStrip(px, w, h);
+        var tex = BakeStrip(px, rw, fh + 2);
         _cache[key] = new[] { tex };
         return tex;
     }
