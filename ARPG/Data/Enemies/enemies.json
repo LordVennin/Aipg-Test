@@ -207,7 +207,7 @@
   "CastRange": 7.5,
   "CastWindup": 1.1,
   "CastCooldown": 6.5,
-  "CastKind": "Dark",
+  "CastKind": "Dark", "KeepDistance": 3.0,
   "Color": "7E5FA8",
   "SpriteStyle": "Necro"
  },

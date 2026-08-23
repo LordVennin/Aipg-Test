@@ -81,6 +81,8 @@
     "Id": "forest",
     "Name": "Mirewood",
     "Background": "08110B",
+    "AmbientLight": "B4BCAA",
+    "SunPatches": true,
     "FloorA": "37522F",
     "FloorB": "314A2B",
     "CliffFace": "64785A",

@@ -71,6 +71,35 @@ public class WorldRenderer
         }
         GeneratePaths(map);
         RebuildProps(map);
+        GenerateSunPatches(map);
+    }
+
+    /// <summary>Seeded pools of daylight for SunPatches themes (sun through the canopy /
+    /// cloud gaps). World positions + pixel radii + a phase offset for the slow drift-
+    /// brightness pulse; every client derives the identical layout from the map seed.</summary>
+    private readonly List<(NumVec2 Pos, float Radius, float Phase)> _sunPatches = new();
+
+    private void GenerateSunPatches(GameMap map)
+    {
+        _sunPatches.Clear();
+        if (Theme?.SunPatches != true || map == null) return;
+        // Independent RNG stream: never consumes map-generation randomness.
+        var rng = new Random(map.Seed * 31 + 17);
+        int want = Math.Max(6, map.Width * map.Height / 110);
+        for (int attempt = 0; attempt < want * 8 && _sunPatches.Count < want; attempt++)
+        {
+            int tx = rng.Next(2, map.Width - 2);
+            int ty = rng.Next(2, map.Height - 2);
+            if (map.IsSolid(tx, ty) || map.IsWater(tx, ty)) continue; // ground light pools
+            var pos = new NumVec2(tx + 0.5f, ty + 0.5f);
+            // Keep pools apart so they read as separate shafts, not one bright wash.
+            bool crowded = false;
+            foreach (var p in _sunPatches)
+                if (NumVec2.DistanceSquared(p.Pos, pos) < 5.5f * 5.5f) { crowded = true; break; }
+            if (crowded) continue;
+            float radius = 150f + (float)rng.NextDouble() * 130f; // px on screen
+            _sunPatches.Add((pos, radius, (float)rng.NextDouble() * MathF.Tau));
+        }
     }
 
     // ------------------------------------------------------------------ lighting
@@ -284,6 +313,25 @@ public class WorldRenderer
         DropLabelRects.Clear();
         EnemyHitRects.Clear();
         _lights.Clear();   // refilled below; next frame's lightmap consumes them
+
+        // Dappled daylight: the seeded sun pools breathe slowly (clouds sliding over
+        // the canopy) — each patch pulses on its own phase so the forest floor shifts
+        // instead of blinking in unison.
+        if (_sunPatches.Count > 0 && AmbientLight != null)
+        {
+            float sunClock = Environment.TickCount64 * 0.001f;
+            int sw = sb.GraphicsDevice.PresentationParameters.BackBufferWidth;
+            int sh = sb.GraphicsDevice.PresentationParameters.BackBufferHeight;
+            foreach (var (pPos, pRadius, pPhase) in _sunPatches)
+            {
+                var pScreen = camera.WorldToScreen(pPos, map.GroundHeightAt(pPos));
+                if (pScreen.X < -pRadius || pScreen.X > sw + pRadius ||
+                    pScreen.Y < -pRadius || pScreen.Y > sh + pRadius) continue;
+                float breathe = 0.78f + 0.22f * MathF.Sin(sunClock * 0.35f + pPhase);
+                AddLight(pScreen, pRadius * (0.92f + 0.08f * breathe),
+                    new Color(255, 248, 216) * breathe);
+            }
+        }
 
         // --- base pass: flat level-0 floor tiles (nothing ever renders beneath them) ---
         // Grid style: the classic checker with subtle tile edges. Organic style (forest):

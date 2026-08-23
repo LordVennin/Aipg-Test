@@ -82,6 +82,10 @@ public class EnemyDefinition
     public float CastWindup { get; set; } = 1.1f;
     public float CastCooldown { get; set; } = 6f;
     public DamageKind CastKind { get; set; } = DamageKind.Dark;
+    /// <summary>Comfort ring for casters (tiles): inside this distance to a threat the
+    /// enemy BACKS AWAY instead of trading melee swipes — the swipe only comes out when
+    /// it's cornered against a wall. 0 = never retreats (normal melee behavior).</summary>
+    public float KeepDistance { get; set; }
     public string LootTableId { get; set; } = "default";
     public string Color { get; set; } = "C04040"; // art tint (RRGGBB hex)
     /// <summary>Procedural sprite style: "Zombie", "Ghoul", "Skeleton", "Necro", or empty
@@ -155,6 +159,10 @@ public class ZoneTheme
     /// = full daylight, no lighting pass. Entity lights (players, bolts, the fountain)
     /// punch brightness back through the gloom.</summary>
     public string AmbientLight { get; set; }
+    /// <summary>Dappled daylight: scatter seeded pools of warm sunlight over the map
+    /// (light through the canopy / cloud gaps). Only meaningful with an AmbientLight
+    /// dim enough for the bright patches to read.</summary>
+    public bool SunPatches { get; set; }
     /// <summary>Clutter/feature sprite set: "graveyard", "tomb", "arid" or "forest".</summary>
     public string PropStyle { get; set; } = "graveyard";
     /// <summary>Chance per walkable tile of a small non-colliding clutter sprite.</summary>
