@@ -370,7 +370,25 @@ public class DebugUI
                 () => _client.SendDebugCommand(cmd, arg)) { FontSize = 14 });
             y += 33;
         }
+        // Local weather test cycler: Map default -> Rain -> Snow -> Wind -> Off ->
+        // back to Map. Client-side only (weather is a MAP attribute; this forces a
+        // look for testing). PlayScreen wires the hooks to the world renderer.
+        _weatherButton = new Button("Weather: Map", new Rectangle(_panel.Bounds.X + 10, y, 230, 28),
+            () =>
+            {
+                if (CycleWeatherOverride == null) return;
+                string next = CycleWeatherOverride();
+                _weatherButton.Text = $"Weather: {(next == null ? "Map" : char.ToUpper(next[0]) + next[1..])}";
+            }) { FontSize = 14 };
+        _panel.Children.Add(_weatherButton);
+        _commandRows = commands.Length + 1;
     }
+
+    /// <summary>Advances the renderer's weather override and returns the new value
+    /// (null = follow the map). Wired by PlayScreen.</summary>
+    public Func<string> CycleWeatherOverride;
+    private readonly Button _weatherButton;
+    private readonly int _commandRows;
 
     public bool Contains(Point p) => Open && _panel.Bounds.Contains(p);
 
@@ -402,7 +420,7 @@ public class DebugUI
             $"Weapon: {world.MyStats.WeaponMinDamage:0}-{world.MyStats.WeaponMaxDamage:0} @ {world.MyStats.WeaponAttackSpeed:0.0#}aps",
             $"Res F/C/L: {world.MyStats.FireResistance:0}/{world.MyStats.ColdResistance:0}/{world.MyStats.LightningResistance:0}",
         };
-        int ly = _panel.Bounds.Y + 34 + 13 * 33 + 6;
+        int ly = _panel.Bounds.Y + 34 + _commandRows * 33 + 6;
         foreach (var line in lines)
         {
             sb.DrawString(font, line, new Vector2(_panel.Bounds.X + 10, ly), new Color(190, 200, 190));

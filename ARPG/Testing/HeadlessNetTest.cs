@@ -3654,9 +3654,14 @@ public static class HeadlessNetTest
                   "tree canopies shade the ground beside their trunk");
             Check(openX >= 0 && !dressMap.IsSheltered(new Vector2(openX + 0.5f, openY + 0.5f), 0f),
                   "open ground is exposed to the weather");
-            Check(new Core.GameSettings().Weather == "off" &&
-                  Core.GameSettings.WeatherModes.SequenceEqual(new[] { "off", "rain", "snow", "wind" }),
-                  "weather is a local toggle: off by default, cycling off/rain/snow/wind");
+            // Weather is a MAP attribute — something maps CAN have, never must. The
+            // map inherits its theme's optional Weather; no shipped theme forces any
+            // (the F1 debug cycler is a purely client-side renderer override).
+            var wetTheme = new Data.ZoneTheme { Id = "wet_test", Weather = "rain" };
+            var wetMap = new World.GameMap(77, wetTheme, World.MapKind.Hub);
+            Check(wetMap.Weather == "rain" && dressMap.Weather == "" &&
+                  data.ZoneThemes.All(t => string.IsNullOrEmpty(t.Weather)),
+                  "weather is a per-map attribute: theme default flows in, nothing forces it");
             // Reachability guarantee across several seeds: stairs never lead into (or
             // hide) pockets you can't actually walk to. And no ORPHAN stairs — a ramp
             // embedded in flat ground whose ascent side climbs to nothing.

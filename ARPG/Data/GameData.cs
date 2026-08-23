@@ -163,6 +163,10 @@ public class ZoneTheme
     /// (light through the canopy / cloud gaps). Only meaningful with an AmbientLight
     /// dim enough for the bright patches to read.</summary>
     public bool SunPatches { get; set; }
+    /// <summary>Optional weather on maps of this theme: "" (none, the default), "rain",
+    /// "snow" or "wind". An attribute maps CAN have, never must — and future authored
+    /// areas/interiors can override it per region.</summary>
+    public string Weather { get; set; } = "";
     /// <summary>Clutter/feature sprite set: "graveyard", "tomb", "arid" or "forest".</summary>
     public string PropStyle { get; set; } = "graveyard";
     /// <summary>Chance per walkable tile of a small non-colliding clutter sprite.</summary>

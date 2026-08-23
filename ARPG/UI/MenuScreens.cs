@@ -234,7 +234,7 @@ public class OptionsPanel
     private int _controlsScroll;
     private int _controlsContentTop, _controlsContentBottom, _controlRowsHeight;
     private Button _damageNumbersButton, _healthBarsButton, _playerListButton;
-    private Button _fullscreenButton, _resolutionButton, _soundButton, _lightingButton, _weatherButton;
+    private Button _fullscreenButton, _resolutionButton, _soundButton, _lightingButton;
 
     public OptionsPanel(GameMain game, Action onClose)
     {
@@ -344,17 +344,8 @@ public class OptionsPanel
                 RefreshLabels();
             }) { FontSize = 15 };
         gameplay.Children.Add(_lightingButton);
-        _weatherButton = new Button(WeatherLabel(),
-            new Rectangle(cx, contentY + 120, 240, 30), () =>
-            {
-                var modes = Core.GameSettings.WeatherModes;
-                int idx = Array.IndexOf(modes, game.Settings.Weather);
-                game.Settings.Weather = modes[(idx + 1) % modes.Length];
-                RefreshLabels();
-            }) { FontSize = 15 };
-        gameplay.Children.Add(_weatherButton);
         gameplay.Children.Add(new Label("Zone theme shapes the NEXT map you host (forest grows big trees).",
-            cx, contentY + 160, 14));
+            cx, contentY + 120, 14));
 
         // --- Controls tab ---
         var controls = new Panel { Bounds = Rectangle.Empty, Background = Color.Transparent, Border = Color.Transparent };
@@ -394,9 +385,6 @@ public class OptionsPanel
     }
 
     private string SoundLabel() => $"Sound: {_game.Settings.SoundVolume * 100:0}%";
-
-    private string WeatherLabel() =>
-        $"Weather: {char.ToUpper(_game.Settings.Weather[0]) + _game.Settings.Weather[1..]}";
 
     private static string ToggleLabel(string name, bool on) => $"{name}: {(on ? "ON" : "OFF")}";
     private string ResolutionLabel() =>
@@ -439,7 +427,6 @@ public class OptionsPanel
             if (_zoneThemeButton != null) _zoneThemeButton.Text = ZoneThemeLabel();
             if (_soundButton != null) _soundButton.Text = SoundLabel();
             if (_lightingButton != null) _lightingButton.Text = ToggleLabel("Lighting", _game.Settings.Lighting);
-            if (_weatherButton != null) _weatherButton.Text = WeatherLabel();
             _fullscreenButton.Text = ToggleLabel("Fullscreen", _game.Settings.Fullscreen);
             _resolutionButton.Text = ResolutionLabel();
         }
