@@ -25,12 +25,23 @@ public class IsoCamera
 
     public Vector2 WorldToScreen(NumVec2 world) => WorldToScreen(world, 0f);
 
+    /// <summary>The camera's iso-space offset SNAPPED to whole pixels. Static scenery
+    /// (rocks, mushrooms, grass) draws through integer casts; with a fractional camera
+    /// offset each prop crosses its own rounding boundary on a different frame and the
+    /// whole map shimmers by ±1px while walking. Snapping the shared offset scrolls
+    /// the world in whole pixels, so everything rounds in lockstep.</summary>
+    private Vector2 CamIsoSnapped()
+    {
+        var camIso = WorldToIso(Center);
+        return new Vector2(MathF.Round(camIso.X), MathF.Round(camIso.Y));
+    }
+
     /// <summary>Project a world position standing on a surface at `height` levels:
     /// elevation lifts the point straight up in screen space.</summary>
     public Vector2 WorldToScreen(NumVec2 world, float height)
     {
         var iso = WorldToIso(world);
-        var camIso = WorldToIso(Center);
+        var camIso = CamIsoSnapped();
         return new Vector2(iso.X - camIso.X + ScreenWidth / 2f,
                            iso.Y - camIso.Y + ScreenHeight / 2f - height * LevelHeightPx);
     }
@@ -42,7 +53,7 @@ public class IsoCamera
     /// onto the plane of the aiming player's own surface.</summary>
     public NumVec2 ScreenToWorld(Point screen, float height)
     {
-        var camIso = WorldToIso(Center);
+        var camIso = CamIsoSnapped(); // must mirror WorldToScreen or aim drifts a pixel
         float isoX = screen.X - ScreenWidth / 2f + camIso.X;
         float isoY = screen.Y - ScreenHeight / 2f + camIso.Y + height * LevelHeightPx;
         // Invert: isoX = (x - y) * 32, isoY = (x + y) * 16
