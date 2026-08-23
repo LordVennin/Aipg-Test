@@ -1,6 +1,7 @@
 [
  {
   "Id": "basic_strike",
+  "StunBuildup": 7,
   "Name": "Mace Strike",
   "Description": "A quick mace swing that strikes every enemy caught in the arc, knocking them back.",
   "Tags": [
@@ -23,6 +24,7 @@
  },
  {
   "Id": "mace_strike",
+  "StunBuildup": 15,
   "Name": "Mace Slam",
   "Description": "Slam your mace into the ground, crushing all enemies near the impact \u2014 heavy knockback with a chance to slow survivors.",
   "Tags": [
@@ -52,6 +54,7 @@
  },
  {
   "Id": "ground_slam",
+  "StunBuildup": 100,
   "Name": "Ground Slam",
   "Description": "Raise your mace overhead and smash the earth \u2014 the ground cracks around you, hurling enemies back and briefly stunning them.",
   "Tags": [
@@ -81,7 +84,7 @@
  {
   "Id": "shield_bash",
   "Name": "Shield Bash",
-  "Description": "Lunge forward and slam your shield into an enemy, knocking it far back with a high chance to momentarily stun it. Hold to charge: lunge further and hit harder. Heavier shields hit harder: +1 damage per 10 shield armor. Requires a shield equipped.",
+  "Description": "Lunge forward and slam your shield into an enemy, knocking it far back and building heavily toward a stun. Hold to charge: lunge further and hit harder. Heavier shields hit harder: +1 damage per 10 shield armor. Requires a shield equipped.",
   "Tags": [
    "Attack",
    "Melee",
@@ -95,12 +98,12 @@
   "WeaponDamageMultiplierPerLevel": 0.07,
   "RequiresShield": true,
   "ShieldArmorScaling": 0.1,
-  "Cooldown": 0.7,
+  "Cooldown": 1.1,
   "Range": 1.4,
   "Radius": 1.0,
   "Knockback": 2.5,
   "StunDuration": 0.5,
-  "StunChance": 0.8,
+  "StunBuildup": 60,
   "ManaCost": 6,
   "LungeDistance": 1.8,
   "Chargeable": true,

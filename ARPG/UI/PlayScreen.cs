@@ -880,9 +880,12 @@ public class PlayScreen : IScreen
         int cx = screen.X / 2;
         int barX = cx - barW / 2, barY = 34;
 
-        // Backing panel sized to the wider of the name and the bar.
+        // Backing panel sized to the wider of the name and the bar (taller when the
+        // stun / chill buildup strips underneath have something to show).
+        bool showStun = e.StunPercent > 0, showChill = e.ChillPercent > 0;
+        int stripRows = (showStun ? 1 : 0) + (showChill ? 1 : 0);
         int panelW = (int)MathF.Max(barW + 24, nameSize.X + 40);
-        var panel = new Rectangle(cx - panelW / 2, 6, panelW, 52);
+        var panel = new Rectangle(cx - panelW / 2, 6, panelW, 52 + stripRows * 7);
         sb.Draw(TextureGen.Pixel, panel, new Color(12, 12, 16, 205));
         sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Y, panel.Width, 1), new Color(90, 85, 110));
         sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Bottom - 1, panel.Width, 1), new Color(90, 85, 110));
@@ -897,6 +900,23 @@ public class PlayScreen : IScreen
         string hp = $"{MathF.Ceiling(MathF.Max(0, e.Health)):0} / {e.MaxHealth:0}";
         var hpSize = hpFont.MeasureString(hp);
         sb.DrawString(hpFont, hp, new Vector2(cx - hpSize.X / 2, barY + barH / 2 - hpSize.Y / 2), Color.White);
+
+        // Buildup strips under the health bar: STUN (golden) fills toward the moment
+        // the enemy staggers; CHILL (icy blue) toward the freeze cap.
+        int stripY = barY + barH + 3;
+        if (showStun)
+        {
+            sb.Draw(TextureGen.Pixel, new Rectangle(barX, stripY, barW, 4), new Color(30, 26, 18));
+            sb.Draw(TextureGen.Pixel, new Rectangle(barX, stripY, barW * e.StunPercent / 100, 4),
+                new Color(235, 195, 80));
+            stripY += 7;
+        }
+        if (showChill)
+        {
+            sb.Draw(TextureGen.Pixel, new Rectangle(barX, stripY, barW, 4), new Color(18, 24, 32));
+            sb.Draw(TextureGen.Pixel, new Rectangle(barX, stripY, barW * e.ChillPercent / 100, 4),
+                new Color(120, 190, 250));
+        }
     }
 
     /// <summary>Fallback combined draw (unused by GameMain, which calls the split methods).</summary>

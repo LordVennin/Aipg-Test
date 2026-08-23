@@ -500,6 +500,8 @@ public class GameServer : IServerEvents
             // Chill buildup toward the freeze cap, 0..100 — the debuff icon shows it.
             w.Put((byte)Math.Clamp((int)MathF.Round(
                 e.ChillMagnitude * 100f / ServerWorld.ChillMaxMagnitude), 0, 100));
+            // Stun buildup toward the threshold, 0..100 — drives the client stun bar.
+            w.Put((byte)Math.Clamp((int)MathF.Round(e.StunBuildup), 0, 100));
             w.Put(e.Height);
         }
         Broadcast(w, DeliveryMethod.Unreliable);

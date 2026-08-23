@@ -99,6 +99,8 @@ public class ClientEnemy
     public byte DebuffFlags;
     /// <summary>Chill buildup toward the freeze cap, 0..100 (shown on the chill icon).</summary>
     public byte ChillPercent;
+    /// <summary>Stun buildup toward the stun threshold, 0..100 (drives the stun bar).</summary>
+    public byte StunPercent;
     /// <summary>Which way the sprite should face on screen (updated from movement).</summary>
     public bool FacingLeft;
     /// <summary>Elite affix bitmask (Server.EliteAffix) from the spawn packet — drives

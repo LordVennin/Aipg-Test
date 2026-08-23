@@ -898,3 +898,30 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   cycle), creeps sideways a few pixels like the sun's angle drifting, and
   shimmers on two overlapping periods — no more single frozen shape for the
   lifetime of the map.
+
+---
+
+# Addendum (batch 44): stun buildup, status bars, compounding XP curve
+
+- **Stun is a BUILDUP now, not a coin flip.** Hits with a StunBuildup value
+  fill a hidden 0-100 meter (decaying 18/s); at 100 the enemy staggers for
+  the skill's StunDuration and the meter resets. Every triggered stun stacks
+  a permanent (per-life) 20% resistance onto that enemy — the second stun
+  takes visibly longer to reach, the fourth barely ever comes. Bosses take
+  half buildup and half duration. The chain-stun-to-death loop is dead.
+  - Shield Bash: cooldown 0.7 -> **1.1s**, builds **60**/hit (2 hits to the
+    first stun, 3 to the second, 4 to the third...).
+  - Mace Strike **7**/hit, Mace Slam **15**/hit — flavor pressure that
+    occasionally matters mid-brawl, never a stun engine.
+  - Ground Slam builds **100** (its identity IS the AoE stagger — one slam
+    stuns fresh enemies, but resist stacks stop repeats chaining).
+- **You can SEE the buildup**: the top-of-screen hover display grows a
+  golden STUN strip and an icy CHILL strip under the health bar (only while
+  non-zero); Options -> Gameplay -> "Overhead Status Bars" additionally
+  draws mini strips under enemies' small overhead health bars. Stun buildup
+  replicates in enemy state snapshots (protocol v32).
+- **Leveling steepens.** XP-to-next was linear (40 + 25/level); it now
+  COMPOUNDS: each level's requirement is the previous grown 12% plus the
+  25 flat step. L1 65 (unchanged feel), L10 550 (was 290), L20 2,146 (was
+  540), L30 7,103, L40 22,501 — enemy XP left untouched, the wall just
+  rises to meet it.

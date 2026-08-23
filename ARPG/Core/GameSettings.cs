@@ -12,6 +12,9 @@ public class GameSettings
     public bool ShowEnemyHealthBars { get; set; } = true;
     /// <summary>Show the multiplayer player list with pings (bottom left of the HUD).</summary>
     public bool ShowPlayerList { get; set; } = true;
+    /// <summary>Also draw stun/chill buildup strips under enemies' small overhead
+    /// health bars (they always show on the top-of-screen hover display).</summary>
+    public bool ShowOverheadStatusBars { get; set; }
     /// <summary>Zone theme used when hosting/starting single player. Themes shape map
     /// GENERATION (the forest grows big trees), so this is decided before the map exists
     /// and replicated to joining clients.</summary>
@@ -66,7 +69,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 31; // v31: corpse replication
+    public const int ProtocolVersion = 32; // v32: stun buildup in EnemyStates
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }
