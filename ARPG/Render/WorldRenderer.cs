@@ -113,6 +113,7 @@ public class WorldRenderer
     /// switch would otherwise discard).</summary>
     private readonly List<(Vector2 Pos, float Radius, Color Color)> _lights = new();
     private RenderTarget2D _lightTarget;
+    private readonly WeatherRenderer _weather = new();
 
     private void AddLight(Vector2 screenPos, float radius, Color color) =>
         _lights.Add((screenPos, radius, color));
@@ -120,9 +121,21 @@ public class WorldRenderer
     /// <summary>Render the alpha-blend lightmap: clear to the zone's ambient, punch
     /// additive radial lights through it. The caller multiplies it over the scene.
     /// Returns null in daylight zones. Must run BEFORE the backbuffer pass.</summary>
+    /// <summary>Zone ambient adjusted for weather: rain and snow overcast the sky,
+    /// dimming even daylight zones enough that the pass runs and torchglow matters.</summary>
+    private Color? EffectiveAmbient() => _settings?.Weather switch
+    {
+        "rain" => Dim(AmbientLight ?? new Color(212, 216, 226), 0.86f),
+        "snow" => AmbientLight ?? new Color(224, 228, 236),
+        _ => AmbientLight,
+    };
+
+    private static Color Dim(Color c, float f) =>
+        new((int)(c.R * f), (int)(c.G * f), (int)(c.B * f));
+
     public RenderTarget2D RenderLightmap(GraphicsDevice gd, SpriteBatch sb)
     {
-        if (AmbientLight is not { } ambient) return null;
+        if (EffectiveAmbient() is not { } ambient) return null;
         int w = gd.PresentationParameters.BackBufferWidth;
         int h = gd.PresentationParameters.BackBufferHeight;
         if (_lightTarget == null || _lightTarget.Width != w || _lightTarget.Height != h)
@@ -317,7 +330,8 @@ public class WorldRenderer
         // Dappled daylight: the seeded sun pools breathe slowly (clouds sliding over
         // the canopy) — each patch pulses on its own phase so the forest floor shifts
         // instead of blinking in unison.
-        if (_sunPatches.Count > 0 && AmbientLight != null)
+        if (_sunPatches.Count > 0 && AmbientLight != null &&
+            _settings.Weather is not ("rain" or "snow")) // overcast hides the sun
         {
             float sunClock = Environment.TickCount64 * 0.001f;
             int sw = sb.GraphicsDevice.PresentationParameters.BackBufferWidth;
@@ -1957,6 +1971,11 @@ public class WorldRenderer
 
         foreach (var (_, draw) in _sorted.OrderBy(e => e.depth))
             draw(sb);
+
+        // Weather falls over the whole scene (still inside the world pass, so zone
+        // lighting dims it) — world-space particles, so shelter is real per tile.
+        if (world.Me != null)
+            _weather.Draw(sb, camera, map, world.Me.Position, _settings.Weather);
 
         // --- drop name labels (screen space, on top) ---
         // Labels stack in WORLD-anchored cluster columns: drops are grouped by world

@@ -762,3 +762,28 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   map seed; toggleable via Options -> Gameplay -> Lighting like all zones.
 - Suite: **523 checks** (kiting retreat, slam-on-summons trigger + damage,
   theme data).
+
+---
+
+# Addendum (batch 39): weather — rain / snow / wind with real shelter
+
+- **Weather is a local toggle, not zone data.** Options -> Gameplay ->
+  Weather cycles Off / Rain / Snow / Wind (default Off). Purely cosmetic and
+  client-side — no network state, no theme coupling — so any zone can rain.
+- **Particles live in WORLD space, so shelter is real.** New
+  `GameMap.IsSheltered(pos, height)`: under a bridge deck (below its level —
+  the deck itself stays exposed) and anywhere near a big tree's canopy, rain
+  and snow never spawn. Height-aware: the same tile is dry underneath the
+  bridge and wet standing on it. Future interiors plug their roofed tiles
+  into the same query. Everything lands on the column's actual surface —
+  deck, wall top, or ground.
+- **Rain**: slanted storm-leaning drops, splash rings where they land, and
+  an overcast pass — ambient dims ~14% in dark zones, and even daylight
+  zones get a light overcast so the rain reads. **Snow**: drifting, swaying
+  flakes that settle and melt over a second. **Wind**: tumbling leaves with
+  faint gust streaks (wind ignores shelter — leaves blow through).
+- Overcast hides the forest's sun patches while it rains or snows.
+- Drawn inside the world pass, so zone lighting dims weather like everything
+  else. `ARPG_DEVUI=weather:rain|snow|wind` forces it for screenshots.
+- Suite: **528 checks** (bridge under/on shelter, canopy shade, open-ground
+  exposure, toggle default + mode list).

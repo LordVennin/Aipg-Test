@@ -20,6 +20,10 @@ public class GameSettings
     public float SoundVolume { get; set; } = 0.8f;
     /// <summary>The alpha-blend lighting pass in dark zones (sanctum, graveyard, tomb).</summary>
     public bool Lighting { get; set; } = true;
+    /// <summary>Cosmetic local weather: "off", "rain", "snow" or "wind" — a client
+    /// toggle (Options -> Gameplay), deliberately NOT zone data or network state.</summary>
+    public string Weather { get; set; } = "off";
+    public static readonly string[] WeatherModes = { "off", "rain", "snow", "wind" };
     public bool Fullscreen { get; set; }
     public int ResolutionWidth { get; set; } = 1280;
     public int ResolutionHeight { get; set; } = 720;

@@ -3620,6 +3620,43 @@ public static class HeadlessNetTest
             Check(dressMap.GroundPathExists(dressMap.PlayerSpawn,
                       dressMap.ExitDoor + new Vector2(-1.2f, 0)),
                   "tall grass never blocks the corridor (still walkable end to end)");
+
+            // Weather shelter: rain/snow never reach under bridge decks or tree
+            // canopies, and shelter is HEIGHT-aware — the same tile is dry below the
+            // deck and wet on top of it.
+            var arenaMap = new World.GameMap(1337, data.ZoneThemes.First(t => t.Id == "graveyard"),
+                World.MapKind.Arena);
+            int bridgeX = -1, bridgeY = -1;
+            for (int ty = 0; ty < arenaMap.Height && bridgeX < 0; ty++)
+                for (int tx = 0; tx < arenaMap.Width && bridgeX < 0; tx++)
+                    if (arenaMap.BridgeLevel(tx, ty) > 0) { bridgeX = tx; bridgeY = ty; }
+            Check(bridgeX >= 0, "the arena spans a bridge deck for the shelter probe");
+            var underDeck = new Vector2(bridgeX + 0.5f, bridgeY + 0.5f);
+            Check(arenaMap.IsSheltered(underDeck, 0f) &&
+                  !arenaMap.IsSheltered(underDeck, arenaMap.BridgeLevel(bridgeX, bridgeY)),
+                  "under the deck stays dry; standing ON the deck gets rained on");
+            int rootX = -1, rootY = -1, openX = -1, openY = -1;
+            for (int ty = 2; ty < dressMap.Height - 2 && (rootX < 0 || openX < 0); ty++)
+                for (int tx = 2; tx < dressMap.Width - 2 && (rootX < 0 || openX < 0); tx++)
+                {
+                    if (dressMap.Feature(tx, ty) == World.TileFeature.BigTreeRoot && rootX < 0)
+                    { rootX = tx; rootY = ty; }
+                    if (openX < 0 && !dressMap.IsSolid(tx, ty) && dressMap.BridgeLevel(tx, ty) == 0)
+                    {
+                        bool treeNear = false;
+                        for (int dy = -3; dy <= 3 && !treeNear; dy++)
+                            for (int dx = -3; dx <= 3 && !treeNear; dx++)
+                                treeNear = dressMap.Feature(tx + dx, ty + dy) == World.TileFeature.BigTreeRoot;
+                        if (!treeNear) { openX = tx; openY = ty; }
+                    }
+                }
+            Check(rootX >= 0 && dressMap.IsSheltered(new Vector2(rootX + 1.5f, rootY + 0.5f), 0f),
+                  "tree canopies shade the ground beside their trunk");
+            Check(openX >= 0 && !dressMap.IsSheltered(new Vector2(openX + 0.5f, openY + 0.5f), 0f),
+                  "open ground is exposed to the weather");
+            Check(new Core.GameSettings().Weather == "off" &&
+                  Core.GameSettings.WeatherModes.SequenceEqual(new[] { "off", "rain", "snow", "wind" }),
+                  "weather is a local toggle: off by default, cycling off/rain/snow/wind");
             // Reachability guarantee across several seeds: stairs never lead into (or
             // hide) pockets you can't actually walk to. And no ORPHAN stairs — a ramp
             // embedded in flat ground whose ascent side climbs to nothing.

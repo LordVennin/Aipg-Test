@@ -157,6 +157,29 @@ public class GameMap
     /// <summary>Legacy-style solid check (used by tests/debug helpers on the ground layer).</summary>
     public bool IsWallAt(Vector2 pos) => IsSolid((int)MathF.Floor(pos.X), (int)MathF.Floor(pos.Y));
 
+    /// <summary>
+    /// True when WEATHER can't reach a spot: standing under a bridge deck (below its
+    /// level — the deck itself stays exposed), or anywhere near a big tree's canopy.
+    /// Height matters, so the same X/Y is wet on the deck and dry underneath it.
+    /// Future interiors plug their roofed tiles into this same query.
+    /// </summary>
+    public bool IsSheltered(Vector2 pos, float height)
+    {
+        int tx = (int)MathF.Floor(pos.X), ty = (int)MathF.Floor(pos.Y);
+        int bridge = BridgeLevel(tx, ty);
+        if (bridge > 0 && height < bridge - 0.4f) return true;
+        // Canopy: big trees shade their trunk footprint and the ring around it.
+        for (int dy = -2; dy <= 2; dy++)
+            for (int dx = -2; dx <= 2; dx++)
+                if (Feature(tx + dx, ty + dy) == TileFeature.BigTreeRoot) return true;
+        return false;
+    }
+
+    /// <summary>The surface weather LANDS on in a tile column: the bridge deck when one
+    /// spans it, else the wall top, else the ground.</summary>
+    public float WeatherLandHeight(int x, int y) =>
+        MathF.Max(BridgeLevel(x, y), GroundLevel(x, y) + WallHeight(x, y));
+
     // ------------------------------------------------------------------ surfaces
 
     /// <summary>Ground-surface height at a position, with ramp interpolation (ignores bridges).</summary>
