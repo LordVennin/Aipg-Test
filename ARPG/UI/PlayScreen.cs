@@ -207,6 +207,9 @@ public class PlayScreen : IScreen
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
             if (gearToken != null)
                 _devEquipSet = gearToken.Contains(':') ? gearToken.Split(':')[1] : "iron";
+            var weatherToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("weather:"));
+            if (weatherToken != null)
+                _game.Settings.Weather = weatherToken.Split(':')[1]; // session-only override
             var faceToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("face:"));
             if (faceToken != null)
                 _devFaceOverride = faceToken.Split(':')[1] switch
