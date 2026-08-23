@@ -925,3 +925,24 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   25 flat step. L1 65 (unchanged feel), L10 550 (was 290), L20 2,146 (was
   540), L30 7,103, L40 22,501 — enemy XP left untouched, the wall just
   rises to meet it.
+
+---
+
+# Addendum (batch 45): cluster bash, damage-paid skill XP, skill curve
+
+- **Shield Bash hits the whole impact cluster.** The impact-point archetype
+  now strikes EVERY enemy inside the impact radius — knockback and stun
+  buildup apply to each — instead of only the closest one. Bashing into a
+  pack scatters and staggers the pack.
+- **Skill XP follows damage, not killing blows.** Every point of damage a
+  skill deals banks its proportional share of the enemy's XP value (clamped
+  to remaining health — overkill pays nothing extra — and scaled by the
+  level-gap factor). A level-1 spell can be trained late-game by USING it,
+  no last-hitting required; DoTs (poison/bleed/burn) credit the skill that
+  applied them; summon damage trains the summon skill. Character XP is
+  unchanged and stays kill-based with party share. Per-hit grants batch
+  into a ~1s character sync so the wire never floods.
+- **Skill leveling compounds like character leveling**: XP-to-next was
+  linear (60 x level); now previous x 1.15 + 30 on a 60 base — L1 60
+  (unchanged), L5 255 (was 300), L10 715 (was 600), L15 1,679, L20 3,619
+  (was 1,200). Early ranks stay quick; mastery is a commitment.

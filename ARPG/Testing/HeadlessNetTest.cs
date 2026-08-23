@@ -3663,6 +3663,42 @@ public static class HeadlessNetTest
         float r30 = Sim.CharacterData.XpRequirementFor(30);
         Check(r1 == 65f && MathF.Abs(r11 - (r10 * 1.12f + 25f)) < 2f && r30 / r10 > 10f,
               $"XP requirements compound: L1 {r1:0}, L10 {r10:0}, L30 {r30:0}");
+        // Skill XP requirements compound the same way (15% + 30 on a 60 base).
+        float s1 = Skills.SkillMath.XpToNextLevel(1);
+        float s10 = Skills.SkillMath.XpToNextLevel(10);
+        float s11 = Skills.SkillMath.XpToNextLevel(11);
+        float s20 = Skills.SkillMath.XpToNextLevel(20);
+        Check(s1 == 60f && MathF.Abs(s11 - (s10 * 1.15f + 30f)) < 2f && s20 / s10 > 4f,
+              $"skill XP compounds too: L1 {s1:0}, L10 {s10:0}, L20 {s20:0}");
+
+        // Shield Bash hits the whole impact cluster, and skill XP now follows DAMAGE
+        // (no killing blow needed): bash two beefy grunts at once — both take the hit,
+        // both build stun, and the bash skill banks XP while they are still alive.
+        var srvBasher = server.World.Players[bId];
+        if (srvBasher.Character.GetSkill("shield_bash") == null)
+            srvBasher.Character.Skills.Add(new Sim.LearnedSkill { SkillId = "shield_bash", Level = 1 });
+        srvBasher.Character.Equipment[Items.EquipSlot.OffHand] =
+            new Items.ItemInstance { BaseItemId = "wooden_buckler" };
+        srvBasher.RecomputeStats(data);
+        srvBasher.Mana = srvBasher.Stats.MaxMana;
+        var bashSpot = srvBasher.Position + srvBasher.Facing * 1.2f;
+        var bashA = server.World.SpawnEnemy("grunt", bashSpot + new Vector2(0.2f, 0f));
+        var bashB = server.World.SpawnEnemy("grunt", bashSpot - new Vector2(0.2f, 0f));
+        bashA.Health = bashA.MaxHealth = 500f;
+        bashB.Health = bashB.MaxHealth = 500f;
+        var bashSkillState = srvBasher.Character.GetSkill("shield_bash");
+        float bashXpBefore = bashSkillState.Experience;
+        server.World.UseSkill(bId, "shield_bash", bashSpot);
+        Check(bashA.Health < 500f && bashB.Health < 500f &&
+              bashA.StunBuildup > 30f && bashB.StunBuildup > 30f,
+              $"Shield Bash hits EVERY enemy at the impact point ({bashA.Health:0}/{bashB.Health:0} hp, " +
+              $"{bashA.StunBuildup:0}/{bashB.StunBuildup:0} buildup)");
+        Check(!bashA.Dead && !bashB.Dead && bashSkillState.Experience > bashXpBefore &&
+              bashSkillState.Experience - bashXpBefore < data.Enemies["grunt"].XpReward * 2f,
+              $"skills bank XP per damage dealt, no kill required (+{bashSkillState.Experience - bashXpBefore:0.00})");
+        bashA.Health = bashB.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
 
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
         // The campaign's run maps grow tall-grass patches (on terraces too) and stay

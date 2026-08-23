@@ -53,6 +53,10 @@ public class ServerPlayer
     /// <summary>Next allowed use time per skill id (server clock seconds).</summary>
     public readonly Dictionary<string, float> SkillReadyAt = new();
 
+    /// <summary>Skill XP accrued since the last CharacterChanged broadcast — flushed on
+    /// a slow clock so per-hit XP grants never flood the wire with character JSON.</summary>
+    public bool SkillXpDirty;
+
     // Dodge: cooldown and invulnerability are server-authoritative.
     public float NextDodgeAt;
     public float InvulnerableUntil;
