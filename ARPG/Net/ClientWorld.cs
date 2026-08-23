@@ -74,6 +74,9 @@ public class ClientPlayer
     /// in GoreRgb (the victim's blood color). Refreshed by every fleshy melee hit.</summary>
     public long GoreUntilMs;
     public int GoreRgb = (126 << 16) | (26 << 8) | 26;
+    /// <summary>Consecutive fleshy hits while the weapon was still wet — the coat
+    /// builds gradually: 1 = flecks, 2 = splatter, 3+ = soaked. Resets once dried.</summary>
+    public int GoreHits;
     /// <summary>How long weapon gore lasts after the latest splatter (ms).</summary>
     public const long GoreDurationMs = 9000;
 }
