@@ -841,3 +841,30 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   (three stages, each a superset of the last — droplets stay where they
   landed as more join). As the coat dries it thins back down through the
   same stages before vanishing, instead of popping off at full strength.
+
+---
+
+# Addendum (batch 42): gore & effects polish pass (playtest notes)
+
+- **Blood pools are pixel splats now**, not neat ellipses: a scatter of
+  irregular blood pixels appears a few at a time around a settling body,
+  and hit-splatter ground speckles sort UNDER dropped items — blood never
+  covers your loot.
+- **Zombie blood is putrid green** (grunt/shambler/leaper each a slightly
+  different rot; the Gravelord bleeds deep bog green). The Grave Caller — a
+  living cultist — still bleeds red. Skeletons remain bloodless.
+- **Dead bodies get their own sprites.** Corpses topple as before but now
+  SETTLE into a dedicated dead-heap sprite per style: zombies/ghouls slump
+  into a mound with a lolled head and outflung arm, skeletons scatter into
+  a bone pile around the skull, necromancers collapse into a crumpled robe.
+  No more tipped-over walking frames.
+- **Fire Bolt is a fireball**: yellow-white core, orange body stretched
+  along the flight, a flickering three-blob flame tail and embers popping
+  off the wake — instead of a flat orange orb.
+- **Shatter shards look like broken ice**: a compact faceted CHUNK (8x8)
+  clearly distinct from the long tapered Ice Spike that burst.
+- **Slam zones are readable**: both Mace Slam and the boss ground slam draw
+  a crisp dashed RING at the exact damage radius (snaps out, holds, fades)
+  over a softer fill, and debris got wilder — more dust and half again as
+  many rock pixels kicked across a wider, more random spread than the
+  damage circle itself.

@@ -1,6 +1,6 @@
 [
  {
-  "Id": "grunt",
+  "Id": "grunt", "Blood": "5A7A22",
   "Name": "Gravebound Grunt",
   "Level": 1,
   "MaxHealth": 35,
@@ -70,7 +70,7 @@
   "SpriteStyle": "Ghoul"
  },
  {
-  "Id": "gravelord", "Blood": "4E1030",
+  "Id": "gravelord", "Blood": "44601A",
   "Name": "The Gravelord",
   "Level": 4,
   "MaxHealth": 380,
@@ -158,7 +158,7 @@
   "SpriteStyle": "Skeleton"
  },
  {
-  "Id": "crypt_leaper",
+  "Id": "crypt_leaper", "Blood": "6E8226",
   "Name": "Crypt Leaper",
   "MaxHealth": 22,
   "MoveSpeed": 3.1,
@@ -212,7 +212,7 @@
   "SpriteStyle": "Necro"
  },
  {
-  "Id": "shambler",
+  "Id": "shambler", "Blood": "4E6A1E",
   "Name": "Shambler",
   "MaxHealth": 12,
   "MoveSpeed": 3.0,

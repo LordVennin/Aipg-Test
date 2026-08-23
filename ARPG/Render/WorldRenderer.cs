@@ -905,7 +905,7 @@ public class WorldRenderer
             var cScreen = camera.WorldToScreen(cpos, corpse.Height);
             float fallT = Math.Clamp((animClock - corpse.SpawnedAtMs) / 380f, 0f, 1f);
             float poolT = Math.Clamp((animClock - corpse.SpawnedAtMs) / 950f, 0f, 1f);
-            // Bloodless enemies (skeletons) leave a clean corpse — no pool.
+            // Bloodless enemies (skeletons) leave a clean corpse — no splats.
             bool bleeds = !string.IsNullOrEmpty(cdef?.Blood);
             var cblood = ParseColor(cdef?.Blood, new Color(126, 26, 26));
             int cid = corpse.Id;
@@ -913,18 +913,42 @@ public class WorldRenderer
             {
                 var tex = cframes[0];
                 float sMul = (cdef?.SpriteScale ?? 1f) * 2f;
-                int poolW = (int)(tex.Width * sMul * (0.8f + 0.6f * poolT));
                 if (bleeds)
-                    batch.Draw(TextureGen.Circle32,
-                        new Rectangle((int)(cScreen.X - poolW / 2f), (int)(cScreen.Y - poolW / 4f + 3), poolW, poolW / 2),
-                        cblood * (0.55f * poolT));
+                {
+                    // Not a neat puddle — a scatter of blood pixels around the body,
+                    // appearing a few at a time as it bleeds out (hash-deterministic).
+                    int bseed = cid * 977 ^ (int)(cpos.X * 733);
+                    int splats = (int)(11 * poolT);
+                    for (int k = 0; k < splats; k++)
+                    {
+                        var rng = new Random(bseed + k * 131);
+                        int ox = rng.Next(-16, 17);
+                        int oy = rng.Next(-6, 8);
+                        int sw2 = rng.Next(2, 5), sh2 = 1 + (rng.Next(3) == 0 ? 1 : 0);
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)cScreen.X + ox, (int)cScreen.Y + 2 + oy, sw2, sh2),
+                            cblood * (0.75f - 0.03f * k));
+                    }
+                }
                 // Ease-out topple to one side (side picked by id so packs don't stack
-                // identically); the body dims as the life leaves it.
+                // identically), then the body SETTLES into a proper dead-heap sprite —
+                // slumped flesh, a bone pile, a crumpled robe — not a tipped walk frame.
                 float ease = 1f - (1f - fallT) * (1f - fallT);
-                float ang = (cid % 2 == 0 ? 1f : -1f) * (MathF.PI / 2f) * ease;
-                var bodyTint = Color.Lerp(Color.White, new Color(120, 112, 116), 0.35f + 0.35f * fallT);
-                batch.Draw(tex, new Vector2(cScreen.X, cScreen.Y + 4), null, bodyTint,
-                    ang, new Vector2(tex.Width / 2f, tex.Height), sMul, SpriteEffects.None, 0f);
+                var heap = SpriteGen.GetEnemyCorpseSprite(cdef);
+                if (fallT >= 1f && heap != null)
+                {
+                    var fx2 = cid % 2 == 0 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
+                    batch.Draw(heap, new Vector2(cScreen.X - heap.Width * sMul / 2f,
+                        cScreen.Y + 4 - heap.Height * sMul), null, new Color(205, 196, 200),
+                        0f, Vector2.Zero, sMul, fx2, 0f);
+                }
+                else
+                {
+                    float ang = (cid % 2 == 0 ? 1f : -1f) * (MathF.PI / 2f) * ease;
+                    var bodyTint = Color.Lerp(Color.White, new Color(120, 112, 116), 0.35f + 0.35f * fallT);
+                    batch.Draw(tex, new Vector2(cScreen.X, cScreen.Y + 4), null, bodyTint,
+                        ang, new Vector2(tex.Width / 2f, tex.Height), sMul, SpriteEffects.None, 0f);
+                }
             }));
         }
 
@@ -1500,6 +1524,48 @@ public class WorldRenderer
                     batch.Draw(projSprite, new Vector2(screen.X, screen.Y - 14), null, Color.White, ang,
                         new Vector2(projSprite.Width / 2f, projSprite.Height / 2f), 2f, SpriteEffects.None, 0f)));
             }
+            else if (projDef?.DamageKind == Skills.DamageKind.Fire && pr.FromPlayer)
+            {
+                // A little FIREBALL, not an orb: yellow-white core, orange body, and a
+                // flickering flame tail streaming behind the flight path, shedding a
+                // couple of embers. Flicker is time+id keyed — pure render state.
+                var isoDir = new Vector2(pr.Direction.X - pr.Direction.Y, (pr.Direction.X + pr.Direction.Y) * 0.5f);
+                if (isoDir.LengthSquared() > 0.001f) isoDir.Normalize();
+                var tail = -isoDir;
+                long fclock = Environment.TickCount64;
+                int fseed = pr.Id * 397;
+                _sorted.Add((pr.Position.X + pr.Position.Y + pr.Height * 1.0f + 0.1f + UnderDeckBias(pr.Position, pr.Height), batch =>
+                {
+                    var c = new Vector2(screen.X, screen.Y - 14);
+                    // Tail: three flame blobs shrinking down the wake, jittering.
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float flick = MathF.Sin((fclock + fseed) * 0.045f + i * 2.1f);
+                        var bp = c + tail * (7f + i * 6f) +
+                                 new Vector2(-tail.Y, tail.X) * (flick * (2f + i));
+                        int bs = 11 - i * 3;
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(bp.X - bs / 2f), (int)(bp.Y - bs / 2f), bs, bs),
+                            new Color(235, 92 - i * 18, 20) * (0.72f - i * 0.18f));
+                    }
+                    // Embers popping off the wake.
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float ph = ((fclock + fseed + i * 271) % 420) / 420f;
+                        var ep = c + tail * (14f + 16f * ph) +
+                                 new Vector2(-tail.Y, tail.X) * MathF.Sin((fclock + fseed) * 0.03f + i * 3f) * 4f;
+                        batch.Draw(TextureGen.Pixel, new Rectangle((int)ep.X, (int)ep.Y, 2, 2),
+                            new Color(255, 200, 90) * (1f - ph));
+                    }
+                    // Body + core, slightly stretched along the flight.
+                    var body = c - tail * 1.5f;
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(body.X - 7), (int)(body.Y - 6), 14, 12), new Color(255, 150, 35));
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(body.X - 4 + isoDir.X * 2), (int)(body.Y - 4 + isoDir.Y * 2), 8, 8),
+                        new Color(255, 240, 165));
+                }));
+            }
             else
             {
                 var color = pr.FromPlayer ? new Color(255, 150, 50) : new Color(140, 255, 90);
@@ -1552,7 +1618,10 @@ public class WorldRenderer
                         batch.Draw(TextureGen.Pixel, new Rectangle((int)px, (int)py, sz, sz),
                             bloodC * (0.85f * (1f - t * t)));
                     }
-                    if (t > 0.35f) // droplets landing: a fading ground speckle
+                }));
+                if (t > 0.35f) // droplets landing: a fading ground speckle — sorted
+                {              // UNDER dropped items (blood never covers your loot)
+                    _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.02f + UnderDeckBias(fx.Position, fx.Height), batch =>
                     {
                         var rng2 = new Random(bseed * 13);
                         for (int k = 0; k < 5; k++)
@@ -1562,8 +1631,8 @@ public class WorldRenderer
                                 new Rectangle((int)screen.X + ox, (int)screen.Y + oy, 2, 1),
                                 bloodC * (0.6f * (1f - t)));
                         }
-                    }
-                }));
+                    }));
+                }
             }
 
             if (fx.Kind == "debris")
@@ -1576,12 +1645,13 @@ public class WorldRenderer
                 var dustBase = _floorB;
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.25f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    // Dust: soft flattened circles drifting outward and fading.
-                    for (int d = 0; d < 5; d++)
+                    // Dust: soft flattened circles drifting outward and fading — thrown
+                    // in a WIDER, more scattered band than the damage circle itself.
+                    for (int d = 0; d < 7; d++)
                     {
                         var rng = new Random(seed + d * 47);
                         float ang = (float)(rng.NextDouble() * Math.PI * 2);
-                        float dist = radiusPxD * (0.25f + 0.55f * (float)rng.NextDouble()) * (0.4f + 0.6f * t);
+                        float dist = radiusPxD * (0.3f + 0.95f * (float)rng.NextDouble()) * (0.4f + 0.6f * t);
                         int size = (int)(14 + 20 * t + rng.Next(8));
                         float alpha = 0.38f * (1f - t);
                         var pos = new Vector2(screen.X + MathF.Cos(ang) * dist,
@@ -1590,12 +1660,13 @@ public class WorldRenderer
                             new Rectangle((int)(pos.X - size), (int)(pos.Y - size / 2f), size * 2, size),
                             dustBase * alpha);
                     }
-                    // Rocks: little pixels launched up that arc back down and linger.
-                    for (int k = 0; k < 12; k++)
+                    // Rocks: little pixels launched up that arc back down and linger —
+                    // more of them, kicked across a wider and more random spread.
+                    for (int k = 0; k < 18; k++)
                     {
                         var rng = new Random(seed * 31 + k * 101);
                         float ang = (float)(rng.NextDouble() * Math.PI * 2);
-                        float dist = radiusPxD * (0.15f + 0.75f * (float)rng.NextDouble());
+                        float dist = radiusPxD * (0.15f + 1.15f * (float)rng.NextDouble());
                         float v0 = 40f + 55f * (float)rng.NextDouble(); // px/s upward
                         float g = 240f;
                         float age = t * fx.Duration;
@@ -2066,7 +2137,7 @@ public class WorldRenderer
             var color = fx.Kind switch
             {
                 "burst" => new Color((byte)170, (byte)90, (byte)255, alpha),
-                "slam" => new Color((byte)230, (byte)200, (byte)90, alpha),
+                "slam" => new Color((byte)230, (byte)200, (byte)90, (byte)(alpha / 2)),
                 "melee" => new Color((byte)255, (byte)255, (byte)255, alpha),
                 _ => new Color((byte)255, (byte)120, (byte)60, alpha),
             };
@@ -2074,6 +2145,32 @@ public class WorldRenderer
                 batch.Draw(TextureGen.Circle32,
                     new Rectangle((int)(screen.X - radiusPx), (int)(screen.Y - radiusPx / 2f),
                         (int)(radiusPx * 2), (int)radiusPx), color)));
+
+            if (fx.Kind == "slam")
+            {
+                // The DAMAGE BOUND, made explicit: a crisp segment ring at the slam's
+                // true radius (a world circle of radius R spans R*sqrt(2) half-tiles on
+                // screen). It snaps out to full size in the first quarter of the effect
+                // and holds there fading — you can read exactly what was hit.
+                float ringT = Math.Clamp(t / 0.25f, 0f, 1f);
+                float ringEase = 1f - (1f - ringT) * (1f - ringT);
+                float ax = fx.Radius * 1.414f * IsoCamera.HalfTileW * ringEase;
+                float ay = fx.Radius * 1.414f * IsoCamera.HalfTileH * ringEase;
+                float ringFade = 1f - t;
+                var rim = new Color(255, 226, 130) * (0.9f * ringFade);
+                var rimDark = new Color(180, 120, 40) * (0.9f * ringFade);
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.21f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    for (int s3 = 0; s3 < 44; s3++)
+                    {
+                        float a2 = s3 * MathF.Tau / 44f;
+                        int rx = (int)(screen.X + MathF.Cos(a2) * ax);
+                        int ry = (int)(screen.Y + MathF.Sin(a2) * ay);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(rx, ry, 2, 2),
+                            (s3 & 1) == 0 ? rim : rimDark);
+                    }
+                }));
+            }
         }
 
         foreach (var (_, draw) in _sorted.OrderBy(e => e.depth))
