@@ -868,3 +868,12 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   over a softer fill, and debris got wilder — more dust and half again as
   many rock pixels kicked across a wider, more random spread than the
   damage circle itself.
+
+## Batch 42 follow-up: corpse sprites, second pass
+
+- The hand-drawn heap sprites read as abstract blobs, so corpses are now
+  DERIVED from the enemy's own standing sprite: frame 0 rotated onto its
+  side, squashed ~40% flat against the ground, darkened, with hash-ragged
+  silhouette edges — the body stays recognizably THAT enemy (helmet, cape,
+  colors and all), just unmistakably dead. Skeletons additionally shake a
+  few loose bone pixels out of the pile.
