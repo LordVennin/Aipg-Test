@@ -739,7 +739,22 @@ public partial class ServerWorld
         TickSpawners();
         TickPlayers(dt);
         CheckPartyWipe();
+
+        // Batched skill-XP sync: damage-based grants mark players dirty; the full
+        // character state flushes at most ~once a second instead of once per hit.
+        if (Time >= _nextSkillXpFlush)
+        {
+            _nextSkillXpFlush = Time + 1.1f;
+            foreach (var p in Players.Values)
+                if (p.SkillXpDirty)
+                {
+                    p.SkillXpDirty = false;
+                    _events.CharacterChanged(p);
+                }
+        }
     }
+
+    private float _nextSkillXpFlush;
 
     private void TickPlayers(float dt)
     {
@@ -1985,24 +2000,23 @@ public partial class ServerWorld
             }
             case SkillArchetype.MeleeSingle:
             {
-                // Single target: hit only the enemy closest to the impact point, then
-                // knock it back away from the caster (with wall collision).
+                // Impact-point strike: EVERY enemy caught in the impact radius takes
+                // the hit (a shield bash into a cluster staggers the cluster), each
+                // knocked back away from the caster with wall collision.
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
-                var victim = EnemiesNear(effectPoint, stats.Radius, p.Height)
-                    .OrderBy(e => Vector2.Distance(e.Position, effectPoint))
-                    .FirstOrDefault();
-                if (victim != null)
+                foreach (var victim in EnemiesNear(effectPoint, stats.Radius, p.Height).ToList())
                 {
                     var (vDmg, vKind) = RollSkillHit(victim, stats, out var vComps);
                     HitEnemy(victim, vDmg * chargeMult, playerId, skillId, vKind);
                     ApplyAilments(victim, vComps, vDmg * chargeMult, stats);
-                    if (!victim.Dead && def.Knockback > 0)
+                    if (victim.Dead) continue;
+                    if (def.Knockback > 0)
                     {
                         var push = (victim.Position - p.Position).NormalizedOrZero();
                         if (push == Vector2.Zero) push = p.Facing;
                         victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback * chargeMult, victim.Def.Radius, ref victim.Height);
                     }
-                    if (!victim.Dead) ApplyStunBuildup(victim, def);
+                    ApplyStunBuildup(victim, def);
                 }
                 break;
             }
@@ -2844,6 +2858,23 @@ public partial class ServerWorld
         DamageKind kind = DamageKind.Blunt, bool emitEvents = true)
     {
         if (e.Dead || damage <= 0) return;
+        // Skill XP follows DAMAGE, not killing blows: every point a skill deals earns
+        // its share of the enemy's XP value (clamped to remaining health so overkill
+        // pays nothing extra, scaled by the level-gap factor) — a low-level skill can
+        // be trained late-game without last-hitting. Character XP stays kill-based.
+        if (byPlayer >= 0 && skillId != null && e.MaxHealth > 0 &&
+            Players.TryGetValue(byPlayer, out var trainer))
+        {
+            var trained = trainer.Character.GetSkill(skillId);
+            if (trained != null)
+            {
+                float credited = MathF.Min(damage, e.Health);
+                float sxp = credited * e.Def.XpReward * e.XpScale / e.MaxHealth *
+                            Stats.XpBalance.LevelFactor(trainer.Character.Level, e.Level);
+                if (sxp > 0f && GrantSkillXp(trainer, trained, sxp))
+                    trainer.SkillXpDirty = true; // batched CharacterChanged, not per hit
+            }
+        }
         e.Health -= damage;
         e.LastHitByPlayer = byPlayer;
         e.LastHitSkillId = skillId;
@@ -2893,14 +2924,9 @@ public partial class ServerWorld
                 float share = member.Id == killer.Id ? 1f : Stats.XpBalance.PartyShare;
                 float xp = e.Def.XpReward * e.XpScale * share *
                            Stats.XpBalance.LevelFactor(member.Character.Level, e.Level);
-                bool changed = GrantCharacterXp(member, xp);
-                if (member.Id == killer.Id)
-                {
-                    var skill = e.LastHitSkillId != null ? killer.Character.GetSkill(e.LastHitSkillId) : null;
-                    if (skill != null)
-                        changed |= GrantSkillXp(killer, skill, xp);
-                }
-                if (changed) _events.CharacterChanged(member);
+                // Skill XP accrued per DAMAGE dealt (see DamageEnemy) — kills grant
+                // character XP only.
+                if (GrantCharacterXp(member, xp)) _events.CharacterChanged(member);
             }
         }
 

@@ -63,7 +63,20 @@ public static class SkillMath
     public const int MaxSkillLevel = 10;
 
     /// <summary>Skill XP needed to advance from `level` to the next level.</summary>
-    public static float XpToNextLevel(int level) => 60f * level;
+    /// <summary>Skill XP requirement compounds like the character curve: each level's
+    /// cost is the previous grown 15% plus the flat step — quick first ranks, real
+    /// commitment for the high ones (L1 60, L10 ~715, L20 ~3,500).</summary>
+    public const float SkillXpGrowth = 0.15f;
+    public const float SkillXpStep = 30f;
+    public const float SkillXpBase = 60f;
+
+    public static float XpToNextLevel(int level)
+    {
+        float req = SkillXpBase;
+        for (int l = 2; l <= level; l++)
+            req = req * (1f + SkillXpGrowth) + SkillXpStep;
+        return MathF.Round(req);
+    }
 
     /// <summary>Power costs: each skill level past 1 raises the skill's mana cost by
     /// this fraction, and each attached Skill Scroll by ManaCostPerScrollPct — stronger

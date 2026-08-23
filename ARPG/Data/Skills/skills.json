@@ -84,7 +84,7 @@
  {
   "Id": "shield_bash",
   "Name": "Shield Bash",
-  "Description": "Lunge forward and slam your shield into an enemy, knocking it far back and building heavily toward a stun. Hold to charge: lunge further and hit harder. Heavier shields hit harder: +1 damage per 10 shield armor. Requires a shield equipped.",
+  "Description": "Lunge forward and slam your shield into the enemy line — every foe at the point of impact is knocked far back and driven toward a stun. Hold to charge: lunge further and hit harder. Heavier shields hit harder: +1 damage per 10 shield armor. Requires a shield equipped.",
   "Tags": [
    "Attack",
    "Melee",

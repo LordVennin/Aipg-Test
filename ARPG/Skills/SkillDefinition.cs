@@ -22,7 +22,7 @@ public static class SkillTags
 public enum SkillArchetype
 {
     MeleeStrike,   // hits enemies near the aimed point, within weapon/skill range
-    MeleeSingle,   // hits ONE enemy in front of the caster (swipe + knockback capable)
+    MeleeSingle,   // impact-point strike: hits every enemy in the impact radius
     MeleeArea,     // hits all enemies in a radius around the caster
     Projectile,    // launches one or more projectiles toward the cursor
     AreaBurst,     // damages enemies in a radius around the aimed point (range-limited)
