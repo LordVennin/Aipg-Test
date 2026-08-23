@@ -787,3 +787,21 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   else. `ARPG_DEVUI=weather:rain|snow|wind` forces it for screenshots.
 - Suite: **528 checks** (bridge under/on shelter, canopy shade, open-ground
   exposure, toggle default + mode list).
+
+---
+
+# Addendum (batch 40): weather belongs to MAPS, not settings
+
+- Clarified design intent: weather is an attribute maps CAN carry, never a
+  player preference. The Options -> Gameplay weather cycler is gone;
+  `GameSettings.Weather` no longer exists.
+- `ZoneTheme.Weather` (optional, default none) flows into `GameMap.Weather`
+  at generation — clients rebuild maps from the shared seed, so everyone
+  sees the same sky for free. No shipped theme forces weather yet; authored
+  maps and future areas/interiors can set or override it per region.
+- The F1 debug menu gains a LOCAL test cycler: Map default -> Rain -> Snow
+  -> Wind -> Off -> back to Map. Renderer-side override only — nothing is
+  saved, nothing replicates. `ARPG_DEVUI=weather:<mode>` sets the same
+  override for screenshots.
+- Suite stays at **528 checks** (the settings-toggle check became a
+  map-attribute check: theme default flows into the map, nothing forces it).

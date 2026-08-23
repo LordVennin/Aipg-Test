@@ -174,6 +174,19 @@ public class PlayScreen : IScreen
             }
         };
         _debug = new DebugUI(client) { IsHost = server != null, HostPort = server?.LocalPort ?? 0 };
+        // Debug weather cycler: null (follow the map) -> rain -> snow -> wind -> off.
+        _debug.CycleWeatherOverride = () =>
+        {
+            _renderer.WeatherOverride = _renderer.WeatherOverride switch
+            {
+                null => "rain",
+                "rain" => "snow",
+                "snow" => "wind",
+                "wind" => "off",
+                _ => null,
+            };
+            return _renderer.WeatherOverride;
+        };
 
         // Draggable gameplay panels in z-order (last entry = topmost). Clicking an open
         // panel raises it; updates run topmost-first so a window never reacts to input
@@ -209,7 +222,7 @@ public class PlayScreen : IScreen
                 _devEquipSet = gearToken.Contains(':') ? gearToken.Split(':')[1] : "iron";
             var weatherToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("weather:"));
             if (weatherToken != null)
-                _game.Settings.Weather = weatherToken.Split(':')[1]; // session-only override
+                _renderer.WeatherOverride = weatherToken.Split(':')[1]; // local test override
             var faceToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("face:"));
             if (faceToken != null)
                 _devFaceOverride = faceToken.Split(':')[1] switch

@@ -100,11 +100,17 @@ public class GameMap
     /// itself — the forest grows multi-tile trees, not just different colors.</summary>
     public ZoneTheme Theme { get; }
 
+    /// <summary>This map's weather ("" = none): an attribute maps CAN have. Seeded from
+    /// the theme's optional default; authored maps or future areas may overwrite it —
+    /// clients regenerate maps from the shared seed, so everyone agrees for free.</summary>
+    public string Weather { get; set; }
+
     public GameMap(int seed, ZoneTheme theme = null, MapKind kind = MapKind.Arena,
         int width = 0, int height = 0)
     {
         Seed = seed;
         Theme = theme;
+        Weather = theme?.Weather ?? "";
         Kind = kind;
         if (width <= 0 || height <= 0)
             (width, height) = kind switch

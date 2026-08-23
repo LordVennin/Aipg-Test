@@ -115,6 +115,15 @@ public class WorldRenderer
     private RenderTarget2D _lightTarget;
     private readonly WeatherRenderer _weather = new();
 
+    /// <summary>Local debug override for weather (F1 menu / ARPG_DEVUI): null follows
+    /// the MAP's weather attribute; "off"/"rain"/"snow"/"wind" force a mode.</summary>
+    public string WeatherOverride;
+
+    /// <summary>The weather actually falling right now: the debug override when set,
+    /// else whatever this map carries ("" = clear skies).</summary>
+    public string ActiveWeather =>
+        WeatherOverride ?? (string.IsNullOrEmpty(_themedMap?.Weather) ? "off" : _themedMap.Weather);
+
     private void AddLight(Vector2 screenPos, float radius, Color color) =>
         _lights.Add((screenPos, radius, color));
 
@@ -123,7 +132,7 @@ public class WorldRenderer
     /// Returns null in daylight zones. Must run BEFORE the backbuffer pass.</summary>
     /// <summary>Zone ambient adjusted for weather: rain and snow overcast the sky,
     /// dimming even daylight zones enough that the pass runs and torchglow matters.</summary>
-    private Color? EffectiveAmbient() => _settings?.Weather switch
+    private Color? EffectiveAmbient() => ActiveWeather switch
     {
         "rain" => Dim(AmbientLight ?? new Color(212, 216, 226), 0.86f),
         "snow" => AmbientLight ?? new Color(224, 228, 236),
@@ -331,7 +340,7 @@ public class WorldRenderer
         // the canopy) — each patch pulses on its own phase so the forest floor shifts
         // instead of blinking in unison.
         if (_sunPatches.Count > 0 && AmbientLight != null &&
-            _settings.Weather is not ("rain" or "snow")) // overcast hides the sun
+            ActiveWeather is not ("rain" or "snow")) // overcast hides the sun
         {
             float sunClock = Environment.TickCount64 * 0.001f;
             int sw = sb.GraphicsDevice.PresentationParameters.BackBufferWidth;
@@ -1975,7 +1984,7 @@ public class WorldRenderer
         // Weather falls over the whole scene (still inside the world pass, so zone
         // lighting dims it) — world-space particles, so shelter is real per tile.
         if (world.Me != null)
-            _weather.Draw(sb, camera, map, world.Me.Position, _settings.Weather);
+            _weather.Draw(sb, camera, map, world.Me.Position, ActiveWeather);
 
         // --- drop name labels (screen space, on top) ---
         // Labels stack in WORLD-anchored cluster columns: drops are grouped by world
