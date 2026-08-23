@@ -3386,6 +3386,12 @@ public static class HeadlessNetTest
                                          !string.IsNullOrEmpty(ib.ScrollId)),
               $"every Skill Scroll base has a sprite accent color ({skillScrollBases.Count} scrolls)");
 
+        // Forest daylight: the theme runs the lighting pass (dim green ambient) with
+        // seeded sun patches punching bright pools through the canopy.
+        var dappled = data.ZoneThemes.First(t => t.Id == "forest");
+        Check(dappled.SunPatches && !string.IsNullOrEmpty(dappled.AmbientLight),
+              $"forest theme is dappled: ambient {dappled.AmbientLight} + sun patches");
+
         // Light radius: a Radiance suffix on chest/helm grows the personal torchglow.
         var glowChar = new Sim.CharacterData { Level = 5 }; // iron_cap wants level 5
         var glowHelm = new Items.ItemInstance { BaseItemId = "iron_cap", Rarity = Items.ItemRarity.Magic };
@@ -3529,6 +3535,65 @@ public static class HeadlessNetTest
         Check(shamblersSeen >= 2, $"and raises Shambler adds mid-fight ({shamblersSeen} up)");
         caller.Health = 1f;
         clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+
+        Console.WriteLine("\n-- Summoner kiting + AoE vs summons --");
+        // The Grave Caller is a coward: dropped INSIDE its comfort ring it backs away
+        // from the player instead of trading melee swipes.
+        Check(data.Enemies["grave_caller"].KeepDistance > 2f,
+              $"the Grave Caller carries a comfort ring ({data.Enemies["grave_caller"].KeepDistance} tiles)");
+        clientB.SendDebugCommand("heal");
+        Pump(0.2f);
+        var kiter = server.World.SpawnEnemy("grave_caller", srvNewE.Position + new Vector2(1.4f, 0));
+        bool retreated = false;
+        for (int i = 0; i < 45 && !retreated; i++)
+        {
+            clientB.SendDebugCommand("heal");
+            Pump(0.15f);
+            retreated |= Vector2.Distance(kiter.Position, srvNewE.Position) > 2.6f;
+        }
+        Check(retreated, "a crowded Grave Caller retreats out of swipe range on its own");
+        kiter.Health = 1f;
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.4f);
+
+        // A summon-only threat draws the Gravelord's ground slam — and the shockwave
+        // hurts the summons. The puppet minion is injected server-side far from every
+        // player and held in place; melee swings are suppressed so ONLY the slam can
+        // account for the damage.
+        var lordSpot = srvNewE.Position + new Vector2(14f, 0);
+        if (server.World.Map.CircleHitsWall(lordSpot, 0.6f)) lordSpot = srvNewE.Position + new Vector2(0, 14f);
+        var slamLord = server.World.SpawnEnemy("gravelord", lordSpot);
+        var puppet = new Server.ServerSummon
+        {
+            Id = 9001, OwnerId = bId, SkillId = "skeleton_archers",
+            Position = slamLord.Position + new Vector2(1.0f, 0), Height = slamLord.Height,
+            Health = 500, MaxHealth = 500, Damage = 0, Melee = true, Reach = 1.1f, SwingTime = 5f,
+        };
+        server.World.Summons[puppet.Id] = puppet;
+        bool slamCommitted = false, slamHurtSummon = false;
+        for (int i = 0; i < 60 && !slamHurtSummon; i++)
+        {
+            puppet.Position = slamLord.Position + new Vector2(1.0f, 0);
+            puppet.Height = slamLord.Height;
+            slamLord.AttackReadyAt = server.World.Time + 999f; // no swings — slam only
+            Pump(0.15f);
+            slamCommitted |= slamLord.SlamResolveAt > 0 || slamLord.SlamReadyAt > 0;
+            slamHurtSummon |= puppet.Health < 499.5f;
+        }
+        Check(slamCommitted, "the Gravelord slams a summon-only threat (no player anywhere near)");
+        Check(slamHurtSummon, $"and the shockwave damages the summons ({puppet.Health:0}/500 hp left)");
+        server.World.Summons.Remove(puppet.Id);
+        slamLord.Health = 1f;
+        clientB.World.Me.Position = slamLord.Position + new Vector2(-1.1f, 0);
+        clientB.World.Me.Height = slamLord.Height;
+        Pump(0.3f);
+        clientB.SendDebugCommand("kill_nearby");
+        clientB.SendDebugCommand("heal");
+        Pump(0.3f);
+        clientB.World.Me.Position = clientB.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = 0f;
         Pump(0.3f);
 
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");

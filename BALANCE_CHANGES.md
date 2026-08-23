@@ -739,3 +739,26 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   bleed crimson cross, ice blue, arcane violet, ...). Drawn in the inventory
   / shop / stash grids, on the ground as world drops, and in the Skill Menu's
   attached-scroll slots (which used to show a bare initial).
+
+---
+
+# Addendum (batch 38): summoner kiting, AoE vs summons, dappled forest light
+
+- **The Grave Caller is a coward now.** New data-driven `KeepDistance` (its
+  comfort ring, 3 tiles): inside it the caster BACKS AWAY from the nearest
+  threat instead of trading zombie swipes — the fight stays engaged (its
+  dark AoE and shambler-raising keep running while it retreats), and the
+  melee swipe only comes out when it is genuinely cornered against a wall
+  (retreat and sidestep both blocked).
+- **Boss AoEs respect summons as threats.** The Gravelord's ground slam now
+  triggers off the nearest engaged threat — player OR summon — and the
+  shockwave damages and knocks back summons inside the ring. Same for
+  telegraphed caster circles (Grave Caller): a summon pack is a legitimate
+  cast target, and minions standing in the circle burn when it resolves.
+- **Mirewood runs dappled daylight.** The forest theme now uses the lighting
+  pass: a dim green ambient (B4BCAA) with seeded pools of warm sunlight
+  (canopy gaps / passing clouds) scattered across walkable ground, each
+  slowly breathing on its own phase. Same layout on every client from the
+  map seed; toggleable via Options -> Gameplay -> Lighting like all zones.
+- Suite: **523 checks** (kiting retreat, slam-on-summons trigger + damage,
+  theme data).

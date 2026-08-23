@@ -1114,6 +1114,18 @@ public partial class ServerWorld
                     victim.Position = Map.MoveWithCollision(victim.Position, away * 2.0f, ServerPlayer.Radius, ref kh);
                     victim.Height = kh;
                 }
+                // The shockwave doesn't care whether the legs it breaks are alive or
+                // raised: summons inside the ring take the hit and the knockback too.
+                foreach (var s in Summons.Values.ToList())
+                {
+                    if (MathF.Abs(s.Height - e.Height) > 0.75f) continue;
+                    if (Vector2.Distance(s.Position, e.Position) > e.Def.SlamRadius) continue;
+                    var sAway = (s.Position - e.Position).NormalizedOrZero();
+                    float sh = s.Height;
+                    s.Position = Map.MoveWithCollision(s.Position, sAway * 2.0f, 0.35f, ref sh);
+                    s.Height = sh;
+                    DamageSummon(s, e.Def.SlamDamage * e.DamageScale);
+                }
                 continue;
             }
 
@@ -1132,6 +1144,14 @@ public partial class ServerWorld
                     // A ground spell, never a deflectable Attack.
                     DamagePlayerTyped(victim, new List<(DamageKind, float)>
                         { (e.Def.CastKind, e.Def.CastDamage * e.DamageScale) }, attackHit: false);
+                }
+                // Summons standing in the circle burn too (DamageSummon can remove
+                // from the dictionary, so snapshot first).
+                foreach (var s in Summons.Values.ToList())
+                {
+                    if (MathF.Abs(s.Height - e.Height) > 0.75f) continue;
+                    if (Vector2.Distance(s.Position, e.CastTarget) > e.Def.CastRadius) continue;
+                    DamageSummon(s, e.Def.CastDamage * e.DamageScale);
                 }
                 continue;
             }
@@ -1190,16 +1210,27 @@ public partial class ServerWorld
 
             // Ranged AoE cast: an engaged caster drops a telegraphed circle on its
             // target's CURRENT spot — the spot locks at cast start, so moving out of
-            // the warning dodges the whole thing.
-            if (e.Def.CastRadius > 0 && e.State != EnemyState.Idle && Time >= e.CastReadyAt &&
-                target != null && sameSurface && dist <= e.Def.CastRange &&
-                !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f))
+            // the warning dodges the whole thing. Summons are legitimate targets: a
+            // caster facing only a skeleton pack drops its circle on the skeletons
+            // instead of standing there swiping.
+            if (e.Def.CastRadius > 0 && e.State != EnemyState.Idle && Time >= e.CastReadyAt)
             {
-                e.CastReadyAt = Time + e.Def.CastCooldown;
-                e.CastResolveAt = Time + e.Def.CastWindup;
-                e.CastTarget = target.Position;
-                _events.EnemyCastAoe(e, e.CastTarget, e.Def.CastRadius, e.Def.CastWindup, phase: 1);
-                continue; // rooted while channeling this tick
+                Vector2? castAim = null;
+                if (target != null && sameSurface && dist <= e.Def.CastRange &&
+                    !Map.SegmentBlocked(e.Position, target.Position, e.Height + 0.5f))
+                    castAim = target.Position;
+                else if (meat != null && meatDist <= e.Def.CastRange &&
+                         MathF.Abs(meat.Height - e.Height) <= 0.75f &&
+                         !Map.SegmentBlocked(e.Position, meat.Position, e.Height + 0.5f))
+                    castAim = meat.Position;
+                if (castAim.HasValue)
+                {
+                    e.CastReadyAt = Time + e.Def.CastCooldown;
+                    e.CastResolveAt = Time + e.Def.CastWindup;
+                    e.CastTarget = castAim.Value;
+                    _events.EnemyCastAoe(e, e.CastTarget, e.Def.CastRadius, e.Def.CastWindup, phase: 1);
+                    continue; // rooted while channeling this tick
+                }
             }
 
             // Boss reinforcements: an ENGAGED summoner conjures its adds on a long
@@ -1225,6 +1256,36 @@ public partial class ServerWorld
                         add.State = EnemyState.Chase; // raised mid-fight: already angry
                         add.TargetPlayerId = e.TargetPlayerId;
                     }
+                }
+            }
+
+            // Casters with a comfort ring (KeepDistance) back away from a closing
+            // threat instead of trading swipes: the fight stays engaged (casts and
+            // add-summons keep running on their clocks above), but the melee swipe
+            // only comes out CORNERED — retreat and sidestep both blocked by walls.
+            if (e.Def.KeepDistance > 0 && e.State != EnemyState.Idle)
+            {
+                float threatDist = MathF.Min(target != null && sameSurface ? dist : float.MaxValue, meatDist);
+                if (threatDist < e.Def.KeepDistance)
+                {
+                    var threatPos = (meat != null && meatDist <= dist) ? meat.Position : target.Position;
+                    var awayDir = (e.Position - threatPos).NormalizedOrZero();
+                    if (awayDir == Vector2.Zero) awayDir = new Vector2(1, 0);
+                    var before = e.Position;
+                    MoveEnemyToward(e, e.Position + awayDir * 2f, dt);
+                    if (Vector2.DistanceSquared(before, e.Position) < 1e-6f)
+                    {
+                        // Back to the wall: try slipping sideways (handedness by id so
+                        // two callers don't mirror-dance into each other).
+                        var side = new Vector2(-awayDir.Y, awayDir.X) * (e.Id % 2 == 0 ? 1f : -1f);
+                        MoveEnemyToward(e, e.Position + side * 2f, dt);
+                    }
+                    if (Vector2.DistanceSquared(before, e.Position) > 1e-6f)
+                    {
+                        e.State = EnemyState.Chase; // still fighting, just not toe-to-toe
+                        continue;
+                    }
+                    // Truly cornered: fall through — the desperate swipe is allowed.
                 }
             }
 
@@ -1280,8 +1341,10 @@ public partial class ServerWorld
                     // Boss ground slam: telegraphed — commit the cooldown and start the
                     // wind-up now; the red warning decal broadcasts to every client and
                     // the damage resolves at wind-up end against RESOLVE-time positions
-                    // (walk out of the circle and the shockwave misses you).
-                    if (e.Def.SlamRadius > 0 && Time >= e.SlamReadyAt && dist <= e.Def.SlamRadius * 0.85f)
+                    // (walk out of the circle and the shockwave misses you). A ring of
+                    // summons counts as a reason to slam just like a player does.
+                    if (e.Def.SlamRadius > 0 && Time >= e.SlamReadyAt &&
+                        MathF.Min(dist, meatDist) <= e.Def.SlamRadius * 0.85f)
                     {
                         e.SlamReadyAt = Time + e.Def.SlamCooldown;
                         e.SlamResolveAt = Time + e.Def.SlamWindup;
