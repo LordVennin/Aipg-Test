@@ -333,6 +333,19 @@ public class PackSpawner
     public float RespawnAt;
 }
 
+/// <summary>A dead enemy's remains: an authoritative world record, not just a visual —
+/// future skills (raise dead, corpse explosion, devour) target these. Replicated to
+/// every client; cleared on map transitions; capped oldest-first.</summary>
+public class ServerCorpse
+{
+    public int Id;
+    /// <summary>The EnemyDefinition id this corpse belonged to (drives the body sprite).</summary>
+    public string TypeId;
+    public Vector2 Position;
+    public float Height;
+    public float DiedAt;
+}
+
 /// <summary>An openable chest (hub sanctum): first opener pops the lid and the starter
 /// gear inside drops on the ground for whoever grabs it.</summary>
 public class ServerChest

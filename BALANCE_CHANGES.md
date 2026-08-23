@@ -805,3 +805,28 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   override for screenshots.
 - Suite stays at **528 checks** (the settings-toggle check became a
   map-attribute check: theme default flows into the map, nothing forces it).
+
+---
+
+# Addendum (batch 41): corpses, blood, and a dirty weapon
+
+- **The dead stay behind.** Kills now leave an authoritative SERVER corpse
+  record (id, enemy type, position) replicated to every client — the
+  foundation for skills that target the dead (raise dead, corpse explosion,
+  devour). Capped at 120 oldest-first, cleared on map transitions, included
+  in the join snapshot so latecomers see the same battlefield. Protocol v31.
+- **Death looks like death.** Clients play an ease-out topple (pivot at the
+  feet, side picked per corpse so packs don't stack identically), the body
+  dims, and a pool of the victim's blood spreads beneath. Corpses sort
+  under living entities, so the fight walks over the dead.
+- **Blood is data-driven per enemy** (`Blood` on the enemy definition):
+  dark red flesh by default, ACID GREEN for spitters, PALE BONE DUST for
+  skeletons, dark ichor for the Gravelord. Physical hits (blunt/slash/
+  thrust) burst 9 droplets under gravity plus a brief ground speckle —
+  spell hits stay clean.
+- **Your weapon remembers the kill.** A melee hit that draws blood stains
+  the swinger's weapon with a splatter mask over its striking half, tinted
+  with THAT victim's blood color, fading out over ~9 seconds (refreshed by
+  every fleshy hit). Whack a spitter and your mace drips green.
+- Suite: **532 checks** (server corpse records + full replication, blood
+  color data, corpses cleared on transition).

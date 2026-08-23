@@ -892,6 +892,39 @@ public class WorldRenderer
         }
 
         long animClock = Environment.TickCount64; // visual-only animation timer
+
+        // Fallen enemies stay in the world as bodies: a quick topple animation (pivot
+        // at the feet), a pool of their blood spreading beneath, then a lasting corpse
+        // — sorted slightly under living entities so the fight walks over the dead.
+        foreach (var corpse in world.Corpses.Values)
+        {
+            var cpos = corpse.Position;
+            var cdef = _data.Enemies.GetValueOrDefault(corpse.TypeId);
+            var cframes = SpriteGen.GetEnemyFrames(cdef);
+            if (cframes == null) continue;
+            var cScreen = camera.WorldToScreen(cpos, corpse.Height);
+            float fallT = Math.Clamp((animClock - corpse.SpawnedAtMs) / 380f, 0f, 1f);
+            float poolT = Math.Clamp((animClock - corpse.SpawnedAtMs) / 950f, 0f, 1f);
+            var cblood = ParseColor(cdef?.Blood, new Color(126, 26, 26));
+            int cid = corpse.Id;
+            _sorted.Add((cpos.X + cpos.Y + corpse.Height * 1.0f + 0.03f + UnderDeckBias(cpos, corpse.Height), batch =>
+            {
+                var tex = cframes[0];
+                float sMul = (cdef?.SpriteScale ?? 1f) * 2f;
+                int poolW = (int)(tex.Width * sMul * (0.8f + 0.6f * poolT));
+                batch.Draw(TextureGen.Circle32,
+                    new Rectangle((int)(cScreen.X - poolW / 2f), (int)(cScreen.Y - poolW / 4f + 3), poolW, poolW / 2),
+                    cblood * (0.55f * poolT));
+                // Ease-out topple to one side (side picked by id so packs don't stack
+                // identically); the body dims as the life leaves it.
+                float ease = 1f - (1f - fallT) * (1f - fallT);
+                float ang = (cid % 2 == 0 ? 1f : -1f) * (MathF.PI / 2f) * ease;
+                var bodyTint = Color.Lerp(Color.White, new Color(120, 112, 116), 0.35f + 0.35f * fallT);
+                batch.Draw(tex, new Vector2(cScreen.X, cScreen.Y + 4), null, bodyTint,
+                    ang, new Vector2(tex.Width / 2f, tex.Height), sMul, SpriteEffects.None, 0f);
+            }));
+        }
+
         foreach (var e in world.Enemies.Values)
         {
             var pos = e.Position;
@@ -1286,6 +1319,15 @@ public class WorldRenderer
                 // BEHIND the body so the weapon never floats on top of the sprite.
                 bool swingBehind = swinging && p.SwingDir.X + p.SwingDir.Y < -0.1f;
 
+                // Fresh kill on the blade: a splatter mask over the weapon head, tinted
+                // with the LAST victim's blood color and fading as it dries.
+                var goreMask = p.GoreUntilMs > animClock && weaponBase != null &&
+                               weaponBase.Category is not (Items.ItemCategory.Bow or Items.ItemCategory.Quiver)
+                    ? SpriteGen.GetWeaponGoreMask(weaponBase) : null;
+                var goreTint = goreMask == null ? default :
+                    ParseColor(p.GoreRgb.ToString("X6"), new Color(126, 26, 26)) *
+                    Math.Clamp((p.GoreUntilMs - animClock) / (float)ClientPlayer.GoreDurationMs * 1.7f, 0f, 0.85f);
+
                 void DrawHeld(Texture2D tex, float side)
                 {
                     var hand = screen + screenDir * 16f + perp * (side * 14f) + new Vector2(0, -12);
@@ -1296,6 +1338,9 @@ public class WorldRenderer
                         ? SpriteEffects.FlipVertically : SpriteEffects.None;
                     batch.Draw(tex, hand, null, tint, -MathF.PI / 2f,
                         new Vector2(tex.Width * 0.4f, tex.Height / 2f), 2f, fx, 0f);
+                    if (tex == weaponTex && goreMask != null)
+                        batch.Draw(goreMask, hand, null, goreTint * (weaponBehind ? 0.55f : 1f),
+                            -MathF.PI / 2f, new Vector2(tex.Width * 0.4f, tex.Height / 2f), 2f, fx, 0f);
                 }
 
                 // Melee swing: the weapon sweeps an arc through the aim direction, gripped
@@ -1320,6 +1365,10 @@ public class WorldRenderer
                         batch.Draw(weaponTex, hand2, null, Color.White, ang2,
                             new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f),
                             2f + 0.3f * chop, SpriteEffects.None, 0f);
+                        if (goreMask != null)
+                            batch.Draw(goreMask, hand2, null, goreTint, ang2,
+                                new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f),
+                                2f + 0.3f * chop, SpriteEffects.None, 0f);
                         return;
                     }
                     // The sweep mirrors with the aim: rightward swings arc clockwise,
@@ -1330,6 +1379,9 @@ public class WorldRenderer
                     var hand = screen + new Vector2(MathF.Cos(ang), MathF.Sin(ang) * 0.6f) * 20f + new Vector2(0, -12);
                     batch.Draw(weaponTex, hand, null, Color.White, ang,
                         new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
+                    if (goreMask != null)
+                        batch.Draw(goreMask, hand, null, goreTint, ang,
+                            new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
                 }
 
                 void DrawHands()
@@ -1466,6 +1518,43 @@ public class WorldRenderer
                 case "hit":
                     AddLight(screen, 70f, new Color(255, 220, 180) * flashFade);
                     break;
+            }
+
+            if (fx.Kind.StartsWith("blood:"))
+            {
+                // Blood burst: the victim's ichor sprays from the hit — droplets arcing
+                // under gravity, then a brief ground speckle where they land. Fully
+                // deterministic from the position hash (same trick as slam debris).
+                var bloodC = ParseColor(fx.Kind[6..], new Color(126, 26, 26));
+                int bseed = (int)(fx.Position.X * 733) ^ (int)(fx.Position.Y * 911);
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.26f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    for (int k = 0; k < 9; k++)
+                    {
+                        var rng = new Random(bseed + k * 71);
+                        float ang = (float)(rng.NextDouble() * Math.PI * 2);
+                        float speed = 26f + 60f * (float)rng.NextDouble();
+                        float v0 = 25f + 60f * (float)rng.NextDouble();
+                        float age = t * fx.Duration;
+                        float px = screen.X + MathF.Cos(ang) * speed * age;
+                        float py = screen.Y - 14 + MathF.Sin(ang) * speed * age * 0.5f
+                                   - v0 * age + 260f * age * age;
+                        int sz = 2 + (k & 1);
+                        batch.Draw(TextureGen.Pixel, new Rectangle((int)px, (int)py, sz, sz),
+                            bloodC * (0.85f * (1f - t * t)));
+                    }
+                    if (t > 0.35f) // droplets landing: a fading ground speckle
+                    {
+                        var rng2 = new Random(bseed * 13);
+                        for (int k = 0; k < 5; k++)
+                        {
+                            int ox = rng2.Next(-14, 15), oy = rng2.Next(-6, 7);
+                            batch.Draw(TextureGen.Pixel,
+                                new Rectangle((int)screen.X + ox, (int)screen.Y + oy, 2, 1),
+                                bloodC * (0.6f * (1f - t)));
+                        }
+                    }
+                }));
             }
 
             if (fx.Kind == "debris")

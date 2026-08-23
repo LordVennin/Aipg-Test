@@ -849,6 +849,18 @@ public class GameClient
                 Audio.AudioManager.PlayWorld(pos, dying != null ? "die_" + dying.TypeId : null, "die_generic");
                 break;
             }
+            case PacketType.CorpseSpawn:
+            {
+                var c = new ClientCorpse { Id = r.GetInt(), TypeId = r.GetString() };
+                c.Position = r.GetVec2();
+                c.Height = r.GetFloat();
+                c.SpawnedAtMs = Environment.TickCount64;
+                World.Corpses[c.Id] = c;
+                break;
+            }
+            case PacketType.CorpseRemove:
+                World.Corpses.Remove(r.GetInt());
+                break;
 
             case PacketType.ProjectileSpawn:
             {
@@ -1066,6 +1078,36 @@ public class GameClient
                 else if (!fn.TargetIsPlayer && World.Enemies.TryGetValue(targetId, out var te))
                 { fn.Position = te.Position; fn.Height = te.Height; }
                 World.FloatingNumbers.Add(fn);
+
+                // Physical hits on enemies spray their blood (bone dust for skeletons,
+                // acid ichor for spitters) — and a melee swing that drew it stains the
+                // swinger's weapon for a while (nearest mid-swing player claims the hit).
+                if (!fn.TargetIsPlayer && !fn.Blocked && fn.Amount > 0.5f &&
+                    (Skills.DamageKind)fn.Kind is Skills.DamageKind.Blunt
+                        or Skills.DamageKind.Slash or Skills.DamageKind.Thrust &&
+                    World.Enemies.TryGetValue(targetId, out var bloodied))
+                {
+                    var gore = new ClientEffect
+                    {
+                        Position = fn.Position, Height = fn.Height,
+                        Radius = 0.5f, TimeLeft = 0.5f, Duration = 0.5f,
+                        Kind = "blood:" + (bloodied.Def?.Blood ?? "7E1A1A"),
+                    };
+                    World.Effects.Add(gore);
+                    ClientPlayer swinger = null;
+                    float bestSwing = 3.2f; // melee reach + slop
+                    foreach (var p in World.Players.Values)
+                    {
+                        if (p.SwingTimeLeft <= 0f || !p.Alive) continue;
+                        float d = Vector2.Distance(p.Position, fn.Position);
+                        if (d < bestSwing) { bestSwing = d; swinger = p; }
+                    }
+                    if (swinger != null)
+                    {
+                        swinger.GoreUntilMs = Environment.TickCount64 + ClientPlayer.GoreDurationMs;
+                        swinger.GoreRgb = Convert.ToInt32(bloodied.Def?.Blood ?? "7E1A1A", 16);
+                    }
+                }
                 break;
             }
 

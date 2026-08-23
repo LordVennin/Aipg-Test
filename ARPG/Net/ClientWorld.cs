@@ -70,6 +70,12 @@ public class ClientPlayer
     /// <summary>Render-side walk detection: last drawn position + whether it moved.</summary>
     public Vector2 RenderPrevPos;
     public bool RenderMoving;
+    /// <summary>Weapon gore: until this local ms the held melee weapon renders splatter
+    /// in GoreRgb (the victim's blood color). Refreshed by every fleshy melee hit.</summary>
+    public long GoreUntilMs;
+    public int GoreRgb = (126 << 16) | (26 << 8) | 26;
+    /// <summary>How long weapon gore lasts after the latest splatter (ms).</summary>
+    public const long GoreDurationMs = 9000;
 }
 
 public class ClientEnemy
@@ -234,6 +240,18 @@ public class FloatingNumber
     public const float Lifetime = 0.9f;
 }
 
+/// <summary>A fallen enemy's body: replicated server record (future skills target
+/// corpses), rendered with a brief death-fall animation and then a lasting body.</summary>
+public class ClientCorpse
+{
+    public int Id;
+    public string TypeId;
+    public Vector2 Position;
+    public float Height;
+    /// <summary>Local arrival time (ms) — drives the client-side fall animation.</summary>
+    public long SpawnedAtMs;
+}
+
 /// <summary>A transient visual effect (skill flash, projectile impact).</summary>
 public class ClientEffect
 {
@@ -280,6 +298,7 @@ public class ClientWorld
     public readonly Dictionary<int, ClientNpc> Npcs = new();
     public readonly Dictionary<int, ClientSummon> Summons = new();
     public readonly Dictionary<int, ClientChest> Chests = new();
+    public readonly Dictionary<int, ClientCorpse> Corpses = new();
     public readonly List<ClientEffect> Effects = new();
 
     // Campaign zone state (from ZoneState packets; drives the HUD banner + door hints).
@@ -300,6 +319,7 @@ public class ClientWorld
         Npcs.Clear();
         Summons.Clear();
         Chests.Clear();
+        Corpses.Clear();
         Effects.Clear();
         FloatingNumbers.Clear();
         SpentGhosts.Clear();
