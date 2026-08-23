@@ -121,7 +121,7 @@
   "AttackStyle": "lunge"
  },
  {
-  "Id": "bone_knight", "Blood": "D8CFB4",
+  "Id": "bone_knight", "Blood": "",
   "Name": "Barrow Knight",
   "Level": 3,
   "MaxHealth": 55,

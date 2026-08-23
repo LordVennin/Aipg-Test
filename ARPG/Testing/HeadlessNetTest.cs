@@ -3610,11 +3610,11 @@ public static class HeadlessNetTest
                                             clientA.World.Corpses[c.Id].TypeId == c.TypeId),
               $"corpses replicate to every client ({clientA.World.Corpses.Count} on A)");
         // Blood colors are data-driven per enemy: zombies bleed dark red, spitters
-        // acid green, skeletons pale bone dust (drives hit bursts, pools, weapon gore).
+        // acid green — and skeletons DON'T bleed (empty = no burst, no pool, no gore).
         Check(data.Enemies["grunt"].Blood == "7E1A1A" &&
               data.Enemies["spitter"].Blood == "5FA32A" &&
-              data.Enemies["bone_knight"].Blood == "D8CFB4",
-              "blood is data-driven: red flesh, acid spitters, bone-dust skeletons");
+              data.Enemies["bone_knight"].Blood == "",
+              "blood is data-driven: red flesh, acid spitters, bloodless skeletons");
 
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
         // The campaign's run maps grow tall-grass patches (on terraces too) and stay

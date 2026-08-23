@@ -830,3 +830,14 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   every fleshy hit). Whack a spitter and your mace drips green.
 - Suite: **532 checks** (server corpse records + full replication, blood
   color data, corpses cleared on transition).
+
+## Batch 41 follow-up (playtest notes)
+
+- **Skeletons no longer bleed at all**: empty Blood on the definition means
+  no hit burst, no corpse pool, and nothing sticks to your weapon — a slain
+  Barrow Knight leaves a clean pile of bones.
+- **Weapon gore builds up gradually.** One hit leaves a few FLECKS, a couple
+  more a real SPLATTER, and only sustained swinging soaks the striking end
+  (three stages, each a superset of the last — droplets stay where they
+  landed as more join). As the coat dries it thins back down through the
+  same stages before vanishing, instead of popping off at full strength.

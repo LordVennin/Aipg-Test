@@ -2332,14 +2332,17 @@ public static class SpriteGen
     // ------------------------------------------------------------------ weapon gore
 
     /// <summary>A splatter mask for a melee weapon: white droplets clinging to the
-    /// striking HALF of its sprite, tinted at draw time with the victim's blood color
-    /// and faded by the gore timer. Deterministic per base id; cached.</summary>
-    public static Texture2D GetWeaponGoreMask(Items.ItemBase itemBase)
+    /// striking HALF of its sprite, tinted at draw time with the victim's blood color.
+    /// Gore BUILDS UP: stage 1 = a few flecks, 2 = a real splatter, 3 = soaked. Each
+    /// stage is a superset of the last (the same droplets stay put as more land).
+    /// Deterministic per base id; cached per stage.</summary>
+    public static Texture2D GetWeaponGoreMask(Items.ItemBase itemBase, int stage)
     {
-        if (itemBase == null || _device == null) return null;
+        if (itemBase == null || _device == null || stage <= 0) return null;
+        stage = Math.Min(stage, 3);
         var baseTex = GetWeaponSprite(itemBase);
         if (baseTex == null) return null;
-        string key = "goremask:" + itemBase.Id;
+        string key = $"goremask:{itemBase.Id}:{stage}";
         if (_cache.TryGetValue(key, out var cached)) return cached[0];
 
         var src = new Color[baseTex.Width * baseTex.Height];
@@ -2355,8 +2358,10 @@ public static class SpriteGen
                 if (src[i].A == 0) continue;
                 uint n = (uint)(x * 73856093 ^ y * 19349663) ^ idHash;
                 n ^= n >> 13; n *= 0x5bd1e995; n ^= n >> 15;
-                // Densest at the very tip, sparser toward the grip.
-                int chance = 60 + (x - head) * 140 / Math.Max(1, baseTex.Width - head);
+                // Densest at the very tip, sparser toward the grip; the stage scales
+                // the whole coat (same hash -> earlier droplets persist as more land).
+                int chance = (60 + (x - head) * 140 / Math.Max(1, baseTex.Width - head))
+                             * stage / 3;
                 if ((n & 0xFF) < chance)
                 {
                     byte v = (byte)(195 + (n >> 8) % 61);

@@ -89,8 +89,9 @@ public class EnemyDefinition
     public string LootTableId { get; set; } = "default";
     public string Color { get; set; } = "C04040"; // art tint (RRGGBB hex)
     /// <summary>What sprays when this enemy is cut (RRGGBB): dark red for the fleshy,
-    /// acid green for spitters, pale bone dust for skeletons. Physical hits burst it,
-    /// corpses pool it, and melee weapons carry it for a while.</summary>
+    /// acid green for spitters. Physical hits burst it, corpses pool it, and melee
+    /// weapons build it up coat by coat. EMPTY = bloodless (skeletons): no burst, no
+    /// pool, nothing sticks to the weapon.</summary>
     public string Blood { get; set; } = "7E1A1A";
     /// <summary>Procedural sprite style: "Zombie", "Ghoul", "Skeleton", "Necro", or empty
     /// for a plain token.</summary>

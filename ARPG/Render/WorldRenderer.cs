@@ -905,6 +905,8 @@ public class WorldRenderer
             var cScreen = camera.WorldToScreen(cpos, corpse.Height);
             float fallT = Math.Clamp((animClock - corpse.SpawnedAtMs) / 380f, 0f, 1f);
             float poolT = Math.Clamp((animClock - corpse.SpawnedAtMs) / 950f, 0f, 1f);
+            // Bloodless enemies (skeletons) leave a clean corpse — no pool.
+            bool bleeds = !string.IsNullOrEmpty(cdef?.Blood);
             var cblood = ParseColor(cdef?.Blood, new Color(126, 26, 26));
             int cid = corpse.Id;
             _sorted.Add((cpos.X + cpos.Y + corpse.Height * 1.0f + 0.03f + UnderDeckBias(cpos, corpse.Height), batch =>
@@ -912,9 +914,10 @@ public class WorldRenderer
                 var tex = cframes[0];
                 float sMul = (cdef?.SpriteScale ?? 1f) * 2f;
                 int poolW = (int)(tex.Width * sMul * (0.8f + 0.6f * poolT));
-                batch.Draw(TextureGen.Circle32,
-                    new Rectangle((int)(cScreen.X - poolW / 2f), (int)(cScreen.Y - poolW / 4f + 3), poolW, poolW / 2),
-                    cblood * (0.55f * poolT));
+                if (bleeds)
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(cScreen.X - poolW / 2f), (int)(cScreen.Y - poolW / 4f + 3), poolW, poolW / 2),
+                        cblood * (0.55f * poolT));
                 // Ease-out topple to one side (side picked by id so packs don't stack
                 // identically); the body dims as the life leaves it.
                 float ease = 1f - (1f - fallT) * (1f - fallT);
@@ -1319,14 +1322,20 @@ public class WorldRenderer
                 // BEHIND the body so the weapon never floats on top of the sprite.
                 bool swingBehind = swinging && p.SwingDir.X + p.SwingDir.Y < -0.1f;
 
-                // Fresh kill on the blade: a splatter mask over the weapon head, tinted
-                // with the LAST victim's blood color and fading as it dries.
-                var goreMask = p.GoreUntilMs > animClock && weaponBase != null &&
+                // Gore on the blade builds up COAT BY COAT (flecks after one hit, a real
+                // splatter after a couple, soaked after sustained swinging) — and thins
+                // back down through the same stages as it dries, before vanishing.
+                float goreLeft = Math.Clamp((p.GoreUntilMs - animClock) /
+                                            (float)ClientPlayer.GoreDurationMs, 0f, 1f);
+                int goreStage = goreLeft <= 0f ? 0 : Math.Min(p.GoreHits, 3);
+                if (goreLeft < 0.35f) goreStage = Math.Min(goreStage, 1);
+                else if (goreLeft < 0.6f) goreStage = Math.Min(goreStage, 2);
+                var goreMask = goreStage > 0 && weaponBase != null &&
                                weaponBase.Category is not (Items.ItemCategory.Bow or Items.ItemCategory.Quiver)
-                    ? SpriteGen.GetWeaponGoreMask(weaponBase) : null;
+                    ? SpriteGen.GetWeaponGoreMask(weaponBase, goreStage) : null;
                 var goreTint = goreMask == null ? default :
                     ParseColor(p.GoreRgb.ToString("X6"), new Color(126, 26, 26)) *
-                    Math.Clamp((p.GoreUntilMs - animClock) / (float)ClientPlayer.GoreDurationMs * 1.7f, 0f, 0.85f);
+                    Math.Clamp(goreLeft * 2.6f, 0f, 0.85f);
 
                 void DrawHeld(Texture2D tex, float side)
                 {

@@ -1079,21 +1079,24 @@ public class GameClient
                 { fn.Position = te.Position; fn.Height = te.Height; }
                 World.FloatingNumbers.Add(fn);
 
-                // Physical hits on enemies spray their blood (bone dust for skeletons,
-                // acid ichor for spitters) — and a melee swing that drew it stains the
-                // swinger's weapon for a while (nearest mid-swing player claims the hit).
+                // Physical hits on BLEEDING enemies spray their blood (acid ichor for
+                // spitters; skeletons have none — nothing sprays, nothing sticks), and
+                // a melee swing that drew it adds a COAT to the swinger's weapon: gore
+                // builds up hit by hit (flecks -> splatter -> soaked), never instantly.
+                string bloodHex = null;
                 if (!fn.TargetIsPlayer && !fn.Blocked && fn.Amount > 0.5f &&
                     (Skills.DamageKind)fn.Kind is Skills.DamageKind.Blunt
                         or Skills.DamageKind.Slash or Skills.DamageKind.Thrust &&
                     World.Enemies.TryGetValue(targetId, out var bloodied))
+                    bloodHex = bloodied.Def?.Blood ?? "7E1A1A";
+                if (!string.IsNullOrEmpty(bloodHex))
                 {
-                    var gore = new ClientEffect
+                    World.Effects.Add(new ClientEffect
                     {
                         Position = fn.Position, Height = fn.Height,
                         Radius = 0.5f, TimeLeft = 0.5f, Duration = 0.5f,
-                        Kind = "blood:" + (bloodied.Def?.Blood ?? "7E1A1A"),
-                    };
-                    World.Effects.Add(gore);
+                        Kind = "blood:" + bloodHex,
+                    });
                     ClientPlayer swinger = null;
                     float bestSwing = 3.2f; // melee reach + slop
                     foreach (var p in World.Players.Values)
@@ -1104,8 +1107,11 @@ public class GameClient
                     }
                     if (swinger != null)
                     {
-                        swinger.GoreUntilMs = Environment.TickCount64 + ClientPlayer.GoreDurationMs;
-                        swinger.GoreRgb = Convert.ToInt32(bloodied.Def?.Blood ?? "7E1A1A", 16);
+                        long now = Environment.TickCount64;
+                        // A dried weapon starts from clean; otherwise this hit layers on.
+                        swinger.GoreHits = swinger.GoreUntilMs > now ? swinger.GoreHits + 1 : 1;
+                        swinger.GoreUntilMs = now + ClientPlayer.GoreDurationMs;
+                        swinger.GoreRgb = Convert.ToInt32(bloodHex, 16);
                     }
                 }
                 break;
