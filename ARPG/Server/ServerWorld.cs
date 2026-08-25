@@ -275,6 +275,12 @@ public partial class ServerWorld
                 Id = 2, TypeId = "skill_trainer", Position = Map.NpcSpots[1],
                 Height = Map.GroundHeightAt(Map.NpcSpots[1]),
             });
+        if (Data.Npcs.ContainsKey("gambler") && Map.NpcSpots.Count > 2)
+            Npcs.Add(new ServerNpc
+            {
+                Id = 3, TypeId = "gambler", Position = Map.NpcSpots[2],
+                Height = Map.GroundHeightAt(Map.NpcSpots[2]),
+            });
         for (int i = 0; i < Map.ChestSpots.Count; i++)
             Chests.Add(new ServerChest
             {
@@ -2972,6 +2978,7 @@ public partial class ServerWorld
         {
             p.RecomputeStats(Data);
             p.Health = p.Stats.MaxHealth;
+            p.Buyback.Clear(); // the buy-back counter holds one level's worth of sales
             _events.PlayerHealthChanged(p);
         }
         return true;

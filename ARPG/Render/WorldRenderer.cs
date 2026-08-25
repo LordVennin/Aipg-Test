@@ -350,15 +350,25 @@ public class WorldRenderer
                 var pScreen = camera.WorldToScreen(pPos, map.GroundHeightAt(pPos));
                 if (pScreen.X < -pRadius * 1.4f || pScreen.X > sw + pRadius * 1.4f ||
                     pScreen.Y < -pRadius * 1.4f || pScreen.Y > sh + pRadius * 1.4f) continue;
-                // Each pool lives: it slowly swells and shrinks (canopy gaps opening,
-                // ~100s cycle), creeps sideways a few pixels (the sun's angle drifting)
-                // and shimmers on two overlapping periods — never one frozen shape.
+                // Each pool is THREE overlapping lobes, each orbiting, breathing and
+                // shimmering on its own periods — the additive sum is a lumpy, slowly
+                // morphing blotch of light, never a perfect circle. Whole-pool motion
+                // (slow size cycle + sideways creep) rides on top.
                 float size = 0.72f + 0.28f * MathF.Sin(sunClock * 0.06f + pPhase * 1.7f);
-                float shimmer = 0.72f + 0.18f * MathF.Sin(sunClock * 0.31f + pPhase)
-                                      + 0.10f * MathF.Sin(sunClock * 0.83f + pPhase * 2.3f);
                 var drift = new Vector2(MathF.Sin(sunClock * 0.045f + pPhase) * 14f,
                                         MathF.Cos(sunClock * 0.037f + pPhase * 1.3f) * 7f);
-                AddLight(pScreen + drift, pRadius * size, new Color(255, 248, 216) * shimmer);
+                for (int lobe = 0; lobe < 3; lobe++)
+                {
+                    float lp = pPhase + lobe * 2.09f;
+                    var lobeOff = new Vector2(
+                        MathF.Sin(sunClock * (0.11f + lobe * 0.023f) + lp) * pRadius * 0.34f,
+                        MathF.Cos(sunClock * (0.09f + lobe * 0.017f) + lp * 1.4f) * pRadius * 0.17f);
+                    float lobeSize = pRadius * size * (0.52f + 0.14f * MathF.Sin(sunClock * 0.21f + lp * 2.2f));
+                    float shimmer = 0.42f + 0.16f * MathF.Sin(sunClock * 0.7f + lp)
+                                          + 0.09f * MathF.Sin(sunClock * 1.9f + lp * 2.7f);
+                    AddLight(pScreen + drift + lobeOff, lobeSize,
+                        new Color(255, 248, 216) * shimmer);
+                }
             }
         }
 

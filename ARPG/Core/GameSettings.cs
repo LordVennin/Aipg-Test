@@ -69,7 +69,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 32; // v32: stun buildup in EnemyStates
+    public const int ProtocolVersion = 33; // v33: gambler (GambleRequest)
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

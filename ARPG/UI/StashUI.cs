@@ -81,7 +81,37 @@ public class StashUI
         }
         if (!_drag.Active && hovered != null) HoveredItem = hovered.Item;
 
-        if (!_drag.Active && input.MouseLeftPressed && hovered != null)
+        // --- enchant flow, shared with the bag panel: an armed scroll (from either
+        // container) applies to stash items with a left-click; right-click arms a
+        // crafting scroll straight FROM the stash — no shuffling into the bag first.
+        if (_inventory.PendingScrollId is { } armed)
+        {
+            if (input.MouseRightPressed && _panelRect.Contains(mouse))
+            {
+                _inventory.PendingScrollId = null;
+                input.MouseCapturedByUI = true;
+                return;
+            }
+            if (input.MouseLeftPressed && hovered != null)
+            {
+                input.MouseCapturedByUI = true;
+                if (hovered.Item.InstanceId != armed &&
+                    hovered.Item.GetBase(_data).Category != ItemCategory.EnchantScroll)
+                    _client.RequestApplyEnchant(armed, hovered.Item.InstanceId);
+                _inventory.PendingScrollId = null;
+                return;
+            }
+        }
+        else if (!_drag.Active && input.MouseRightPressed && hovered != null &&
+                 hovered.Item.GetBase(_data).Category == ItemCategory.EnchantScroll)
+        {
+            _inventory.PendingScrollId = hovered.Item.InstanceId;
+            input.MouseCapturedByUI = true;
+            return;
+        }
+
+        if (!_drag.Active && !_inventory.PendingScrollId.HasValue &&
+            input.MouseLeftPressed && hovered != null)
         {
             _drag.Item = hovered.Item;
             _drag.Source = ItemLocation.AtStash(ContainerId, hovered.X, hovered.Y);

@@ -394,9 +394,19 @@ public class ClientWorld
         foreach (var pr in Projectiles.Values.ToList())
         {
             float step = pr.Speed * dt;
+            var prevPos = pr.Position;
             pr.Position += pr.Direction * step;
             pr.Height += pr.HeightStep * step;
             pr.Traveled += step;
+            // ALL client-side projectiles respect walls: a bolt gliding through a wall
+            // for the round trip until the server corrects it reads as a bug, so stop
+            // it at the surface (the authoritative hit remains the server's call).
+            if (Map != null && Map.SegmentBlocked(prevPos, pr.Position, pr.Height + 0.5f))
+            {
+                Projectiles.Remove(pr.Id);
+                if (pr.Ghost) RecordSpentGhost(pr);
+                continue;
+            }
             if (pr.Traveled > pr.MaxRange + 2f)
             {
                 Projectiles.Remove(pr.Id);

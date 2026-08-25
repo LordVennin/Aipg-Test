@@ -31,6 +31,7 @@ public class PlayScreen : IScreen
     private readonly SkillTreeUI _skillTree;
     private readonly ShopUI _shop;
     private readonly TrainerUI _trainer;
+    private readonly GambleUI _gamble;
     private readonly StashUI _stash;
     private readonly DebugUI _debug;
     private readonly DragState _drag = new();
@@ -158,6 +159,7 @@ public class PlayScreen : IScreen
         _skillTree = new SkillTreeUI(game.Data, client);
         _shop = new ShopUI(game.Data, client, _inventory);
         _trainer = new TrainerUI(game.Data, client);
+        _gamble = new GambleUI(game.Data, client);
         _stash = new StashUI(game.Data, client, _inventory, _drag);
         // Entering the shop opens the bag in sell mode beside it; closing ends selling.
         _shop.ModeChanged += mode =>
@@ -197,6 +199,7 @@ public class PlayScreen : IScreen
         _panelZ.Add(new PanelZ { Owner = _skillTree, IsOpen = () => _skillTree.Open, Contains = p => _skillTree.Contains(p), Update = (i, b) => _skillTree.Update(i, b), Draw = sb => _skillTree.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _shop, IsOpen = () => _shop.Open, Contains = p => _shop.Contains(p), Update = (i, b) => _shop.Update(i, b), Draw = sb => _shop.Draw(sb, _game.UiScreenSize) });
         _panelZ.Add(new PanelZ { Owner = _trainer, IsOpen = () => _trainer.Open, Contains = p => _trainer.Contains(p), Update = (i, b) => _trainer.Update(i, b), Draw = sb => _trainer.Draw(sb) });
+        _panelZ.Add(new PanelZ { Owner = _gamble, IsOpen = () => _gamble.Open, Contains = p => _gamble.Contains(p), Update = (i, b) => _gamble.Update(i, b), Draw = sb => _gamble.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _stash, IsOpen = () => _stash.Open, Contains = p => _stash.Contains(p), Update = (i, b) => _stash.Update(i, b), Draw = sb => _stash.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _inventory, IsOpen = () => _inventory.Open, Contains = p => _inventory.Contains(p), Update = (i, b) => _inventory.Update(i, b), Draw = sb => _inventory.Draw(sb, _game.Input) });
 
@@ -244,6 +247,7 @@ public class PlayScreen : IScreen
             if (_client.World.Me is { } me2) _camera.Center = me2.Position;
             _shop.Close();
             _trainer.Open = false;
+            _gamble.Open = false;
             _stash.Open = false;
             _pickupTargetId = Guid.Empty;
         };
@@ -299,7 +303,7 @@ public class PlayScreen : IScreen
         {
             // Dev aid: stand beside the merchant first (the server range-gates
             // ShopOpen), let the position replicate, then ask for the stock.
-            var devNpc = _client.World.Npcs.Values.First(n => n.TypeId != "skill_trainer");
+            var devNpc = _client.World.Npcs.Values.First(n => n.TypeId == "merchant");
             _client.World.Me.Position = devNpc.Position + new NumVec2(0.9f, 0.4f);
             if (_clientTime > 2.6f)
             {
@@ -360,6 +364,7 @@ public class PlayScreen : IScreen
         _skillTree.Layout(uiScreen);
         _shop.Layout(uiScreen);
         _trainer.Layout(uiScreen);
+        _gamble.Layout(uiScreen);
         _stash.Layout(uiScreen);
 
         if (_client.Status != ClientStatus.InGame)
@@ -412,10 +417,11 @@ public class PlayScreen : IScreen
         if (input.WasActionPressed(InputAction.Pause))
         {
             if (_inventory.Open || _skillMenu.Open || _debug.Open || _characterSheet.Open ||
-                _skillTree.Open || _shop.Open || _trainer.Open)
+                _skillTree.Open || _shop.Open || _trainer.Open || _gamble.Open)
             {
                 _inventory.Open = _skillMenu.Open = _debug.Open = _characterSheet.Open = _skillTree.Open = false;
                 _trainer.Open = false;
+                _gamble.Open = false;
                 _shop.Close();
                 _inventory.CancelEnchantMode();
             }
@@ -643,13 +649,19 @@ public class PlayScreen : IScreen
                     _inventory.Open = true;
                     RaisePanel(_inventory);
                 }
-                else if (npcNear != null && !_shop.Open && !_trainer.Open)
+                else if (npcNear != null && !_shop.Open && !_trainer.Open && !_gamble.Open)
                 {
                     if (npcNear.TypeId == "skill_trainer")
                     {
                         // The trainer's list is local knowledge — no stock roundtrip.
                         _trainer.Open = true;
                         RaisePanel(_trainer);
+                    }
+                    else if (npcNear.TypeId == "gambler")
+                    {
+                        // The gambler's table is local knowledge too (shared rules).
+                        _gamble.Open = true;
+                        RaisePanel(_gamble);
                     }
                     else
                     {

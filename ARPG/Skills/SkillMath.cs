@@ -81,7 +81,7 @@ public static class SkillMath
     /// <summary>Power costs: each skill level past 1 raises the skill's mana cost by
     /// this fraction, and each attached Skill Scroll by ManaCostPerScrollPct — stronger
     /// casts drink deeper.</summary>
-    public const float ManaCostPerSkillLevelPct = 0.10f;
+    public const float ManaCostPerSkillLevelPct = 0.16f;
     public const float ManaCostPerScrollPct = 0.20f;
 
     /// <summary>

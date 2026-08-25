@@ -115,6 +115,11 @@ public enum PacketType : byte
     /// <summary>Server -> client: a caster's ranged AoE (at, radius, windup, height, phase).</summary>
     EnemyCastAoe,
 
+    /// <summary>Client -> server: gamble a specific gear base from the gambler NPC
+    /// (base item id). Price/eligibility are shared rules (GambleBalance); the server
+    /// re-validates gold, level and gambler proximity, then rolls the rarity.</summary>
+    GambleRequest,
+
     // Corpses (batch 41)
     /// <summary>Server -> client: an enemy corpse now exists (id, enemy type id, position,
     /// height). Corpses are authoritative server records — future skills can target them.</summary>

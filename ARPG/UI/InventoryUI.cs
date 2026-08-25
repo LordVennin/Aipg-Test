@@ -39,10 +39,18 @@ public class InventoryUI
     /// <summary>Item under the mouse this frame (for the tooltip), grid or equipment.</summary>
     public ItemInstance HoveredItem { get; private set; }
 
-    /// <summary>Armed Enchanting Scroll (right-clicked); the next left-click applies it.</summary>
+    /// <summary>Armed Enchanting Scroll (right-clicked); the next left-click applies it.
+    /// Shared with the stash panel — scrolls arm and apply from either container.</summary>
     private Guid? _pendingScrollId;
+    public Guid? PendingScrollId { get => _pendingScrollId; set => _pendingScrollId = value; }
     public bool EnchantModeActive => _pendingScrollId != null;
     public void CancelEnchantMode() => _pendingScrollId = null;
+
+    /// <summary>Find an item by instance id in the bag OR any stash (armed scrolls can
+    /// live in either).</summary>
+    public Inventory.PlacedItem FindAnywhere(Sim.CharacterData character, Guid id) =>
+        character.Inventory.FindByInstance(id)
+        ?? character.Stashes.Values.Select(s => s.FindByInstance(id)).FirstOrDefault(x => x != null);
 
     /// <summary>Sell mode (set while a merchant shop is open): left-clicking a BAG item
     /// sells it instead of starting a drag. Cleared by PlayScreen when the shop closes.</summary>
@@ -115,7 +123,7 @@ public class InventoryUI
         // --- enchant apply mode: right-click armed a scroll; left-click applies it ---
         if (_pendingScrollId.HasValue)
         {
-            if (character.Inventory.FindByInstance(_pendingScrollId.Value) == null)
+            if (FindAnywhere(character, _pendingScrollId.Value) == null)
             {
                 _pendingScrollId = null; // scroll consumed/moved elsewhere
             }
@@ -323,10 +331,10 @@ public class InventoryUI
             new Vector2(_panelRect.X + 12, _panelRect.Bottom - 22),
             SellClickHandler != null ? new Color(240, 200, 90) : new Color(120, 116, 104));
 
-        // Armed Enchanting Scroll follows the cursor.
+        // Armed Enchanting Scroll follows the cursor (armed from the bag OR the stash).
         if (_pendingScrollId.HasValue)
         {
-            var pending = character.Inventory.FindByInstance(_pendingScrollId.Value);
+            var pending = FindAnywhere(character, _pendingScrollId.Value);
             if (pending != null)
             {
                 var tex = SpriteGen.GetEnchantScrollSprite(pending.Item.GetBase(_data));

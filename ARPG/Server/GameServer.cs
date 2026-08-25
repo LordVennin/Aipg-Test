@@ -215,6 +215,9 @@ public class GameServer : IServerEvents
             case PacketType.DropItemRequest:
                 World.DropItem(playerId, r.GetGuid());
                 break;
+            case PacketType.GambleRequest:
+                World.Gamble(playerId, r.GetString());
+                break;
             case PacketType.LearnSkillRequest:
                 World.LearnSkill(playerId, r.GetString());
                 break;

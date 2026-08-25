@@ -318,6 +318,15 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    /// <summary>Gamble a specific gear base at the gambler NPC (server re-validates
+    /// gold, level eligibility and proximity; rarity is fate's roll).</summary>
+    public void RequestGamble(string baseItemId)
+    {
+        var w = Packets.Make(PacketType.GambleRequest);
+        w.Put(baseItemId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestLearnSkill(string skillId)
     {
         var w = Packets.Make(PacketType.LearnSkillRequest);
