@@ -34,17 +34,22 @@ public readonly struct InputBinding : IEquatable<InputBinding>
 {
     public readonly bool IsMouse;
     public readonly Keys Key;
-    public readonly int MouseButton; // 0 = left, 1 = right, 2 = middle
+    public readonly int MouseButton; // 0 = left, 1 = right, 2 = middle, 3 = X1 (M4), 4 = X2 (M5)
 
     public InputBinding(Keys key) { IsMouse = false; Key = key; MouseButton = 0; }
     public InputBinding(int mouseButton) { IsMouse = true; Key = Keys.None; MouseButton = mouseButton; }
 
     public override string ToString() =>
-        IsMouse ? MouseButton switch { 0 => "Mouse:Left", 1 => "Mouse:Right", _ => "Mouse:Middle" } : $"Key:{Key}";
+        IsMouse ? MouseButton switch
+        {
+            0 => "Mouse:Left", 1 => "Mouse:Right", 3 => "Mouse:X1", 4 => "Mouse:X2",
+            _ => "Mouse:Middle",
+        } : $"Key:{Key}";
 
     public string Display()
     {
-        if (IsMouse) return MouseButton switch { 0 => "LMB", 1 => "RMB", _ => "MMB" };
+        if (IsMouse) return MouseButton switch
+        { 0 => "LMB", 1 => "RMB", 3 => "M4", 4 => "M5", _ => "MMB" };
         if (Key >= Keys.D0 && Key <= Keys.D9) return ((int)(Key - Keys.D0)).ToString();
         return Key.ToString();
     }
@@ -60,6 +65,8 @@ public readonly struct InputBinding : IEquatable<InputBinding>
                 "Left" => new InputBinding(0),
                 "Right" => new InputBinding(1),
                 "Middle" => new InputBinding(2),
+                "X1" => new InputBinding(3),
+                "X2" => new InputBinding(4),
                 _ => new InputBinding(0),
             };
             return true;
@@ -156,6 +163,8 @@ public class InputManager
             {
                 0 => m.LeftButton == ButtonState.Pressed,
                 1 => m.RightButton == ButtonState.Pressed,
+                3 => m.XButton1 == ButtonState.Pressed, // "mouse 4" side button
+                4 => m.XButton2 == ButtonState.Pressed, // "mouse 5" side button
                 _ => m.MiddleButton == ButtonState.Pressed,
             }
             : k.IsKeyDown(b.Key);
@@ -203,6 +212,10 @@ public class InputManager
         if (MouseRightPressed) { binding = new InputBinding(1); return true; }
         if (_mouse.MiddleButton == ButtonState.Pressed && _prevMouse.MiddleButton == ButtonState.Released)
         { binding = new InputBinding(2); return true; }
+        if (_mouse.XButton1 == ButtonState.Pressed && _prevMouse.XButton1 == ButtonState.Released)
+        { binding = new InputBinding(3); return true; } // mouse 4
+        if (_mouse.XButton2 == ButtonState.Pressed && _prevMouse.XButton2 == ButtonState.Released)
+        { binding = new InputBinding(4); return true; } // mouse 5
         binding = default;
         return false;
     }

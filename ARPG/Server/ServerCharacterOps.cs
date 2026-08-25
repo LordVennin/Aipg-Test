@@ -350,7 +350,15 @@ public partial class ServerWorld
         if (!Players.TryGetValue(playerId, out var p)) return;
         var c = p.Character;
 
+        // The scroll can live in the bag OR the stash (when its chest is in reach) —
+        // crafting straight out of storage, no shuffling items into the bag first.
+        var scrollHome = c.Inventory;
         var scrollPlaced = c.Inventory.FindByInstance(scrollId);
+        if (scrollPlaced == null && StashInReach(p, GameMap.HubStashId))
+        {
+            scrollHome = c.GetStash(GameMap.HubStashId);
+            scrollPlaced = scrollHome.FindByInstance(scrollId);
+        }
         var scrollBase = scrollPlaced?.Item.GetBase(Data);
         if (scrollPlaced == null || scrollBase?.Category != ItemCategory.EnchantScroll ||
             scrollBase.EnchantType == EnchantType.None)
@@ -360,7 +368,10 @@ public partial class ServerWorld
         }
 
         ItemInstance target = c.Inventory.FindByInstance(targetId)?.Item
-                              ?? c.Equipment.Values.FirstOrDefault(e => e != null && e.InstanceId == targetId);
+                              ?? c.Equipment.Values.FirstOrDefault(e => e != null && e.InstanceId == targetId)
+                              ?? (StashInReach(p, GameMap.HubStashId)
+                                  ? c.GetStash(GameMap.HubStashId).FindByInstance(targetId)?.Item
+                                  : null);
         if (target == null || target.InstanceId == scrollId) return;
 
         if (EnchantSystem.Apply(Data, _rng, Loot, scrollBase.EnchantType, target, out string error))
@@ -368,7 +379,7 @@ public partial class ServerWorld
             // Consume one charge.
             scrollPlaced.Item.StackCount--;
             if (scrollPlaced.Item.StackCount <= 0)
-                c.Inventory.Items.Remove(scrollPlaced);
+                scrollHome.Items.Remove(scrollPlaced);
             _events.MessageFor(p, $"{scrollBase.Name} applied to {target.DisplayName(Data)}.");
         }
         else if (error != null)
@@ -384,10 +395,75 @@ public partial class ServerWorld
     public void DropItem(int playerId, Guid instanceId)
     {
         if (!Players.TryGetValue(playerId, out var p)) return;
-        var placed = p.Character.Inventory.FindByInstance(instanceId);
-        if (placed == null) return;
-        p.Character.Inventory.Items.Remove(placed);
-        SpawnDrop(placed.Item, p.Position);
+        var c = p.Character;
+        // Bag first; then EQUIPPED gear (dropped straight off the body — stats
+        // recompute); then the stash, when its chest is in reach.
+        var placed = c.Inventory.FindByInstance(instanceId);
+        if (placed != null)
+        {
+            c.Inventory.Items.Remove(placed);
+            SpawnDrop(placed.Item, p.Position);
+            _events.CharacterChanged(p);
+            return;
+        }
+        foreach (var (slot, item) in c.Equipment)
+        {
+            if (item == null || item.InstanceId != instanceId) continue;
+            c.Equipment.Remove(slot);
+            p.RecomputeStats(Data);
+            SpawnDrop(item, p.Position);
+            _events.PlayerHealthChanged(p);
+            _events.CharacterChanged(p); // also rebroadcasts the held/worn appearance
+            return;
+        }
+        if (StashInReach(p, GameMap.HubStashId))
+        {
+            var stash = c.GetStash(GameMap.HubStashId);
+            var inStash = stash.FindByInstance(instanceId);
+            if (inStash != null)
+            {
+                stash.Items.Remove(inStash);
+                SpawnDrop(inStash.Item, p.Position);
+                _events.CharacterChanged(p);
+            }
+        }
+    }
+
+    /// <summary>Roll a gambled item: the player picks the exact BASE, fate rolls the
+    /// rarity and modifiers. Validated: gambler in reach, base level-eligible, gold,
+    /// bag space (checked BEFORE charging — a full bag never eats the fee).</summary>
+    public void Gamble(int playerId, string baseItemId)
+    {
+        if (!Players.TryGetValue(playerId, out var p)) return;
+        var b = Data.Items.GetValueOrDefault(baseItemId);
+        if (!GambleBalance.Eligible(b, p.Character.Level)) return;
+        var gambler = Npcs.FirstOrDefault(n => n.TypeId == "gambler");
+        if (gambler == null || Vector2.Distance(p.Position, gambler.Position) > 3.5f)
+        {
+            _events.MessageFor(p, "The gambler waits in the sanctum.");
+            return;
+        }
+        int price = GambleBalance.Price(b, p.Character.Level);
+        if (p.Character.Gold < price)
+        {
+            _events.MessageFor(p, $"A roll on that costs {price} gold — come back richer.");
+            return;
+        }
+        int total = GambleBalance.WeightNormal + GambleBalance.WeightMagic + GambleBalance.WeightRare;
+        int roll = _rng.Next(total);
+        var rarity = roll < GambleBalance.WeightNormal ? ItemRarity.Normal
+            : roll < GambleBalance.WeightNormal + GambleBalance.WeightMagic ? ItemRarity.Magic
+            : ItemRarity.Rare;
+        var item = Loot.Generate(b, p.Character.Level, rarity);
+        if (!p.Character.Inventory.TryAdd(Data, item))
+        {
+            _events.MessageFor(p, "Your bag is full — fate waits for no one, but she does need room.");
+            return;
+        }
+        p.Character.Gold -= price;
+        _events.MessageFor(p, $"{price} gold to fate... she hands you {item.DisplayName(Data)}.");
+        p.RecomputeStats(Data);
+        _events.PlayerHealthChanged(p);
         _events.CharacterChanged(p);
     }
 
@@ -754,7 +830,9 @@ public partial class ServerWorld
     }
 
     /// <summary>Sold-by-mistake insurance: how many recent sales the merchant holds.</summary>
-    public const int BuybackSlots = 10;
+    /// <summary>Buy-back keeps EVERYTHING sold during the current character level
+    /// (wiped on level-up — see GrantCharacterXp); the cap is only a runaway guard.</summary>
+    public const int BuybackSlots = 500;
 
     public void ShopSell(int playerId, Guid itemInstanceId)
     {

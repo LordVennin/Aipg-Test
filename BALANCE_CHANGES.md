@@ -946,3 +946,33 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   linear (60 x level); now previous x 1.15 + 30 on a 60 base — L1 60
   (unchanged), L5 255 (was 300), L10 715 (was 600), L15 1,679, L20 3,619
   (was 1,200). Early ranks stay quick; mastery is a commitment.
+
+---
+
+# Addendum (batch 46): QoL sweep + the gambler
+
+- **Craft from the stash.** Enchanting Scrolls arm (right-click) and apply
+  straight from the stash grid — scroll and/or target can live in the bag or
+  the stash interchangeably (server validates chest reach). The armed-scroll
+  cursor follows across both panels.
+- **Drop from anywhere.** Releasing a drag over the world now drops items
+  from the STASH and straight OFF equipped slots too (stats recompute, worn
+  appearance rebroadcasts) — no bag round-trip.
+- **Buy-back holds a whole level.** The 10-slot cap is gone: the counter
+  keeps everything sold during the current character level and wipes on
+  level-up; the Buy Back tab scrolls (mouse wheel) with a row counter.
+- **Mouse 4/5 bindable.** The side buttons (XButton1/XButton2) are
+  first-class bindings — capture, save ("Mouse:X1"), display ("M4"/"M5").
+- **Skill levels drink deeper**: mana cost per skill level 10% -> 16%.
+- **Forest sun pools are lumpy now**: each pool is three overlapping lobes
+  orbiting, breathing and shimmering on independent periods — an organic
+  morphing blotch instead of a perfect circle, with visibly livelier flicker.
+- **Sable the Gambler** joins the sanctum (west wall). Pick the EXACT gear
+  base from a scrollable table of everything your level can wear (36 bases
+  at level 7); pay steeply (45 + 12/level gold, x1.5 for jewelry); rarity
+  and mods are fate's: 30% normal / 50% magic / 20% rare, rolled at your
+  character level. Prices and eligibility are shared client/server rules —
+  no stock traffic. Protocol v33.
+- **No more through-wall bolts**: ALL client-side projectiles (predicted
+  ghosts and remote-player bolts alike) stop at walls locally instead of
+  gliding through geometry until the server corrects them.

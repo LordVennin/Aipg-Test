@@ -161,9 +161,15 @@ public class ShopUI
                     }
             }
         }
+        // Buy-back scrolling: the counter keeps a whole level's worth of sales.
+        if (_buybackTab && _panelRect.Contains(input.MousePosition) && input.ScrollDelta != 0)
+            _buybackScroll = Math.Clamp(_buybackScroll - Math.Sign(input.ScrollDelta) * 2,
+                0, Math.Max(0, _layoutRowsUsed - GridH));
         if (_panelRect.Contains(input.MousePosition))
             input.MouseCapturedByUI = true;
     }
+
+    private int _buybackScroll;
 
     public void Draw(SpriteBatch sb, Point screenSize)
     {
@@ -224,7 +230,11 @@ public class ShopUI
         for (int gx = 0; gx <= GridW; gx++)
             sb.Draw(TextureGen.Pixel, new Rectangle(gridRect.X + gx * Cell, gridRect.Y, 1, gridRect.Height), new Color(50, 48, 44));
 
-        LayoutStock(gridRect, _buybackTab ? _buyback : _stock);
+        LayoutStock(gridRect, _buybackTab ? _buyback : _stock, _buybackTab ? _buybackScroll : 0);
+        if (_buybackTab && _layoutRowsUsed > GridH)
+            sb.DrawString(FontManager.Get(12),
+                $"scroll for more ({_buybackScroll}/{Math.Max(0, _layoutRowsUsed - GridH)})",
+                new Vector2(gridRect.X, gridRect.Bottom + 2), new Color(150, 142, 122));
         ItemInstance hoverItem = null;
         int hoverPrice = 0;
         bool hoverSold = false;
@@ -316,15 +326,23 @@ public class ShopUI
 
     /// <summary>First-fit the given items into the grid, left-to-right, per row —
     /// deterministic, so boxes never move between frames or reopens.</summary>
-    private void LayoutStock(Rectangle gridRect, List<ClientShopEntry> entries)
+    /// <summary>Rows the current layout actually used (drives buy-back scrolling).</summary>
+    private int _layoutRowsUsed;
+
+    private void LayoutStock(Rectangle gridRect, List<ClientShopEntry> entries, int scrollRows = 0)
     {
+        // Items pack into a VIRTUAL grid as tall as needed (the buy-back counter holds
+        // a whole level's worth of sales); scrollRows shifts the visible window and
+        // anything outside it is culled — the wheel pages through the rest.
         _stockBoxes.Clear();
-        var occupied = new bool[GridW, GridH];
+        int virtH = Math.Max(GridH, entries.Count * 4 + GridH);
+        var occupied = new bool[GridW, virtH];
+        _layoutRowsUsed = 0;
         foreach (var entry in entries.OrderBy(e => e.Slot))
         {
             var b = entry.Item.GetBase(_data);
             int w = Math.Min(b.InventoryWidth, GridW), h = Math.Min(b.InventoryHeight, GridH);
-            for (int gy = 0; gy <= GridH - h; gy++)
+            for (int gy = 0; gy <= virtH - h; gy++)
             {
                 bool placed = false;
                 for (int gx = 0; gx <= GridW - w; gx++)
@@ -337,9 +355,11 @@ public class ShopUI
                     for (int dy = 0; dy < h; dy++)
                         for (int dx = 0; dx < w; dx++)
                             occupied[gx + dx, gy + dy] = true;
-                    _stockBoxes.Add((entry, new Rectangle(
-                        gridRect.X + gx * Cell + 1, gridRect.Y + gy * Cell + 1,
-                        w * Cell - 2, h * Cell - 2)));
+                    _layoutRowsUsed = Math.Max(_layoutRowsUsed, gy + h);
+                    if (gy >= scrollRows && gy + h <= scrollRows + GridH)
+                        _stockBoxes.Add((entry, new Rectangle(
+                            gridRect.X + gx * Cell + 1, gridRect.Y + (gy - scrollRows) * Cell + 1,
+                            w * Cell - 2, h * Cell - 2)));
                     placed = true;
                     break;
                 }

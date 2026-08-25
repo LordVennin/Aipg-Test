@@ -3700,6 +3700,78 @@ public static class HeadlessNetTest
         clientB.SendDebugCommand("kill_nearby");
         Pump(0.3f);
 
+        Console.WriteLine("\n-- Batch 46: gambler, buyback, mouse 4/5, ghost walls --");
+        // The gambler: pick the exact BASE, pay steep gold, fate rolls the rest.
+        var tmpGambler = new Server.ServerNpc
+        {
+            Id = 99, TypeId = "gambler",
+            Position = srvBasher.Position + new Vector2(1f, 0), Height = srvBasher.Height,
+        };
+        server.World.Npcs.Add(tmpGambler);
+        srvBasher.Character.Gold = 5000;
+        int gamblePrice = Items.GambleBalance.Price(data.Items["wooden_club"], srvBasher.Character.Level);
+        int bagCountBefore = srvBasher.Character.Inventory.Items.Count;
+        server.World.Gamble(bId, "wooden_club");
+        Check(srvBasher.Character.Gold == 5000 - gamblePrice &&
+              srvBasher.Character.Inventory.Items.Count == bagCountBefore + 1 &&
+              srvBasher.Character.Inventory.Items[^1].Item.BaseItemId == "wooden_club",
+              $"gambling buys the chosen base for {gamblePrice} gold, rarity unseen");
+        // An ineligible probe must sit ABOVE the character's actual level (B has
+        // leveled a lot this run) — synthesize one to keep the check deterministic.
+        var tooHigh = new Items.ItemBase
+        {
+            Id = "test_gamble_locked", Name = "Locked Test Base",
+            Category = Items.ItemCategory.Mace, RequiredLevel = srvBasher.Character.Level + 10,
+        };
+        data.Items[tooHigh.Id] = tooHigh;
+        server.World.Gamble(bId, tooHigh.Id);
+        data.Items.Remove(tooHigh.Id);
+        Check(srvBasher.Character.Gold == 5000 - gamblePrice &&
+              srvBasher.Character.Inventory.Items.Count == bagCountBefore + 1,
+              "bases above your level cannot be gambled (no charge, no item)");
+        server.World.Npcs.Remove(tmpGambler);
+
+        // Buy-back holds a LEVEL's worth of sales and wipes on level-up.
+        srvBasher.Buyback.Add(new Server.ShopEntry
+        { Item = new Items.ItemInstance { BaseItemId = "wooden_club" }, Price = 5 });
+        srvBasher.Character.Experience = srvBasher.Character.XpToNextLevel() - 1f;
+        server.World.GrantCharacterXp(srvBasher, 5f);
+        Check(srvBasher.Buyback.Count == 0 && Server.ServerWorld.BuybackSlots >= 100,
+              "leveling up wipes the (now level-deep) buy-back counter");
+
+        // Mouse 4/5 side buttons serialize, parse and label as bindables.
+        Check(Core.InputBinding.TryParse("Mouse:X1", out var m4b) && m4b.Display() == "M4" &&
+              new Core.InputBinding(4).ToString() == "Mouse:X2" &&
+              Core.InputBinding.TryParse(new Core.InputBinding(4).ToString(), out var m5rt) &&
+              m5rt.MouseButton == 4,
+              "mouse 4/5 are first-class bindings (parse + display round-trip)");
+        Check(Skills.SkillMath.ManaCostPerSkillLevelPct >= 0.15f,
+              $"skill levels drink deeper ({Skills.SkillMath.ManaCostPerSkillLevelPct:P0} mana per level)");
+
+        // Client-side projectiles stop at walls — no gliding through geometry while
+        // waiting for the server's authoritative correction.
+        {
+            var ghostWorld = new Net.ClientWorld();
+            ghostWorld.Map = new World.GameMap(1337, data.ZoneThemes.First(t => t.Id == "graveyard"),
+                World.MapKind.Arena);
+            var gSpawn = ghostWorld.Map.PlayerSpawn;
+            int wallX = -1, sy = (int)gSpawn.Y;
+            for (int tx = (int)gSpawn.X; tx < ghostWorld.Map.Width; tx++)
+                if (ghostWorld.Map.IsSolid(tx, sy)) { wallX = tx; break; }
+            Check(wallX > 0, "found a wall east of spawn for the ghost-collision probe");
+            var ghost = new Net.ClientProjectile
+            {
+                Id = 424299, SkillId = "fire_bolt", Ghost = true, FromPlayer = true,
+                Position = new Vector2(wallX - 3f, sy + 0.5f), Direction = new Vector2(1f, 0f),
+                Speed = 10f, MaxRange = 30f,
+            };
+            ghostWorld.Projectiles[ghost.Id] = ghost;
+            for (int i = 0; i < 90 && ghostWorld.Projectiles.ContainsKey(ghost.Id); i++)
+                ghostWorld.Tick(1f / 60f);
+            Check(!ghostWorld.Projectiles.ContainsKey(ghost.Id) && ghost.Position.X <= wallX + 0.4f,
+                  $"ghost bolts stop AT the wall (x {ghost.Position.X:0.00} vs wall {wallX})");
+        }
+
         Console.WriteLine("\n-- Forest dressing: tall grass, elevated features --");
         // The campaign's run maps grow tall-grass patches (on terraces too) and stay
         // walkable through them; density-bumped big trees come in four variants.
@@ -3849,11 +3921,41 @@ public static class HeadlessNetTest
               "the hub carries its own purple-stone SANCTUM theme (both sides)");
         Check(data.ZoneThemes.First(t => t.Id == "sanctum").StoneBrick,
               "the sanctum theme renders stone-brick floors and walls");
-        Check(campServer.World.Npcs.Count == 2 &&
+        Check(campServer.World.Npcs.Count == 3 &&
               campServer.World.Npcs.Any(n => n.TypeId == "merchant") &&
-              campServer.World.Npcs.Any(n => n.TypeId == "skill_trainer"),
-              "the hub holds the gear merchant AND the skill trainer");
-        Check(campA.World.Npcs.Count == 2, "both merchants replicate to clients");
+              campServer.World.Npcs.Any(n => n.TypeId == "skill_trainer") &&
+              campServer.World.Npcs.Any(n => n.TypeId == "gambler"),
+              "the hub holds the merchant, the skill trainer AND the gambler");
+        Check(campA.World.Npcs.Count == 3, "all three hub NPCs replicate to clients");
+
+        // Stash quality-of-life: crafting scrolls apply straight FROM the stash, and
+        // items drop to the ground from the stash or straight off the body.
+        {
+            var stashP = campServer.World.Players.Values.First();
+            stashP.Position = campServer.World.Map.StashSpot;
+            var sGrid46 = stashP.Character.GetStash(World.GameMap.HubStashId);
+            var awakenBase = data.Items.Values.First(ib => ib.EnchantType == Items.EnchantType.Awaken);
+            var stashTarget = new Items.ItemInstance
+            { BaseItemId = "wooden_club", ItemLevel = 5, Rarity = Items.ItemRarity.Normal, MaxPrefixes = 3, MaxSuffixes = 3 };
+            stashTarget.EnsureSlotData();
+            var stashScroll = new Items.ItemInstance { BaseItemId = awakenBase.Id, StackCount = 1 };
+            Check(sGrid46.TryAdd(data, stashTarget) && sGrid46.TryAdd(data, stashScroll),
+                  "stash crafting probe: scroll + target stored in the stash");
+            campServer.World.ApplyEnchant(stashP.Id, stashScroll.InstanceId, stashTarget.InstanceId);
+            Check(stashTarget.Rarity == Items.ItemRarity.Magic &&
+                  sGrid46.FindByInstance(stashScroll.InstanceId) == null,
+                  "an Enchanting Scroll applies straight from the stash (target awakened, scroll spent)");
+            campServer.World.DropItem(stashP.Id, stashTarget.InstanceId);
+            Check(sGrid46.FindByInstance(stashTarget.InstanceId) == null &&
+                  campServer.World.Drops.Values.Any(d => d.Item?.InstanceId == stashTarget.InstanceId),
+                  "items drop to the ground straight from the stash");
+            var wornRing = new Items.ItemInstance { BaseItemId = "copper_ring" };
+            stashP.Character.Equipment[Items.EquipSlot.Ring1] = wornRing;
+            campServer.World.DropItem(stashP.Id, wornRing.InstanceId);
+            Check(stashP.Character.Equipment.GetValueOrDefault(Items.EquipSlot.Ring1) == null &&
+                  campServer.World.Drops.Values.Any(d => d.Item?.InstanceId == wornRing.InstanceId),
+                  "equipped gear drops straight off the body (stats recomputed)");
+        }
         Check(campServer.World.Chests.Count == 4 && campA.World.Chests.Count == 4 &&
               campA.World.Chests.Values.All(c => !c.Opened),
               "four closed starter chests replicate");
