@@ -976,3 +976,41 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
 - **No more through-wall bolts**: ALL client-side projectiles (predicted
   ghosts and remote-player bolts alike) stop at walls locally instead of
   gliding through geometry until the server corrects them.
+
+---
+
+# Addendum (batch 47): the caravan stand (wagon defense) + party HP scaling
+
+- **Enemies scale with the party.** Every spawn gains +15% max health per
+  player beyond the first (`EnemyLevelScaling.HealthPerExtraPlayer`) — a
+  full session never turns the same content trivial. Applies everywhere:
+  arena, campaign, defense waves, elites, bosses.
+- **A second door in the Sanctum.** The west wall (straight across from the
+  run door) now opens on the CARAVAN STAND: a freshly generated defense
+  arena (40x28) with three enemy portals (west x2, north), a caravan wagon
+  parked right-of-center, and a workbench camp beside it.
+- **The loop**: build phase -> ready up at the workbench -> a wave pours
+  from the portals and marches on the wagon -> clear it -> build again,
+  five waves total (6 + 4/wave + 3/extra-player enemies, trickling every
+  1.1s, enemy level = zone level + 1/wave). Win: the exit unlocks and the
+  caravan pays two boss-table loot showers plus a gold purse at the wagon.
+  Lose the wagon (900 hp, +25%/extra player) and the Sanctum reclaims
+  everyone empty-handed.
+- **The workbench builds, and gold finally drains**: crossbow turret 60g
+  (range 7.5, a bolt every 1.1s, damage scales +18%/zone level, kill credit
+  to the builder — no skill XP); spiked barrier 25g (320 hp wall enemies
+  must break through or go around — structures block ENEMY movement only);
+  flamethrower turret 90g, LOCKED until its blueprint is found (next batch).
+  Placement is click-to-place with a green/red ghost; the server re-checks
+  reach (5.0), terrain, spacing (0.9, barriers can form walls) and portal
+  exclusion (4.0).
+- **Enemies fight the furniture**: anything standing in reach gets chewed
+  with plain damage ticks (1s clock, no telegraphs — walls don't dodge);
+  players or summons inside ~aggro range still pull normal fighting AI.
+  March pathing rides a wagon-anchored flow field spanning the whole arena.
+- **Brakka the Sellsword** waits by the wagon during build phases (steps
+  out when the wave starts, returns after). He deals in mercenary
+  contracts — a rare-drop currency arriving next batch alongside the
+  researcher NPC and randomized mercenaries.
+- Protocol v34 (DefenseState, StructureSpawn/Health/Remove, NpcRemove,
+  BuildRequest).

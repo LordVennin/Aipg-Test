@@ -257,6 +257,20 @@ public class ClientCorpse
     public long SpawnedAtMs;
 }
 
+/// <summary>A defense-map structure (wagon, workbench, turrets, barriers) as replicated.</summary>
+public class ClientStructure
+{
+    public int Id;
+    public byte Kind; // (World.StructureKind)
+    public Vector2 Position;
+    public float Height;
+    public float Health;
+    public float MaxHealth;
+    public int OwnerId;
+    /// <summary>Local arrival time (ms) — a brief build "pop" on placement.</summary>
+    public long SpawnedAtMs;
+}
+
 /// <summary>A transient visual effect (skill flash, projectile impact).</summary>
 public class ClientEffect
 {
@@ -304,6 +318,7 @@ public class ClientWorld
     public readonly Dictionary<int, ClientSummon> Summons = new();
     public readonly Dictionary<int, ClientChest> Chests = new();
     public readonly Dictionary<int, ClientCorpse> Corpses = new();
+    public readonly Dictionary<int, ClientStructure> Structures = new();
     public readonly List<ClientEffect> Effects = new();
 
     // Campaign zone state (from ZoneState packets; drives the HUD banner + door hints).
@@ -313,6 +328,13 @@ public class ClientWorld
     public int ZoneReadyCount;
     public int ZoneAlivePlayers;
     public bool ZoneExitLocked;
+
+    // Defense-run state (DefenseState packets; drives the wave banner + wagon bar).
+    public byte DefensePhase;      // (Server.DefensePhase)
+    public int DefenseWave = 1;
+    public int DefenseWavesTotal = 1;
+    public float WagonHealth;
+    public float WagonMaxHealth = 1f;
 
     /// <summary>Wipe every replicated world object for a map transition (players stay —
     /// they travel together; their positions snap on the next state packet).</summary>
@@ -325,6 +347,7 @@ public class ClientWorld
         Summons.Clear();
         Chests.Clear();
         Corpses.Clear();
+        Structures.Clear();
         Effects.Clear();
         FloatingNumbers.Clear();
         SpentGhosts.Clear();

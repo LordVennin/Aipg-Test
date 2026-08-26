@@ -119,6 +119,10 @@ public class WorldRenderer
     /// the MAP's weather attribute; "off"/"rain"/"snow"/"wind" force a mode.</summary>
     public string WeatherOverride;
 
+    /// <summary>Build-placement ghost (defense maps): set each frame by the play screen
+    /// while the player is choosing a spot; null when not placing.</summary>
+    public (byte Kind, System.Numerics.Vector2 Pos, bool Valid)? BuildPreview;
+
     /// <summary>The weather actually falling right now: the debug override when set,
     /// else whatever this map carries ("" = clear skies).</summary>
     public string ActiveWeather =>
@@ -1291,6 +1295,76 @@ public class WorldRenderer
         }
         DrawDoor(world.Map.ExitDoor, exit: true);
         DrawDoor(world.Map.EntryDoor, exit: false);
+        DrawDoor(world.Map.DefenseDoor, exit: false); // hub only: the caravan door west
+
+        // Defense structures: the wagon, workbench and every player-built turret and
+        // barrier — sorted like any other entity, with health bars where it matters.
+        foreach (var st in world.Structures.Values)
+        {
+            var stPos = st.Position;
+            var stScreen = camera.WorldToScreen(stPos, st.Height);
+            var stTex = SpriteGen.GetStructureSprite(st.Kind);
+            if (stTex == null) continue;
+            float age = (Environment.TickCount64 - st.SpawnedAtMs) / 1000f;
+            float pop = age < 0.25f ? 0.7f + 1.2f * age : 1f; // brief build pop
+            var stCopy = st;
+            _sorted.Add((stPos.X + stPos.Y + st.Height * 1.0f + 0.1f + UnderDeckBias(stPos, st.Height), batch =>
+            {
+                int w = (int)(stTex.Width * 2 * pop), h = (int)(stTex.Height * 2 * pop);
+                int shadowW = stTex.Width + 14;
+                batch.Draw(TextureGen.Circle32,
+                    new Rectangle((int)(stScreen.X - shadowW / 2f), (int)(stScreen.Y - 8), shadowW, 16),
+                    new Color(0, 0, 0, 85));
+                batch.Draw(stTex, new Rectangle((int)stScreen.X - w / 2, (int)stScreen.Y - h + 8, w, h),
+                    Color.White);
+                // Health bar: always on the wagon, on builds only once they're hurt.
+                bool wagon = stCopy.Kind == 3;
+                if ((wagon || stCopy.Health < stCopy.MaxHealth - 0.5f) && stCopy.Kind != 4)
+                {
+                    float frac = stCopy.MaxHealth > 0 ? Math.Clamp(stCopy.Health / stCopy.MaxHealth, 0f, 1f) : 0f;
+                    int barW = wagon ? 46 : 28;
+                    var bar = new Rectangle((int)stScreen.X - barW / 2, (int)stScreen.Y - h - 4, barW, wagon ? 5 : 3);
+                    batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));
+                    batch.Draw(TextureGen.Pixel,
+                        new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
+                        frac > 0.5f ? new Color(150, 200, 120) : frac > 0.25f ? new Color(230, 190, 80) : new Color(220, 80, 60));
+                }
+            }));
+        }
+
+        // Enemy portals on the defense arena: dark arches seeping violet light.
+        foreach (var portal in world.Map.SpawnPortals)
+        {
+            float pHeight = world.Map.GroundHeightAt(portal);
+            var pScreen = camera.WorldToScreen(portal, pHeight);
+            var portalTex = SpriteGen.GetPortalSprite();
+            if (portalTex == null) continue;
+            AddLight(pScreen, 120f, new Color(150, 90, 200));
+            _sorted.Add((portal.X + portal.Y + pHeight * 1.0f + 0.1f, batch =>
+            {
+                int w = portalTex.Width * 2, h = portalTex.Height * 2;
+                float pulse = 0.75f + 0.25f * MathF.Sin(Environment.TickCount64 * 0.003f + portal.X);
+                batch.Draw(portalTex, new Rectangle((int)pScreen.X - w / 2, (int)pScreen.Y - h + 8, w, h),
+                    Color.White * pulse);
+            }));
+        }
+
+        // Build-placement ghost (set by the play screen while placing): the chosen
+        // structure at the cursor, green when the spot looks legal, red otherwise.
+        if (BuildPreview is { } preview)
+        {
+            float bpHeight = world.Map.GroundHeightAt(preview.Pos);
+            var bpScreen = camera.WorldToScreen(preview.Pos, bpHeight);
+            var bpTex = SpriteGen.GetStructureSprite(preview.Kind);
+            if (bpTex != null)
+                _sorted.Add((preview.Pos.X + preview.Pos.Y + bpHeight * 1.0f + 0.12f, batch =>
+                {
+                    int w = bpTex.Width * 2, h = bpTex.Height * 2;
+                    var tint = preview.Valid ? new Color(140, 230, 140) : new Color(230, 100, 90);
+                    batch.Draw(bpTex, new Rectangle((int)bpScreen.X - w / 2, (int)bpScreen.Y - h + 8, w, h),
+                        tint * 0.6f);
+                }));
+        }
 
         // The stash chest (hub only): the player's object-bound storage.
         if (world.Map.StashSpot != System.Numerics.Vector2.Zero)
@@ -2304,12 +2378,34 @@ public class WorldRenderer
                 var doorScreen = camera.WorldToScreen(world.Map.ExitDoor,
                     world.Map.GroundHeightAt(world.Map.ExitDoor));
                 string doorHint = world.ZoneExitLocked
-                    ? "Sealed — defeat the Gravelord"
+                    ? world.Map.Kind == World.MapKind.Defense
+                        ? "Sealed — the wagon still needs you"
+                        : "Sealed — defeat the Gravelord"
                     : $"F  Ready ({world.ZoneReadyCount}/{Math.Max(1, world.ZoneAlivePlayers)})";
                 var dSize = labelFont.MeasureString(doorHint);
                 sb.DrawString(labelFont, doorHint,
                     new Vector2(doorScreen.X - dSize.X / 2, doorScreen.Y - 78),
                     world.ZoneExitLocked ? new Color(255, 120, 100) : new Color(255, 226, 130));
+            }
+            if (world.Map.DefenseDoor != System.Numerics.Vector2.Zero &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.DefenseDoor) <= 2.4f)
+            {
+                var ddScreen = camera.WorldToScreen(world.Map.DefenseDoor,
+                    world.Map.GroundHeightAt(world.Map.DefenseDoor));
+                const string ddHint = "F  Defend the caravan";
+                var ddSize = labelFont.MeasureString(ddHint);
+                sb.DrawString(labelFont, ddHint,
+                    new Vector2(ddScreen.X - ddSize.X / 2, ddScreen.Y - 78), new Color(255, 226, 130));
+            }
+            if (world.Map.WorkbenchSpot != System.Numerics.Vector2.Zero &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.WorkbenchSpot) <= 2.4f)
+            {
+                var wbScreen = camera.WorldToScreen(world.Map.WorkbenchSpot,
+                    world.Map.GroundHeightAt(world.Map.WorkbenchSpot));
+                const string wbHint = "F  Workbench";
+                var wbSize = labelFont.MeasureString(wbHint);
+                sb.DrawString(labelFont, wbHint,
+                    new Vector2(wbScreen.X - wbSize.X / 2, wbScreen.Y - 52), new Color(255, 226, 130));
             }
             foreach (var chest in world.Chests.Values)
             {

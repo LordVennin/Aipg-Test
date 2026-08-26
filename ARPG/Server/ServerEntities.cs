@@ -396,6 +396,27 @@ public class ServerSummon
     public bool Dead => Health <= 0;
 }
 
+/// <summary>A defense-map structure: the wagon, the workbench, or a player-built
+/// turret/barrier. Stationary, server-authoritative, replicated as a single entity
+/// type. Turrets shoot; barriers just stand in the way; enemies chew through them
+/// with plain DPS ticks (no telegraphs — structures don't dodge).</summary>
+public class ServerStructure
+{
+    public int Id;
+    public World.StructureKind Kind;
+    public Vector2 Position;
+    public float Height;
+    public float Health;
+    public float MaxHealth;
+    /// <summary>The player who built it (-1 for server-placed wagon/workbench).</summary>
+    public int OwnerId = -1;
+    /// <summary>Turrets: next allowed shot time (server clock).</summary>
+    public float NextShotAt;
+    /// <summary>Collision footprint radius (barriers block enemy movement with it).</summary>
+    public float Radius = 0.45f;
+    public bool Destroyed => Health <= 0;
+}
+
 /// <summary>A friendly, stationary NPC (the test merchant). Not a combat entity — enemies
 /// ignore it entirely; players interact with the pickup key when in range.</summary>
 public class ServerNpc

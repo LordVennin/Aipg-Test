@@ -126,6 +126,25 @@ public enum PacketType : byte
     CorpseSpawn,
     /// <summary>Server -> client: a corpse was consumed/expired (id).</summary>
     CorpseRemove,
+
+    // Wagon defense (batch 47)
+    /// <summary>Server -> client: defense-run state (phase byte 0 build/1 wave/2 won/3 lost,
+    /// wave index, waves total, wagon hp, wagon max hp, build seconds left).</summary>
+    DefenseState,
+    /// <summary>Server -> client: a structure exists (id, kind byte, position, height,
+    /// hp, max hp). Kinds: 0 crossbow turret, 1 spiked barrier, 2 flame turret,
+    /// 3 wagon, 4 workbench.</summary>
+    StructureSpawn,
+    /// <summary>Server -> client: a structure's health changed (id, hp).</summary>
+    StructureHealth,
+    /// <summary>Server -> client: a structure was destroyed/removed (id).</summary>
+    StructureRemove,
+    /// <summary>Server -> client: an NPC left the world (id) — defense NPCs step away
+    /// when the wave starts.</summary>
+    NpcRemove,
+    /// <summary>Client -> server: build a structure (kind byte, position). The server
+    /// re-validates phase, gold, terrain and spacing.</summary>
+    BuildRequest,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>
