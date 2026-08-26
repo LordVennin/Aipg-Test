@@ -385,6 +385,9 @@ public class ServerSummon
     public float ManaReserved;
     /// <summary>Melee summons close to arm's reach and swing; ranged ones hold and shoot.</summary>
     public bool Melee;
+    /// <summary>Deployed mercenaries hold THIS spot instead of following their owner
+    /// (skeleton minions leave it null). Set at deployment, never moved.</summary>
+    public Vector2? GuardPoint;
     /// <summary>Attack reach and swing time, set at spawn from the summon's profile.</summary>
     public float Reach = AttackRange;
     public float SwingTime = AttackCooldown;

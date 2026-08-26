@@ -281,6 +281,12 @@ public class GameServer : IServerEvents
             case PacketType.BuildRequest:
                 World.Build(playerId, (StructureKind)r.GetByte(), r.GetVec2());
                 break;
+            case PacketType.ResearchRequest:
+                World.Research(playerId, r.GetByte());
+                break;
+            case PacketType.DeployMercRequest:
+                World.DeployMerc(playerId, r.GetString(), r.GetVec2());
+                break;
         }
     }
 

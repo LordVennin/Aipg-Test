@@ -69,7 +69,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 34; // v34: wagon defense (structures, waves)
+    public const int ProtocolVersion = 35; // v35: researcher, contracts, mercenaries
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

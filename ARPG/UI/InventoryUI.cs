@@ -371,6 +371,24 @@ public class InventoryUI
             return;
         }
 
+        // Curios (contracts, blueprints) show their trinket sprite + stack count.
+        var curioTex = SpriteGen.GetCurioSprite(b);
+        if (curioTex != null)
+        {
+            float cScale = MathF.Min((rect.Width - 6f) / curioTex.Width, (rect.Height - 6f) / curioTex.Height);
+            int cW = (int)(curioTex.Width * cScale), cH = (int)(curioTex.Height * cScale);
+            sb.Draw(curioTex, new Rectangle(rect.Center.X - cW / 2, rect.Center.Y - cH / 2, cW, cH), Color.White);
+            if (item.StackCount > 1)
+            {
+                var stackFont = FontManager.GetBold(12);
+                string count = item.StackCount.ToString();
+                var cSize = stackFont.MeasureString(count);
+                sb.DrawString(stackFont, count,
+                    new Vector2(rect.Right - cSize.X - 3, rect.Bottom - cSize.Y - 1), new Color(255, 240, 190));
+            }
+            return;
+        }
+
         // Skill Scrolls hang unrolled — a different silhouette from crafting scrolls.
         var skillScrollTex = SpriteGen.GetSkillScrollSprite(b);
         if (skillScrollTex != null)

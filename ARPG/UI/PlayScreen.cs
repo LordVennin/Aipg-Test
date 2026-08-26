@@ -33,6 +33,7 @@ public class PlayScreen : IScreen
     private readonly TrainerUI _trainer;
     private readonly GambleUI _gamble;
     private readonly BuildUI _build;
+    private readonly ResearcherUI _researcher;
     private readonly StashUI _stash;
     private readonly DebugUI _debug;
     private readonly DragState _drag = new();
@@ -63,6 +64,8 @@ public class PlayScreen : IScreen
     private bool _devSpawnKnights;
     /// <summary>ARPG_DEVUI=gold: grant 1000 gold shortly after joining (GUI automation).</summary>
     private bool _devGiveGold;
+    /// <summary>ARPG_DEVUI=curio: grant contracts + the blueprint (GUI automation).</summary>
+    private bool _devGiveCurios;
     /// <summary>ARPG_DEVUI=gear[:family]: wear a full armor set shortly after joining
     /// (GUI automation — verifies the worn-armor overlays).</summary>
     private string _devEquipSet;
@@ -164,6 +167,7 @@ public class PlayScreen : IScreen
         _trainer = new TrainerUI(game.Data, client);
         _gamble = new GambleUI(game.Data, client);
         _build = new BuildUI(client);
+        _researcher = new ResearcherUI(client);
         _stash = new StashUI(game.Data, client, _inventory, _drag);
         // Entering the shop opens the bag in sell mode beside it; closing ends selling.
         _shop.ModeChanged += mode =>
@@ -205,6 +209,7 @@ public class PlayScreen : IScreen
         _panelZ.Add(new PanelZ { Owner = _trainer, IsOpen = () => _trainer.Open, Contains = p => _trainer.Contains(p), Update = (i, b) => _trainer.Update(i, b), Draw = sb => _trainer.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _gamble, IsOpen = () => _gamble.Open, Contains = p => _gamble.Contains(p), Update = (i, b) => _gamble.Update(i, b), Draw = sb => _gamble.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _build, IsOpen = () => _build.Open, Contains = p => _build.Contains(p), Update = (i, b) => _build.Update(i, b), Draw = sb => _build.Draw(sb) });
+        _panelZ.Add(new PanelZ { Owner = _researcher, IsOpen = () => _researcher.Open, Contains = p => _researcher.Contains(p), Update = (i, b) => _researcher.Update(i, b), Draw = sb => _researcher.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _stash, IsOpen = () => _stash.Open, Contains = p => _stash.Contains(p), Update = (i, b) => _stash.Update(i, b), Draw = sb => _stash.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _inventory, IsOpen = () => _inventory.Open, Contains = p => _inventory.Contains(p), Update = (i, b) => _inventory.Update(i, b), Draw = sb => _inventory.Draw(sb, _game.Input) });
 
@@ -225,6 +230,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
             if (devUi.Contains("knight")) _devSpawnKnights = true;
             if (devUi.Contains("gold")) _devGiveGold = true;
+            if (devUi.Contains("curio")) _devGiveCurios = true;
             if (devUi.Contains("warp")) _devWarpNext = true;
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
             if (gearToken != null)
@@ -256,6 +262,9 @@ public class PlayScreen : IScreen
             _gamble.Open = false;
             _build.Open = false;
             _build.PendingKind = null;
+            _build.PendingMerc = null;
+            _build.DeployedLocal.Clear();
+            _researcher.Open = false;
             _stash.Open = false;
             _pickupTargetId = Guid.Empty;
         };
@@ -330,6 +339,12 @@ public class PlayScreen : IScreen
             _devGiveGold = false;
             _client.SendDebugCommand("give_gold", "1000");
         }
+        if (_devGiveCurios && _clientTime > 1.5f)
+        {
+            _devGiveCurios = false;
+            _client.SendDebugCommand("give_curio", "merc_contract");
+            _client.SendDebugCommand("give_curio", "flamethrower_blueprint");
+        }
         if (_devOpenShop && _clientTime > 2f && _client.World.Npcs.Count > 0 && _client.World.Me != null)
         {
             // Dev aid: stand beside the merchant first (the server range-gates
@@ -397,6 +412,7 @@ public class PlayScreen : IScreen
         _trainer.Layout(uiScreen);
         _gamble.Layout(uiScreen);
         _build.Layout(uiScreen);
+        _researcher.Layout(uiScreen);
         _stash.Layout(uiScreen);
 
         if (_client.Status != ClientStatus.InGame)
@@ -609,6 +625,36 @@ public class PlayScreen : IScreen
                     _rmbClaimedByUI = input.MouseRightDown;
                 }
             }
+            else if (_build.PendingMerc is { } deploying)
+            {
+                // Merc deployment: same placement flow, but one click spends the
+                // merc's single outing (locally marked; the server is the real gate).
+                if (_client.World.Map.Kind != World.MapKind.Defense ||
+                    _client.World.DefensePhase != 0)
+                {
+                    _build.PendingMerc = null;
+                }
+                else
+                {
+                    var spot = _camera.ScreenToWorld(input.RawMousePosition, me.Height);
+                    bool valid =
+                        NumVec2.Distance(me.Position, spot) <= World.DefenseBalance.BuildReach &&
+                        _client.World.Map.SampleHeight(spot, me.Height) is not null &&
+                        !_client.World.Map.CircleBlocked(spot, 0.35f,
+                            _client.World.Map.GroundHeightAt(spot));
+                    _renderer.BuildPreview =
+                        ((byte)(deploying.Kind == "warrior" ? 250 : 251), spot, valid);
+                    if (mouseFree && input.MouseLeftPressed && valid)
+                    {
+                        _client.RequestDeployMerc(deploying.Id, spot);
+                        _build.DeployedLocal.Add(deploying.Id);
+                        _build.PendingMerc = null;
+                    }
+                    if (input.MouseRightPressed) _build.PendingMerc = null;
+                    _lmbClaimedByUI = input.MouseLeftDown;
+                    _rmbClaimedByUI = input.MouseRightDown;
+                }
+            }
 
             // --- skills (chargeable skills fire on RELEASE, scaled by held time) ---
             // Any MOUSE-bound action respects UI capture — a right-click that quick-
@@ -716,7 +762,8 @@ public class PlayScreen : IScreen
                     _inventory.Open = true;
                     RaisePanel(_inventory);
                 }
-                else if (npcNear != null && !_shop.Open && !_trainer.Open && !_gamble.Open)
+                else if (npcNear != null && !_shop.Open && !_trainer.Open && !_gamble.Open &&
+                         !_researcher.Open)
                 {
                     if (npcNear.TypeId == "skill_trainer")
                     {
@@ -729,6 +776,12 @@ public class PlayScreen : IScreen
                         // The gambler's table is local knowledge too (shared rules).
                         _gamble.Open = true;
                         RaisePanel(_gamble);
+                    }
+                    else if (npcNear.TypeId == "researcher")
+                    {
+                        // Odessa's desk works from local knowledge + two requests.
+                        _researcher.Open = true;
+                        RaisePanel(_researcher);
                     }
                     else if (npcNear.TypeId == "mercenary")
                     {

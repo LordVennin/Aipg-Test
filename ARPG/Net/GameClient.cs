@@ -337,6 +337,24 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    /// <summary>Deal with the researcher: 0 = spend one contract on a randomized hire,
+    /// 1 = hand over the flamethrower blueprint. Server validates items + proximity.</summary>
+    public void RequestResearch(byte action)
+    {
+        var w = Packets.Make(PacketType.ResearchRequest);
+        w.Put(action);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    /// <summary>Deploy a hired mercenary at a spot on the defense map (build phase).</summary>
+    public void RequestDeployMerc(string mercId, Vector2 pos)
+    {
+        var w = Packets.Make(PacketType.DeployMercRequest);
+        w.Put(mercId ?? "");
+        w.PutVec2(pos);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestLearnSkill(string skillId)
     {
         var w = Packets.Make(PacketType.LearnSkillRequest);

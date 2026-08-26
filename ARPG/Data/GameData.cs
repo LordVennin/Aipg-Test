@@ -190,6 +190,11 @@ public class LootTable
     public float ScrollDropChance { get; set; } = 0.08f;
     /// <summary>Independent chance (0..1) that an Enchanting Scroll drops.</summary>
     public float EnchantScrollDropChance { get; set; } = 0.12f;
+    /// <summary>Independent chance (0..1) that a Mercenary Contract drops (the defense
+    /// mode's secondary currency — rare on purpose).</summary>
+    public float MercContractDropChance { get; set; } = 0.012f;
+    /// <summary>Independent chance (0..1) that the Flamethrower Blueprint drops.</summary>
+    public float BlueprintDropChance { get; set; } = 0.003f;
     /// <summary>Independent chance (0..1) that gold drops; amount scales with enemy level.</summary>
     public float GoldDropChance { get; set; } = 0.4f;
     public int GoldMin { get; set; } = 4;

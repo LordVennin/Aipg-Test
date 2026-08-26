@@ -22,6 +22,9 @@ public enum ItemCategory
     Bow,
     /// <summary>Off-hand companions to bows (the one off-hand a two-handed bow allows).</summary>
     Quiver,
+    /// <summary>Non-equippable special items (mercenary contracts, blueprints):
+    /// carried, stashed and traded to NPCs — never worn, never enchanted.</summary>
+    Curio,
 }
 
 public enum ItemRarity
@@ -117,7 +120,8 @@ public class ItemBase
     public bool IsWeapon => Category is ItemCategory.Mace or ItemCategory.Staff or ItemCategory.Bow;
     /// <summary>Items rendered in the character's hands (weapons and shields).</summary>
     public bool IsHandheld => IsWeapon || Category == ItemCategory.Shield;
-    public bool IsEquippable => Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll);
+    public bool IsEquippable =>
+        Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll or ItemCategory.Curio);
     /// <summary>Categories that can receive prefix/suffix modifiers (enchantable gear).
     /// Flasks carry only their base stats for now.</summary>
     public bool IsEnchantable => IsEquippable && Category != ItemCategory.Flask;

@@ -3928,12 +3928,13 @@ public static class HeadlessNetTest
               "the hub carries its own purple-stone SANCTUM theme (both sides)");
         Check(data.ZoneThemes.First(t => t.Id == "sanctum").StoneBrick,
               "the sanctum theme renders stone-brick floors and walls");
-        Check(campServer.World.Npcs.Count == 3 &&
+        Check(campServer.World.Npcs.Count == 4 &&
               campServer.World.Npcs.Any(n => n.TypeId == "merchant") &&
               campServer.World.Npcs.Any(n => n.TypeId == "skill_trainer") &&
-              campServer.World.Npcs.Any(n => n.TypeId == "gambler"),
-              "the hub holds the merchant, the skill trainer AND the gambler");
-        Check(campA.World.Npcs.Count == 3, "all three hub NPCs replicate to clients");
+              campServer.World.Npcs.Any(n => n.TypeId == "gambler") &&
+              campServer.World.Npcs.Any(n => n.TypeId == "researcher"),
+              "the hub holds the merchant, trainer, gambler AND researcher");
+        Check(campA.World.Npcs.Count == 4, "all four hub NPCs replicate to clients");
 
         // Stash quality-of-life: crafting scrolls apply straight FROM the stash, and
         // items drop to the ground from the stash or straight off the body.
@@ -4467,6 +4468,134 @@ public static class HeadlessNetTest
               "the Sanctum reclaims the party after the loss");
         Check(campServer.World.Structures.Count == 0 && campA.World.Structures.Count == 0,
               "structures clear on the way home");
+
+        Console.WriteLine("\n-- Batch 48: contracts, the researcher, mercenaries --");
+        // Curio drops exist in the loot stream (boss table: 35% contract, 8% blueprint).
+        int contracts48 = 0, blueprints48 = 0;
+        for (int i = 0; i < 120; i++)
+            foreach (var roll in campServer.World.Loot.RollDrops("boss", 5))
+            {
+                if (roll.BaseItemId == "merc_contract") contracts48++;
+                if (roll.BaseItemId == "flamethrower_blueprint") blueprints48++;
+            }
+        Check(contracts48 >= 10 && blueprints48 >= 1,
+              $"contracts and the blueprint ride the loot stream ({contracts48} / {blueprints48} in 120 boss rolls)");
+
+        // The researcher: a contract becomes a RANDOMIZED hire; the blueprint unlocks
+        // the flamethrower. Items are consumed, rolls are the server's.
+        var srvResA = campServer.World.Players[campA.World.MyPlayerId];
+        var researcher48 = campServer.World.Npcs.First(n => n.TypeId == "researcher");
+        srvResA.Position = researcher48.Position + new Vector2(0.8f, 0);
+        Check(srvResA.Character.Inventory.TryAdd(data, new Items.ItemInstance
+              {
+                  BaseItemId = "merc_contract", ItemLevel = 1, Rarity = Items.ItemRarity.Normal,
+                  StackCount = 2,
+              }), "a contract stack fits the bag");
+        campServer.World.Research(srvResA.Id, 0);
+        Check(srvResA.Character.Mercs.Count == 1 &&
+              srvResA.Character.Mercs[0].Kind is "warrior" or "archer" &&
+              srvResA.Character.Mercs[0].Power >= 1 &&
+              !string.IsNullOrEmpty(srvResA.Character.Mercs[0].Name),
+              $"one contract hires one randomized merc ({srvResA.Character.Mercs.FirstOrDefault()?.Name})");
+        Check(srvResA.Character.Inventory.Items
+                  .Where(pl => pl.Item.BaseItemId == "merc_contract")
+                  .Sum(pl => pl.Item.StackCount) == 1,
+              "the spent contract came off the stack");
+        campServer.World.Research(srvResA.Id, 1);
+        Check(!srvResA.Character.FlamethrowerUnlocked,
+              "no blueprint in the bag: nothing unlocks");
+        srvResA.Character.Inventory.TryAdd(data, new Items.ItemInstance
+        {
+            BaseItemId = "flamethrower_blueprint", ItemLevel = 1, Rarity = Items.ItemRarity.Normal,
+        });
+        campServer.World.Research(srvResA.Id, 1);
+        Check(srvResA.Character.FlamethrowerUnlocked &&
+              srvResA.Character.Inventory.Items.All(pl => pl.Item.BaseItemId != "flamethrower_blueprint"),
+              "handing over the blueprint unlocks the flamethrower and consumes it");
+        CPump(0.5f);
+        Check(campA.World.MyCharacter.Mercs.Count == 1 && campA.World.MyCharacter.FlamethrowerUnlocked,
+              "the roster and the unlock replicate with the character");
+
+        // Back into the arena: the unlocked flamethrower builds; a deterministic test
+        // merc deploys, holds its spot, fights, and dies for good.
+        srvResA.Character.Mercs.Add(new Sim.MercData { Name = "Test Blade", Kind = "warrior", Power = 3 });
+        var testMerc48 = srvResA.Character.Mercs[1];
+        campA.World.Me.Position = campServer.World.Map.DefenseDoor + new Vector2(0.9f, 0);
+        campB.World.Me.Position = campServer.World.Map.DefenseDoor + new Vector2(0.9f, 0.7f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(0.8f);
+        Check(campServer.World.Map.Kind == World.MapKind.Defense &&
+              campServer.World.DefPhase == Server.DefensePhase.Build,
+              "back through the caravan door for a fresh run");
+        var defMap48 = campServer.World.Map;
+        campA.World.Me.Position = defMap48.WagonSpot + new Vector2(-2.5f, 0);
+        campB.World.Me.Position = defMap48.WagonSpot + new Vector2(2.0f, 0.8f);
+        CPump(0.5f);
+        srvResA.Character.Gold = 400;
+        campServer.World.Build(srvResA.Id, World.StructureKind.FlameTurret,
+            defMap48.WagonSpot + new Vector2(-4f, 0));
+        Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.FlameTurret),
+              "the researched flamethrower turret is buildable");
+        var srvResB = campServer.World.Players[campB.World.MyPlayerId];
+        int structsBefore48 = campServer.World.Structures.Count;
+        srvResB.Character.Gold = 400;
+        campServer.World.Build(srvResB.Id, World.StructureKind.FlameTurret,
+            defMap48.WagonSpot + new Vector2(2.5f, 2.5f));
+        Check(campServer.World.Structures.Count == structsBefore48,
+              "the unlock is per character — B still can't build it");
+
+        var deploySpot48 = defMap48.WagonSpot + new Vector2(-3f, 2.2f);
+        campServer.World.DeployMerc(srvResA.Id, testMerc48.Id, deploySpot48);
+        var mercSummon48 = campServer.World.Summons.Values
+            .FirstOrDefault(su => su.SkillId == "merc_warrior" && su.OwnerId == srvResA.Id);
+        Check(mercSummon48 != null && mercSummon48.GuardPoint.HasValue &&
+              mercSummon48.MaxHealth > 70f,
+              "a deployed merc stands guard as an owner-bound summon");
+        int summonsBefore48 = campServer.World.Summons.Count;
+        campServer.World.DeployMerc(srvResA.Id, testMerc48.Id, deploySpot48 + new Vector2(1.5f, 0));
+        Check(campServer.World.Summons.Count == summonsBefore48,
+              "each merc takes the field once per run");
+        CPump(0.4f);
+        Check(campB.World.Summons.Values.Any(su => su.SkillId == "merc_warrior"),
+              "the merc replicates to every client");
+
+        // The merc fights: a wave enemy dropped on its guard post gets cut down.
+        campA.World.Me.Position = defMap48.WorkbenchSpot + new Vector2(0.8f, 0);
+        campB.World.Me.Position = defMap48.WorkbenchSpot + new Vector2(-0.8f, 0.5f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(3.0f);
+        Check(campServer.World.DefPhase == Server.DefensePhase.Wave, "wave called for the merc's trial");
+        campA.World.Me.Position = defMap48.ExitDoor + new Vector2(-1.4f, 0);
+        campB.World.Me.Position = defMap48.ExitDoor + new Vector2(-1.4f, 0.8f);
+        CPump(0.4f);
+        var victim48 = campServer.World.Enemies.Values.First(e => !e.Dead);
+        victim48.Position = mercSummon48.Position + new Vector2(0.8f, 0);
+        victim48.Height = mercSummon48.Height;
+        float victimHp48 = victim48.Health;
+        CPump(4.0f);
+        Check(victim48.Dead || victim48.Health < victimHp48 - 1f,
+              "the merc fights what reaches its post");
+
+        // Dead mercs stay down: no free respawns for hirelings.
+        campServer.World.DamageSummon(mercSummon48, 100000f);
+        CPump(7.5f);
+        Check(campServer.World.Summons.Values.All(su => su.SkillId != "merc_warrior"),
+              "a fallen merc does not respawn this run");
+
+        // Home again: any surviving deployment stands down on the way out.
+        campServer.World.DamageStructure(campServer.World.Wagon, 1_000_000f);
+        campA.SendDebugCommand("heal");
+        campB.SendDebugCommand("heal");
+        CPump(4.5f);
+        Check(campServer.World.MapIndex == 0 &&
+              campServer.World.Summons.Values.All(su => su.SkillId?.StartsWith("merc_") != true),
+              "mercs never follow the party out of the arena");
+        Check(srvResA.Character.Mercs.Count == 2,
+              "the roster is permanent — deployments and deaths never erase a hire");
 
         campA.Disconnect();
         campB.Disconnect();

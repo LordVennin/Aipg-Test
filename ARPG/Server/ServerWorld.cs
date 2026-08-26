@@ -300,6 +300,12 @@ public partial class ServerWorld
                 Id = 3, TypeId = "gambler", Position = Map.NpcSpots[2],
                 Height = Map.GroundHeightAt(Map.NpcSpots[2]),
             });
+        if (Data.Npcs.ContainsKey("researcher") && Map.NpcSpots.Count > 3)
+            Npcs.Add(new ServerNpc
+            {
+                Id = 4, TypeId = "researcher", Position = Map.NpcSpots[3],
+                Height = Map.GroundHeightAt(Map.NpcSpots[3]),
+            });
         for (int i = 0; i < Map.ChestSpots.Count; i++)
             Chests.Add(new ServerChest
             {
@@ -446,6 +452,14 @@ public partial class ServerWorld
                 _events.PlayerRespawned(p);
             }
             _events.PlayerHealthChanged(p);
+        }
+        // Mercenaries are defense-map deployments: they stand down instead of
+        // traveling with the party.
+        foreach (var merc in Summons.Values
+                     .Where(su => su.SkillId != null && su.SkillId.StartsWith("merc_")).ToList())
+        {
+            Summons.Remove(merc.Id);
+            _events.SummonDespawned(merc);
         }
         foreach (var s in Summons.Values)
         {
@@ -2362,6 +2376,9 @@ public partial class ServerWorld
         s.Health = 0;
         Summons.Remove(s.Id);
         _events.SummonDespawned(s);
+        // A fallen mercenary stays fallen for the run — no free respawns for hirelings
+        // (the roster keeps them; they can deploy again on the NEXT run).
+        if (s.SkillId != null && s.SkillId.StartsWith("merc_")) return;
         var def = Data.Skills.GetValueOrDefault(s.SkillId);
         _summonRespawns.Add(new SummonRespawn
         {
@@ -2402,9 +2419,11 @@ public partial class ServerWorld
                 continue;
             }
 
-            // Goal: this SKILL's rally point when set, otherwise loosely follow the summoner.
-            bool rallied = owner.SummonRallies.TryGetValue(s.SkillId, out var rally);
-            var goal = rallied ? rally.Point : owner.Position;
+            // Goal: a deployed merc's guard point beats everything; else this SKILL's
+            // rally point when set, otherwise loosely follow the summoner.
+            bool hasRally = owner.SummonRallies.TryGetValue(s.SkillId, out var rally);
+            bool rallied = hasRally || s.GuardPoint.HasValue;
+            var goal = s.GuardPoint ?? (hasRally ? rally.Point : owner.Position);
 
             // Nearest living enemy in aggro range with a clear line of fire.
             ServerEnemy prey = null;

@@ -145,6 +145,15 @@ public enum PacketType : byte
     /// <summary>Client -> server: build a structure (kind byte, position). The server
     /// re-validates phase, gold, terrain and spacing.</summary>
     BuildRequest,
+
+    // Researcher + mercenaries (batch 48)
+    /// <summary>Client -> server: deal with the researcher (action byte: 0 = spend one
+    /// Mercenary Contract on a randomized hire, 1 = hand over the Flamethrower
+    /// Blueprint). Server validates proximity and the items.</summary>
+    ResearchRequest,
+    /// <summary>Client -> server: deploy a hired mercenary onto the defense map during
+    /// a build phase (merc id, position). One deployment per merc per run.</summary>
+    DeployMercRequest,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

@@ -796,6 +796,81 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
+    /// <summary>Inventory icons for Curio items: the mercenary contract (a sealed
+    /// letter) and the flamethrower blueprint (a blue schematic sheet). Null for
+    /// anything that isn't a curio.</summary>
+    public static Texture2D GetCurioSprite(Items.ItemBase itemBase)
+    {
+        if (_device == null || itemBase is not { Category: Items.ItemCategory.Curio }) return null;
+        string key = "curio:" + itemBase.Id;
+        if (!_cache.TryGetValue(key, out var frames))
+        {
+            frames = new[]
+            {
+                itemBase.Id == "flamethrower_blueprint" ? DrawBlueprint() : DrawContract(),
+            };
+            _cache[key] = frames;
+        }
+        return frames[0];
+    }
+
+    private static Texture2D DrawContract()
+    {
+        const int w = 16, h = 14;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var paper = new Color(226, 214, 182);
+        var paperShade = new Color(192, 180, 150);
+        var ink = new Color(80, 70, 58);
+        var wax = new Color(168, 44, 40);
+
+        // Folded letter with a shadowed flap and script lines.
+        Rect(1, 2, 14, 11, paper);
+        Rect(1, 2, 14, 2, paperShade);
+        Rect(1, 11, 14, 11, paperShade);
+        for (int x = 1; x <= 14; x++) Set(x, 2 + (x < 8 ? x / 2 : (15 - x) / 2), paperShade); // flap crease
+        Rect(3, 7, 12, 7, ink);
+        Rect(3, 9, 10, 9, ink);
+        // Wax seal.
+        Rect(11, 4, 13, 6, wax);
+        Set(12, 5, new Color(210, 90, 80));
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawBlueprint()
+    {
+        const int w = 20, h = 14;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var blue = new Color(46, 78, 130);
+        var blueDark = new Color(32, 56, 96);
+        var line = new Color(180, 208, 240);
+        var scorch = new Color(70, 52, 36);
+
+        // The unrolled sheet, edges curling.
+        Rect(1, 1, 18, 12, blue);
+        Rect(1, 1, 18, 1, blueDark);
+        Rect(1, 12, 18, 12, blueDark);
+        Rect(1, 1, 1, 12, blueDark);
+        Rect(18, 1, 18, 12, blueDark);
+        // The fire-spitter drawn in white line-work: tank, nozzle, flame ticks.
+        Rect(4, 5, 8, 9, line);
+        Rect(5, 6, 7, 8, blue);       // hollow tank
+        Rect(9, 6, 13, 7, line);      // nozzle
+        Set(14, 5, line); Set(15, 6, line); Set(14, 7, line); // flame ticks
+        Rect(4, 3, 6, 3, line);       // filler cap sketch
+        // Dimension marks + a scorched corner.
+        Rect(4, 11, 12, 11, line);
+        Set(17, 2, scorch); Set(16, 1, scorch); Set(17, 1, scorch);
+        return BakeStrip(px, w, h);
+    }
+
     /// <summary>Inventory icon for a flask base: a corked bottle filled with the
     /// potion's liquid (red for health, blue for mana).</summary>
     public static Texture2D GetFlaskSprite(Items.ItemBase itemBase)
@@ -1471,11 +1546,14 @@ public static class SpriteGen
     {
         if (_device == null) return null;
         bool warrior = skillId != null && skillId.Contains("warrior");
-        string key = warrior ? "summon:skeleton_warrior" : "summon:skeleton_archer";
+        // Hired mercenaries ride the same rig in flesh and leathers instead of bone.
+        bool merc = skillId != null && skillId.StartsWith("merc");
+        string key = (merc ? "summon:merc_" : "summon:skeleton_") + (warrior ? "warrior" : "archer");
         if (_cache.TryGetValue(key, out var cached)) return cached;
         var frames = new[]
         {
-            DrawSummonFrame(warrior, 0), DrawSummonFrame(warrior, 1), DrawSummonFrame(warrior, 2),
+            DrawSummonFrame(warrior, 0, merc), DrawSummonFrame(warrior, 1, merc),
+            DrawSummonFrame(warrior, 2, merc),
         };
         _cache[key] = frames;
         return frames;
@@ -1484,7 +1562,7 @@ public static class SpriteGen
     /// <summary>Standing frame only (HUD cards and other static uses).</summary>
     public static Texture2D GetSummonSprite(string skillId = null) => GetSummonFrames(skillId)?[0];
 
-    private static Texture2D DrawSummonFrame(bool warrior, int frame)
+    private static Texture2D DrawSummonFrame(bool warrior, int frame, bool merc = false)
     {
         const int w = 16, h = 22;
         var px = new Color[w * h];
@@ -1492,8 +1570,11 @@ public static class SpriteGen
         void Rect(int x0, int y0, int x1, int y1, Color c)
         { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
 
-        var bone = new Color(226, 222, 204);
-        var boneDark = new Color(168, 162, 142);
+        // Mercs are living hirelings: the skeleton's bone palette becomes leathers,
+        // and the skull becomes a flesh-and-hair head — same rig, same animation.
+        var bone = merc ? new Color(146, 108, 68) : new Color(226, 222, 204);
+        var boneDark = merc ? new Color(104, 76, 48) : new Color(168, 162, 142);
+        var head = merc ? new Color(212, 174, 138) : new Color(226, 222, 204);
         var socket = new Color(30, 28, 26);
 
         // Stride: one leg lifts 2px while the other plants, the torso bobs 1px and
@@ -1503,9 +1584,10 @@ public static class SpriteGen
         int bob = frame == 0 ? 0 : 1;
         int armSwing = frame == 1 ? 1 : frame == 2 ? -1 : 0;
 
-        // Skull
-        Rect(5, 0 + bob, 10, 5 + bob, bone);
+        // Skull (mercs: a living head with a cropped mop of hair)
+        Rect(5, 0 + bob, 10, 5 + bob, head);
         Set(5, 0 + bob, Color.Transparent); Set(10, 0 + bob, Color.Transparent);
+        if (merc) Rect(6, 0 + bob, 9, 1 + bob, new Color(74, 56, 38));
         Set(6, 2 + bob, socket); Set(9, 2 + bob, socket);
         Rect(6, 4 + bob, 9, 4 + bob, boneDark);          // jaw shadow
         // Spine + ribcage
