@@ -672,6 +672,10 @@ public partial class ServerWorld
                 p.Health = p.Stats.MaxHealth;
                 _events.PlayerHealthChanged(p);
                 break;
+            case "give_gold":
+                c.Gold += int.TryParse(arg, out int goldAmt) && goldAmt > 0 ? goldAmt : 500;
+                changed = true;
+                break;
         }
 
         if (changed) _events.CharacterChanged(p);
@@ -801,7 +805,8 @@ public partial class ServerWorld
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
         var npc = ShopNpcInRange(p, npcId);
-        if (npc == null || npc.TypeId == "skill_trainer") return; // trainer sells skills, not stock
+        // The trainer sells skills, not stock; the sellsword deals only in contracts.
+        if (npc == null || npc.TypeId is "skill_trainer" or "mercenary") return;
         _events.ShopStockFor(p, npcId, GetShopStock(p));
     }
 

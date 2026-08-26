@@ -133,6 +133,9 @@ public static class EnemyLevelScaling
     public const float HealthPerLevel = 0.16f;
     public const float DamagePerLevel = 0.14f;
     public const float XpPerLevel = 0.22f;
+    /// <summary>Extra enemy health per player BEYOND the first in the session — a
+    /// full party faces meatier enemies instead of a trivial mob.</summary>
+    public const float HealthPerExtraPlayer = 0.15f;
 
     public static float Health(int levelsAboveDef) => 1f + HealthPerLevel * MathF.Max(0, levelsAboveDef);
     public static float Damage(int levelsAboveDef) => 1f + DamagePerLevel * MathF.Max(0, levelsAboveDef);

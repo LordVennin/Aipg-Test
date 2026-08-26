@@ -357,9 +357,58 @@ public static class SpriteGen
         if (_device == null || string.IsNullOrEmpty(typeId)) return null;
         string key = "npc:" + typeId;
         if (_cache.TryGetValue(key, out var cached)) return cached[0];
-        var tex = typeId == "skill_trainer" ? DrawTrainer() : DrawMerchant();
+        var tex = typeId switch
+        {
+            "skill_trainer" => DrawTrainer(),
+            "mercenary" => DrawMercenary(),
+            _ => DrawMerchant(),
+        };
         _cache[key] = new[] { tex };
         return tex;
+    }
+
+    /// <summary>The sellsword: battered plate, a red sash and a shouldered blade —
+    /// unmistakably a fighter next to the robed merchants.</summary>
+    private static Texture2D DrawMercenary()
+    {
+        const int w = 20, h = 28;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var plate = new Color(118, 116, 126);
+        var plateDark = new Color(82, 80, 90);
+        var plateLight = new Color(152, 150, 160);
+        var sash = new Color(158, 52, 44);
+        var skin = new Color(210, 172, 136);
+        var eyes = new Color(36, 30, 24);
+        var steel = new Color(196, 196, 206);
+        var grip = new Color(96, 68, 42);
+
+        // Legs + boots.
+        Rect(6, 20, 8, 26, plateDark);
+        Rect(11, 20, 13, 26, plateDark);
+        Rect(5, 26, 9, 27, new Color(60, 50, 40));
+        Rect(10, 26, 14, 27, new Color(60, 50, 40));
+        // Cuirass with a highlight edge and the red sash across it.
+        Rect(5, 11, 14, 19, plate);
+        Rect(5, 11, 14, 11, plateLight);
+        Rect(5, 19, 14, 19, plateDark);
+        for (int i = 0; i < 8; i++) Set(6 + i, 12 + i / 2, sash);
+        // Pauldrons.
+        Rect(3, 11, 5, 14, plateDark);
+        Rect(14, 11, 16, 14, plateDark);
+        // Head: bare, scarred, cropped hair.
+        Rect(7, 3, 12, 9, skin);
+        Rect(7, 2, 12, 3, new Color(70, 56, 40));
+        Set(8, 6, eyes); Set(11, 6, eyes);
+        Set(12, 8, sash); // scar nick
+        // Shouldered greatsword rising past the right pauldron.
+        for (int i = 0; i < 10; i++) Set(15 + i / 4, 12 - i, steel);
+        Set(15, 13, grip); Set(15, 14, grip);
+        Rect(14, 12, 17, 12, grip); // crossguard
+        return BakeStrip(px, w, h);
     }
 
     /// <summary>The skill trainer: violet robes, silver trim, an open tome held in
@@ -512,6 +561,238 @@ public static class SpriteGen
         }
         Set(12, 3, waterLight); Set(13, 2, waterLight); // spray at the top
 
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>Defense structures by wire kind (0 crossbow turret, 1 spiked barrier,
+    /// 2 flame turret, 3 wagon, 4 workbench). Cached; same clean pixel look as props.</summary>
+    public static Texture2D GetStructureSprite(byte kind)
+    {
+        if (_device == null) return null;
+        string key = "structure_" + kind;
+        if (!_cache.TryGetValue(key, out var frames))
+        {
+            frames = new[]
+            {
+                kind switch
+                {
+                    0 => DrawCrossbowTurret(false),
+                    1 => DrawSpikedBarrier(),
+                    2 => DrawCrossbowTurret(true),
+                    3 => DrawWagon(),
+                    4 => DrawWorkbench(),
+                    _ => DrawSpikedBarrier(),
+                },
+            };
+            _cache[key] = frames;
+        }
+        return frames[0];
+    }
+
+    /// <summary>The defense arena's enemy portal: a dark standing arch with an eerie glow.</summary>
+    public static Texture2D GetPortalSprite()
+    {
+        if (_device == null) return null;
+        string key = "defense_portal";
+        if (!_cache.TryGetValue(key, out var frames))
+        {
+            frames = new[] { DrawPortal() };
+            _cache[key] = frames;
+        }
+        return frames[0];
+    }
+
+    private static Texture2D DrawWagon()
+    {
+        const int w = 42, h = 32;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var wood = new Color(126, 90, 54);
+        var woodDark = new Color(92, 64, 40);
+        var woodLight = new Color(154, 116, 74);
+        var canvas = new Color(214, 204, 178);
+        var canvasShade = new Color(178, 168, 144);
+        var iron = new Color(74, 72, 78);
+
+        // Canvas bonnet: a rounded hood over the bed.
+        for (int x = 5; x <= 36; x++)
+        {
+            int rise = (int)(5.5f * MathF.Sin((x - 5) / 31f * MathF.PI));
+            Rect(x, 9 - rise, x, 18, (x % 6) < 2 ? canvasShade : canvas);
+        }
+        Rect(5, 17, 36, 18, canvasShade); // hem line
+        // Bed planks.
+        Rect(3, 19, 38, 23, wood);
+        Rect(3, 19, 38, 19, woodLight);
+        Rect(3, 23, 38, 23, woodDark);
+        for (int x = 7; x <= 36; x += 6) Rect(x, 19, x, 23, woodDark); // plank seams
+        // Undercarriage + wheels.
+        Rect(6, 24, 35, 25, woodDark);
+        foreach (int cx in new[] { 11, 30 })
+        {
+            for (int y = -5; y <= 5; y++)
+                for (int x = -5; x <= 5; x++)
+                {
+                    float d = MathF.Sqrt(x * x + y * y);
+                    if (d is > 3.4f and <= 5.2f) Set(cx + x, 26 + y, iron);
+                    else if (d <= 1.2f) Set(cx + x, 26 + y, woodDark);
+                    else if (d <= 3.4f && (Math.Abs(x) <= 1 || Math.Abs(y) <= 1 || Math.Abs(x - y) <= 1 || Math.Abs(x + y) <= 1))
+                        Set(cx + x, 26 + y, woodLight); // spokes
+                }
+        }
+        // Tow bar poking out front.
+        Rect(38, 21, 41, 22, woodDark);
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawCrossbowTurret(bool flame)
+    {
+        const int w = 24, h = 26;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var wood = new Color(122, 86, 52);
+        var woodDark = new Color(88, 62, 38);
+        var iron = new Color(96, 94, 102);
+        var ironDark = new Color(64, 62, 70);
+        var string_ = new Color(214, 204, 178);
+        var brass = new Color(196, 150, 70);
+        var flameC = new Color(235, 130, 40);
+
+        // Tripod legs.
+        for (int i = 0; i < 7; i++)
+        {
+            Set(8 - i / 2, 18 + i, woodDark);
+            Set(15 + i / 2, 18 + i, woodDark);
+            Set(11, 18 + i, wood); Set(12, 18 + i, wood);
+        }
+        // Mount block.
+        Rect(8, 14, 15, 18, wood);
+        Rect(8, 18, 15, 18, woodDark);
+        if (flame)
+        {
+            // Flamethrower: a brass tank with a stubby nozzle and pilot flame.
+            Rect(7, 7, 16, 13, brass);
+            Rect(7, 7, 16, 7, new Color(226, 184, 104));
+            Rect(7, 13, 16, 13, new Color(150, 110, 50));
+            Rect(17, 9, 21, 11, ironDark);          // nozzle
+            Set(22, 9, flameC); Set(22, 10, new Color(250, 200, 80)); Set(22, 11, flameC);
+            Rect(10, 4, 13, 6, ironDark);            // filler cap
+        }
+        else
+        {
+            // Crossbow: stock + iron bow arms + drawn string, aimed right.
+            Rect(4, 10, 19, 12, woodDark);           // stock
+            Rect(4, 10, 19, 10, wood);
+            Rect(17, 5, 18, 16, iron);               // bow riser
+            for (int i = 0; i < 5; i++)
+            {
+                Set(19 + i / 2, 5 - i / 3, ironDark); // upper limb
+                Set(19 + i / 2, 16 + i / 3, ironDark); // lower limb
+            }
+            for (int y = 5; y <= 16; y++) Set(16, y, string_); // string
+            Rect(18, 11, 22, 11, new Color(214, 204, 178));    // loaded bolt
+        }
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawSpikedBarrier()
+    {
+        const int w = 26, h = 20;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var wood = new Color(116, 84, 52);
+        var woodDark = new Color(84, 60, 38);
+        var woodLight = new Color(146, 110, 70);
+        var point = new Color(196, 186, 164);
+
+        // Crossed X-frame legs.
+        for (int i = 0; i < 10; i++)
+        {
+            Set(4 + i, 9 + i / 2, woodDark);
+            Set(13 - i, 9 + i / 2, wood);
+            Set(12 + i, 9 + i / 2, woodDark);
+            Set(21 - i, 9 + i / 2, wood);
+        }
+        // Horizontal beam bristling with sharpened stakes.
+        Rect(1, 10, 24, 12, wood);
+        Rect(1, 12, 24, 12, woodDark);
+        Rect(1, 10, 24, 10, woodLight);
+        foreach (int sx in new[] { 2, 7, 12, 17, 22 })
+        {
+            // Up-angled spike.
+            for (int i = 0; i < 6; i++) Set(sx + i / 2, 9 - i, i >= 4 ? point : woodDark);
+            // Down-forward spike.
+            for (int i = 0; i < 4; i++) Set(sx + 2 + i, 13 + i, i >= 2 ? point : woodDark);
+        }
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawWorkbench()
+    {
+        const int w = 26, h = 20;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var wood = new Color(126, 92, 56);
+        var woodDark = new Color(90, 66, 42);
+        var woodLight = new Color(156, 118, 76);
+        var iron = new Color(96, 94, 102);
+        var paper = new Color(224, 214, 186);
+
+        // Table top + legs.
+        Rect(1, 8, 24, 11, wood);
+        Rect(1, 8, 24, 8, woodLight);
+        Rect(1, 11, 24, 11, woodDark);
+        Rect(2, 12, 4, 19, woodDark);
+        Rect(21, 12, 23, 19, woodDark);
+        // Tools on the top: hammer, plans, a spare bolt bundle.
+        Rect(4, 5, 5, 8, woodDark);              // hammer handle
+        Rect(3, 4, 7, 5, iron);                  // hammer head
+        Rect(10, 5, 16, 7, paper);               // pinned plans
+        Set(11, 6, woodDark); Set(13, 6, woodDark); Set(15, 6, woodDark);
+        Rect(19, 5, 22, 6, new Color(196, 186, 164)); // bolt bundle
+        Rect(19, 7, 22, 7, iron);
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawPortal()
+    {
+        const int w = 26, h = 30;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+
+        var stone = new Color(96, 88, 104);
+        var stoneDark = new Color(64, 58, 72);
+        var glow = new Color(120, 70, 160);
+        var glowBright = new Color(178, 110, 220);
+
+        // Standing arch of rough stones with a dim violet void inside.
+        for (int y = 2; y < 28; y++)
+            for (int x = 2; x < 24; x++)
+            {
+                float nx = (x - 12.5f) / 9.5f, ny = (y - 16f) / 13f;
+                float d = nx * nx + ny * ny;
+                bool arch = y >= 6 || d <= 1f;
+                if (!arch) continue;
+                if (d is > 0.62f and <= 1.0f)
+                    Set(x, y, ((x * 7 + y * 13) % 5) < 2 ? stoneDark : stone);
+                else if (d <= 0.62f && y > 4)
+                {
+                    int hash = (x * 31 + y * 17) % 11;
+                    Set(x, y, hash < 2 ? glowBright : hash < 6 ? glow : new Color(30, 20, 44));
+                }
+            }
         return BakeStrip(px, w, h);
     }
 

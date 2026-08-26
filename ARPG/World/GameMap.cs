@@ -31,6 +31,9 @@ public enum MapKind : byte
     Arena = 0,
     Hub = 1,
     Forest = 2,
+    /// <summary>The wagon-defense arena: waves pour from spawn portals toward the
+    /// wagon; players build turrets and barriers between waves.</summary>
+    Defense = 3,
 }
 
 /// <summary>
@@ -95,6 +98,16 @@ public class GameMap
     public Vector2 StashSpot { get; private set; }
     public const string HubStashId = "hub_stash";
 
+    /// <summary>Hub only: the door into the DEFENSE loop, across the room from the
+    /// forest run door (west wall, facing ExitDoor on the east).</summary>
+    public Vector2 DefenseDoor { get; private set; }
+    /// <summary>Defense maps: where the wagon stands (the thing waves try to break).</summary>
+    public Vector2 WagonSpot { get; private set; }
+    /// <summary>Defense maps: the workbench structure beside the wagon (build access).</summary>
+    public Vector2 WorkbenchSpot { get; private set; }
+    /// <summary>Defense maps: portal mouths enemy waves pour out of.</summary>
+    public List<Vector2> SpawnPortals { get; } = new();
+
     /// <summary>The zone theme this map was GENERATED with. Themes are decided before
     /// generation and replicated to clients (JoinAccept), because they shape the map
     /// itself — the forest grows multi-tile trees, not just different colors.</summary>
@@ -117,6 +130,7 @@ public class GameMap
             {
                 MapKind.Hub => (22, 16),
                 MapKind.Forest => (96, 26),
+                MapKind.Defense => (40, 28),
                 _ => (44, 44),
             };
         Width = width;
@@ -133,6 +147,7 @@ public class GameMap
         {
             case MapKind.Hub: GenerateHub(); break;
             case MapKind.Forest: GenerateForestRun(new Random(seed)); break;
+            case MapKind.Defense: GenerateDefenseArena(new Random(seed)); break;
             default: Generate(new Random(seed)); break;
         }
     }
@@ -532,6 +547,7 @@ public class GameMap
 
         PlayerSpawn = new Vector2(5.5f, Height / 2f);
         ExitDoor = new Vector2(Width - 2.5f, Height / 2f);
+        DefenseDoor = new Vector2(1.5f, Height / 2f);   // across the room from the run door
         FountainSpot = new Vector2(10.5f, Height / 2f); // mid-room, on the walk to the door
         StashSpot = new Vector2(4.5f, 2.6f);            // against the north wall by the spawn
         NpcSpots.Add(new Vector2(Width * 0.62f, 3.6f));           // gear merchant, north side
@@ -541,6 +557,80 @@ public class GameMap
         ChestSpots.Add(new Vector2(2.6f, Height - 3.5f));
         ChestSpots.Add(new Vector2(6.5f, 2.4f));
         ChestSpots.Add(new Vector2(6.5f, Height - 2.4f));
+    }
+
+    // ------------------------------------------------------------------ defense arena generation
+
+    /// <summary>
+    /// The wagon-defense arena: a mostly open field. The wagon parks right-of-center
+    /// with the workbench and player spawn beside it; enemy portals open along the
+    /// west and north edges, far from the wagon. Scattered rock clumps give barriers
+    /// and turrets terrain to play against without ever sealing a lane — every portal
+    /// mouth keeps a validated ground path to the wagon. The exit door (east) is
+    /// how the crew leaves after the last wave.
+    /// </summary>
+    private void GenerateDefenseArena(Random rng)
+    {
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+                if (x == 0 || y == 0 || x == Width - 1 || y == Height - 1)
+                    _wall[Idx(x, y)] = 2;
+
+        WagonSpot = new Vector2(Width - 9.5f, Height / 2f);
+        WorkbenchSpot = new Vector2(Width - 6.5f, Height / 2f - 3f);
+        PlayerSpawn = new Vector2(Width - 6.5f, Height / 2f + 2.5f);
+        ExitDoor = new Vector2(Width - 1.6f, Height / 2f);
+        NpcSpots.Add(new Vector2(Width - 6.5f, Height / 2f - 1.2f)); // mercenary handler
+
+        SpawnPortals.Add(new Vector2(1.6f, Height * 0.28f));
+        SpawnPortals.Add(new Vector2(1.6f, Height * 0.72f));
+        SpawnPortals.Add(new Vector2(Width * 0.35f, 1.6f));
+
+        // Rock clumps: cover and choke-building material, kept away from the wagon
+        // camp, the portals and the exit.
+        int clumps = 14;
+        for (int i = 0; i < clumps; i++)
+        {
+            int cx = rng.Next(4, Width - 5);
+            int cy = rng.Next(3, Height - 4);
+            var c = new Vector2(cx + 0.5f, cy + 0.5f);
+            if (Vector2.Distance(c, WagonSpot) < 7f) continue;
+            if (SpawnPortals.Any(p => Vector2.Distance(c, p) < 5f)) continue;
+            int w = rng.Next(1, 4), h = rng.Next(1, 3);
+            byte tall = (byte)rng.Next(1, 3);
+            for (int y = cy; y < Math.Min(cy + h, Height - 2); y++)
+                for (int x = cx; x < Math.Min(cx + w, Width - 2); x++)
+                    _wall[Idx(x, y)] = tall;
+        }
+
+        // Every portal must reach the wagon on foot; a pinched lane gets a straight
+        // carve. Deterministic — clients rebuild the identical map from the seed.
+        foreach (var portal in SpawnPortals)
+            if (!GroundPathExists(portal, WagonSpot))
+            {
+                var d = WagonSpot - portal;
+                int steps = (int)(d.Length() * 2) + 1;
+                for (int s = 0; s <= steps; s++)
+                {
+                    var p = portal + d * (s / (float)steps);
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            int tx = (int)MathF.Floor(p.X) + dx, ty = (int)MathF.Floor(p.Y) + dy;
+                            if (tx < 1 || ty < 1 || tx >= Width - 1 || ty >= Height - 1) continue;
+                            _wall[Idx(tx, ty)] = 0;
+                        }
+                }
+            }
+
+        // The wagon camp itself stays flat and clear.
+        for (int y = -3; y <= 3; y++)
+            for (int x = -4; x <= 4; x++)
+            {
+                int tx = (int)WagonSpot.X + x, ty = (int)WagonSpot.Y + y;
+                if (tx < 1 || ty < 1 || tx >= Width - 1 || ty >= Height - 1) continue;
+                _wall[Idx(tx, ty)] = 0;
+            }
     }
 
     // ------------------------------------------------------------------ forest run generation

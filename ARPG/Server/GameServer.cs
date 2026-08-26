@@ -6,6 +6,7 @@ using ARPG.Data;
 using ARPG.Net;
 using ARPG.Sim;
 using ARPG.Util;
+using ARPG.World;
 using LiteNetLib;
 using LiteNetLib.Utils;
 
@@ -277,6 +278,9 @@ public class GameServer : IServerEvents
             case PacketType.ReviveRequest:
                 World.RevivePulse(playerId, r.GetInt());
                 break;
+            case PacketType.BuildRequest:
+                World.Build(playerId, (StructureKind)r.GetByte(), r.GetVec2());
+                break;
         }
     }
 
@@ -323,6 +327,10 @@ public class GameServer : IServerEvents
         peer.Send(ZoneStatePacket(), DeliveryMethod.ReliableOrdered);
         foreach (var chest in World.Chests)
             peer.Send(ChestPacket(chest), DeliveryMethod.ReliableOrdered);
+        foreach (var structure in World.Structures.Values)
+            peer.Send(StructurePacket(structure), DeliveryMethod.ReliableOrdered);
+        if (World.Map.Kind == MapKind.Defense)
+            peer.Send(DefenseStatePacket(), DeliveryMethod.ReliableOrdered);
 
         // Existing world snapshot for the new player.
         foreach (var other in World.Players.Values)
@@ -638,6 +646,62 @@ public class GameServer : IServerEvents
     }
 
     public void CorpseAdded(ServerCorpse c) => Broadcast(CorpsePacket(c), DeliveryMethod.ReliableOrdered);
+
+    private static NetDataWriter StructurePacket(ServerStructure s)
+    {
+        var w = Packets.Make(PacketType.StructureSpawn);
+        w.Put(s.Id);
+        w.Put((byte)s.Kind);
+        w.PutVec2(s.Position);
+        w.Put(s.Height);
+        w.Put(s.Health);
+        w.Put(s.MaxHealth);
+        w.Put(s.OwnerId);
+        return w;
+    }
+
+    public void StructureAdded(ServerStructure s) =>
+        Broadcast(StructurePacket(s), DeliveryMethod.ReliableOrdered);
+
+    public void StructureHealthChanged(ServerStructure s)
+    {
+        var w = Packets.Make(PacketType.StructureHealth);
+        w.Put(s.Id);
+        w.Put(s.Health);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void StructureRemoved(ServerStructure s)
+    {
+        var w = Packets.Make(PacketType.StructureRemove);
+        w.Put(s.Id);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void NpcAdded(ServerNpc npc) =>
+        Broadcast(NpcInfoPacket(npc), DeliveryMethod.ReliableOrdered);
+
+    public void NpcRemoved(ServerNpc npc)
+    {
+        var w = Packets.Make(PacketType.NpcRemove);
+        w.Put(npc.Id);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
+    private NetDataWriter DefenseStatePacket()
+    {
+        var w = Packets.Make(PacketType.DefenseState);
+        w.Put((byte)World.DefPhase);
+        w.Put(World.WaveNumber);
+        w.Put(DefenseBalance.WavesTotal);
+        var wagon = World.Wagon;
+        w.Put(wagon?.Health ?? 0f);
+        w.Put(wagon?.MaxHealth ?? DefenseBalance.WagonHealth);
+        return w;
+    }
+
+    public void DefenseStateChanged(ServerWorld world) =>
+        Broadcast(DefenseStatePacket(), DeliveryMethod.ReliableOrdered);
 
     public void CorpseRemoved(ServerCorpse c)
     {

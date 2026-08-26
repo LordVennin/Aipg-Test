@@ -327,6 +327,16 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    /// <summary>Build a defense structure at a spot (server re-validates phase, gold,
+    /// terrain and spacing — the local preview is a courtesy, not the law).</summary>
+    public void RequestBuild(byte kind, Vector2 pos)
+    {
+        var w = Packets.Make(PacketType.BuildRequest);
+        w.Put(kind);
+        w.PutVec2(pos);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestLearnSkill(string skillId)
     {
         var w = Packets.Make(PacketType.LearnSkillRequest);
@@ -872,6 +882,45 @@ public class GameClient
             case PacketType.CorpseRemove:
                 World.Corpses.Remove(r.GetInt());
                 break;
+
+            case PacketType.StructureSpawn:
+            {
+                var st = new ClientStructure { Id = r.GetInt(), Kind = r.GetByte() };
+                st.Position = r.GetVec2();
+                st.Height = r.GetFloat();
+                st.Health = r.GetFloat();
+                st.MaxHealth = r.GetFloat();
+                st.OwnerId = r.GetInt();
+                st.SpawnedAtMs = Environment.TickCount64;
+                World.Structures[st.Id] = st;
+                break;
+            }
+            case PacketType.StructureHealth:
+            {
+                int stId = r.GetInt();
+                float stHp = r.GetFloat();
+                if (World.Structures.TryGetValue(stId, out var stc)) stc.Health = stHp;
+                break;
+            }
+            case PacketType.StructureRemove:
+            {
+                int stId = r.GetInt();
+                if (World.Structures.Remove(stId, out var gone))
+                    World.AddEffect(gone.Position, 0.8f, 0.4f, "debris", gone.Height);
+                break;
+            }
+            case PacketType.NpcRemove:
+                World.Npcs.Remove(r.GetInt());
+                break;
+            case PacketType.DefenseState:
+            {
+                World.DefensePhase = r.GetByte();
+                World.DefenseWave = r.GetInt();
+                World.DefenseWavesTotal = r.GetInt();
+                World.WagonHealth = r.GetFloat();
+                World.WagonMaxHealth = MathF.Max(1f, r.GetFloat());
+                break;
+            }
 
             case PacketType.ProjectileSpawn:
             {

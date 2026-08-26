@@ -48,7 +48,36 @@ public class HudUI
         if (me == null || character == null) return;
 
         // --- zone banner (top center): where the group is in the campaign loop ---
-        if (_client.World.Map?.Kind != World.MapKind.Arena)
+        if (_client.World.Map?.Kind == World.MapKind.Defense)
+        {
+            // Defense run: phase + wave count, and the wagon's own big health bar.
+            var zoneFont = FontManager.GetBold(16);
+            var subFont = FontManager.Get(12);
+            var w = _client.World;
+            string zoneName = "The Caravan Stand";
+            string zoneSub = w.DefensePhase switch
+            {
+                0 => $"build phase — wave {w.DefenseWave} / {w.DefenseWavesTotal} next · ready up at the workbench",
+                1 => $"wave {w.DefenseWave} / {w.DefenseWavesTotal} — defend the wagon!",
+                2 => "the wagon stands — take the door home",
+                _ => "the wagon is lost...",
+            };
+            var znSize = zoneFont.MeasureString(zoneName);
+            sb.DrawString(zoneFont, zoneName, new Vector2(screen.X / 2f - znSize.X / 2, 26), new Color(230, 215, 165));
+            var zsSize = subFont.MeasureString(zoneSub);
+            sb.DrawString(subFont, zoneSub, new Vector2(screen.X / 2f - zsSize.X / 2, 46),
+                w.DefensePhase == 1 ? new Color(230, 170, 120) : new Color(170, 162, 140));
+            // Wagon health, front and center under the banner.
+            float wagonFrac = Math.Clamp(w.WagonHealth / w.WagonMaxHealth, 0f, 1f);
+            var wagonBar = new Rectangle(screen.X / 2 - 130, 64, 260, 10);
+            sb.Draw(TextureGen.Pixel, wagonBar, new Color(20, 18, 16, 220));
+            sb.Draw(TextureGen.Pixel,
+                new Rectangle(wagonBar.X, wagonBar.Y, (int)(wagonBar.Width * wagonFrac), wagonBar.Height),
+                wagonFrac > 0.5f ? new Color(180, 150, 90) : wagonFrac > 0.25f ? new Color(220, 160, 70) : new Color(220, 80, 60));
+            sb.DrawString(FontManager.Get(11), $"wagon {w.WagonHealth:0}/{w.WagonMaxHealth:0}",
+                new Vector2(wagonBar.Right + 8, wagonBar.Y - 2), new Color(200, 180, 140));
+        }
+        else if (_client.World.Map?.Kind != World.MapKind.Arena)
         {
             var zoneFont = FontManager.GetBold(16);
             var subFont = FontManager.Get(12);

@@ -32,6 +32,7 @@ public class PlayScreen : IScreen
     private readonly ShopUI _shop;
     private readonly TrainerUI _trainer;
     private readonly GambleUI _gamble;
+    private readonly BuildUI _build;
     private readonly StashUI _stash;
     private readonly DebugUI _debug;
     private readonly DragState _drag = new();
@@ -60,6 +61,8 @@ public class PlayScreen : IScreen
     private bool _devLearnSummons, _devRaiseSummons;
     /// <summary>ARPG_DEVUI=knight: spawn Barrow Knights next to the player (GUI automation).</summary>
     private bool _devSpawnKnights;
+    /// <summary>ARPG_DEVUI=gold: grant 1000 gold shortly after joining (GUI automation).</summary>
+    private bool _devGiveGold;
     /// <summary>ARPG_DEVUI=gear[:family]: wear a full armor set shortly after joining
     /// (GUI automation — verifies the worn-armor overlays).</summary>
     private string _devEquipSet;
@@ -160,6 +163,7 @@ public class PlayScreen : IScreen
         _shop = new ShopUI(game.Data, client, _inventory);
         _trainer = new TrainerUI(game.Data, client);
         _gamble = new GambleUI(game.Data, client);
+        _build = new BuildUI(client);
         _stash = new StashUI(game.Data, client, _inventory, _drag);
         // Entering the shop opens the bag in sell mode beside it; closing ends selling.
         _shop.ModeChanged += mode =>
@@ -200,6 +204,7 @@ public class PlayScreen : IScreen
         _panelZ.Add(new PanelZ { Owner = _shop, IsOpen = () => _shop.Open, Contains = p => _shop.Contains(p), Update = (i, b) => _shop.Update(i, b), Draw = sb => _shop.Draw(sb, _game.UiScreenSize) });
         _panelZ.Add(new PanelZ { Owner = _trainer, IsOpen = () => _trainer.Open, Contains = p => _trainer.Contains(p), Update = (i, b) => _trainer.Update(i, b), Draw = sb => _trainer.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _gamble, IsOpen = () => _gamble.Open, Contains = p => _gamble.Contains(p), Update = (i, b) => _gamble.Update(i, b), Draw = sb => _gamble.Draw(sb) });
+        _panelZ.Add(new PanelZ { Owner = _build, IsOpen = () => _build.Open, Contains = p => _build.Contains(p), Update = (i, b) => _build.Update(i, b), Draw = sb => _build.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _stash, IsOpen = () => _stash.Open, Contains = p => _stash.Contains(p), Update = (i, b) => _stash.Update(i, b), Draw = sb => _stash.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _inventory, IsOpen = () => _inventory.Open, Contains = p => _inventory.Contains(p), Update = (i, b) => _inventory.Update(i, b), Draw = sb => _inventory.Draw(sb, _game.Input) });
 
@@ -219,6 +224,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("sheet")) _characterSheet.Open = true;
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
             if (devUi.Contains("knight")) _devSpawnKnights = true;
+            if (devUi.Contains("gold")) _devGiveGold = true;
             if (devUi.Contains("warp")) _devWarpNext = true;
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
             if (gearToken != null)
@@ -248,10 +254,30 @@ public class PlayScreen : IScreen
             _shop.Close();
             _trainer.Open = false;
             _gamble.Open = false;
+            _build.Open = false;
+            _build.PendingKind = null;
             _stash.Open = false;
             _pickupTargetId = Guid.Empty;
         };
         BuildPauseMenu();
+    }
+
+    /// <summary>Client-side preview of the server's build rules (reach, terrain,
+    /// spacing, portal exclusion) for the placement ghost. The server re-validates
+    /// every request regardless — this only colors the preview.</summary>
+    private bool BuildSpotLooksValid(World.StructureKind kind, NumVec2 spot, ClientPlayer me)
+    {
+        var map = _client.World.Map;
+        if (NumVec2.Distance(me.Position, spot) > World.DefenseBalance.BuildReach) return false;
+        if (map.SampleHeight(spot, me.Height) is not { } h ||
+            map.CircleBlocked(spot, 0.45f, h)) return false;
+        static float RadiusFor(byte k) => k == 3 ? 0.85f : k == 4 ? 0.5f : 0.45f;
+        foreach (var s in _client.World.Structures.Values)
+            if (NumVec2.Distance(s.Position, spot) <
+                MathF.Max(World.DefenseBalance.MinSpacing, RadiusFor(s.Kind) + 0.5f)) return false;
+        foreach (var pp in map.SpawnPortals)
+            if (NumVec2.Distance(pp, spot) < World.DefenseBalance.PortalExclusion) return false;
+        return true;
     }
 
     private void BuildPauseMenu()
@@ -298,6 +324,11 @@ public class PlayScreen : IScreen
         {
             _devDropScrolls = false;
             _client.SendDebugCommand("drop_scrolls");
+        }
+        if (_devGiveGold && _clientTime > 1.5f)
+        {
+            _devGiveGold = false;
+            _client.SendDebugCommand("give_gold", "1000");
         }
         if (_devOpenShop && _clientTime > 2f && _client.World.Npcs.Count > 0 && _client.World.Me != null)
         {
@@ -365,6 +396,7 @@ public class PlayScreen : IScreen
         _shop.Layout(uiScreen);
         _trainer.Layout(uiScreen);
         _gamble.Layout(uiScreen);
+        _build.Layout(uiScreen);
         _stash.Layout(uiScreen);
 
         if (_client.Status != ClientStatus.InGame)
@@ -553,6 +585,31 @@ public class PlayScreen : IScreen
                 me.Facing = NumVec2.Normalize(facing);
             if (_devFaceOverride is { } devFace) me.Facing = devFace;
 
+            // --- build placement (defense arena): the chosen structure ghosts at the
+            // cursor — left-click places it (the server re-validates and charges gold,
+            // and placement stays armed for barrier runs), right-click puts it away ---
+            _renderer.BuildPreview = null;
+            if (_build.PendingKind is { } placing)
+            {
+                if (_client.World.Map.Kind != World.MapKind.Defense ||
+                    _client.World.DefensePhase != 0)
+                {
+                    _build.PendingKind = null;
+                }
+                else
+                {
+                    var spot = _camera.ScreenToWorld(input.RawMousePosition, me.Height);
+                    bool valid = BuildSpotLooksValid(placing, spot, me);
+                    _renderer.BuildPreview = ((byte)placing, spot, valid);
+                    if (mouseFree && input.MouseLeftPressed && valid)
+                        _client.RequestBuild((byte)placing, spot);
+                    if (input.MouseRightPressed) _build.PendingKind = null;
+                    // Placement owns the mouse: no attacks fire off placement clicks.
+                    _lmbClaimedByUI = input.MouseLeftDown;
+                    _rmbClaimedByUI = input.MouseRightDown;
+                }
+            }
+
             // --- skills (chargeable skills fire on RELEASE, scaled by held time) ---
             // Any MOUSE-bound action respects UI capture — a right-click that quick-
             // equipped an item in the bag must never double as a skill cast.
@@ -615,8 +672,12 @@ public class PlayScreen : IScreen
                     .FirstOrDefault(n => NumVec2.Distance(me.Position, n.Position) <= 3f);
                 var chestNear = _client.World.Chests.Values
                     .FirstOrDefault(c => !c.Opened && NumVec2.Distance(me.Position, c.Position) <= 2.2f);
-                bool doorNear = _client.World.Map.ExitDoor != NumVec2.Zero &&
-                                NumVec2.Distance(me.Position, _client.World.Map.ExitDoor) <= 2.4f;
+                bool doorNear = (_client.World.Map.ExitDoor != NumVec2.Zero &&
+                                 NumVec2.Distance(me.Position, _client.World.Map.ExitDoor) <= 2.4f) ||
+                                (_client.World.Map.DefenseDoor != NumVec2.Zero &&
+                                 NumVec2.Distance(me.Position, _client.World.Map.DefenseDoor) <= 2.4f);
+                bool workbenchNear = _client.World.Map.WorkbenchSpot != NumVec2.Zero &&
+                                     NumVec2.Distance(me.Position, _client.World.Map.WorkbenchSpot) <= 2.4f;
                 bool fountainNear = _client.World.Map.FountainSpot != NumVec2.Zero &&
                                     NumVec2.Distance(me.Position, _client.World.Map.FountainSpot) <= 2.4f;
                 bool stashNear = _client.World.Map.StashSpot != NumVec2.Zero &&
@@ -628,6 +689,12 @@ public class PlayScreen : IScreen
                         _client.RequestPickup(targeted.DropId);
                     else
                         _pickupTargetId = targeted.DropId; // walk over, then grab it
+                }
+                else if (workbenchNear && !_build.Open)
+                {
+                    // The workbench: build turrets/barriers and call the next wave.
+                    _build.Open = true;
+                    RaisePanel(_build);
                 }
                 else if (doorNear)
                 {
@@ -662,6 +729,14 @@ public class PlayScreen : IScreen
                         // The gambler's table is local knowledge too (shared rules).
                         _gamble.Open = true;
                         RaisePanel(_gamble);
+                    }
+                    else if (npcNear.TypeId == "mercenary")
+                    {
+                        // The sellsword has nothing to sell yet — contracts arrive in a
+                        // later batch; until then a line of banter.
+                        var mercDef = _game.Data.Npcs.GetValueOrDefault("mercenary");
+                        if (mercDef?.Dialogue is { Count: > 0 } lines)
+                            _hud.AddMessage($"{mercDef.Name}: \"{lines[Random.Shared.Next(lines.Count)]}\"");
                     }
                     else
                     {

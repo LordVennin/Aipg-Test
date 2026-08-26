@@ -1,0 +1,12 @@
+{
+ "Id": "mercenary",
+ "Name": "Brakka the Sellsword",
+ "Dialogue": [
+  "I fight for coin. You got contracts? No? Then I stand here and look pretty.",
+  "Find me a mercenary contract out there and we'll talk business.",
+  "The wagon pays my wages. Keep it in one piece.",
+  "Walls and bolts are fine, but nothing beats a blade with a grudge.",
+  "Heard the researcher back home can call in old comrades of mine. Bring contracts.",
+  "When the wave comes, I step out. Union rules."
+ ]
+}

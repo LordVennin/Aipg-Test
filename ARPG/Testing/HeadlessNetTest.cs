@@ -1384,7 +1384,11 @@ public static class HeadlessNetTest
         var gruntBase = data.Enemies["grunt"];
         var brutish = server.World.SpawnEnemy("grunt", clientB.World.Me.Position + new Vector2(3.5f, 0),
             Server.EliteAffix.Brutish);
-        Check(MathF.Abs(brutish.MaxHealth - gruntBase.MaxHealth * 2.5f) < 0.1f && brutish.DamageScale > 1.4f,
+        // Two players in the session: the +15%-per-extra-player factor applies on top.
+        float partyHp = 1f + Stats.EnemyLevelScaling.HealthPerExtraPlayer *
+                        (server.World.Players.Count - 1);
+        Check(MathF.Abs(brutish.MaxHealth - gruntBase.MaxHealth * 2.5f * partyHp) < 0.1f &&
+              brutish.DamageScale > 1.4f,
               $"Brutish elite scales life and damage (hp {brutish.MaxHealth:0})");
         var warded = server.World.SpawnEnemy("grunt", clientB.World.Me.Position + new Vector2(-3.5f, 0),
             Server.EliteAffix.Warded);
@@ -2765,8 +2769,11 @@ public static class HeadlessNetTest
         var scaled = server.World.SpawnEnemy("grunt", srvSum.Position + new Vector2(8f, 8f), level: 11);
         var gruntNative = data.Enemies["grunt"];
         int lvlUp = 11 - gruntNative.Level;
+        float partyHp39 = 1f + Stats.EnemyLevelScaling.HealthPerExtraPlayer *
+                          (server.World.Players.Count - 1);
         Check(scaled.Level == 11 &&
-              MathF.Abs(scaled.MaxHealth - gruntNative.MaxHealth * Stats.EnemyLevelScaling.Health(lvlUp)) < 0.5f &&
+              MathF.Abs(scaled.MaxHealth -
+                        gruntNative.MaxHealth * Stats.EnemyLevelScaling.Health(lvlUp) * partyHp39) < 0.5f &&
               MathF.Abs(scaled.DamageScale - Stats.EnemyLevelScaling.Damage(lvlUp)) < 0.001f &&
               MathF.Abs(scaled.XpScale - Stats.EnemyLevelScaling.Xp(lvlUp)) < 0.001f,
               $"level-overridden enemies scale health/damage/XP centrally (hp {scaled.MaxHealth:0})");
@@ -4291,6 +4298,175 @@ public static class HeadlessNetTest
         Check(srvFallenA.Alive && srvHelperB.Alive &&
               srvFallenA.Health >= srvFallenA.Stats.MaxHealth - 0.5f,
               "the Sanctum reclaims the fallen alive and at full health");
+
+        Console.WriteLine("\n-- Batch 47: the caravan stand (wagon defense) --");
+        // Party scaling first: with two players in the session, every spawn carries
+        // +15% health per extra player.
+        var hubProbe47 = campServer.World.SpawnEnemy("grunt",
+            campServer.World.Map.PlayerSpawn + new Vector2(2f, 0));
+        Check(MathF.Abs(hubProbe47.MaxHealth - hubProbe47.Def.MaxHealth * 1.15f) < 0.01f,
+              $"enemy health scales +15% per extra player ({hubProbe47.MaxHealth:0.0} vs base {hubProbe47.Def.MaxHealth:0.0})");
+        Check(campServer.World.Map.DefenseDoor != Vector2.Zero &&
+              campServer.World.Map.DefenseDoor.X < campServer.World.Map.ExitDoor.X,
+              "the hub's caravan door stands across the room from the run door");
+
+        // Both ready at the WEST door: the group heads out to the defense arena.
+        var defDoor47 = campServer.World.Map.DefenseDoor;
+        campA.World.Me.Position = defDoor47 + new Vector2(0.9f, 0);
+        campB.World.Me.Position = defDoor47 + new Vector2(0.9f, 0.7f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(0.8f);
+        Check(campServer.World.MapIndex == ServerWorld.DefenseMapIndex &&
+              campServer.World.Map.Kind == World.MapKind.Defense,
+              "the caravan door leads to the defense arena");
+        Check(campA.World.Map.Kind == World.MapKind.Defense &&
+              campA.World.Map.Seed == campServer.World.Map.Seed,
+              "clients rebuild the same defense arena from the seed");
+        var defMap47 = campServer.World.Map;
+        Check(defMap47.SpawnPortals.Count == 3 && defMap47.WagonSpot != Vector2.Zero &&
+              defMap47.WorkbenchSpot != Vector2.Zero,
+              "the arena has three portals, a wagon and a workbench");
+        Check(defMap47.SpawnPortals.All(pp => defMap47.GroundPathExists(pp, defMap47.WagonSpot)),
+              "every portal keeps a walkable lane to the wagon");
+        Check(campServer.World.DefPhase == Server.DefensePhase.Build &&
+              campServer.World.WaveNumber == 1,
+              "the run opens in a build phase before wave 1");
+        Check(campServer.World.Wagon != null &&
+              campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.Workbench),
+              "the wagon and workbench stand as server structures");
+        Check(campA.World.Structures.Values.Any(s => s.Kind == 3) &&
+              campA.World.Structures.Values.Any(s => s.Kind == 4),
+              "wagon and workbench replicate to clients");
+        Check(campA.World.WagonMaxHealth > World.DefenseBalance.WagonHealth * 1.2f,
+              $"the wagon's health scales with party size ({campA.World.WagonMaxHealth:0})");
+        Check(campServer.World.Npcs.Count(n => n.TypeId == "mercenary") == 1 &&
+              campA.World.Npcs.Values.Count(n => n.TypeId == "mercenary") == 1,
+              "the mercenary handler waits by the wagon (replicated)");
+        Check(campServer.World.ExitLocked, "the arena exit stays sealed until the last wave falls");
+
+        // Build phase: gold buys turrets and barriers; every rule is server-checked.
+        campA.World.Me.Position = defMap47.WagonSpot + new Vector2(-2.5f, 0);
+        campB.World.Me.Position = defMap47.WagonSpot + new Vector2(2.0f, 0.8f);
+        CPump(0.5f);
+        var srvDefA47 = campServer.World.Players[campA.World.MyPlayerId];
+        srvDefA47.Character.Gold = 500;
+        var buildSpot47 = defMap47.WagonSpot + new Vector2(-4f, 0);
+        campServer.World.Build(srvDefA47.Id, World.StructureKind.CrossbowTurret, buildSpot47);
+        Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.CrossbowTurret) &&
+              srvDefA47.Character.Gold == 500 - World.DefenseBalance.CrossbowCost,
+              "building a crossbow turret charges its gold price (the gold sink works)");
+        var barrierSpot47 = defMap47.WagonSpot + new Vector2(-3f, 2.2f);
+        campServer.World.Build(srvDefA47.Id, World.StructureKind.SpikedBarrier, barrierSpot47);
+        Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.SpikedBarrier),
+              "a spiked barrier can be built too");
+        campA.RequestBuild(0, defMap47.WagonSpot + new Vector2(-4f, -2f)); // the network path
+        CPump(0.5f);
+        Check(campServer.World.Structures.Values.Count(s => s.Kind == World.StructureKind.CrossbowTurret) == 2,
+              "BuildRequest works over the wire");
+        Check(campA.World.Structures.Values.Any(s => s.Kind == 0) &&
+              campA.World.Structures.Values.Any(s => s.Kind == 1),
+              "built structures replicate to every client");
+        int structCount47 = campServer.World.Structures.Count;
+        campServer.World.Build(srvDefA47.Id, World.StructureKind.FlameTurret,
+            defMap47.WagonSpot + new Vector2(0, 1.5f));
+        Check(campServer.World.Structures.Count == structCount47,
+              "the flamethrower stays locked behind its blueprint");
+        campServer.World.Build(srvDefA47.Id, World.StructureKind.CrossbowTurret,
+            defMap47.WagonSpot + new Vector2(-12f, 0));
+        Check(campServer.World.Structures.Count == structCount47,
+              "builds beyond arm's reach are refused");
+        int goldKept47 = srvDefA47.Character.Gold;
+        srvDefA47.Character.Gold = 5;
+        campServer.World.Build(srvDefA47.Id, World.StructureKind.CrossbowTurret,
+            defMap47.WagonSpot + new Vector2(-4f, 1.8f));
+        Check(campServer.World.Structures.Count == structCount47,
+              "gold is checked before anything is built");
+        srvDefA47.Character.Gold = goldKept47;
+
+        // Ready up at the workbench: the wave begins and the crew steps out.
+        campA.World.Me.Position = defMap47.WorkbenchSpot + new Vector2(0.8f, 0);
+        campB.World.Me.Position = defMap47.WorkbenchSpot + new Vector2(-0.8f, 0.5f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(1.0f);
+        Check(campServer.World.DefPhase == Server.DefensePhase.Wave,
+              "everyone ready at the workbench calls wave 1");
+        Check(campServer.World.Npcs.Count == 0 && campA.World.Npcs.Count == 0,
+              "the camp crew disappears when the wave starts");
+        CPump(3.0f);
+        Check(campServer.World.Enemies.Values.Any(e => !e.Dead),
+              "the wave pours out of the portals");
+        Check(campServer.World.Enemies.Values.All(e => e.Level == campServer.World.CampaignEnemyLevel),
+              $"wave 1 enemies ride the zone's enemy level ({campServer.World.CampaignEnemyLevel})");
+        var marcher47 = campServer.World.Enemies.Values.First(e => !e.Dead);
+        float marchBefore47 = Vector2.Distance(marcher47.Position, defMap47.WagonSpot);
+        CPump(1.5f);
+        Check(!marcher47.Dead &&
+              Vector2.Distance(marcher47.Position, defMap47.WagonSpot) < marchBefore47 - 0.8f,
+              "enemies march on the wagon unprompted");
+
+        // A body at the barrier chews through it (plain damage, no telegraphs against
+        // walls) — and the crossbow turret answers with bolts.
+        campA.World.Me.Position = defMap47.ExitDoor + new Vector2(-1.4f, 0);
+        campB.World.Me.Position = defMap47.ExitDoor + new Vector2(-1.4f, 0.8f);
+        CPump(0.4f);
+        var srvBarrier47 = campServer.World.Structures.Values
+            .First(s => s.Kind == World.StructureKind.SpikedBarrier);
+        var chewer47 = campServer.World.Enemies.Values.First(e => !e.Dead);
+        chewer47.Position = srvBarrier47.Position + new Vector2(0.9f, 0);
+        chewer47.Height = srvBarrier47.Height;
+        float barrierHpBefore47 = srvBarrier47.Health;
+        float chewerHpBefore47 = chewer47.Health;
+        CPump(4.0f);
+        Check(srvBarrier47.Health < barrierHpBefore47 - 1f,
+              $"enemies chew through barriers in their path ({barrierHpBefore47:0} -> {srvBarrier47.Health:0})");
+        Check(chewer47.Dead || chewer47.Health < chewerHpBefore47 - 1f,
+              "the crossbow turret answers with bolts");
+
+        // Clear the wave: the run drops back into a build phase and the crew returns.
+        for (int i = 0; i < 90 && campServer.World.DefPhase == Server.DefensePhase.Wave; i++)
+        {
+            foreach (var e in campServer.World.Enemies.Values.ToList())
+                if (!e.Dead) e.Position = srvDefA47.Position + new Vector2(1.2f, 0);
+            campA.SendDebugCommand("kill_nearby");
+            campA.SendDebugCommand("heal");
+            campB.SendDebugCommand("heal");
+            CPump(0.4f);
+        }
+        Check(campServer.World.DefPhase == Server.DefensePhase.Build &&
+              campServer.World.WavesCleared == 1,
+              "clearing the wave returns the run to a build phase");
+        Check(campServer.World.WaveNumber == 2 && campA.World.DefenseWave == 2,
+              "the next wave number replicates");
+        Check(campServer.World.Npcs.Count == 1 && campA.World.Npcs.Count == 1,
+              "the mercenary handler returns between waves");
+
+        // Wave 2: the wagon breaks -> the run is lost, the Sanctum reclaims everyone.
+        campA.World.Me.Position = defMap47.WorkbenchSpot + new Vector2(0.8f, 0);
+        campB.World.Me.Position = defMap47.WorkbenchSpot + new Vector2(-0.8f, 0.5f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(0.8f);
+        Check(campServer.World.DefPhase == Server.DefensePhase.Wave,
+              "wave 2 called from the workbench");
+        campServer.World.DamageStructure(campServer.World.Wagon, 1_000_000f);
+        Check(campServer.World.DefPhase == Server.DefensePhase.Lost &&
+              campServer.World.Wagon == null,
+              "the wagon breaking loses the run");
+        campA.SendDebugCommand("heal");
+        campB.SendDebugCommand("heal");
+        CPump(0.5f);
+        Check(campA.World.DefensePhase == 3 && campA.World.Structures.Values.All(s => s.Kind != 3),
+              "the loss and the wagon's destruction replicate");
+        CPump(4.0f);
+        Check(campServer.World.MapIndex == 0 && campServer.World.Map.Kind == World.MapKind.Hub,
+              "the Sanctum reclaims the party after the loss");
+        Check(campServer.World.Structures.Count == 0 && campA.World.Structures.Count == 0,
+              "structures clear on the way home");
 
         campA.Disconnect();
         campB.Disconnect();

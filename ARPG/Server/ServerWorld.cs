@@ -62,6 +62,18 @@ public interface IServerEvents
     void CorpseAdded(ServerCorpse c);
     /// <summary>A corpse left the world (cap eviction; later: consumed by a skill).</summary>
     void CorpseRemoved(ServerCorpse c);
+    /// <summary>A defense structure appeared (wagon, workbench, player builds).</summary>
+    void StructureAdded(ServerStructure s);
+    /// <summary>A structure took damage (replicate its health bar).</summary>
+    void StructureHealthChanged(ServerStructure s);
+    /// <summary>A structure was destroyed or otherwise removed.</summary>
+    void StructureRemoved(ServerStructure s);
+    /// <summary>An NPC joined the world mid-map (defense NPCs return between waves).</summary>
+    void NpcAdded(ServerNpc npc);
+    /// <summary>An NPC left the world (defense NPCs step away when the wave starts).</summary>
+    void NpcRemoved(ServerNpc npc);
+    /// <summary>The defense run's phase/wave/wagon state changed.</summary>
+    void DefenseStateChanged(ServerWorld world);
 }
 
 /// <summary>One merchant stock slot as offered to a specific player.</summary>
@@ -115,8 +127,11 @@ public partial class ServerWorld
     /// <summary>0 = hub, 1..3 = the run's forest maps.</summary>
     public int MapIndex { get; private set; }
     public int CampaignEnemyLevel => 1 + 3 * (Loop - 1);
-    /// <summary>The final map's exit stays sealed while the boss lives.</summary>
-    public bool ExitLocked => Campaign && MapIndex == 3 && BossAlive;
+    /// <summary>The final map's exit stays sealed while the boss lives; the defense
+    /// arena's exit stays sealed until the last wave is beaten.</summary>
+    public bool ExitLocked => Campaign &&
+        ((MapIndex == 3 && BossAlive) ||
+         (Map.Kind == MapKind.Defense && DefPhase != DefensePhase.Won));
     public bool BossAlive => _bossEnemyId >= 0 &&
                              Enemies.TryGetValue(_bossEnemyId, out var b) && !b.Dead;
     public int ReadyCount => _readyAtDoor.Count;
@@ -132,9 +147,13 @@ public partial class ServerWorld
     private readonly int _runSeed;
     private readonly ZoneTheme _theme;
     private readonly HashSet<int> _readyAtDoor = new();
+    private readonly HashSet<int> _readyAtDefenseDoor = new();
     private readonly HashSet<int> _openedChests = new();
     private int _bossEnemyId = -1;
     private int _forestEntries;
+    private int _defenseEntries;
+    /// <summary>MapIndex sentinel for the defense arena (the campaign counts 0..3).</summary>
+    public const int DefenseMapIndex = -1;
 
     public ServerWorld(GameData data, int mapSeed, IServerEvents events, string zoneThemeId = null,
         bool campaign = false)
@@ -382,21 +401,30 @@ public partial class ServerWorld
     {
         if (!Campaign) return;
         _readyAtDoor.Clear();
+        _readyAtDefenseDoor.Clear();
         Enemies.Clear();       // clients wipe on MapChange — no death broadcasts needed
         Projectiles.Clear();
         Drops.Clear();
         Corpses.Clear();       // the dead stay behind (clients wipe on MapChange too)
+        Structures.Clear();
         _windups.Clear();
         _flow.Clear();
         _rallyFields.Clear();
+        _wagonFlow = null;
         foreach (var p in Players.Values) p.SummonRallies.Clear();
 
         // Re-entering the forest from the hub starts a NEW excursion: three fresh
         // maps, enemy level up 3 per loop.
         if (newIndex == 1) Loop = ++_forestEntries;
+        // Every defense sortie gets a freshly generated arena too.
+        if (newIndex == DefenseMapIndex) _defenseEntries++;
         MapIndex = newIndex;
-        var newKind = newIndex == 0 ? MapKind.Hub : MapKind.Forest;
-        Map = new GameMap(CampaignMapSeed(newIndex), ThemeFor(newKind), newKind);
+        var newKind = newIndex == 0 ? MapKind.Hub
+            : newIndex == DefenseMapIndex ? MapKind.Defense : MapKind.Forest;
+        int seed = newIndex == DefenseMapIndex
+            ? unchecked(_runSeed * 31 + _defenseEntries * 65537 + 12345)
+            : CampaignMapSeed(newIndex);
+        Map = new GameMap(seed, ThemeFor(newKind), newKind);
         // Coming home wakes the fallen: anyone still down stands back up in the hub.
         if (newIndex == 0)
             foreach (var pl in Players.Values.Where(pl => !pl.Alive))
@@ -435,7 +463,8 @@ public partial class ServerWorld
         Chests.Clear();
         if (newIndex == 0) SetupHub();
         _events.MapChanged(this);
-        if (newIndex != 0) SetupForest(); // packs spawn AFTER the map broadcast
+        if (newIndex > 0) SetupForest(); // packs spawn AFTER the map broadcast
+        else if (newIndex == DefenseMapIndex) SetupDefense();
         _events.ZoneStateChanged(this);
     }
 
@@ -453,21 +482,35 @@ public partial class ServerWorld
     public void DoorReady(int playerId)
     {
         if (!Campaign || !Players.TryGetValue(playerId, out var p) || !p.Alive) return;
-        if (Vector2.Distance(p.Position, Map.ExitDoor) > 2.6f) return;
-        if (ExitLocked)
+
+        // Defense arena: the interact key answers the workbench (start the wave) or,
+        // once the last wave is beaten, the exit door home.
+        if (Map.Kind == MapKind.Defense) { DefenseReady(p); return; }
+
+        // Hub: two doors — the run door east, the defense door west. The nearer
+        // in-reach door is the one being answered.
+        bool defenseDoor = Map.Kind == MapKind.Hub &&
+            Vector2.Distance(p.Position, Map.DefenseDoor) <= 2.6f &&
+            Vector2.Distance(p.Position, Map.DefenseDoor) <
+            Vector2.Distance(p.Position, Map.ExitDoor);
+        if (!defenseDoor && Vector2.Distance(p.Position, Map.ExitDoor) > 2.6f) return;
+        if (!defenseDoor && ExitLocked)
         {
             _events.MessageFor(p, "The way is sealed — the Gravelord still stands.");
             return;
         }
-        bool nowReady = _readyAtDoor.Add(playerId);
-        if (!nowReady) _readyAtDoor.Remove(playerId);
+        var set = defenseDoor ? _readyAtDefenseDoor : _readyAtDoor;
+        bool nowReady = set.Add(playerId);
+        if (!nowReady) set.Remove(playerId);
+        (defenseDoor ? _readyAtDoor : _readyAtDefenseDoor).Remove(playerId); // one door at a time
         int alive = Players.Values.Count(pl => pl.Alive);
+        string doorName = defenseDoor ? "the caravan door" : "the door";
         foreach (var pl in Players.Values)
             _events.MessageFor(pl,
-                $"{p.Name} is {(nowReady ? "ready" : "no longer ready")} at the door ({_readyAtDoor.Count}/{alive}).");
+                $"{p.Name} is {(nowReady ? "ready" : "no longer ready")} at {doorName} ({set.Count}/{alive}).");
         _events.ZoneStateChanged(this);
-        if (alive > 0 && _readyAtDoor.Count >= alive)
-            TransitionTo(MapIndex >= 3 ? 0 : MapIndex + 1);
+        if (alive > 0 && set.Count >= alive)
+            TransitionTo(defenseDoor ? DefenseMapIndex : MapIndex >= 3 ? 0 : MapIndex + 1);
     }
 
     /// <summary>The equipped flask ITEM matching the requested kind (health or mana)
@@ -744,6 +787,7 @@ public partial class ServerWorld
         TickProjectiles(dt);
         TickSpawners();
         TickPlayers(dt);
+        TickDefense(dt);
         CheckPartyWipe();
 
         // Batched skill-XP sync: damage-based grants mark players dirty; the full
@@ -966,6 +1010,10 @@ public partial class ServerWorld
             e.MaxHealth *= 1.8f;
             e.XpScale *= 2.5f;
         }
+        // Party scaling: +15% health per player beyond the first, so a full session
+        // never turns the same content trivial.
+        e.MaxHealth *= 1f + Stats.EnemyLevelScaling.HealthPerExtraPlayer *
+                            MathF.Max(0, Players.Count - 1);
         e.Health = e.MaxHealth;
         e.Height = Map.GroundHeightAt(pos);
         Enemies[e.Id] = e;
@@ -1224,6 +1272,13 @@ public partial class ServerWorld
             float meatDist = meat != null ? Vector2.Distance(e.Position, meat.Position) : float.MaxValue;
             // Pursue whichever threat is closer once aggroed.
             bool pursueMeat = meat != null && (target == null || meatDist < dist);
+
+            // Defense arena: the horde exists to break the wagon. A close-by player or
+            // summon is still a fight worth having; everything else marches on the
+            // caravan, chewing through whatever stands in the way.
+            if (Map.Kind == MapKind.Defense && DefPhase == DefensePhase.Wave &&
+                DefenseEnemyTick(e, target, dist, sameSurface, meatDist, dt))
+                continue;
 
             // Telegraphed dash (scaled bosses only — DashMinLevel gates it to the
             // campaign's loop-2+ Gravelord): an engaged MID-RANGE target on a clear
@@ -1485,6 +1540,9 @@ public partial class ServerWorld
         slowMult *= 1f - 0.5f * (e.ChillMagnitude / ChillMaxMagnitude);
         var delta = dir * e.Def.MoveSpeed * e.SpeedScale * slowMult * dt;
         e.Position = Map.MoveWithCollision(e.Position, delta, e.Def.Radius, ref e.Height);
+        // Defense structures are solid to enemies (players walk their own camp freely):
+        // a blocked lane leaves the enemy at the wall, where the chew attack takes over.
+        if (Structures.Count > 0) PushOutOfStructures(e);
     }
 
     /// <summary>Shared pack aggro: when one member spots a player, the whole pack
@@ -1563,8 +1621,9 @@ public partial class ServerWorld
         ComputeFlowFrom(NodeOf(p.Position, p.Height), f);
 
     /// <summary>BFS a flow field from ANY start node (player positions each tick; rally
-    /// points once when set) — every stored Next points one hop back toward the start.</summary>
-    private void ComputeFlowFrom(int start, FlowField f)
+    /// points once when set) — every stored Next points one hop back toward the start.
+    /// The default radius is the aggro leash; the defense wagon's field spans the arena.</summary>
+    private void ComputeFlowFrom(int start, FlowField f, int maxRadius = FlowMaxRadius)
     {
         int w = Map.Width, n = NodeCount;
         f.Dist ??= new ushort[n];
@@ -1580,7 +1639,7 @@ public partial class ServerWorld
         {
             int node = _flowQueue.Dequeue();
             int d = f.Dist[node];
-            if (d >= FlowMaxRadius) continue;
+            if (d >= maxRadius) continue;
             int tile = node / 2;
             bool deck = (node & 1) == 1;
             int x = tile % w, y = tile / w;
