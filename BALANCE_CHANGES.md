@@ -1014,3 +1014,28 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   researcher NPC and randomized mercenaries.
 - Protocol v34 (DefenseState, StructureSpawn/Health/Remove, NpcRemove,
   BuildRequest).
+
+---
+
+# Addendum (batch 48): contracts, the researcher, mercenaries, the flamethrower
+
+- **Mercenary Contracts** enter the loot stream as a rare Curio drop (1.2%
+  per kill by default, 35% per boss roll; stacks of 10 in the bag) — the
+  defense mode's secondary currency.
+- **Odessa the Researcher** joins the Sanctum (west wall, south). One
+  contract buys one RANDOMIZED hire: kind (warrior/archer), name and power
+  (rides your character level) are all the server's roll. The roster is
+  permanent and rides the character save.
+- **Deploy mercs like turrets**: the defense workbench lists your roster —
+  free to field during build phases, one outing each per run, placed with
+  the same click-to-place ghost. They guard the chosen spot as owner-bound
+  summons (warriors hold the line, archers shoot from it) — and unlike
+  skeletons, a fallen merc stays down until the next run. They never
+  follow you out of the arena; the roster keeps them regardless.
+- **The Flamethrower Blueprint** is a rarer Curio still (0.3% / 8% boss).
+  Hand it to Odessa and the flamethrower turret (90g, close-range fire
+  spray, damage scales with zone level) unlocks for that character
+  forever; the workbench row lights up accordingly.
+- Sellsword/researcher NPCs never open gear stalls; merc sprites are the
+  summon rig in flesh and leathers. Protocol v35 (ResearchRequest,
+  DeployMercRequest).

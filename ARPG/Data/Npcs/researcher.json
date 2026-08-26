@@ -1,0 +1,11 @@
+{
+ "Id": "researcher",
+ "Name": "Odessa the Researcher",
+ "Dialogue": [
+  "Contracts, blueprints, half-burnt diagrams — bring me paper and I'll bring you power.",
+  "Every contract has a name I can put to it. Some of them even show up sober.",
+  "A blueprint is just a promise until someone builds the thing.",
+  "The wagon crews pay well for good escorts. I take a finder's fee, naturally.",
+  "Fire solves most engineering problems. Causes a few, too."
+ ]
+}

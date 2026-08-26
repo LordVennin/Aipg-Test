@@ -29,6 +29,18 @@ public class LearnedSkill
     }
 }
 
+/// <summary>A hired mercenary: rolled ONCE by the researcher from a contract, then a
+/// permanent part of the character's roster. Deployed to defense maps like a turret.</summary>
+public class MercData
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Name { get; set; }
+    /// <summary>"warrior" (melee) or "archer" (ranged) — decides the combat profile.</summary>
+    public string Kind { get; set; } = "warrior";
+    /// <summary>Rolled strength tier (scales health and damage).</summary>
+    public int Power { get; set; } = 1;
+}
+
 /// <summary>
 /// The complete persistent state of one character. This same structure is:
 ///  - the local save file (Saves/&lt;name&gt;.json),
@@ -88,6 +100,13 @@ public class CharacterData
 
     /// <summary>Allocated passive tree node ids (validated server-side on allocation).</summary>
     public List<string> AllocatedPassives { get; set; } = new();
+
+    /// <summary>The hired mercenary roster (rolled by the researcher from Mercenary
+    /// Contracts). Permanent once hired; each can be deployed once per defense run.</summary>
+    public List<MercData> Mercs { get; set; } = new();
+    /// <summary>True once this character handed the Flamethrower Blueprint to the
+    /// researcher — the flamethrower turret becomes buildable forever after.</summary>
+    public bool FlamethrowerUnlocked { get; set; }
 
     /// <summary>Item storage keyed by CONTAINER id ("hub_stash" today; future player-room
     /// furniture adds more ids). Each container is its own grid, so storage is tied to

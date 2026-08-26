@@ -676,6 +676,21 @@ public partial class ServerWorld
                 c.Gold += int.TryParse(arg, out int goldAmt) && goldAmt > 0 ? goldAmt : 500;
                 changed = true;
                 break;
+            case "give_curio":
+            {
+                string curioId = string.IsNullOrEmpty(arg) ? "merc_contract" : arg;
+                if (Data.Items.TryGetValue(curioId, out var curioBase) &&
+                    curioBase.Category == ItemCategory.Curio)
+                {
+                    GiveItem(p, new ItemInstance
+                    {
+                        BaseItemId = curioId, ItemLevel = 1, Rarity = ItemRarity.Normal,
+                        StackCount = curioBase.MaxStack > 1 ? 3 : 1,
+                    });
+                    changed = true;
+                }
+                break;
+            }
         }
 
         if (changed) _events.CharacterChanged(p);
@@ -805,8 +820,9 @@ public partial class ServerWorld
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
         var npc = ShopNpcInRange(p, npcId);
-        // The trainer sells skills, not stock; the sellsword deals only in contracts.
-        if (npc == null || npc.TypeId is "skill_trainer" or "mercenary") return;
+        // The trainer sells skills, the sellsword deals in contracts, and the
+        // researcher trades in paper — none of them run a gear stall.
+        if (npc == null || npc.TypeId is "skill_trainer" or "mercenary" or "researcher") return;
         _events.ShopStockFor(p, npcId, GetShopStock(p));
     }
 

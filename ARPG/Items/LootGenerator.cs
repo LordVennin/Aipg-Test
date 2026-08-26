@@ -41,6 +41,21 @@ public class LootGenerator
             var enchant = GenerateEnchantScrollItem();
             if (enchant != null) drops.Add(enchant);
         }
+        // Curios: the defense mode's rare finds. Contracts hire mercenaries at the
+        // researcher; the blueprint (found once, ever, per character) unlocks the
+        // flamethrower turret.
+        if (_data.Items.ContainsKey("merc_contract") &&
+            _rng.NextDouble() < table.MercContractDropChance)
+            drops.Add(new ItemInstance
+            {
+                BaseItemId = "merc_contract", ItemLevel = itemLevel, Rarity = ItemRarity.Normal,
+            });
+        if (_data.Items.ContainsKey("flamethrower_blueprint") &&
+            _rng.NextDouble() < table.BlueprintDropChance)
+            drops.Add(new ItemInstance
+            {
+                BaseItemId = "flamethrower_blueprint", ItemLevel = itemLevel, Rarity = ItemRarity.Normal,
+            });
         return drops;
     }
 

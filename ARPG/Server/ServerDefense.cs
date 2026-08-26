@@ -1,5 +1,6 @@
 using System.Numerics;
 using ARPG.Items;
+using ARPG.Sim;
 using ARPG.Skills;
 using ARPG.Util;
 using ARPG.World;
@@ -49,6 +50,8 @@ public partial class ServerWorld
     private int _portalCursor;
     private float _defenseReturnAt;  // after a loss: when the hub reclaims the party
     private FlowField _wagonFlow;    // every attacker's shared route home to the wagon
+    /// <summary>Mercs already deployed THIS run (one deployment each, dead or alive).</summary>
+    private readonly HashSet<string> _deployedMercIds = new();
 
     /// <summary>Furnish a fresh defense arena: the wagon, its workbench, the camp
     /// crew, and the shared wagon-bound flow field the horde will march along.</summary>
@@ -58,6 +61,7 @@ public partial class ServerWorld
         WavesCleared = 0;
         _waveToSpawn = 0;
         _defenseReturnAt = 0;
+        _deployedMercIds.Clear();
         int players = Math.Max(1, Players.Count);
         float wagonHp = DefenseBalance.WagonHealth *
                         (1f + DefenseBalance.WagonHealthPerExtraPlayer * (players - 1));
@@ -457,11 +461,9 @@ public partial class ServerWorld
             return;
         }
         if (!DefenseBalance.PlayerBuildable(kind)) return;
-        if (kind == StructureKind.FlameTurret)
+        if (kind == StructureKind.FlameTurret && !p.Character.FlamethrowerUnlocked)
         {
-            // Batch 48 wires the blueprint + researcher unlock; until then the design
-            // simply hasn't been discovered by anyone.
-            _events.MessageFor(p, "The flamethrower design is still undiscovered.");
+            _events.MessageFor(p, "You haven't researched the flamethrower — its blueprint is out there somewhere.");
             return;
         }
         if (Vector2.Distance(p.Position, pos) > DefenseBalance.BuildReach)
@@ -497,5 +499,134 @@ public partial class ServerWorld
             kind == StructureKind.SpikedBarrier ? 0.45f : 0.4f);
         _events.CharacterChanged(p);
         _events.WorldEffect("hit", pos, 0.5f, 0.3f, built.Height);
+    }
+
+    // ------------------------------------------------------------------ the researcher
+
+    private static readonly string[] MercFirstNames =
+    {
+        "Harl", "Vesna", "Odo", "Grit", "Mara", "Tull", "Ilse", "Brant", "Kessa", "Rurik",
+        "Petra", "Joss", "Wilm", "Sable", "Doran", "Ythel", "Nadia", "Corvin", "Ede", "Falk",
+    };
+    private static readonly string[] MercEpithets =
+    {
+        "the Unpaid", "Ironjaw", "of the Ditch", "Two-Blades", "the Patient", "Halfboot",
+        "the Lucky", "Longwalk", "Cindershot", "the Quiet", "Oakarm", "Threefingers",
+        "the Stray", "Grimtooth", "of Nowhere", "Quickstring",
+    };
+
+    /// <summary>One consumable curio of the given base from the player's BAG (contracts
+    /// stack; the whole placed stack is returned — the caller decrements it).</summary>
+    private Inventory.PlacedItem FindCurio(ServerPlayer p, string baseId) =>
+        p.Character.Inventory.Items.FirstOrDefault(pl => pl.Item.BaseItemId == baseId);
+
+    /// <summary>The researcher's desk (ResearchRequest): action 0 spends one Mercenary
+    /// Contract on a RANDOMIZED hire (kind, name and power are the roll); action 1
+    /// hands over the Flamethrower Blueprint and unlocks the turret for good.</summary>
+    public void Research(int playerId, byte action)
+    {
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        var researcher = Npcs.FirstOrDefault(n => n.TypeId == "researcher");
+        if (researcher == null ||
+            Vector2.Distance(p.Position, researcher.Position) > 3.5f) return;
+
+        if (action == 0)
+        {
+            var contract = FindCurio(p, "merc_contract");
+            if (contract == null)
+            {
+                _events.MessageFor(p, "No mercenary contracts in your bag — they turn up as rare spoils.");
+                return;
+            }
+            contract.Item.StackCount--;
+            if (contract.Item.StackCount <= 0) p.Character.Inventory.Items.Remove(contract);
+            // The roll: kind, name and power are fate's. Power rides the character's
+            // level so late hires stay relevant without out-muscling built turrets.
+            var merc = new MercData
+            {
+                Kind = _rng.Next(2) == 0 ? "warrior" : "archer",
+                Power = Math.Max(1, p.Character.Level / 2 + _rng.Next(-1, 3)),
+                Name = $"{MercFirstNames[_rng.Next(MercFirstNames.Length)]} {MercEpithets[_rng.Next(MercEpithets.Length)]}",
+            };
+            p.Character.Mercs.Add(merc);
+            foreach (var pl in Players.Values)
+                _events.MessageFor(pl,
+                    $"{p.Name} hired {merc.Name} — {(merc.Kind == "archer" ? "an" : "a")} {merc.Kind} of power {merc.Power}.");
+            _events.CharacterChanged(p);
+            return;
+        }
+
+        if (action == 1)
+        {
+            if (p.Character.FlamethrowerUnlocked)
+            {
+                _events.MessageFor(p, "The flamethrower is already researched.");
+                return;
+            }
+            var blueprint = FindCurio(p, "flamethrower_blueprint");
+            if (blueprint == null)
+            {
+                _events.MessageFor(p, "Bring me the flamethrower blueprint and I'll make it real.");
+                return;
+            }
+            blueprint.Item.StackCount--;
+            if (blueprint.Item.StackCount <= 0) p.Character.Inventory.Items.Remove(blueprint);
+            p.Character.FlamethrowerUnlocked = true;
+            _events.MessageFor(p, "Odessa pores over the schematics... the flamethrower turret is yours to build.");
+            _events.CharacterChanged(p);
+        }
+    }
+
+    /// <summary>Deploy a hired mercenary onto the defense map (build phases only, one
+    /// deployment per merc per run). They spawn as owner-bound summons that GUARD the
+    /// chosen spot — and unlike skeletons, dead mercs stay down until the next run.</summary>
+    public void DeployMerc(int playerId, string mercId, Vector2 pos)
+    {
+        if (!Campaign || Map.Kind != MapKind.Defense) return;
+        if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        if (DefPhase != DefensePhase.Build)
+        {
+            _events.MessageFor(p, "Mercenaries deploy between waves.");
+            return;
+        }
+        var merc = p.Character.Mercs.FirstOrDefault(m => m.Id == mercId);
+        if (merc == null) return;
+        if (_deployedMercIds.Contains(merc.Id))
+        {
+            _events.MessageFor(p, $"{merc.Name} has already taken the field this run.");
+            return;
+        }
+        if (Vector2.Distance(p.Position, pos) > DefenseBalance.BuildReach)
+        {
+            _events.MessageFor(p, "Too far away to post anyone there.");
+            return;
+        }
+        if (Map.SampleHeight(pos, p.Height) is not { } h || Map.CircleBlocked(pos, 0.35f, h))
+        {
+            _events.MessageFor(p, "No footing to post anyone there.");
+            return;
+        }
+        _deployedMercIds.Add(merc.Id);
+        bool warrior = merc.Kind == "warrior";
+        var s = new ServerSummon
+        {
+            Id = _nextSummonId++,
+            OwnerId = p.Id,
+            SkillId = warrior ? "merc_warrior" : "merc_archer",
+            Position = pos,
+            Height = h,
+            Health = 35f + 15f * merc.Power,
+            MaxHealth = 35f + 15f * merc.Power,
+            Damage = 5f + 2.5f * merc.Power,
+            Melee = warrior,
+            Reach = warrior ? 1.1f : ServerSummon.AttackRange,
+            SwingTime = warrior ? 1.0f : ServerSummon.AttackCooldown,
+            GuardPoint = pos,
+        };
+        Summons[s.Id] = s;
+        _events.SummonSpawned(s);
+        _events.WorldEffect("hit", pos, 0.5f, 0.3f, h);
+        foreach (var pl in Players.Values)
+            _events.MessageFor(pl, $"{merc.Name} takes the field.");
     }
 }

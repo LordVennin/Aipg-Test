@@ -553,6 +553,7 @@ public class GameMap
         NpcSpots.Add(new Vector2(Width * 0.62f, 3.6f));           // gear merchant, north side
         NpcSpots.Add(new Vector2(Width * 0.62f, Height - 3.6f));  // skill trainer, south side
         NpcSpots.Add(new Vector2(3.6f, Height * 0.32f));          // gambler, west wall
+        NpcSpots.Add(new Vector2(3.6f, Height * 0.68f));          // researcher, west wall south
         ChestSpots.Add(new Vector2(2.6f, 3.5f));
         ChestSpots.Add(new Vector2(2.6f, Height - 3.5f));
         ChestSpots.Add(new Vector2(6.5f, 2.4f));

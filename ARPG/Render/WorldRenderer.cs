@@ -1355,7 +1355,10 @@ public class WorldRenderer
         {
             float bpHeight = world.Map.GroundHeightAt(preview.Pos);
             var bpScreen = camera.WorldToScreen(preview.Pos, bpHeight);
-            var bpTex = SpriteGen.GetStructureSprite(preview.Kind);
+            // Kinds 250/251 are the merc-deployment ghosts (warrior/archer).
+            var bpTex = preview.Kind >= 250
+                ? SpriteGen.GetSummonSprite(preview.Kind == 250 ? "merc_warrior" : "merc_archer")
+                : SpriteGen.GetStructureSprite(preview.Kind);
             if (bpTex != null)
                 _sorted.Add((preview.Pos.X + preview.Pos.Y + bpHeight * 1.0f + 0.12f, batch =>
                 {
