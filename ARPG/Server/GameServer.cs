@@ -712,6 +712,14 @@ public class GameServer : IServerEvents
         var wagon = World.Wagon;
         w.Put(wagon?.Health ?? 0f);
         w.Put(wagon?.MaxHealth ?? DefenseBalance.WagonHealth);
+        // Per-player supplies ride along (small — the party is small), so every
+        // client can show its own purse and see teammates' too.
+        w.Put((byte)Math.Min(255, World.Players.Count));
+        foreach (var pl in World.Players.Values.Take(255))
+        {
+            w.Put(pl.Id);
+            w.Put(pl.Supplies);
+        }
         return w;
     }
 

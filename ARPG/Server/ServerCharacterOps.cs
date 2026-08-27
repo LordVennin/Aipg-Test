@@ -691,6 +691,11 @@ public partial class ServerWorld
                 c.Gold += int.TryParse(arg, out int goldAmt) && goldAmt > 0 ? goldAmt : 500;
                 changed = true;
                 break;
+            case "give_supplies":
+                // Dev shortcut for the defense arena's run-scoped currency.
+                p.Supplies += int.TryParse(arg, out int supAmt) && supAmt > 0 ? supAmt : 500;
+                _events.DefenseStateChanged(this);
+                break;
             case "learn":
                 // Dev shortcut: learn any skill by id, bypassing the trainer.
                 if (Data.Skills.ContainsKey(arg) && c.GetSkill(arg) == null)

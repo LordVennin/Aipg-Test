@@ -337,6 +337,10 @@ public class ClientWorld
     public int DefenseWavesTotal = 1;
     public float WagonHealth;
     public float WagonMaxHealth = 1f;
+    /// <summary>Per-player defense supplies (playerId -> amount), replicated with
+    /// every DefenseState packet. Meaningful only on defense maps.</summary>
+    public readonly Dictionary<int, int> DefenseSupplies = new();
+    public int MySupplies => DefenseSupplies.GetValueOrDefault(MyPlayerId);
 
     /// <summary>Wipe every replicated world object for a map transition (players stay —
     /// they travel together; their positions snap on the next state packet).</summary>
@@ -350,6 +354,7 @@ public class ClientWorld
         Chests.Clear();
         Corpses.Clear();
         Structures.Clear();
+        DefenseSupplies.Clear();
         Effects.Clear();
         FloatingNumbers.Clear();
         SpentGhosts.Clear();

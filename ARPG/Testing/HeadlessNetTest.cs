@@ -4347,19 +4347,25 @@ public static class HeadlessNetTest
               "the mercenary handler waits by the wagon (replicated)");
         Check(campServer.World.ExitLocked, "the arena exit stays sealed until the last wave falls");
 
-        // Build phase: gold buys turrets and barriers; every rule is server-checked.
+        // Build phase: SUPPLIES buy turrets and barriers; every rule is server-checked.
         campA.World.Me.Position = defMap47.WagonSpot + new Vector2(-2.5f, 0);
         campB.World.Me.Position = defMap47.WagonSpot + new Vector2(2.0f, 0.8f);
         CPump(0.5f);
         var srvDefA47 = campServer.World.Players[campA.World.MyPlayerId];
-        srvDefA47.Character.Gold = 500;
+        var srvDefB47 = campServer.World.Players[campB.World.MyPlayerId];
+        Check(srvDefA47.Supplies == World.DefenseBalance.SupplyStart &&
+              srvDefB47.Supplies == World.DefenseBalance.SupplyStart,
+              $"everyone enters the arena with the supply stipend ({srvDefA47.Supplies})");
+        int goldBefore47 = srvDefA47.Character.Gold;
+        srvDefA47.Supplies = 500;
         var buildSpot47 = defMap47.WagonSpot + new Vector2(-4f, 0);
         // Rotation 3 = south: the chew test below drags its victim to the barrier
         // south-east of this turret, so the fire cone must cover it.
         campServer.World.Build(srvDefA47.Id, World.StructureKind.CrossbowTurret, buildSpot47, 3);
         Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.CrossbowTurret) &&
-              srvDefA47.Character.Gold == 500 - World.DefenseBalance.CrossbowCost,
-              "building a crossbow turret charges its gold price (the gold sink works)");
+              srvDefA47.Supplies == 500 - World.DefenseBalance.CrossbowCost &&
+              srvDefA47.Character.Gold == goldBefore47,
+              "building charges supplies, never gold — the arena runs its own economy");
         var barrierSpot47 = defMap47.WagonSpot + new Vector2(-3f, 2.2f);
         campServer.World.Build(srvDefA47.Id, World.StructureKind.SpikedBarrier, barrierSpot47);
         Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.SpikedBarrier),
@@ -4380,13 +4386,13 @@ public static class HeadlessNetTest
             defMap47.WagonSpot + new Vector2(-12f, 0));
         Check(campServer.World.Structures.Count == structCount47,
               "builds beyond arm's reach are refused");
-        int goldKept47 = srvDefA47.Character.Gold;
-        srvDefA47.Character.Gold = 5;
+        int supKept47 = srvDefA47.Supplies;
+        srvDefA47.Supplies = 5;
         campServer.World.Build(srvDefA47.Id, World.StructureKind.CrossbowTurret,
             defMap47.WagonSpot + new Vector2(-4f, 1.8f));
         Check(campServer.World.Structures.Count == structCount47,
-              "gold is checked before anything is built");
-        srvDefA47.Character.Gold = goldKept47;
+              "supplies are checked before anything is built");
+        srvDefA47.Supplies = supKept47;
 
         // Ready up at the workbench: the wave begins and the crew steps out.
         campA.World.Me.Position = defMap47.WorkbenchSpot + new Vector2(0.8f, 0);
@@ -4430,6 +4436,7 @@ public static class HeadlessNetTest
               "the crossbow turret answers with bolts");
 
         // Clear the wave: the run drops back into a build phase and the crew returns.
+        int supBeforeWave47 = srvDefA47.Supplies;
         for (int i = 0; i < 90 && campServer.World.DefPhase == Server.DefensePhase.Wave; i++)
         {
             foreach (var e in campServer.World.Enemies.Values.ToList())
@@ -4444,6 +4451,11 @@ public static class HeadlessNetTest
               "clearing the wave returns the run to a build phase");
         Check(campServer.World.WaveNumber == 2 && campA.World.DefenseWave == 2,
               "the next wave number replicates");
+        Check(srvDefA47.Supplies >= supBeforeWave47 + World.DefenseBalance.SupplyWaveBonus +
+              World.DefenseBalance.SupplyPerKill,
+              $"kills and the cleared wave pay supplies ({supBeforeWave47} -> {srvDefA47.Supplies})");
+        Check(campA.World.DefenseSupplies.GetValueOrDefault(campA.World.MyPlayerId) == srvDefA47.Supplies,
+              "the supply purse replicates to its owner");
         Check(campServer.World.Npcs.Count == 1 && campA.World.Npcs.Count == 1,
               "the mercenary handler returns between waves");
 
@@ -4535,14 +4547,14 @@ public static class HeadlessNetTest
         campA.World.Me.Position = defMap48.WagonSpot + new Vector2(-2.5f, 0);
         campB.World.Me.Position = defMap48.WagonSpot + new Vector2(2.0f, 0.8f);
         CPump(0.5f);
-        srvResA.Character.Gold = 400;
+        srvResA.Supplies = 400;
         campServer.World.Build(srvResA.Id, World.StructureKind.FlameTurret,
             defMap48.WagonSpot + new Vector2(-4f, 0));
         Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.FlameTurret),
               "the researched flamethrower turret is buildable");
         var srvResB = campServer.World.Players[campB.World.MyPlayerId];
         int structsBefore48 = campServer.World.Structures.Count;
-        srvResB.Character.Gold = 400;
+        srvResB.Supplies = 400;
         campServer.World.Build(srvResB.Id, World.StructureKind.FlameTurret,
             defMap48.WagonSpot + new Vector2(2.5f, 2.5f));
         Check(campServer.World.Structures.Count == structsBefore48,
@@ -4614,7 +4626,7 @@ public static class HeadlessNetTest
         campA.World.Me.Position = defMap49.WagonSpot + new Vector2(-2.5f, 0);
         campB.World.Me.Position = defMap49.WagonSpot + new Vector2(2.0f, 0.8f);
         CPump(0.5f);
-        srvA49.Character.Gold = 1000;
+        srvA49.Supplies = 1000;
 
         // Placement snaps to the grid; one structure per tile; rotation replicates.
         campServer.World.Build(srvA49.Id, World.StructureKind.SpikedBarrier,
@@ -4658,19 +4670,82 @@ public static class HeadlessNetTest
             .First(s => s.Kind == World.StructureKind.CrossbowTurret);
         Check(coneTurret49.Rotation == 2, "the turret keeps its eastward facing");
 
-        // Repair: chew marks get hammered out for cheap gold.
+        // Repair: chew marks get hammered out for cheap supplies.
         campServer.World.DamageStructure(snapped49, 100f);
         campA.World.Me.Position = defMap49.WorkbenchSpot + new Vector2(0.8f, 0);
         CPump(0.4f);
-        int goldBeforeRepair49 = srvA49.Character.Gold;
+        int supBeforeRepair49 = srvA49.Supplies;
         int expectRepair49 = World.DefenseBalance.RepairCost(100f);
         campServer.World.RepairAll(srvA49.Id);
         Check(MathF.Abs(snapped49.Health - snapped49.MaxHealth) < 0.01f &&
-              srvA49.Character.Gold == goldBeforeRepair49 - expectRepair49,
-              $"Repair All patches the wall back to full for {expectRepair49} gold");
+              srvA49.Supplies == supBeforeRepair49 - expectRepair49,
+              $"Repair All patches the wall back to full for {expectRepair49} supplies");
         campServer.World.RepairAll(srvA49.Id);
-        Check(srvA49.Character.Gold == goldBeforeRepair49 - expectRepair49,
+        Check(srvA49.Supplies == supBeforeRepair49 - expectRepair49,
               "nothing damaged, nothing charged");
+
+        // Build capacity (batch 51): the party's shared placement budget fills up,
+        // refuses the overflow, and destroyed structures hand their share back.
+        Check(campServer.World.BuildCapacityMax ==
+              World.DefenseBalance.BuildCapBase + World.DefenseBalance.BuildCapPerExtraPlayer,
+              $"two players share a {campServer.World.BuildCapacityMax}-point build budget");
+        srvA49.Supplies = 1000;
+        bool SpotFree51(Vector2 spot) =>
+            campServer.World.Structures.Values.All(s =>
+                (int)MathF.Floor(s.Position.X) != (int)MathF.Floor(spot.X) ||
+                (int)MathF.Floor(s.Position.Y) != (int)MathF.Floor(spot.Y)) &&
+            defMap49.SampleHeight(spot, srvA49.Height) is { } sh51 &&
+            !defMap49.CircleBlocked(spot, 0.45f, sh51) &&
+            defMap49.SpawnPortals.All(pp =>
+                Vector2.Distance(pp, spot) >= World.DefenseBalance.PortalExclusion + 0.5f);
+        var caps51 = new List<Vector2>();
+        for (int dy = -3; dy <= 3; dy++)
+            for (int dx = -3; dx <= 3; dx++)
+            {
+                var c51 = new Vector2(MathF.Floor(defMap49.WorkbenchSpot.X + dx) + 0.5f,
+                                      MathF.Floor(defMap49.WorkbenchSpot.Y + dy) + 0.5f);
+                if (Vector2.Distance(c51, srvA49.Position) <= 4.5f && SpotFree51(c51))
+                    caps51.Add(c51);
+            }
+        var fillers51 = new List<Server.ServerStructure>();
+        int fillGuard51 = 0;
+        while (campServer.World.BuildCapacityUsed < campServer.World.BuildCapacityMax &&
+               caps51.Count > 1 && fillGuard51++ < 24)
+        {
+            var spot = caps51[0];
+            caps51.RemoveAt(0);
+            int before = campServer.World.Structures.Count;
+            campServer.World.Build(srvA49.Id, World.StructureKind.CrossbowTurret, spot);
+            if (campServer.World.Structures.Count > before)
+                fillers51.Add(campServer.World.Structures.Values.OrderByDescending(s => s.Id).First());
+        }
+        Check(campServer.World.BuildCapacityUsed == campServer.World.BuildCapacityMax &&
+              fillers51.Count > 0,
+              $"turrets fill the build budget ({campServer.World.BuildCapacityUsed}/{campServer.World.BuildCapacityMax})");
+        var overflowSpot51 = caps51.First(SpotFree51);
+        int structsAtCap51 = campServer.World.Structures.Count;
+        campServer.World.Build(srvA49.Id, World.StructureKind.CrossbowTurret, overflowSpot51);
+        Check(campServer.World.Structures.Count == structsAtCap51,
+              "a full budget refuses more construction");
+        campServer.World.DamageStructure(fillers51[0], 1_000_000f);
+        Check(campServer.World.BuildCapacityUsed ==
+              campServer.World.BuildCapacityMax - World.DefenseBalance.CapacityCost(World.StructureKind.CrossbowTurret),
+              "a destroyed turret frees its capacity share");
+        campServer.World.Build(srvA49.Id, World.StructureKind.SpikedBarrier, overflowSpot51);
+        Check(campServer.World.Structures.Count == structsAtCap51 &&
+              campServer.World.Structures.Values.Any(s =>
+                  s.Kind == World.StructureKind.SpikedBarrier &&
+                  MathF.Abs(s.Position.X - overflowSpot51.X) < 0.01f &&
+                  MathF.Abs(s.Position.Y - overflowSpot51.Y) < 0.01f),
+              "freed capacity builds again (a cheap wall fits where a turret fell)");
+        // Clear the capacity-test scaffolding: stray west-facing turrets by the
+        // workbench would pollute the cone and trap assertions below.
+        var scaffoldIds51 = fillers51.Select(f => f.Id).ToHashSet();
+        foreach (var s in campServer.World.Structures.Values.ToList())
+            if (scaffoldIds51.Contains(s.Id) ||
+                ((int)MathF.Floor(s.Position.X) == (int)MathF.Floor(overflowSpot51.X) &&
+                 (int)MathF.Floor(s.Position.Y) == (int)MathF.Floor(overflowSpot51.Y)))
+                campServer.World.DamageStructure(s, 1_000_000f);
 
         // Wave time: the walls must HOLD, the trapped must chew, the cone must gate.
         campA.World.Me.Position = defMap49.WorkbenchSpot + new Vector2(0.8f, 0);
@@ -4737,7 +4812,8 @@ public static class HeadlessNetTest
         srvRain.RecomputeStats(data);
         server.World.LearnSkill(bId, "arrow_rain");
         Check(srvRain.Character.GetSkill("arrow_rain") != null, "Arrow Rain is learnable");
-        // A tight cluster in the drop circle, one straggler outside it.
+        // A tight cluster in the drop circle, one straggler outside it, and one dummy
+        // hoisted a full level up — the sky is supposed to hit every terrace.
         var rainAt = new Vector2(30.5f, 8.5f);
         clientB.World.Me.Position = rainAt + new Vector2(-4f, 0); // the client's word is law for position
         srvRain.Position = rainAt + new Vector2(-4f, 0);
@@ -4745,14 +4821,34 @@ public static class HeadlessNetTest
         var rainA = server.World.SpawnEnemy("grunt", rainAt + new Vector2(-0.6f, 0));
         var rainB = server.World.SpawnEnemy("grunt", rainAt + new Vector2(0.6f, 0.4f));
         var rainOut = server.World.SpawnEnemy("grunt", rainAt + new Vector2(6f, 0));
+        var rainHigh = server.World.SpawnEnemy("grunt", rainAt + new Vector2(0.2f, -0.9f));
+        rainHigh.Height += 1f; // a body on a terrace above the mark
         // Pin the test dummies where they stand: the volley lands at the LOCKED point.
-        rainA.FrozenUntil = rainB.FrozenUntil = rainOut.FrozenUntil = server.World.Time + 12f;
-        float rainAHp = rainA.Health, rainBHp = rainB.Health, rainOutHp = rainOut.Health;
+        rainA.FrozenUntil = rainB.FrozenUntil = rainOut.FrozenUntil =
+            rainHigh.FrozenUntil = server.World.Time + 12f;
+        float rainAHp = rainA.Health, rainBHp = rainB.Health,
+              rainOutHp = rainOut.Health, rainHighHp = rainHigh.Health;
         Pump(0.8f); // clear the global use-time lockout from the previous section
         server.World.UseSkill(bId, "arrow_rain", rainAt);
-        Pump(1.2f); // the volley hangs in the air for the wind-up, then lands
+        Pump(0.55f); // wind-up done, the first arrows still in the air
+        Check(MathF.Abs(rainA.Health - rainAHp) < 0.01f &&
+              MathF.Abs(rainB.Health - rainBHp) < 0.01f,
+              "no hitbox before the arrows begin to land");
+        Pump(0.4f); // the first strike window lands
         Check(rainA.Health < rainAHp - 0.5f && rainB.Health < rainBHp - 0.5f,
-              $"the volley hits everything in the circle ({rainAHp:0}->{rainA.Health:0}, {rainBHp:0}->{rainB.Health:0})");
+              $"the volley hits everything in the circle AS arrows land ({rainAHp:0}->{rainA.Health:0}, {rainBHp:0}->{rainB.Health:0})");
+        float rainAHpMid = rainA.Health;
+        // A latecomer wanders under the volley mid-fall: still clipped.
+        var rainLate = server.World.SpawnEnemy("grunt", rainAt + new Vector2(-0.4f, -0.6f));
+        rainLate.FrozenUntil = server.World.Time + 12f;
+        float rainLateHp = rainLate.Health;
+        Pump(0.6f); // the volley finishes
+        Check(rainHigh.Health < rainHighHp - 0.5f,
+              $"arrows fall on higher ground inside the mark too ({rainHighHp:0}->{rainHigh.Health:0})");
+        Check(rainLate.Health < rainLateHp - 0.5f,
+              "a body wandering in mid-volley is still clipped");
+        Check(MathF.Abs(rainA.Health - rainAHpMid) < 0.01f,
+              "each enemy is clipped once per volley — later ticks pass over it");
         Check(MathF.Abs(rainOut.Health - rainOutHp) < 0.01f,
               "arrows stay inside the marked circle");
         // Without a bow the volley refuses to fire.
@@ -4761,12 +4857,95 @@ public static class HeadlessNetTest
         Pump(4.2f); // clear the cooldown
         float rainAHp2 = rainA.Health;
         server.World.UseSkill(bId, "arrow_rain", rainAt);
-        Pump(1.2f);
+        Pump(1.6f);
         Check(MathF.Abs(rainA.Health - rainAHp2) < 0.01f, "Arrow Rain requires a bow in hand");
         srvRain.Position = rainAt + new Vector2(3f, 0); // everything within the cull radius
         server.World.DebugCommand(bId, "kill_nearby", "");
         srvRain.Position = server.World.Map.PlayerSpawn;
         clientB.World.Me.Position = server.World.Map.PlayerSpawn;
+        Pump(0.4f);
+
+        Console.WriteLine("\n-- Batch 51: melee up and down the stairs --");
+        // Find a staircase: a ramp tile whose summit is a walkable FLAT tile one full
+        // level up, with the ramp's own base clear to stand on.
+        var map51 = server.World.Map;
+        Vector2 rampC51 = default, rampDir51 = default;
+        bool foundRamp51 = false;
+        for (int ty51 = 1; ty51 < map51.Height - 1 && !foundRamp51; ty51++)
+            for (int tx51 = 1; tx51 < map51.Width - 1 && !foundRamp51; tx51++)
+            {
+                var rd51 = map51.Ramp(tx51, ty51);
+                if (rd51 == World.RampDirection.None) continue;
+                var dir51 = rd51 switch
+                {
+                    World.RampDirection.PlusX => new Vector2(1, 0),
+                    World.RampDirection.MinusX => new Vector2(-1, 0),
+                    World.RampDirection.PlusY => new Vector2(0, 1),
+                    _ => new Vector2(0, -1),
+                };
+                var center51 = new Vector2(tx51 + 0.5f, ty51 + 0.5f);
+                var lowP51 = center51 - dir51 * 0.35f;
+                var highP51 = center51 + dir51 * 0.85f;
+                float hHigh51 = map51.GroundHeightAt(highP51);
+                if (MathF.Abs(hHigh51 - (map51.GroundLevel(tx51, ty51) + 1)) > 0.01f) continue;
+                if (map51.SampleHeight(highP51, hHigh51) is not { } sH51 ||
+                    map51.CircleBlocked(highP51, 0.4f, sH51)) continue;
+                if (map51.SampleHeight(lowP51, map51.GroundHeightAt(lowP51)) is not { } sL51 ||
+                    map51.CircleBlocked(lowP51, 0.35f, sL51)) continue;
+                rampC51 = center51;
+                rampDir51 = dir51;
+                foundRamp51 = true;
+            }
+        Check(foundRamp51, "the map offers a staircase for the melee trial");
+        var lowPos51 = rampC51 - rampDir51 * 0.35f;
+        var highPos51 = rampC51 + rampDir51 * 0.85f;
+        float lowH51 = map51.GroundHeightAt(lowPos51);
+        float highH51 = map51.GroundHeightAt(highPos51);
+        Check(server.World.MeleeReachable(lowPos51, lowH51, highPos51, highH51) &&
+              server.World.MeleeReachable(highPos51, highH51, lowPos51, lowH51),
+              $"melee reach connects both ways across a staircase (dh {MathF.Abs(highH51 - lowH51):0.00})");
+
+        // A sheer ledge (level step, no ramp) must still block the swing.
+        bool cliffChecked51 = false, cliffBlocked51 = true;
+        for (int ty51 = 1; ty51 < map51.Height - 1 && !cliffChecked51; ty51++)
+            for (int tx51 = 1; tx51 < map51.Width - 1 && !cliffChecked51; tx51++)
+            {
+                if (map51.Ramp(tx51, ty51) != World.RampDirection.None) continue;
+                if (map51.Ramp(tx51 + 1, ty51) != World.RampDirection.None) continue;
+                int gA51 = map51.GroundLevel(tx51, ty51), gB51 = map51.GroundLevel(tx51 + 1, ty51);
+                if (Math.Abs(gA51 - gB51) != 1) continue;
+                var pA51 = new Vector2(tx51 + 0.5f, ty51 + 0.5f);
+                var pB51 = new Vector2(tx51 + 1.5f, ty51 + 0.5f);
+                if (map51.SampleHeight(pA51, gA51) is null || map51.SampleHeight(pB51, gB51) is null) continue;
+                cliffChecked51 = true;
+                cliffBlocked51 = !server.World.MeleeReachable(pA51, gA51, pB51, gB51);
+            }
+        Check(!cliffChecked51 || cliffBlocked51,
+              "a sheer ledge still blocks melee — stairs connect, cliffs don't");
+
+        // The real swing: player B takes a mace to the foot of the stairs; a grunt
+        // holds the summit. The old flat height gate called this a whiff.
+        server.World.DebugCommand(bId, "give_mace", "equip");
+        server.World.LearnSkill(bId, "basic_strike");
+        clientB.World.Me.Position = lowPos51;
+        clientB.World.Me.Height = lowH51;
+        srvRain.Position = lowPos51;
+        srvRain.Height = lowH51;
+        var stairFoe51 = server.World.SpawnEnemy("grunt", highPos51);
+        stairFoe51.FrozenUntil = server.World.Time + 10f;
+        float stairFoeHp51 = stairFoe51.Health;
+        Pump(0.8f); // settle replication and the global use-time lockout
+        srvRain.Position = lowPos51;
+        srvRain.Height = lowH51;
+        server.World.UseSkill(bId, "basic_strike", stairFoe51.Position);
+        Pump(0.5f);
+        Check(stairFoe51.Dead || stairFoe51.Health < stairFoeHp51 - 0.5f,
+              $"a mace swing connects up the stairs ({stairFoeHp51:0}->{stairFoe51.Health:0})");
+        server.World.DebugCommand(bId, "kill_nearby", "");
+        srvRain.Position = server.World.Map.PlayerSpawn;
+        srvRain.Height = server.World.Map.GroundHeightAt(srvRain.Position);
+        clientB.World.Me.Position = server.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = srvRain.Height;
         Pump(0.4f);
 
         Console.WriteLine("\n-- Disconnect resilience --");

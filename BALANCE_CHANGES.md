@@ -1085,3 +1085,30 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
 - **Ctrl+click quick-move**: with the stash open, ctrl+click shuttles items
   bag->stash and stash->bag instantly (server auto-places).
 - Dev aids: give_bow/learn/give_gold/give_curio debug commands.
+
+---
+
+# Addendum (batch 51): stair-aware melee, rain volleys, the supply economy
+
+- **Melee connects across stairs.** The flat height gate (±0.75) whiffed on
+  anyone a step above or below. Swings now walk the ground profile between
+  attacker and victim: a continuous slope (ramp/stairs, up to one full level)
+  connects; a sheer cliff or a bridge deck still blocks. Applies to every
+  melee archetype AND to enemy swings — no stair-immunity cheese either way.
+- **Arrow Rain rework**: damage lands WHILE arrows land, not after. The cast
+  is a short 0.35s draw (ring telegraph), then a rain window: three strike
+  ticks 0.2s apart sync with the falling volley, each enemy clipped once per
+  volley (same damage budget as before), and bodies wandering in mid-fall
+  still get caught. The sky ignores terraces — every elevation inside the
+  circle is hit. Ground bursts (Arcane Burst) also now use the TARGET
+  point's ground height, so casting up onto a ledge works.
+- **Supplies replace gold in the arena.** Building and repairs now spend a
+  run-scoped currency: 120 to start, +5 per wave kill (turret/merc kills pay
+  their owner), +35 per cleared wave. It's granted on entry, dies with the
+  run, and never touches your gold. Prices: crossbow 60, barrier 20 (was
+  25g), flamethrower 90; repairs 4 supplies per 100 missing hp.
+- **Build capacity** (Dungeon Defenders style): a shared placement budget of
+  30 (+8 per extra player). Crossbow 5, barrier 2, flamethrower 6. Destroyed
+  structures hand their share back; the workbench shows supplies, capacity
+  and per-row costs.
+- Protocol v37 (per-player supplies ride DefenseState); give_supplies debug.

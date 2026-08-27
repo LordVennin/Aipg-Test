@@ -15,8 +15,9 @@ public enum StructureKind : byte
 /// <summary>
 /// THE numbers of the wagon-defense loop, shared verbatim by client and server: the
 /// build menu shows the same prices the server charges, so building needs no stock
-/// roundtrip. Turret gold costs are a deliberate gold SINK — the economy finally has
-/// a drain that scales with how much defense you want to buy.
+/// roundtrip. Defenses are bought with SUPPLIES — a run-scoped currency earned by
+/// defending — and placement is bounded by a shared build-capacity budget, so a
+/// camp's shape is a real decision instead of a wallet check.
 /// </summary>
 public static class DefenseBalance
 {
@@ -34,9 +35,34 @@ public static class DefenseBalance
     /// <summary>Extra wagon health per player beyond the first (more attackers incoming).</summary>
     public const float WagonHealthPerExtraPlayer = 0.25f;
 
+    // ------------------------------------------------------------- supplies (batch 51)
+    // Building runs on SUPPLIES, a currency that exists only inside a defense run:
+    // everyone starts a run with a stipend, kills pay out during waves, and every
+    // cleared wave adds a bonus. Gold stays out of the arena entirely.
+    public const int SupplyStart = 120;
+    public const int SupplyPerKill = 5;
+    public const int SupplyWaveBonus = 35;
+
+    /// <summary>Structure prices, in supplies.</summary>
     public const int CrossbowCost = 60;
-    public const int BarrierCost = 25;
+    public const int BarrierCost = 20;
     public const int FlameCost = 90;
+
+    // ------------------------------------------------------- build capacity (batch 51)
+    // Dungeon-Defenders-style placement budget, shared by the whole party: every
+    // standing player-built structure holds capacity (freed when it's destroyed),
+    // with turrets weighing far more than walls.
+    public const int BuildCapBase = 30;
+    public const int BuildCapPerExtraPlayer = 8;
+
+    /// <summary>Capacity a structure holds while it stands (0 for non-buildables).</summary>
+    public static int CapacityCost(StructureKind kind) => kind switch
+    {
+        StructureKind.CrossbowTurret => 5,
+        StructureKind.SpikedBarrier => 2,
+        StructureKind.FlameTurret => 6,
+        _ => 0,
+    };
 
     public const float CrossbowHealth = 140f;
     public const float BarrierHealth = 320f;
@@ -59,8 +85,8 @@ public static class DefenseBalance
     /// around their placed facing (rotate at placement to aim it).</summary>
     public const float TurretConeDegrees = 130f;
 
-    /// <summary>Workbench repairs: gold per 100 missing structure hit points — cheap
-    /// on purpose (upkeep, not a second purchase).</summary>
+    /// <summary>Workbench repairs: supplies per 100 missing structure hit points —
+    /// cheap on purpose (upkeep, not a second purchase).</summary>
     public const float RepairCostPer100Hp = 4f;
     public static int RepairCost(float missingHp) =>
         missingHp < 1f ? 0 : Math.Max(1, (int)MathF.Ceiling(missingHp * RepairCostPer100Hp / 100f));

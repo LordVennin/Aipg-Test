@@ -943,6 +943,13 @@ public class GameClient
                 World.DefenseWavesTotal = r.GetInt();
                 World.WagonHealth = r.GetFloat();
                 World.WagonMaxHealth = MathF.Max(1f, r.GetFloat());
+                int supplyCount = r.GetByte();
+                World.DefenseSupplies.Clear();
+                for (int i = 0; i < supplyCount; i++)
+                {
+                    int supplyPid = r.GetInt();
+                    World.DefenseSupplies[supplyPid] = r.GetInt();
+                }
                 break;
             }
 
@@ -1091,7 +1098,7 @@ public class GameClient
                         World.AddEffect(effectPoint,
                             skillId == "arrow_rain" ? def.Radius : MathF.Max(0.9f, def.Radius * 0.8f),
                             MathF.Max(0.2f, def.WindupTime),
-                            skillId == "arrow_rain" ? "arrowrain" : "burstcharge", effectHeight);
+                            skillId == "arrow_rain" ? "arrowrainring" : "burstcharge", effectHeight);
 
                     if (phase != 1) // impact visuals come with the landing, never the wind-up
                         switch (def.Archetype)
@@ -1122,7 +1129,9 @@ public class GameClient
                                 break;
                             case Skills.SkillArchetype.AreaBurst:
                                 if (skillId == "arrow_rain")
-                                    World.AddEffect(effectPoint, def.Radius, 1.0f, "arrowrainhit", effectHeight);
+                                    // The full volley timeline: arrows fall, stick and
+                                    // fade — server damage ticks land while they fall.
+                                    World.AddEffect(effectPoint, def.Radius, 1.5f, "arrowrain", effectHeight);
                                 else
                                     World.AddEffect(effectPoint, def.Radius, 0.3f, "burst", effectHeight);
                                 break;
