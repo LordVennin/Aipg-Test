@@ -4354,7 +4354,9 @@ public static class HeadlessNetTest
         var srvDefA47 = campServer.World.Players[campA.World.MyPlayerId];
         srvDefA47.Character.Gold = 500;
         var buildSpot47 = defMap47.WagonSpot + new Vector2(-4f, 0);
-        campServer.World.Build(srvDefA47.Id, World.StructureKind.CrossbowTurret, buildSpot47);
+        // Rotation 3 = south: the chew test below drags its victim to the barrier
+        // south-east of this turret, so the fire cone must cover it.
+        campServer.World.Build(srvDefA47.Id, World.StructureKind.CrossbowTurret, buildSpot47, 3);
         Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.CrossbowTurret) &&
               srvDefA47.Character.Gold == 500 - World.DefenseBalance.CrossbowCost,
               "building a crossbow turret charges its gold price (the gold sink works)");
@@ -4596,6 +4598,126 @@ public static class HeadlessNetTest
               "mercs never follow the party out of the arena");
         Check(srvResA.Character.Mercs.Count == 2,
               "the roster is permanent — deployments and deaths never erase a hire");
+
+        Console.WriteLine("\n-- Batch 49: grid defenses, solid walls, fire cones, repair --");
+        campA.World.Me.Position = campServer.World.Map.DefenseDoor + new Vector2(0.9f, 0);
+        campB.World.Me.Position = campServer.World.Map.DefenseDoor + new Vector2(0.9f, 0.7f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(0.8f);
+        Check(campServer.World.Map.Kind == World.MapKind.Defense &&
+              campServer.World.DefPhase == Server.DefensePhase.Build,
+              "a fresh arena for the wall tests");
+        var defMap49 = campServer.World.Map;
+        var srvA49 = campServer.World.Players[campA.World.MyPlayerId];
+        campA.World.Me.Position = defMap49.WagonSpot + new Vector2(-2.5f, 0);
+        campB.World.Me.Position = defMap49.WagonSpot + new Vector2(2.0f, 0.8f);
+        CPump(0.5f);
+        srvA49.Character.Gold = 1000;
+
+        // Placement snaps to the grid; one structure per tile; rotation replicates.
+        campServer.World.Build(srvA49.Id, World.StructureKind.SpikedBarrier,
+            defMap49.WagonSpot + new Vector2(-3.8f, 0.3f), 1);
+        var snapped49 = campServer.World.Structures.Values
+            .First(s => s.Kind == World.StructureKind.SpikedBarrier);
+        Check(MathF.Abs(snapped49.Position.X % 1f - 0.5f) < 0.001f &&
+              MathF.Abs(snapped49.Position.Y % 1f - 0.5f) < 0.001f &&
+              snapped49.Rotation == 1,
+              $"builds snap to tile centers and keep their rotation ({snapped49.Position.X:0.0},{snapped49.Position.Y:0.0})");
+        int structs49 = campServer.World.Structures.Count;
+        campServer.World.Build(srvA49.Id, World.StructureKind.CrossbowTurret,
+            snapped49.Position + new Vector2(0.3f, -0.2f)); // lands on the same tile
+        Check(campServer.World.Structures.Count == structs49,
+              "one structure per tile — the grid is the law");
+        CPump(0.4f);
+        Check(campB.World.Structures.Values.Any(s => s.Kind == 1 && s.Rotation == 1),
+              "rotation replicates with the structure spawn");
+
+        // A full ring of barriers, ready to trap the wall-target test's victim.
+        var ringC49 = new Vector2(MathF.Floor(defMap49.WagonSpot.X - 3f) + 0.5f,
+                                  MathF.Floor(defMap49.WagonSpot.Y - 2f) + 0.5f);
+        int ringBuilt49 = 0;
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                int before = campServer.World.Structures.Count;
+                campServer.World.Build(srvA49.Id, World.StructureKind.SpikedBarrier,
+                    ringC49 + new Vector2(dx, dy), (byte)((dx == 0 ? 1 : 0)));
+                if (campServer.World.Structures.Count > before) ringBuilt49++;
+            }
+        Check(ringBuilt49 == 8, $"a closed 3x3 ring of barriers goes up ({ringBuilt49}/8)");
+
+        // The fire-cone turret, aimed EAST, away from the wagon.
+        campA.World.Me.Position = defMap49.WagonSpot + new Vector2(1.5f, 1.5f);
+        CPump(0.4f);
+        var conePos49 = defMap49.WagonSpot + new Vector2(1f, 2f);
+        campServer.World.Build(srvA49.Id, World.StructureKind.CrossbowTurret, conePos49, 2);
+        var coneTurret49 = campServer.World.Structures.Values
+            .First(s => s.Kind == World.StructureKind.CrossbowTurret);
+        Check(coneTurret49.Rotation == 2, "the turret keeps its eastward facing");
+
+        // Repair: chew marks get hammered out for cheap gold.
+        campServer.World.DamageStructure(snapped49, 100f);
+        campA.World.Me.Position = defMap49.WorkbenchSpot + new Vector2(0.8f, 0);
+        CPump(0.4f);
+        int goldBeforeRepair49 = srvA49.Character.Gold;
+        int expectRepair49 = World.DefenseBalance.RepairCost(100f);
+        campServer.World.RepairAll(srvA49.Id);
+        Check(MathF.Abs(snapped49.Health - snapped49.MaxHealth) < 0.01f &&
+              srvA49.Character.Gold == goldBeforeRepair49 - expectRepair49,
+              $"Repair All patches the wall back to full for {expectRepair49} gold");
+        campServer.World.RepairAll(srvA49.Id);
+        Check(srvA49.Character.Gold == goldBeforeRepair49 - expectRepair49,
+              "nothing damaged, nothing charged");
+
+        // Wave time: the walls must HOLD, the trapped must chew, the cone must gate.
+        campA.World.Me.Position = defMap49.WorkbenchSpot + new Vector2(0.8f, 0);
+        campB.World.Me.Position = defMap49.WorkbenchSpot + new Vector2(-0.8f, 0.5f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(0.8f);
+        Check(campServer.World.DefPhase == Server.DefensePhase.Wave, "wave called for the wall trial");
+        campA.World.Me.Position = defMap49.ExitDoor + new Vector2(-1.4f, -2f);
+        campB.World.Me.Position = defMap49.ExitDoor + new Vector2(-1.4f, -2.8f);
+        CPump(0.4f);
+
+        var trapped49 = campServer.World.SpawnEnemy("grunt", ringC49);
+        float ringHpBefore49 = campServer.World.Structures.Values
+            .Where(s => s.Kind == World.StructureKind.SpikedBarrier)
+            .Sum(s => s.Health);
+        CPump(4.0f);
+        Check(!trapped49.Dead &&
+              MathF.Abs(trapped49.Position.X - ringC49.X) < 1.5f &&
+              MathF.Abs(trapped49.Position.Y - ringC49.Y) < 1.5f,
+              $"walls actually hold — the trapped enemy never left its cell ({trapped49.Position.X:0.0},{trapped49.Position.Y:0.0})");
+        float ringHpAfter49 = campServer.World.Structures.Values
+            .Where(s => s.Kind == World.StructureKind.SpikedBarrier)
+            .Sum(s => s.Health);
+        Check(ringHpAfter49 < ringHpBefore49 - 1f,
+              $"a fully walled-off enemy targets the wall ({ringHpBefore49:0} -> {ringHpAfter49:0})");
+
+        var inCone49 = campServer.World.SpawnEnemy("grunt", coneTurret49.Position + new Vector2(2f, 0));
+        var outCone49 = campServer.World.SpawnEnemy("grunt", coneTurret49.Position + new Vector2(-2f, 0));
+        float inHp49 = inCone49.Health, outHp49 = outCone49.Health;
+        for (int i = 0; i < 10 && !inCone49.Dead; i++)
+        {
+            inCone49.Position = coneTurret49.Position + new Vector2(2f, 0);
+            outCone49.Position = coneTurret49.Position + new Vector2(-2f, 0);
+            CPump(0.35f);
+        }
+        Check(inCone49.Dead || inCone49.Health < inHp49 - 1f,
+              "targets inside the fire cone get shot");
+        Check(!outCone49.Dead && MathF.Abs(outCone49.Health - outHp49) < 0.01f,
+              "targets behind the turret are ignored — the cone shows the truth");
+
+        campServer.World.DamageStructure(campServer.World.Wagon, 1_000_000f);
+        campA.SendDebugCommand("heal");
+        campB.SendDebugCommand("heal");
+        CPump(4.5f);
+        Check(campServer.World.MapIndex == 0, "the wall trial run wraps up back home");
 
         campA.Disconnect();
         campB.Disconnect();

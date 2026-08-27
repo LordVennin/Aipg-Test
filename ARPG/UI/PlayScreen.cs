@@ -7,6 +7,7 @@ using ARPG.Server;
 using ARPG.Skills;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using NumVec2 = System.Numerics.Vector2;
 
 namespace ARPG.UI;
@@ -89,6 +90,8 @@ public class PlayScreen : IScreen
     public float ChargeFraction => _chargingSlot >= 0
         ? Math.Clamp((_clientTime - _chargeStart) / ChargeTime, 0f, 1f) : 0f;
     private const float ChargeTime = 0.9f;
+    /// <summary>Build placement rotation (R cycles): turret cone facing / barrier axis.</summary>
+    private byte _buildRotation;
     /// <summary>Auto-walk pickup: the drop we're heading toward after the player
     /// pressed pickup on a hovered (but out-of-range) item label.</summary>
     private Guid _pickupTargetId = Guid.Empty;
@@ -280,10 +283,18 @@ public class PlayScreen : IScreen
         if (NumVec2.Distance(me.Position, spot) > World.DefenseBalance.BuildReach) return false;
         if (map.SampleHeight(spot, me.Height) is not { } h ||
             map.CircleBlocked(spot, 0.45f, h)) return false;
+        // One structure per tile (the wagon's footprint spans two).
         static float RadiusFor(byte k) => k == 3 ? 0.85f : k == 4 ? 0.5f : 0.45f;
+        int tileX = (int)MathF.Floor(spot.X), tileY = (int)MathF.Floor(spot.Y);
         foreach (var s in _client.World.Structures.Values)
-            if (NumVec2.Distance(s.Position, spot) <
-                MathF.Max(World.DefenseBalance.MinSpacing, RadiusFor(s.Kind) + 0.5f)) return false;
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int sx = (int)MathF.Floor(s.Position.X) + dx, sy = (int)MathF.Floor(s.Position.Y) + dy;
+                    var tc = new NumVec2(sx + 0.5f, sy + 0.5f);
+                    if (NumVec2.Distance(tc, s.Position) > RadiusFor(s.Kind) + 0.1f) continue;
+                    if (sx == tileX && sy == tileY) return false;
+                }
         foreach (var pp in map.SpawnPortals)
             if (NumVec2.Distance(pp, spot) < World.DefenseBalance.PortalExclusion) return false;
         return true;
@@ -614,11 +625,16 @@ public class PlayScreen : IScreen
                 }
                 else
                 {
-                    var spot = _camera.ScreenToWorld(input.RawMousePosition, me.Height);
+                    // Placement locks to the tile grid; R rotates (turret cone facing,
+                    // barrier wall axis).
+                    var raw = _camera.ScreenToWorld(input.RawMousePosition, me.Height);
+                    var spot = new NumVec2(MathF.Floor(raw.X) + 0.5f, MathF.Floor(raw.Y) + 0.5f);
+                    if (input.WasKeyPressed(Keys.R))
+                        _buildRotation = (byte)((_buildRotation + 1) % 4);
                     bool valid = BuildSpotLooksValid(placing, spot, me);
-                    _renderer.BuildPreview = ((byte)placing, spot, valid);
+                    _renderer.BuildPreview = ((byte)placing, spot, valid, _buildRotation);
                     if (mouseFree && input.MouseLeftPressed && valid)
-                        _client.RequestBuild((byte)placing, spot);
+                        _client.RequestBuild((byte)placing, spot, _buildRotation);
                     if (input.MouseRightPressed) _build.PendingKind = null;
                     // Placement owns the mouse: no attacks fire off placement clicks.
                     _lmbClaimedByUI = input.MouseLeftDown;
@@ -643,7 +659,7 @@ public class PlayScreen : IScreen
                         !_client.World.Map.CircleBlocked(spot, 0.35f,
                             _client.World.Map.GroundHeightAt(spot));
                     _renderer.BuildPreview =
-                        ((byte)(deploying.Kind == "warrior" ? 250 : 251), spot, valid);
+                        ((byte)(deploying.Kind == "warrior" ? 250 : 251), spot, valid, (byte)0);
                     if (mouseFree && input.MouseLeftPressed && valid)
                     {
                         _client.RequestDeployMerc(deploying.Id, spot);

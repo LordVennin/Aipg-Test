@@ -267,6 +267,8 @@ public class ClientStructure
     public float Health;
     public float MaxHealth;
     public int OwnerId;
+    /// <summary>Placement rotation (0 W / 1 N / 2 E / 3 S): barrier axis, turret cone.</summary>
+    public byte Rotation;
     /// <summary>Local arrival time (ms) — a brief build "pop" on placement.</summary>
     public long SpawnedAtMs;
 }

@@ -413,6 +413,9 @@ public class ServerStructure
     public float MaxHealth;
     /// <summary>The player who built it (-1 for server-placed wagon/workbench).</summary>
     public int OwnerId = -1;
+    /// <summary>Placement rotation (0 west / 1 north / 2 east / 3 south): a turret's
+    /// fire-cone facing, a barrier's wall axis. Chosen at placement, never changes.</summary>
+    public byte Rotation;
     /// <summary>Turrets: next allowed shot time (server clock).</summary>
     public float NextShotAt;
     /// <summary>Collision footprint radius (barriers block enemy movement with it).</summary>

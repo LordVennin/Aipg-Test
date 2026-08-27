@@ -69,7 +69,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 35; // v35: researcher, contracts, mercenaries
+    public const int ProtocolVersion = 36; // v36: grid defenses, rotation, repair
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }
