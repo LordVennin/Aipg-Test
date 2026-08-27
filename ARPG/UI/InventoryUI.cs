@@ -52,9 +52,13 @@ public class InventoryUI
         character.Inventory.FindByInstance(id)
         ?? character.Stashes.Values.Select(s => s.FindByInstance(id)).FirstOrDefault(x => x != null);
 
-    /// <summary>Sell mode (set while a merchant shop is open): left-clicking a BAG item
-    /// sells it instead of starting a drag. Cleared by PlayScreen when the shop closes.</summary>
+    /// <summary>Sell mode (set while a merchant shop is open): CTRL+clicking a BAG item
+    /// sells it (or drag it onto the shop window). Cleared when the shop closes.</summary>
     public Action<ItemInstance> SellClickHandler;
+
+    /// <summary>Quick-move (set while the stash is open, shop closed): CTRL+clicking a
+    /// BAG item sends it straight to the stash. Cleared by PlayScreen otherwise.</summary>
+    public Action<ItemInstance> QuickMoveHandler;
 
     public InventoryUI(GameData data, GameClient client, DragState drag)
     {
@@ -149,13 +153,23 @@ public class InventoryUI
             }
         }
 
-        // --- shop sell mode: clicking a bag item sells it (no drag) ---
-        if (SellClickHandler != null && !_drag.Active && !_pendingScrollId.HasValue &&
-            input.MouseLeftPressed && hoveredPlaced != null)
+        // --- ctrl+click quick actions: sell to the open shop, or shuttle to the open
+        // stash. A PLAIN click never sells any more — it just starts a drag.
+        if (!_drag.Active && !_pendingScrollId.HasValue && input.MouseLeftPressed &&
+            input.CtrlDown && hoveredPlaced != null)
         {
-            input.MouseCapturedByUI = true;
-            SellClickHandler(hoveredPlaced.Item);
-            return;
+            if (SellClickHandler != null)
+            {
+                input.MouseCapturedByUI = true;
+                SellClickHandler(hoveredPlaced.Item);
+                return;
+            }
+            if (QuickMoveHandler != null)
+            {
+                input.MouseCapturedByUI = true;
+                QuickMoveHandler(hoveredPlaced.Item);
+                return;
+            }
         }
 
         // --- start drag ---
@@ -326,8 +340,10 @@ public class InventoryUI
         var hint = FontManager.Get(12);
         sb.DrawString(hint,
             SellClickHandler != null
-                ? "SELLING — click a bag item to sell it to the merchant"
-                : "drag to move/equip · right-click quick equip · right-click a Scroll, then click an item",
+                ? "SELLING — ctrl+click a bag item (or drag it onto the shop) to sell it"
+                : QuickMoveHandler != null
+                    ? "ctrl+click sends an item to the stash · drag to move/equip"
+                    : "drag to move/equip · right-click quick equip · right-click a Scroll, then click an item",
             new Vector2(_panelRect.X + 12, _panelRect.Bottom - 22),
             SellClickHandler != null ? new Color(240, 200, 90) : new Color(120, 116, 104));
 

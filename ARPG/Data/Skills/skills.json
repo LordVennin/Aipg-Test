@@ -271,5 +271,30 @@
   "ManaCost": 0,
   "UseTime": 0.3,
   "ProjectileSprite": "Arrow"
+ },
+ {
+  "Id": "arrow_rain",
+  "Name": "Arrow Rain",
+  "Description": "Loose a volley skyward and rain it down on the marked circle \u2014 the arrows land together after a heartbeat.",
+  "Tags": [
+   "Attack",
+   "Ranged",
+   "Area",
+   "Physical",
+   "Bow"
+  ],
+  "Archetype": "AreaBurst",
+  "DamageKind": "Thrust",
+  "UsesWeaponDamage": true,
+  "WeaponDamageMultiplier": 0.9,
+  "WeaponDamageMultiplierPerLevel": 0.07,
+  "RequiredWeapon": "Bow",
+  "Cooldown": 4.0,
+  "Range": 9,
+  "Radius": 2.2,
+  "RadiusPerLevel": 0.08,
+  "ManaCost": 10,
+  "UseTime": 0.5,
+  "WindupTime": 0.7
  }
 ]

@@ -128,7 +128,9 @@ public struct ComputedStats
 public static class StatCalculator
 {
     public const float BaseMoveSpeed = 4.2f;
-    public const float BaseMaxHealth = 60f;
+    // Lowered 60 -> 35 so the flat freebie pool stops drowning out STRENGTH life:
+    // a warrior's attribute health is now a real edge instead of a rounding error.
+    public const float BaseMaxHealth = 35f;
     // Halved so gear/attributes carry growth — stats should matter more than levels.
     public const float HealthPerCharLevel = 4f;
     public const float UnarmedMinDamage = 2f;

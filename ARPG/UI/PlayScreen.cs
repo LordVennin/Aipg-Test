@@ -67,6 +67,8 @@ public class PlayScreen : IScreen
     private bool _devGiveGold;
     /// <summary>ARPG_DEVUI=curio: grant contracts + the blueprint (GUI automation).</summary>
     private bool _devGiveCurios;
+    /// <summary>ARPG_DEVUI=rain: bow + Arrow Rain on hotbar slot 1 (GUI automation).</summary>
+    private bool _devArrowRain;
     /// <summary>ARPG_DEVUI=gear[:family]: wear a full armor set shortly after joining
     /// (GUI automation — verifies the worn-armor overlays).</summary>
     private string _devEquipSet;
@@ -234,6 +236,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("knight")) _devSpawnKnights = true;
             if (devUi.Contains("gold")) _devGiveGold = true;
             if (devUi.Contains("curio")) _devGiveCurios = true;
+            if (devUi.Contains("rain")) _devArrowRain = true;
             if (devUi.Contains("warp")) _devWarpNext = true;
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
             if (gearToken != null)
@@ -355,6 +358,13 @@ public class PlayScreen : IScreen
             _devGiveCurios = false;
             _client.SendDebugCommand("give_curio", "merc_contract");
             _client.SendDebugCommand("give_curio", "flamethrower_blueprint");
+        }
+        if (_devArrowRain && _clientTime > 1.5f)
+        {
+            _devArrowRain = false;
+            _client.SendDebugCommand("give_bow", "equip");
+            _client.SendDebugCommand("learn", "arrow_rain");
+            _client.RequestAssignHotbar(1, "arrow_rain");
         }
         if (_devOpenShop && _clientTime > 2f && _client.World.Npcs.Count > 0 && _client.World.Me != null)
         {
@@ -498,6 +508,16 @@ public class PlayScreen : IScreen
         if (input.WasActionPressed(InputAction.SkillTree)) { _skillTree.Open = !_skillTree.Open; if (_skillTree.Open) RaisePanel(_skillTree); }
         if (input.WasActionPressed(InputAction.DebugMenu)) _debug.Open = !_debug.Open;
 
+        // Ctrl+click quick-move wiring: with the stash open (and no merchant selling),
+        // ctrl+click shuttles bag items into the stash (server auto-places).
+        _inventory.QuickMoveHandler = _stash.Open && _inventory.SellClickHandler == null
+            ? item => _client.RequestMoveItem(
+                  ItemLocation.AtGrid(
+                      _client.World.MyCharacter?.Inventory.FindByInstance(item.InstanceId)?.X ?? 0,
+                      _client.World.MyCharacter?.Inventory.FindByInstance(item.InstanceId)?.Y ?? 0),
+                  ItemLocation.AtStash(World.GameMap.HubStashId, 0, 0))
+            : null;
+
         // --- UI updates first: they claim the mouse before world input runs ---
         // A click raises the topmost open panel under the mouse; updates then run
         // topmost-first, and any panel below a window that holds the mouse is blocked
@@ -522,13 +542,24 @@ public class PlayScreen : IScreen
         if (_drag.Active && input.MouseLeftReleased)
         {
             var mouse = input.MousePosition;
-            bool handled = _skillMenu.TryDropAt(mouse) || _inventory.TryDropAt(mouse) ||
-                           _stash.TryDropAt(mouse) ||
-                           _debug.Contains(mouse) || _characterSheet.Contains(mouse) ||
-                           _skillTree.Contains(mouse) || _shop.Contains(mouse);
-            if (!handled)
-                _client.RequestDropItem(_drag.Item.InstanceId); // released over the world: drop it
-            _drag.Clear();
+            // Dropping a bag item onto the open shop sells it outright (the other
+            // deliberate way to sell besides ctrl+click).
+            if (_shop.Open && _inventory.SellClickHandler != null && _shop.Contains(mouse) &&
+                _drag.Source.Kind == ItemLocationKind.Grid)
+            {
+                _client.RequestShopSell(_drag.Item.InstanceId);
+                _drag.Clear();
+            }
+            else
+            {
+                bool handled = _skillMenu.TryDropAt(mouse) || _inventory.TryDropAt(mouse) ||
+                               _stash.TryDropAt(mouse) ||
+                               _debug.Contains(mouse) || _characterSheet.Contains(mouse) ||
+                               _skillTree.Contains(mouse) || _shop.Contains(mouse);
+                if (!handled)
+                    _client.RequestDropItem(_drag.Item.InstanceId); // released over the world: drop it
+                _drag.Clear();
+            }
         }
 
         // A UI-consumed click stays consumed for as long as the button is held, so

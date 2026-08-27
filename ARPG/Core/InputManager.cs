@@ -196,6 +196,9 @@ public class InputManager
     public bool MouseRightPressed => _mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released;
     public int ScrollDelta => _mouse.ScrollWheelValue - _prevMouse.ScrollWheelValue;
     public bool WasKeyPressed(Keys key) => _keys.IsKeyDown(key) && !_prevKeys.IsKeyDown(key);
+    public bool IsKeyDown(Keys key) => _keys.IsKeyDown(key);
+    /// <summary>Either Control key — the quick-action modifier (ctrl+click moves/sells).</summary>
+    public bool CtrlDown => _keys.IsKeyDown(Keys.LeftControl) || _keys.IsKeyDown(Keys.RightControl);
 
     /// <summary>Used by the options screen to capture the next pressed key/mouse button for rebinding.</summary>
     public bool TryCaptureBinding(out InputBinding binding)
