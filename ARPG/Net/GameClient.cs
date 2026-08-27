@@ -1052,7 +1052,7 @@ public class GameClient
                     // else the archetype's generic. Phase 2 is the delayed IMPACT.
                     bool meleeArch = def.Archetype is Skills.SkillArchetype.MeleeStrike
                         or Skills.SkillArchetype.MeleeSingle or Skills.SkillArchetype.MeleeArea;
-                    string fallbackSnd = skillId == "arrow_shot" ? "arrow"
+                    string fallbackSnd = skillId is "arrow_shot" or "arrow_rain" ? "arrow"
                         : meleeArch ? "swing"
                         : def.Tags?.Contains("Projectile") == true ? "cast_bolt" : "cast_generic";
                     Audio.AudioManager.PlayWorld(effectPoint, "cast_" + skillId, fallbackSnd);
@@ -1088,8 +1088,10 @@ public class GameClient
                     // Wind-up CASTS telegraph at the target: a gathering-energy charge
                     // effect fills the wind-up (Arcane Burst's charge-up).
                     if (phase == 1 && def.Archetype == Skills.SkillArchetype.AreaBurst)
-                        World.AddEffect(effectPoint, MathF.Max(0.9f, def.Radius * 0.8f),
-                            MathF.Max(0.2f, def.WindupTime), "burstcharge", effectHeight);
+                        World.AddEffect(effectPoint,
+                            skillId == "arrow_rain" ? def.Radius : MathF.Max(0.9f, def.Radius * 0.8f),
+                            MathF.Max(0.2f, def.WindupTime),
+                            skillId == "arrow_rain" ? "arrowrain" : "burstcharge", effectHeight);
 
                     if (phase != 1) // impact visuals come with the landing, never the wind-up
                         switch (def.Archetype)
@@ -1119,7 +1121,10 @@ public class GameClient
                                     World.AddEffect(effectPoint, def.Radius, 0.3f, "slam", effectHeight);
                                 break;
                             case Skills.SkillArchetype.AreaBurst:
-                                World.AddEffect(effectPoint, def.Radius, 0.3f, "burst", effectHeight);
+                                if (skillId == "arrow_rain")
+                                    World.AddEffect(effectPoint, def.Radius, 1.0f, "arrowrainhit", effectHeight);
+                                else
+                                    World.AddEffect(effectPoint, def.Radius, 0.3f, "burst", effectHeight);
                                 break;
                         }
                 }

@@ -113,6 +113,14 @@ public class StashUI
         if (!_drag.Active && !_inventory.PendingScrollId.HasValue &&
             input.MouseLeftPressed && hovered != null)
         {
+            // Ctrl+click shuttles the item straight to the bag (server auto-places).
+            if (input.CtrlDown)
+            {
+                input.MouseCapturedByUI = true;
+                _client.RequestMoveItem(ItemLocation.AtStash(ContainerId, hovered.X, hovered.Y),
+                    ItemLocation.AtGrid(0, 0));
+                return;
+            }
             _drag.Item = hovered.Item;
             _drag.Source = ItemLocation.AtStash(ContainerId, hovered.X, hovered.Y);
         }

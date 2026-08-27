@@ -1065,3 +1065,23 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   structure (wagon included) at 4 gold per 100 missing hp — cheap upkeep,
   build phases only.
 - Protocol v36 (rotation on the wire, RepairRequest).
+
+---
+
+# Addendum (batch 50): Arrow Rain, leaner health, deliberate selling
+
+- **Base health 60 -> 35.** The flat freebie pool was drowning out attribute
+  life — a warrior's Strength now reads as a real durability edge instead of
+  a rounding error. Health-per-level (4) and STR life (2/point) unchanged;
+  everyone is squishier, warriors least of all.
+- **Arrow Rain** (bow attack, trainer-taught): mark a circle up to 9 tiles
+  out; after a heartbeat a volley lands on everything inside (90% weapon
+  damage +7%/level, radius 2.2 +0.08/level, 4s cooldown, 10 mana). The
+  wind-up draws the target ring with arrows streaking down; the landing
+  leaves shafts stuck in the dirt.
+- **Selling is deliberate now**: with a merchant open, bag items sell via
+  CTRL+click or by dragging them onto the shop window — a plain click just
+  starts a drag, so misclicks stop costing gear.
+- **Ctrl+click quick-move**: with the stash open, ctrl+click shuttles items
+  bag->stash and stash->bag instantly (server auto-places).
+- Dev aids: give_bow/learn/give_gold/give_curio debug commands.

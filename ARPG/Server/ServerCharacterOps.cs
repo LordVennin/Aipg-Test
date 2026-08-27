@@ -539,12 +539,14 @@ public partial class ServerWorld
             }
             case "give_mace":
             case "give_staff":
+            case "give_bow":
             case "give_shield":
             {
                 var category = cmd switch
                 {
                     "give_mace" => ItemCategory.Mace,
                     "give_staff" => ItemCategory.Staff,
+                    "give_bow" => ItemCategory.Bow,
                     _ => ItemCategory.Shield,
                 };
                 // Prefer bases the character can actually EQUIP (level + attributes) —
@@ -558,7 +560,20 @@ public partial class ServerWorld
                 var itemBase = (wearable.Count > 0 ? wearable : pool)
                     .OrderBy(_ => Guid.NewGuid()).FirstOrDefault();
                 if (itemBase != null)
-                    changed = GiveItem(p, Loot.Generate(itemBase, 10, ItemRarity.Rare));
+                {
+                    var given = Loot.Generate(itemBase, 10, ItemRarity.Rare);
+                    if (arg == "equip")
+                    {
+                        // Straight into the hand (dev/screenshot aid).
+                        c.Equipment[EquipSlot.MainHand] = given;
+                        if (itemBase.TwoHanded || itemBase.Category == ItemCategory.Bow)
+                            c.Equipment.Remove(EquipSlot.OffHand);
+                        p.RecomputeStats(Data);
+                        changed = true;
+                    }
+                    else
+                        changed = GiveItem(p, given);
+                }
                 break;
             }
             case "give_rare":
@@ -675,6 +690,14 @@ public partial class ServerWorld
             case "give_gold":
                 c.Gold += int.TryParse(arg, out int goldAmt) && goldAmt > 0 ? goldAmt : 500;
                 changed = true;
+                break;
+            case "learn":
+                // Dev shortcut: learn any skill by id, bypassing the trainer.
+                if (Data.Skills.ContainsKey(arg) && c.GetSkill(arg) == null)
+                {
+                    c.Skills.Add(new LearnedSkill { SkillId = arg });
+                    changed = true;
+                }
                 break;
             case "give_curio":
             {

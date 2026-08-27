@@ -2011,6 +2011,62 @@ public class WorldRenderer
                 continue;
             }
 
+            if (fx.Kind is "arrowrain" or "arrowrainhit")
+            {
+                // Arrow Rain: during the wind-up a staggered volley streaks down into
+                // the marked circle (with a target ring); the landing leaves shafts
+                // stuck in the dirt that fade over a beat.
+                bool arrowsFalling = fx.Kind == "arrowrain";
+                var arrowTex = SpriteGen.GetProjectileSprite("Arrow");
+                float radPx = fx.Radius * 2f * IsoCamera.HalfTileW;
+                int seedR = (int)(fx.Position.X * 389) ^ (int)(fx.Position.Y * 719);
+                float tR = t;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    if (arrowsFalling)
+                        for (int seg2 = 0; seg2 < 16; seg2++)
+                        {
+                            float a2 = seg2 / 16f * MathF.Tau;
+                            batch.Draw(TextureGen.Pixel, new Rectangle(
+                                (int)(screen.X + MathF.Cos(a2) * radPx) - 1,
+                                (int)(screen.Y + MathF.Sin(a2) * radPx * 0.5f) - 1, 3, 2),
+                                new Color(210, 190, 130) * 0.55f);
+                        }
+                    if (arrowTex == null) return;
+                    for (int ar = 0; ar < 12; ar++)
+                    {
+                        int hashA = seedR ^ (ar * unchecked((int)0x9E3779B1));
+                        float axp = ((hashA & 0xFF) / 255f * 2f - 1f) * radPx * 0.85f;
+                        float ayp = (((hashA >> 8) & 0xFF) / 255f * 2f - 1f) * radPx * 0.42f;
+                        // Pointing down-left-ish, matching the fall from the upper right.
+                        float tilt = 1.8f + ((hashA >> 16) & 0x3F) / 63f * 0.4f;
+                        var landAt = new Vector2(screen.X + axp, screen.Y + ayp);
+                        if (arrowsFalling)
+                        {
+                            float startT = (ar % 6) / 6f * 0.5f;
+                            float ft = Math.Clamp((tR - startT) / 0.45f, 0f, 1f);
+                            if (ft <= 0f) continue;
+                            if (ft < 1f)
+                                batch.Draw(arrowTex,
+                                    new Vector2(landAt.X + (1f - ft) * 42f, landAt.Y - (1f - ft) * 150f),
+                                    null, Color.White * 0.9f, tilt,
+                                    new Vector2(arrowTex.Width / 2f, arrowTex.Height / 2f),
+                                    2f, SpriteEffects.None, 0f);
+                            else
+                                batch.Draw(arrowTex, landAt, null, new Color(214, 204, 184), tilt,
+                                    new Vector2(arrowTex.Width * 0.85f, arrowTex.Height / 2f),
+                                    1.6f, SpriteEffects.None, 0f);
+                        }
+                        else
+                        {
+                            batch.Draw(arrowTex, landAt, null, new Color(214, 204, 184) * (1f - tR), tilt,
+                                new Vector2(arrowTex.Width * 0.85f, arrowTex.Height / 2f),
+                                1.6f, SpriteEffects.None, 0f);
+                        }
+                    }
+                }));
+                continue;
+            }
             if (fx.Kind == "burstcharge")
             {
                 // Arcane Burst's charge-up: a shrinking violet ring with sparks spiraling

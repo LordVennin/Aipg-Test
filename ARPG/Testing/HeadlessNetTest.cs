@@ -4724,6 +4724,51 @@ public static class HeadlessNetTest
         CPump(0.3f);
         campServer.Stop();
 
+        Console.WriteLine("\n-- Batch 50: Arrow Rain + the leaner health pool --");
+        // The flat health freebie shrank so attribute life carries real weight.
+        Check(Stats.StatCalculator.BaseMaxHealth < 40f,
+              $"base health pool trimmed (now {Stats.StatCalculator.BaseMaxHealth})");
+        var srvRain = server.World.Players[bId];
+        srvRain.Character.Equipment[Items.EquipSlot.MainHand] = new Items.ItemInstance
+        {
+            BaseItemId = "short_bow", ItemLevel = 1, Rarity = Items.ItemRarity.Normal,
+        };
+        srvRain.Character.Equipment.Remove(Items.EquipSlot.OffHand);
+        srvRain.RecomputeStats(data);
+        server.World.LearnSkill(bId, "arrow_rain");
+        Check(srvRain.Character.GetSkill("arrow_rain") != null, "Arrow Rain is learnable");
+        // A tight cluster in the drop circle, one straggler outside it.
+        var rainAt = new Vector2(30.5f, 8.5f);
+        clientB.World.Me.Position = rainAt + new Vector2(-4f, 0); // the client's word is law for position
+        srvRain.Position = rainAt + new Vector2(-4f, 0);
+        srvRain.Mana = srvRain.Stats.MaxMana;
+        var rainA = server.World.SpawnEnemy("grunt", rainAt + new Vector2(-0.6f, 0));
+        var rainB = server.World.SpawnEnemy("grunt", rainAt + new Vector2(0.6f, 0.4f));
+        var rainOut = server.World.SpawnEnemy("grunt", rainAt + new Vector2(6f, 0));
+        // Pin the test dummies where they stand: the volley lands at the LOCKED point.
+        rainA.FrozenUntil = rainB.FrozenUntil = rainOut.FrozenUntil = server.World.Time + 12f;
+        float rainAHp = rainA.Health, rainBHp = rainB.Health, rainOutHp = rainOut.Health;
+        Pump(0.8f); // clear the global use-time lockout from the previous section
+        server.World.UseSkill(bId, "arrow_rain", rainAt);
+        Pump(1.2f); // the volley hangs in the air for the wind-up, then lands
+        Check(rainA.Health < rainAHp - 0.5f && rainB.Health < rainBHp - 0.5f,
+              $"the volley hits everything in the circle ({rainAHp:0}->{rainA.Health:0}, {rainBHp:0}->{rainB.Health:0})");
+        Check(MathF.Abs(rainOut.Health - rainOutHp) < 0.01f,
+              "arrows stay inside the marked circle");
+        // Without a bow the volley refuses to fire.
+        srvRain.Character.Equipment.Remove(Items.EquipSlot.MainHand);
+        srvRain.RecomputeStats(data);
+        Pump(4.2f); // clear the cooldown
+        float rainAHp2 = rainA.Health;
+        server.World.UseSkill(bId, "arrow_rain", rainAt);
+        Pump(1.2f);
+        Check(MathF.Abs(rainA.Health - rainAHp2) < 0.01f, "Arrow Rain requires a bow in hand");
+        srvRain.Position = rainAt + new Vector2(3f, 0); // everything within the cull radius
+        server.World.DebugCommand(bId, "kill_nearby", "");
+        srvRain.Position = server.World.Map.PlayerSpawn;
+        clientB.World.Me.Position = server.World.Map.PlayerSpawn;
+        Pump(0.4f);
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);
