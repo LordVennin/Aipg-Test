@@ -65,6 +65,7 @@ public class PlayScreen : IScreen
     private bool _devSpawnKnights;
     /// <summary>ARPG_DEVUI=gold: grant 1000 gold shortly after joining (GUI automation).</summary>
     private bool _devGiveGold;
+    private bool _devGiveSupplies;
     /// <summary>ARPG_DEVUI=curio: grant contracts + the blueprint (GUI automation).</summary>
     private bool _devGiveCurios;
     /// <summary>ARPG_DEVUI=rain: bow + Arrow Rain on hotbar slot 1 (GUI automation).</summary>
@@ -235,6 +236,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
             if (devUi.Contains("knight")) _devSpawnKnights = true;
             if (devUi.Contains("gold")) _devGiveGold = true;
+            if (devUi.Contains("supplies")) _devGiveSupplies = true;
             if (devUi.Contains("curio")) _devGiveCurios = true;
             if (devUi.Contains("rain")) _devArrowRain = true;
             if (devUi.Contains("warp")) _devWarpNext = true;
@@ -352,6 +354,11 @@ public class PlayScreen : IScreen
         {
             _devGiveGold = false;
             _client.SendDebugCommand("give_gold", "1000");
+        }
+        if (_devGiveSupplies && _clientTime > 1.5f)
+        {
+            _devGiveSupplies = false;
+            _client.SendDebugCommand("give_supplies", "1000");
         }
         if (_devGiveCurios && _clientTime > 1.5f)
         {

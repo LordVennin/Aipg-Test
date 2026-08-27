@@ -2011,26 +2011,49 @@ public class WorldRenderer
                 continue;
             }
 
-            if (fx.Kind is "arrowrain" or "arrowrainhit")
+            if (fx.Kind == "arrowrainring")
             {
-                // Arrow Rain: during the wind-up a staggered volley streaks down into
-                // the marked circle (with a target ring); the landing leaves shafts
-                // stuck in the dirt that fade over a beat.
-                bool arrowsFalling = fx.Kind == "arrowrain";
+                // Arrow Rain's wind-up telegraph: just the target ring, pulsing while
+                // the archer draws — the volley itself is the "arrowrain" effect.
+                float radPx = fx.Radius * 2f * IsoCamera.HalfTileW * (0.92f + 0.08f * MathF.Sin(t * 18f));
+                float pulse = 0.4f + 0.25f * t;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    for (int seg2 = 0; seg2 < 16; seg2++)
+                    {
+                        float a2 = seg2 / 16f * MathF.Tau;
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(a2) * radPx) - 1,
+                            (int)(screen.Y + MathF.Sin(a2) * radPx * 0.5f) - 1, 3, 2),
+                            new Color(210, 190, 130) * pulse);
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "arrowrain")
+            {
+                // Arrow Rain's landing window, ONE timeline (1.5s): the ring holds
+                // while the staggered volley streaks down (server damage ticks land
+                // in this same window), each arrow sticks where it hit, and the
+                // whole tableau fades at the end. Land times sit at t 0.30-0.57 —
+                // matching ServerWorld.RainFirstTickDelay/RainTickInterval.
                 var arrowTex = SpriteGen.GetProjectileSprite("Arrow");
                 float radPx = fx.Radius * 2f * IsoCamera.HalfTileW;
                 int seedR = (int)(fx.Position.X * 389) ^ (int)(fx.Position.Y * 719);
                 float tR = t;
+                float fadeAll = Math.Clamp((1f - tR) / 0.25f, 0f, 1f);
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    if (arrowsFalling)
+                    float ringA = Math.Clamp((0.62f - tR) / 0.2f, 0f, 1f) * 0.55f;
+                    if (ringA > 0.01f)
                         for (int seg2 = 0; seg2 < 16; seg2++)
                         {
                             float a2 = seg2 / 16f * MathF.Tau;
                             batch.Draw(TextureGen.Pixel, new Rectangle(
                                 (int)(screen.X + MathF.Cos(a2) * radPx) - 1,
                                 (int)(screen.Y + MathF.Sin(a2) * radPx * 0.5f) - 1, 3, 2),
-                                new Color(210, 190, 130) * 0.55f);
+                                new Color(210, 190, 130) * ringA);
                         }
                     if (arrowTex == null) return;
                     for (int ar = 0; ar < 12; ar++)
@@ -2041,28 +2064,19 @@ public class WorldRenderer
                         // Pointing down-left-ish, matching the fall from the upper right.
                         float tilt = 1.8f + ((hashA >> 16) & 0x3F) / 63f * 0.4f;
                         var landAt = new Vector2(screen.X + axp, screen.Y + ayp);
-                        if (arrowsFalling)
-                        {
-                            float startT = (ar % 6) / 6f * 0.5f;
-                            float ft = Math.Clamp((tR - startT) / 0.45f, 0f, 1f);
-                            if (ft <= 0f) continue;
-                            if (ft < 1f)
-                                batch.Draw(arrowTex,
-                                    new Vector2(landAt.X + (1f - ft) * 42f, landAt.Y - (1f - ft) * 150f),
-                                    null, Color.White * 0.9f, tilt,
-                                    new Vector2(arrowTex.Width / 2f, arrowTex.Height / 2f),
-                                    2f, SpriteEffects.None, 0f);
-                            else
-                                batch.Draw(arrowTex, landAt, null, new Color(214, 204, 184), tilt,
-                                    new Vector2(arrowTex.Width * 0.85f, arrowTex.Height / 2f),
-                                    1.6f, SpriteEffects.None, 0f);
-                        }
+                        float startT = (ar % 6) / 6f * 0.27f;
+                        float ft = Math.Clamp((tR - startT) / 0.30f, 0f, 1f);
+                        if (ft <= 0f) continue;
+                        if (ft < 1f)
+                            batch.Draw(arrowTex,
+                                new Vector2(landAt.X + (1f - ft) * 42f, landAt.Y - (1f - ft) * 150f),
+                                null, Color.White * 0.9f, tilt,
+                                new Vector2(arrowTex.Width / 2f, arrowTex.Height / 2f),
+                                2f, SpriteEffects.None, 0f);
                         else
-                        {
-                            batch.Draw(arrowTex, landAt, null, new Color(214, 204, 184) * (1f - tR), tilt,
+                            batch.Draw(arrowTex, landAt, null, new Color(214, 204, 184) * fadeAll, tilt,
                                 new Vector2(arrowTex.Width * 0.85f, arrowTex.Height / 2f),
                                 1.6f, SpriteEffects.None, 0f);
-                        }
                     }
                 }));
                 continue;

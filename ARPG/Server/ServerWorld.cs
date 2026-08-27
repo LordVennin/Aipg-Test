@@ -416,6 +416,7 @@ public partial class ServerWorld
         _structTiles.Clear();
         _buildTiles.Clear();
         _windups.Clear();
+        _rainVolleys.Clear();
         _flow.Clear();
         _rallyFields.Clear();
         _wagonFlow = null;
@@ -752,6 +753,8 @@ public partial class ServerWorld
         p.LastSyncedHealth = p.Health;
         p.LastSyncedMana = p.Mana;
         p.LastSyncedEnergyShield = p.EnergyShield;
+        // Joining mid-defense-run: the newcomer gets the same stipend everyone else did.
+        if (Map.Kind == MapKind.Defense) p.Supplies = DefenseBalance.SupplyStart;
         Players[id] = p;
         return p;
     }
@@ -797,6 +800,7 @@ public partial class ServerWorld
     {
         Time += dt;
         UpdateWindups();
+        TickRainVolleys();
         TickFirePatches();
         TickSummons(dt);
         TickEnemies(dt);
@@ -1531,14 +1535,15 @@ public partial class ServerWorld
         foreach (var v in Players.Values)
         {
             if (!v.Alive || Time < v.InvulnerableUntil) continue; // dodge i-frames win
-            if (MathF.Abs(v.Height - e.Height) > 0.75f) continue;
+            // Stair-aware, same as player swings: no free hits from a staircase.
+            if (!MeleeReachable(e.Position, e.Height, v.Position, v.Height)) continue;
             if (!InArc(v.Position)) continue;
             float d = Vector2.Distance(v.Position, e.Position);
             if (d < bestDist) { bestDist = d; hitPlayer = v; }
         }
         foreach (var s in Summons.Values)
         {
-            if (MathF.Abs(s.Height - e.Height) > 0.75f) continue;
+            if (!MeleeReachable(e.Position, e.Height, s.Position, s.Height)) continue;
             if (!InArc(s.Position)) continue;
             float d = Vector2.Distance(s.Position, e.Position);
             if (d < bestDist) { bestDist = d; hitSummon = s; hitPlayer = null; }
@@ -2049,7 +2054,7 @@ public partial class ServerWorld
                 var aimDir = (target - p.Position).NormalizedOrZero();
                 if (aimDir == Vector2.Zero) aimDir = p.Facing;
                 var struckList = def.Tags?.Contains("Area") == true
-                    ? EnemiesNear(effectPoint, stats.Radius, p.Height)
+                    ? EnemiesNearMelee(p, effectPoint, stats.Radius)
                     : Enemies.Values.Where(e =>
                     {
                         // The hit test mirrors the VISIBLE weapon sweep: the swing
@@ -2058,7 +2063,9 @@ public partial class ServerWorld
                         // with a touch of reach forgiveness for bodies mid-step and a
                         // generous point-blank ring that always connects. Tighter arcs
                         // read as whiffs through enemies the sprite clearly touched.
-                        if (e.Dead || MathF.Abs(e.Height - p.Height) > 0.75f) return false;
+                        // Height is stair-aware: an enemy up or down a staircase is
+                        // in the swing; one atop a sheer ledge is not.
+                        if (e.Dead || !MeleeReachable(p.Position, p.Height, e.Position, e.Height)) return false;
                         float edist = Vector2.Distance(e.Position, p.Position);
                         if (edist > stats.Range + e.Def.Radius + 0.15f) return false;
                         if (edist <= 0.9f + e.Def.Radius) return true; // point-blank ring
@@ -2089,7 +2096,7 @@ public partial class ServerWorld
                 // the hit (a shield bash into a cluster staggers the cluster), each
                 // knocked back away from the caster with wall collision.
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
-                foreach (var victim in EnemiesNear(effectPoint, stats.Radius, p.Height).ToList())
+                foreach (var victim in EnemiesNearMelee(p, effectPoint, stats.Radius))
                 {
                     var (vDmg, vKind) = RollSkillHit(victim, stats, out var vComps);
                     HitEnemy(victim, vDmg * chargeMult, playerId, skillId, vKind);
@@ -2108,7 +2115,7 @@ public partial class ServerWorld
             case SkillArchetype.MeleeArea:
             {
                 effectPoint = p.Position;
-                foreach (var e in EnemiesNear(p.Position, stats.Radius, p.Height))
+                foreach (var e in EnemiesNearMelee(p, p.Position, stats.Radius))
                 {
                     { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind); ApplyAilments(e, comps, dmg, stats); }
                     if (e.Dead) continue;
@@ -2164,8 +2171,30 @@ public partial class ServerWorld
             case SkillArchetype.AreaBurst:
             {
                 effectPoint = ClampToRange(p.Position, target, stats.Range);
-                foreach (var e in EnemiesNear(effectPoint, stats.Radius, p.Height))
-                    { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind); ApplyAilments(e, comps, dmg, stats); }
+                if (def.Tags?.Contains("Rain") == true)
+                {
+                    // Sky volleys (Arrow Rain) don't burst — they open a short RAIN
+                    // WINDOW over the circle: damage ticks WHILE the arrows land (in
+                    // sync with the visual), each enemy clipped once, latecomers who
+                    // wander in mid-volley included. And the sky doesn't care about
+                    // terraces: every elevation inside the circle is hit.
+                    _rainVolleys.Add(new RainVolley
+                    {
+                        Position = effectPoint, Radius = stats.Radius,
+                        OwnerId = playerId, SkillId = skillId,
+                        Stats = stats, ChargeMult = chargeMult,
+                        TicksLeft = RainTicks, NextTickAt = Time + RainFirstTickDelay,
+                    });
+                }
+                else
+                {
+                    // Ground bursts detonate AT the marked point: the height gate is
+                    // the target ground's, not the caster's — casting up onto a ledge
+                    // hits what stands there.
+                    float burstH = Map.GroundHeightAt(effectPoint);
+                    foreach (var e in EnemiesNear(effectPoint, stats.Radius, burstH))
+                        { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind); ApplyAilments(e, comps, dmg, stats); }
+                }
                 break;
             }
             case SkillArchetype.ChainLightning:
@@ -2788,6 +2817,56 @@ public partial class ServerWorld
         }
     }
 
+    // ------------------------------------------------------------------ rain volleys
+
+    /// <summary>How long after the cast resolves before the first arrows strike
+    /// (matches the client's falling-volley animation), the gap between damage
+    /// ticks, and how many ticks a volley rains for.</summary>
+    public const float RainFirstTickDelay = 0.45f;
+    public const float RainTickInterval = 0.2f;
+    public const int RainTicks = 3;
+
+    /// <summary>An Arrow Rain in progress: a circle the sky is actively striking.
+    /// Every tick clips enemies inside the circle that haven't been hit yet — at ANY
+    /// height (arrows fall onto every terrace) — so damage lands while arrows land,
+    /// and a body wandering in mid-volley still gets caught. One hit per enemy per
+    /// volley keeps the damage budget identical to a single burst.</summary>
+    private class RainVolley
+    {
+        public Vector2 Position;
+        public float Radius;
+        public int OwnerId;
+        public string SkillId;
+        public EffectiveSkillStats Stats;
+        public float ChargeMult;
+        public int TicksLeft;
+        public float NextTickAt;
+        public readonly HashSet<int> HitIds = new();
+    }
+
+    private readonly List<RainVolley> _rainVolleys = new();
+
+    private void TickRainVolleys()
+    {
+        for (int i = _rainVolleys.Count - 1; i >= 0; i--)
+        {
+            var rv = _rainVolleys[i];
+            if (Time < rv.NextTickAt) continue;
+            rv.NextTickAt = Time + RainTickInterval;
+            rv.TicksLeft--;
+            foreach (var e in Enemies.Values.ToList())
+            {
+                if (e.Dead || rv.HitIds.Contains(e.Id)) continue;
+                if (Vector2.Distance(e.Position, rv.Position) > rv.Radius + e.Def.Radius) continue;
+                rv.HitIds.Add(e.Id);
+                var (dmg, kind) = RollSkillHit(e, rv.Stats, out var comps);
+                HitEnemy(e, dmg * rv.ChargeMult, rv.OwnerId, rv.SkillId, kind);
+                ApplyAilments(e, comps, dmg * rv.ChargeMult, rv.Stats);
+            }
+            if (rv.TicksLeft <= 0) _rainVolleys.RemoveAt(i);
+        }
+    }
+
     private void TickFirePatches()
     {
         for (int i = _firePatches.Count - 1; i >= 0; i--)
@@ -2852,6 +2931,41 @@ public partial class ServerWorld
     private IEnumerable<ServerEnemy> EnemiesNear(Vector2 point, float radius, float height) =>
         Enemies.Values.Where(e => !e.Dead && MathF.Abs(e.Height - height) <= 0.75f &&
                                   Vector2.Distance(e.Position, point) <= radius + e.Def.Radius).ToList();
+
+    /// <summary>
+    /// Whether a melee swing between two combatants is legitimate across the terrain:
+    /// same surface (flat tolerance), or joined by CONTINUOUS ground — a ramp/stair
+    /// interpolates smoothly between levels, so fighting up or down a staircase
+    /// connects, while a sheer cliff (a full-level jump between adjacent samples) or
+    /// a bridge deck (standing height doesn't match the ground) never does.
+    /// </summary>
+    public bool MeleeReachable(Vector2 aPos, float aHeight, Vector2 bPos, float bHeight)
+    {
+        float dh = MathF.Abs(aHeight - bHeight);
+        if (dh <= 0.75f) return true;
+        if (dh > 1.35f) return false; // more than one level apart: never
+        // Walk the ground profile between the two bodies.
+        if (MathF.Abs(Map.GroundHeightAt(aPos) - aHeight) > 0.45f) return false; // on a deck
+        float dist = Vector2.Distance(aPos, bPos);
+        int steps = Math.Max(2, (int)MathF.Ceiling(dist / 0.25f));
+        float prev = Map.GroundHeightAt(aPos);
+        for (int i = 1; i <= steps; i++)
+        {
+            float g = Map.GroundHeightAt(Vector2.Lerp(aPos, bPos, i / (float)steps));
+            if (MathF.Abs(g - prev) > GameMap.StepTolerance + 0.05f) return false; // sheer edge
+            prev = g;
+        }
+        return MathF.Abs(prev - bHeight) <= 0.45f; // the victim really stands on that ground
+    }
+
+    /// <summary>EnemiesNear for MELEE hits: distance from the impact point, but the
+    /// height test is stair-aware relative to the CASTER — swinging up or down a
+    /// staircase connects (see MeleeReachable).</summary>
+    private List<ServerEnemy> EnemiesNearMelee(ServerPlayer caster, Vector2 point, float radius) =>
+        Enemies.Values.Where(e => !e.Dead &&
+                                  Vector2.Distance(e.Position, point) <= radius + e.Def.Radius &&
+                                  MeleeReachable(caster.Position, caster.Height, e.Position, e.Height))
+            .ToList();
 
     private float Roll(float min, float max) => min + (float)_rng.NextDouble() * (max - min);
 
@@ -3004,6 +3118,13 @@ public partial class ServerWorld
 
         if (Players.TryGetValue(e.LastHitByPlayer, out var killer))
         {
+            // Defense waves pay SUPPLIES per kill — turret and merc kills credit
+            // whoever paid for them (their OwnerId rides the killing blow).
+            if (Map.Kind == MapKind.Defense && DefPhase == DefensePhase.Wave)
+            {
+                killer.Supplies += DefenseBalance.SupplyPerKill;
+                _events.DefenseStateChanged(this);
+            }
             // Party XP: the killer earns full value, every OTHER player earns
             // XpBalance.PartyShare of it — so one high-damage build sniping every kill
             // no longer starves the rest of the group. Each member's own under-level

@@ -55,10 +55,18 @@ public class BuildUI
         _panelRect = Window.Place(new Rectangle(screen.X / 2 - 190, 48, 380, h), screen);
     }
 
-    /// <summary>Gold to patch every damaged structure (shared DefenseBalance rule —
+    /// <summary>Supplies to patch every damaged structure (shared DefenseBalance rule —
     /// the client can price it from the replicated health bars).</summary>
     private int RepairCostNow() => DefenseBalance.RepairCost(
         _client.World.Structures.Values.Where(s => s.Kind != 4).Sum(s => s.MaxHealth - s.Health));
+
+    /// <summary>Build capacity held by standing structures (priced from replication).</summary>
+    private int CapUsed() => _client.World.Structures.Values
+        .Where(s => DefenseBalance.PlayerBuildable((StructureKind)s.Kind))
+        .Sum(s => DefenseBalance.CapacityCost((StructureKind)s.Kind));
+
+    private int CapMax() => DefenseBalance.BuildCapBase +
+        DefenseBalance.BuildCapPerExtraPlayer * Math.Max(0, _client.World.Players.Count - 1);
 
     private Rectangle RepairRect() =>
         new(_panelRect.X + 10, _panelRect.Bottom - 84, _panelRect.Width - 20, 30);
@@ -105,7 +113,8 @@ public class BuildUI
                 if (kind == StructureKind.FlameTurret &&
                     character?.FlamethrowerUnlocked != true) break;
                 if (!buildPhase) break;
-                if ((character?.Gold ?? 0) < DefenseBalance.Cost(kind)) break;
+                if (_client.World.MySupplies < DefenseBalance.Cost(kind)) break;
+                if (CapUsed() + DefenseBalance.CapacityCost(kind) > CapMax()) break;
                 PendingKind = kind;   // the play screen takes over placement
                 PendingMerc = null;
                 Open = false;
@@ -123,7 +132,7 @@ public class BuildUI
                 return;
             }
             if (RepairRect().Contains(_lastMouse) && buildPhase && RepairCostNow() > 0 &&
-                (character?.Gold ?? 0) >= RepairCostNow())
+                _client.World.MySupplies >= RepairCostNow())
             {
                 _client.RequestRepair();
                 return;
@@ -150,8 +159,16 @@ public class BuildUI
         int x = _panelRect.X + 12;
         sb.DrawString(FontManager.GetBold(19), "Workbench",
             new Vector2(x, _panelRect.Y + 8), new Color(240, 200, 110));
-        sb.DrawString(FontManager.Get(14), $"Your gold: {character.Gold}",
+        // Supplies are the arena's own currency (kills and cleared waves pay out);
+        // capacity is the party's shared placement budget.
+        int capUsed = CapUsed(), capMax = CapMax();
+        sb.DrawString(FontManager.Get(14), $"Supplies: {_client.World.MySupplies}",
             new Vector2(x, _panelRect.Y + 36), new Color(240, 200, 90));
+        string capText = $"Capacity: {capUsed}/{capMax}";
+        var capSize = FontManager.Get(14).MeasureString(capText);
+        sb.DrawString(FontManager.Get(14), capText,
+            new Vector2(_panelRect.Right - capSize.X - 12, _panelRect.Y + 36),
+            capUsed >= capMax ? new Color(220, 120, 90) : new Color(170, 190, 220));
 
         bool buildPhase = _client.World.DefensePhase == 0;
         var nameFont = FontManager.Get(15);
@@ -162,7 +179,9 @@ public class BuildUI
             var row = RowRect(i);
             bool locked = kind == StructureKind.FlameTurret && !character.FlamethrowerUnlocked;
             int cost = DefenseBalance.Cost(kind);
-            bool afford = !locked && buildPhase && character.Gold >= cost;
+            int capCost = DefenseBalance.CapacityCost(kind);
+            bool capFits = capUsed + capCost <= capMax;
+            bool afford = !locked && buildPhase && _client.World.MySupplies >= cost && capFits;
             bool hover = row.Contains(_lastMouse);
             sb.Draw(TextureGen.Pixel, row,
                 hover && afford ? new Color(60, 50, 36, 220) : new Color(14, 12, 18, 235));
@@ -174,11 +193,19 @@ public class BuildUI
                 afford ? new Color(230, 224, 210) : new Color(130, 124, 112));
             sb.DrawString(subFont, locked ? "requires the researched blueprint" : desc,
                 new Vector2(row.X + 36, row.Y + 23), new Color(140, 134, 122));
-            string price = locked ? "locked" : $"{cost} g";
+            string price = locked ? "locked" : $"{cost} sup";
             var pSize = nameFont.MeasureString(price);
             sb.DrawString(nameFont, price,
                 new Vector2(row.Right - pSize.X - 8, row.Y + 4),
                 locked ? new Color(150, 90, 80) : afford ? new Color(240, 200, 90) : new Color(150, 110, 80));
+            if (!locked)
+            {
+                string capTag = $"{capCost} cap";
+                var cSize = subFont.MeasureString(capTag);
+                sb.DrawString(subFont, capTag,
+                    new Vector2(row.Right - cSize.X - 8, row.Y + 24),
+                    capFits ? new Color(150, 170, 200) : new Color(210, 110, 90));
+            }
         }
 
         // Mercenaries: free to field, one outing each per run.
@@ -214,13 +241,13 @@ public class BuildUI
         // Repairs: one cheap sweep patches everything (the wagon included).
         var repair = RepairRect();
         int repairCost = RepairCostNow();
-        bool canRepair = buildPhase && repairCost > 0 && character.Gold >= repairCost;
+        bool canRepair = buildPhase && repairCost > 0 && _client.World.MySupplies >= repairCost;
         sb.Draw(TextureGen.Pixel, repair,
             canRepair && repair.Contains(_lastMouse) ? new Color(44, 66, 44, 235)
             : canRepair ? new Color(32, 50, 32, 235) : new Color(34, 36, 44, 210));
         Border(sb, repair, canRepair ? new Color(120, 190, 120) : new Color(70, 74, 86));
         string repairLabel = repairCost <= 0 ? "Nothing needs repair"
-            : $"Repair all  ·  {repairCost} g";
+            : $"Repair all  ·  {repairCost} sup";
         var rSize = FontManager.GetBold(14).MeasureString(repairLabel);
         sb.DrawString(FontManager.GetBold(14), repairLabel,
             new Vector2(repair.Center.X - rSize.X / 2, repair.Y + 6),

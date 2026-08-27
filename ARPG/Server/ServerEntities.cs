@@ -64,6 +64,11 @@ public class ServerPlayer
     /// transitions, while the client's in-flight states still carry old-map coords).</summary>
     public float IgnoreStateUntil;
 
+    /// <summary>Defense-run build currency (DefenseBalance): granted on entering the
+    /// arena, earned from kills and cleared waves, worthless anywhere else — it is
+    /// deliberately NOT on CharacterData, so it can never leave the run.</summary>
+    public int Supplies;
+
     /// <summary>Items sold to merchants THIS SESSION (most recent last): the buy-back
     /// tab's stock, offered back at exactly what they fetched. Slot = list index.</summary>
     public readonly List<ShopEntry> Buyback = new();

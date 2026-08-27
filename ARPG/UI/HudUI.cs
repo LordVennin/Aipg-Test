@@ -76,6 +76,11 @@ public class HudUI
                 wagonFrac > 0.5f ? new Color(180, 150, 90) : wagonFrac > 0.25f ? new Color(220, 160, 70) : new Color(220, 80, 60));
             sb.DrawString(FontManager.Get(11), $"wagon {w.WagonHealth:0}/{w.WagonMaxHealth:0}",
                 new Vector2(wagonBar.Right + 8, wagonBar.Y - 2), new Color(200, 180, 140));
+            // The run's build purse, left of the bar (kills and cleared waves feed it).
+            string supText = $"supplies {w.MySupplies}";
+            var supSize = FontManager.Get(11).MeasureString(supText);
+            sb.DrawString(FontManager.Get(11), supText,
+                new Vector2(wagonBar.X - supSize.X - 8, wagonBar.Y - 2), new Color(240, 200, 90));
         }
         else if (_client.World.Map?.Kind != World.MapKind.Arena)
         {

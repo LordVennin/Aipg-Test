@@ -23,11 +23,12 @@ public enum DefensePhase : byte
 /// <summary>
 /// The wagon-defense loop (Dungeon Defenders style, ARPG scale): through the hub's
 /// west door lies a generated arena where a caravan wagon must survive
-/// DefenseBalance.WavesTotal waves. Between waves players spend GOLD at the workbench
-/// on crossbow turrets and spiked barriers — the economy's first real sink — then
-/// ready up to call the next wave. Enemies pour from edge portals and march on the
-/// wagon, chewing through anything built in their path; win and the caravan pays out,
-/// lose the wagon and the Sanctum reclaims everyone empty-handed.
+/// DefenseBalance.WavesTotal waves. Between waves players spend SUPPLIES — a currency
+/// that exists only inside a run, earned by defending — at the workbench on turrets
+/// and barriers, bounded by a shared build-capacity budget, then ready up to call the
+/// next wave. Enemies pour from edge portals and march on the wagon, chewing through
+/// anything built in their path; win and the caravan pays out, lose the wagon and the
+/// Sanctum reclaims everyone empty-handed.
 /// </summary>
 public partial class ServerWorld
 {
@@ -65,6 +66,16 @@ public partial class ServerWorld
 
     private int TileIndexOf(Vector2 pos) =>
         (int)MathF.Floor(pos.Y) * Map.Width + (int)MathF.Floor(pos.X);
+
+    /// <summary>Build capacity the standing player-built structures hold right now.
+    /// Destroyed structures free theirs automatically (this is computed live).</summary>
+    public int BuildCapacityUsed => Structures.Values
+        .Where(s => DefenseBalance.PlayerBuildable(s.Kind))
+        .Sum(s => DefenseBalance.CapacityCost(s.Kind));
+
+    /// <summary>The party's shared placement budget (grows with party size).</summary>
+    public int BuildCapacityMax => DefenseBalance.BuildCapBase +
+        DefenseBalance.BuildCapPerExtraPlayer * Math.Max(0, Players.Count - 1);
 
     /// <summary>Recompute the occupied-tile sets and the wagon flow field. Called on
     /// every structure add/remove — the horde's routing always reflects the real camp.</summary>
@@ -108,6 +119,8 @@ public partial class ServerWorld
         _defenseReturnAt = 0;
         _deployedMercIds.Clear();
         int players = Math.Max(1, Players.Count);
+        // The run's stipend: supplies exist only inside the arena.
+        foreach (var pl in Players.Values) pl.Supplies = DefenseBalance.SupplyStart;
         float wagonHp = DefenseBalance.WagonHealth *
                         (1f + DefenseBalance.WagonHealthPerExtraPlayer * (players - 1));
         AddStructure(StructureKind.Wagon, Map.WagonSpot, wagonHp, ownerId: -1, radius: 0.85f);
@@ -265,8 +278,11 @@ public partial class ServerWorld
                     DefPhase = DefensePhase.Build;
                     SpawnDefenseNpcs();
                     foreach (var pl in Players.Values)
+                    {
+                        pl.Supplies += DefenseBalance.SupplyWaveBonus;
                         _events.MessageFor(pl,
-                            $"Wave beaten — rebuild, then ready up at the workbench for wave {WaveNumber}.");
+                            $"Wave beaten (+{DefenseBalance.SupplyWaveBonus} supplies) — rebuild, then ready up at the workbench for wave {WaveNumber}.");
+                    }
                     _events.DefenseStateChanged(this);
                 }
             }
@@ -577,22 +593,29 @@ public partial class ServerWorld
             _events.MessageFor(p, "Too close to a portal to build.");
             return;
         }
-        int cost = DefenseBalance.Cost(kind);
-        if (p.Character.Gold < cost)
+        int duCost = DefenseBalance.CapacityCost(kind);
+        if (BuildCapacityUsed + duCost > BuildCapacityMax)
         {
-            _events.MessageFor(p, $"Not enough gold ({cost} needed).");
+            _events.MessageFor(p,
+                $"The camp can't support more ({BuildCapacityUsed}/{BuildCapacityMax} capacity used — losing a structure frees its share).");
             return;
         }
-        p.Character.Gold -= cost;
+        int cost = DefenseBalance.Cost(kind);
+        if (p.Supplies < cost)
+        {
+            _events.MessageFor(p, $"Not enough supplies ({cost} needed — kills and cleared waves pay out).");
+            return;
+        }
+        p.Supplies -= cost;
         var built = AddStructure(kind, pos, DefenseBalance.Health(kind), p.Id,
             kind == StructureKind.SpikedBarrier ? 0.45f : 0.4f, rotation);
-        _events.CharacterChanged(p);
+        _events.DefenseStateChanged(this); // supplies and capacity moved
         _events.WorldEffect("hit", pos, 0.5f, 0.3f, built.Height);
     }
 
     /// <summary>Workbench repairs (RepairRequest): one cheap sweep patches EVERY
     /// damaged structure — the wagon included — back to full, at
-    /// DefenseBalance.RepairCostPer100Hp gold per 100 missing hit points.</summary>
+    /// DefenseBalance.RepairCostPer100Hp supplies per 100 missing hit points.</summary>
     public void RepairAll(int playerId)
     {
         if (!Campaign || Map.Kind != MapKind.Defense) return;
@@ -616,22 +639,21 @@ public partial class ServerWorld
             _events.MessageFor(p, "Nothing needs repair.");
             return;
         }
-        if (p.Character.Gold < cost)
+        if (p.Supplies < cost)
         {
-            _events.MessageFor(p, $"Not enough gold to repair ({cost} needed).");
+            _events.MessageFor(p, $"Not enough supplies to repair ({cost} needed).");
             return;
         }
-        p.Character.Gold -= cost;
+        p.Supplies -= cost;
         foreach (var s in Structures.Values)
             if (s.Kind != StructureKind.Workbench && s.Health < s.MaxHealth - 0.01f)
             {
                 s.Health = s.MaxHealth;
                 _events.StructureHealthChanged(s);
             }
-        _events.CharacterChanged(p);
-        _events.DefenseStateChanged(this); // the wagon bar may have refilled
+        _events.DefenseStateChanged(this); // the wagon bar and supplies moved
         foreach (var pl in Players.Values)
-            _events.MessageFor(pl, $"{p.Name} hammered the camp back to shape ({cost} gold).");
+            _events.MessageFor(pl, $"{p.Name} hammered the camp back to shape ({cost} supplies).");
     }
 
     // ------------------------------------------------------------------ the researcher
