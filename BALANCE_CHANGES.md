@@ -1039,3 +1039,29 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
 - Sellsword/researcher NPCs never open gear stalls; merc sprites are the
   summon rig in flesh and leathers. Protocol v35 (ResearchRequest,
   DeployMercRequest).
+
+---
+
+# Addendum (batch 49): defenses on the grid — solid walls, cones, repair
+
+- **Placement locks to the tile grid**: one structure per tile, the ghost
+  snaps and shows the claimed tile as an iso diamond, and the wagon camp
+  itself sits on the same grid.
+- **R rotates while placing** (west/north/east/south). Barriers pick their
+  wall AXIS and now draw as proper isometric fence segments that chain
+  tile-to-tile into continuous spike lines — walls finally look like walls.
+- **Walls actually stop enemies.** Structure tiles are hard collision for
+  the horde (players and summons walk their own camp freely); the soft
+  push-aside is gone. The wagon flow field treats built tiles as walls, so
+  waves route around partial walls — and an enemy that is FULLY walled off
+  turns on the nearest built piece and chews through it. A tank taunting
+  from behind their own wall no longer stalls the AI: unreachable targets
+  make enemies eat the wall between them.
+- **Turrets are directional**: a 130-degree fire cone around the placed
+  facing (crossbow and flamethrower both). Placement draws the exact cone
+  and range — and every standing turret shows its coverage while you're
+  placing, so camp planning is a real activity.
+- **Workbench repairs**: one "Repair all" button patches every damaged
+  structure (wagon included) at 4 gold per 100 missing hp — cheap upkeep,
+  build phases only.
+- Protocol v36 (rotation on the wire, RepairRequest).

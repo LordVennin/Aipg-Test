@@ -279,7 +279,15 @@ public class GameServer : IServerEvents
                 World.RevivePulse(playerId, r.GetInt());
                 break;
             case PacketType.BuildRequest:
-                World.Build(playerId, (StructureKind)r.GetByte(), r.GetVec2());
+            {
+                var buildKind = (StructureKind)r.GetByte();
+                var buildPos = r.GetVec2();
+                byte buildRot = r.GetByte();
+                World.Build(playerId, buildKind, buildPos, buildRot);
+                break;
+            }
+            case PacketType.RepairRequest:
+                World.RepairAll(playerId);
                 break;
             case PacketType.ResearchRequest:
                 World.Research(playerId, r.GetByte());
@@ -663,6 +671,7 @@ public class GameServer : IServerEvents
         w.Put(s.Health);
         w.Put(s.MaxHealth);
         w.Put(s.OwnerId);
+        w.Put(s.Rotation);
         return w;
     }
 

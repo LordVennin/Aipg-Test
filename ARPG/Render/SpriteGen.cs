@@ -703,7 +703,10 @@ public static class SpriteGen
 
     private static Texture2D DrawSpikedBarrier()
     {
-        const int w = 26, h = 20;
+        // An ISO wall segment: the fence runs along the world +X axis (screen
+        // down-right at the 2:1 tile slope), spanning one tile — the renderer
+        // mirrors it for +Y-axis walls, and adjacent tiles chain into a line.
+        const int w = 40, h = 30;
         var px = new Color[w * h];
         void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
         void Rect(int x0, int y0, int x1, int y1, Color c)
@@ -712,26 +715,40 @@ public static class SpriteGen
         var wood = new Color(116, 84, 52);
         var woodDark = new Color(84, 60, 38);
         var woodLight = new Color(146, 110, 70);
-        var point = new Color(196, 186, 164);
+        var point = new Color(200, 190, 168);
 
-        // Crossed X-frame legs.
-        for (int i = 0; i < 10; i++)
+        // The 2:1 baseline the fence stands on, plus its ground shadow.
+        for (int i = 0; i <= 34; i++)
         {
-            Set(4 + i, 9 + i / 2, woodDark);
-            Set(13 - i, 9 + i / 2, wood);
-            Set(12 + i, 9 + i / 2, woodDark);
-            Set(21 - i, 9 + i / 2, wood);
+            int x = 2 + i, y = 12 + i / 2;
+            Set(x, y + 1, woodDark);
+            Set(x, y + 2, new Color(40, 34, 26));
         }
-        // Horizontal beam bristling with sharpened stakes.
-        Rect(1, 10, 24, 12, wood);
-        Rect(1, 12, 24, 12, woodDark);
-        Rect(1, 10, 24, 10, woodLight);
-        foreach (int sx in new[] { 2, 7, 12, 17, 22 })
+        // Two rails riding the same slope.
+        for (int i = 0; i <= 34; i++)
         {
-            // Up-angled spike.
-            for (int i = 0; i < 6; i++) Set(sx + i / 2, 9 - i, i >= 4 ? point : woodDark);
-            // Down-forward spike.
-            for (int i = 0; i < 4; i++) Set(sx + 2 + i, 13 + i, i >= 2 ? point : woodDark);
+            int x = 2 + i, y = 12 + i / 2;
+            Set(x, y - 3, wood);
+            Set(x, y - 4, woodLight);
+            Set(x, y - 7, wood);
+        }
+        // Posts every ~third of the tile, each crowned with a sharpened tip.
+        foreach (int i in new[] { 1, 12, 23, 33 })
+        {
+            int x = 2 + i, y = 12 + i / 2;
+            Rect(x, y - 9, x + 1, y + 1, woodDark);
+            Set(x, y - 10, point);
+            Set(x + 1, y - 10, point);
+            Set(x, y - 11, point);
+        }
+        // Angled stakes leaning out between the posts.
+        foreach (int i in new[] { 6, 17, 28 })
+        {
+            int x = 2 + i, y = 12 + i / 2;
+            for (int k = 0; k < 6; k++)
+                Set(x + k / 2, y - 2 - k, k >= 4 ? point : wood);
+            for (int k = 0; k < 4; k++)
+                Set(x - k / 2, y - 2 - k, k >= 2 ? woodDark : wood);
         }
         return BakeStrip(px, w, h);
     }

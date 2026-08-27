@@ -51,9 +51,17 @@ public class BuildUI
     public void Layout(Point screen)
     {
         int mercRows = Math.Min(MercVisible, Math.Max(1, Mercs().Count == 0 ? 1 : Mercs().Count));
-        int h = 118 + Rows.Length * RowH + 24 + mercRows * MercRowH + 8;
+        int h = 118 + Rows.Length * RowH + 24 + mercRows * MercRowH + 8 + 38;
         _panelRect = Window.Place(new Rectangle(screen.X / 2 - 190, 48, 380, h), screen);
     }
+
+    /// <summary>Gold to patch every damaged structure (shared DefenseBalance rule —
+    /// the client can price it from the replicated health bars).</summary>
+    private int RepairCostNow() => DefenseBalance.RepairCost(
+        _client.World.Structures.Values.Where(s => s.Kind != 4).Sum(s => s.MaxHealth - s.Health));
+
+    private Rectangle RepairRect() =>
+        new(_panelRect.X + 10, _panelRect.Bottom - 84, _panelRect.Width - 20, 30);
 
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
 
@@ -112,6 +120,12 @@ public class BuildUI
                 PendingMerc = mercs[idx];
                 PendingKind = null;
                 Open = false;
+                return;
+            }
+            if (RepairRect().Contains(_lastMouse) && buildPhase && RepairCostNow() > 0 &&
+                (character?.Gold ?? 0) >= RepairCostNow())
+            {
+                _client.RequestRepair();
                 return;
             }
             if (ReadyRect().Contains(_lastMouse) && buildPhase)
@@ -196,6 +210,21 @@ public class BuildUI
                 new Vector2(row.Right - tSize.X - 8, row.Y + 6),
                 spent ? new Color(150, 120, 90) : new Color(150, 158, 144));
         }
+
+        // Repairs: one cheap sweep patches everything (the wagon included).
+        var repair = RepairRect();
+        int repairCost = RepairCostNow();
+        bool canRepair = buildPhase && repairCost > 0 && character.Gold >= repairCost;
+        sb.Draw(TextureGen.Pixel, repair,
+            canRepair && repair.Contains(_lastMouse) ? new Color(44, 66, 44, 235)
+            : canRepair ? new Color(32, 50, 32, 235) : new Color(34, 36, 44, 210));
+        Border(sb, repair, canRepair ? new Color(120, 190, 120) : new Color(70, 74, 86));
+        string repairLabel = repairCost <= 0 ? "Nothing needs repair"
+            : $"Repair all  ·  {repairCost} g";
+        var rSize = FontManager.GetBold(14).MeasureString(repairLabel);
+        sb.DrawString(FontManager.GetBold(14), repairLabel,
+            new Vector2(repair.Center.X - rSize.X / 2, repair.Y + 6),
+            canRepair ? new Color(190, 235, 190) : new Color(130, 130, 140));
 
         var ready = ReadyRect();
         bool readyHover = ready.Contains(_lastMouse);

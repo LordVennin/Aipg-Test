@@ -329,13 +329,18 @@ public class GameClient
 
     /// <summary>Build a defense structure at a spot (server re-validates phase, gold,
     /// terrain and spacing — the local preview is a courtesy, not the law).</summary>
-    public void RequestBuild(byte kind, Vector2 pos)
+    public void RequestBuild(byte kind, Vector2 pos, byte rotation = 0)
     {
         var w = Packets.Make(PacketType.BuildRequest);
         w.Put(kind);
         w.PutVec2(pos);
+        w.Put(rotation);
         Send(w, DeliveryMethod.ReliableOrdered);
     }
+
+    /// <summary>Repair every damaged defense structure at the workbench (build phase).</summary>
+    public void RequestRepair() =>
+        Send(Packets.Make(PacketType.RepairRequest), DeliveryMethod.ReliableOrdered);
 
     /// <summary>Deal with the researcher: 0 = spend one contract on a randomized hire,
     /// 1 = hand over the flamethrower blueprint. Server validates items + proximity.</summary>
@@ -909,6 +914,7 @@ public class GameClient
                 st.Health = r.GetFloat();
                 st.MaxHealth = r.GetFloat();
                 st.OwnerId = r.GetInt();
+                st.Rotation = r.GetByte();
                 st.SpawnedAtMs = Environment.TickCount64;
                 World.Structures[st.Id] = st;
                 break;

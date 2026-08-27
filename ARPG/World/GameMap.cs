@@ -577,8 +577,9 @@ public class GameMap
                 if (x == 0 || y == 0 || x == Width - 1 || y == Height - 1)
                     _wall[Idx(x, y)] = 2;
 
-        WagonSpot = new Vector2(Width - 9.5f, Height / 2f);
-        WorkbenchSpot = new Vector2(Width - 6.5f, Height / 2f - 3f);
+        // Wagon and workbench sit ON tile centers — builds lock to the same grid.
+        WagonSpot = new Vector2(Width - 9.5f, Height / 2f + 0.5f);
+        WorkbenchSpot = new Vector2(Width - 6.5f, Height / 2f - 2.5f);
         PlayerSpawn = new Vector2(Width - 6.5f, Height / 2f + 2.5f);
         ExitDoor = new Vector2(Width - 1.6f, Height / 2f);
         NpcSpots.Add(new Vector2(Width - 6.5f, Height / 2f - 1.2f)); // mercenary handler

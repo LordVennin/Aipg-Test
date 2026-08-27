@@ -413,6 +413,8 @@ public partial class ServerWorld
         Drops.Clear();
         Corpses.Clear();       // the dead stay behind (clients wipe on MapChange too)
         Structures.Clear();
+        _structTiles.Clear();
+        _buildTiles.Clear();
         _windups.Clear();
         _flow.Clear();
         _rallyFields.Clear();
@@ -1556,7 +1558,7 @@ public partial class ServerWorld
         e.Position = Map.MoveWithCollision(e.Position, delta, e.Def.Radius, ref e.Height);
         // Defense structures are solid to enemies (players walk their own camp freely):
         // a blocked lane leaves the enemy at the wall, where the chew attack takes over.
-        if (Structures.Count > 0) PushOutOfStructures(e);
+        if (Structures.Count > 0) CollideWithStructureTiles(e);
     }
 
     /// <summary>Shared pack aggro: when one member spots a player, the whole pack
@@ -1636,8 +1638,11 @@ public partial class ServerWorld
 
     /// <summary>BFS a flow field from ANY start node (player positions each tick; rally
     /// points once when set) — every stored Next points one hop back toward the start.
-    /// The default radius is the aggro leash; the defense wagon's field spans the arena.</summary>
-    private void ComputeFlowFrom(int start, FlowField f, int maxRadius = FlowMaxRadius)
+    /// The default radius is the aggro leash; the defense wagon's field spans the arena
+    /// and treats player-BUILT tiles as walls, so the horde routes around barriers and
+    /// only fights through them when there is no way around.</summary>
+    private void ComputeFlowFrom(int start, FlowField f, int maxRadius = FlowMaxRadius,
+        HashSet<int> blockedTiles = null)
     {
         int w = Map.Width, n = NodeCount;
         f.Dist ??= new ushort[n];
@@ -1662,6 +1667,7 @@ public partial class ServerWorld
                 int nx = x + dx, ny = y + dy;
                 if (nx < 0 || ny < 0 || nx >= Map.Width || ny >= Map.Height || Map.IsSolid(nx, ny))
                     continue;
+                if (blockedTiles != null && blockedTiles.Contains(ny * w + nx)) continue;
                 for (int s = 0; s < 2; s++)
                 {
                     if (s == 1 && Map.BridgeLevel(nx, ny) == 0) continue;

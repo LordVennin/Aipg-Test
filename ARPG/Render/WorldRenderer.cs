@@ -120,8 +120,9 @@ public class WorldRenderer
     public string WeatherOverride;
 
     /// <summary>Build-placement ghost (defense maps): set each frame by the play screen
-    /// while the player is choosing a spot; null when not placing.</summary>
-    public (byte Kind, System.Numerics.Vector2 Pos, bool Valid)? BuildPreview;
+    /// while the player is choosing a spot; null when not placing. Positions are tile-
+    /// snapped; Rotation aims turret cones / picks the barrier wall axis.</summary>
+    public (byte Kind, System.Numerics.Vector2 Pos, bool Valid, byte Rotation)? BuildPreview;
 
     /// <summary>The weather actually falling right now: the debug override when set,
     /// else whatever this map carries ("" = clear skies).</summary>
@@ -1308,6 +1309,7 @@ public class WorldRenderer
             float age = (Environment.TickCount64 - st.SpawnedAtMs) / 1000f;
             float pop = age < 0.25f ? 0.7f + 1.2f * age : 1f; // brief build pop
             var stCopy = st;
+            var stFlip = StructureFlip(st.Kind, st.Rotation);
             _sorted.Add((stPos.X + stPos.Y + st.Height * 1.0f + 0.1f + UnderDeckBias(stPos, st.Height), batch =>
             {
                 int w = (int)(stTex.Width * 2 * pop), h = (int)(stTex.Height * 2 * pop);
@@ -1316,7 +1318,7 @@ public class WorldRenderer
                     new Rectangle((int)(stScreen.X - shadowW / 2f), (int)(stScreen.Y - 8), shadowW, 16),
                     new Color(0, 0, 0, 85));
                 batch.Draw(stTex, new Rectangle((int)stScreen.X - w / 2, (int)stScreen.Y - h + 8, w, h),
-                    Color.White);
+                    null, Color.White, 0f, Vector2.Zero, stFlip, 0f);
                 // Health bar: always on the wagon, on builds only once they're hurt.
                 bool wagon = stCopy.Kind == 3;
                 if ((wagon || stCopy.Health < stCopy.MaxHealth - 0.5f) && stCopy.Kind != 4)
@@ -1359,14 +1361,35 @@ public class WorldRenderer
             var bpTex = preview.Kind >= 250
                 ? SpriteGen.GetSummonSprite(preview.Kind == 250 ? "merc_warrior" : "merc_archer")
                 : SpriteGen.GetStructureSprite(preview.Kind);
+            var bpFlip = preview.Kind >= 250
+                ? SpriteEffects.None
+                : StructureFlip(preview.Kind, preview.Rotation);
             if (bpTex != null)
                 _sorted.Add((preview.Pos.X + preview.Pos.Y + bpHeight * 1.0f + 0.12f, batch =>
                 {
-                    int w = bpTex.Width * 2, h = bpTex.Height * 2;
                     var tint = preview.Valid ? new Color(140, 230, 140) : new Color(230, 100, 90);
+                    // The claimed tile, as an iso diamond under the ghost.
+                    DrawTileDiamond(batch, camera, preview.Pos, bpHeight, tint * 0.55f);
+                    int w = bpTex.Width * 2, h = bpTex.Height * 2;
                     batch.Draw(bpTex, new Rectangle((int)bpScreen.X - w / 2, (int)bpScreen.Y - h + 8, w, h),
-                        tint * 0.6f);
+                        null, tint * 0.6f, 0f, Vector2.Zero, bpFlip, 0f);
+                    string hint = preview.Kind is 0 or 1 or 2 ? "R rotate  ·  right-click cancel" : "right-click cancel";
+                    var hFont = FontManager.Get(12);
+                    var hSize = hFont.MeasureString(hint);
+                    batch.DrawString(hFont, hint,
+                        new Vector2(bpScreen.X - hSize.X / 2, bpScreen.Y + 14), new Color(230, 224, 200));
                 }));
+            // Fire cones: the ghost turret's aim, plus every standing turret's, so
+            // coverage is visible while planning the camp.
+            if (preview.Kind is 0 or 2)
+                DrawTurretCone(camera, preview.Pos, bpHeight, preview.Rotation,
+                    preview.Kind == 0 ? DefenseBalance.CrossbowRange : DefenseBalance.FlameRange,
+                    preview.Valid ? new Color(140, 230, 140) : new Color(230, 100, 90));
+            foreach (var st in world.Structures.Values)
+                if (st.Kind is 0 or 2)
+                    DrawTurretCone(camera, st.Position, st.Height, st.Rotation,
+                        st.Kind == 0 ? DefenseBalance.CrossbowRange : DefenseBalance.FlameRange,
+                        new Color(220, 200, 130));
         }
 
         // The stash chest (hub only): the player's object-bound storage.
@@ -2586,6 +2609,59 @@ public class WorldRenderer
     }
 
     /// <summary>A screen-space line segment drawn with the 1x1 pixel texture.</summary>
+    /// <summary>Mirroring rule for rotated structures: barriers run along the world
+    /// Y axis for rotations 0/2 (flipped: screen down-left) and along X for 1/3;
+    /// turret sprites (drawn aiming screen-right) flip when facing west or south.</summary>
+    private static SpriteEffects StructureFlip(byte kind, byte rotation) => kind switch
+    {
+        1 => rotation is 0 or 2 ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+        0 or 2 => rotation is 0 or 3 ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+        _ => SpriteEffects.None,
+    };
+
+    /// <summary>The outline of one map tile as the iso diamond it renders as.</summary>
+    private static void DrawTileDiamond(SpriteBatch sb, IsoCamera camera,
+        System.Numerics.Vector2 tileCenter, float height, Color color)
+    {
+        float tx = MathF.Floor(tileCenter.X), ty = MathF.Floor(tileCenter.Y);
+        var c0 = camera.WorldToScreen(new System.Numerics.Vector2(tx, ty), height);
+        var c1 = camera.WorldToScreen(new System.Numerics.Vector2(tx + 1, ty), height);
+        var c2 = camera.WorldToScreen(new System.Numerics.Vector2(tx + 1, ty + 1), height);
+        var c3 = camera.WorldToScreen(new System.Numerics.Vector2(tx, ty + 1), height);
+        DrawScreenLine(sb, c0, c1, color, 2);
+        DrawScreenLine(sb, c1, c2, color, 2);
+        DrawScreenLine(sb, c2, c3, color, 2);
+        DrawScreenLine(sb, c3, c0, color, 2);
+    }
+
+    /// <summary>A turret's fire cone as a ground decal: faint spokes, bright edges and
+    /// an arc at max range — placement shows exactly what the turret can hit.</summary>
+    private void DrawTurretCone(IsoCamera camera, System.Numerics.Vector2 at, float height,
+        byte rotation, float range, Color color)
+    {
+        var facing = DefenseBalance.Facing(rotation);
+        float baseAngle = MathF.Atan2(facing.Y, facing.X);
+        float half = DefenseBalance.TurretConeDegrees * 0.5f * MathF.PI / 180f;
+        const int spokes = 12;
+        var origin = camera.WorldToScreen(at, height);
+        _sorted.Add((at.X + at.Y + height * 1.0f + 0.05f, batch =>
+        {
+            Vector2 prev = default;
+            for (int i = 0; i <= spokes; i++)
+            {
+                float ang = baseAngle - half + (2f * half) * i / spokes;
+                var end = camera.WorldToScreen(
+                    at + new System.Numerics.Vector2(MathF.Cos(ang), MathF.Sin(ang)) * range, height);
+                if (i == 0 || i == spokes)
+                    DrawScreenLine(batch, origin, end, color * 0.55f, 2);
+                else
+                    DrawScreenLine(batch, origin, end, color * 0.10f, 1);
+                if (i > 0) DrawScreenLine(batch, prev, end, color * 0.45f, 2);
+                prev = end;
+            }
+        }));
+    }
+
     private static void DrawScreenLine(SpriteBatch sb, Vector2 a, Vector2 b, Color color, int thickness)
     {
         var d = b - a;

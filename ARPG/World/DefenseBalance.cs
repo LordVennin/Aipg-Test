@@ -55,9 +55,34 @@ public static class DefenseBalance
     public const float FlameDamageMax = 5f;
     public const float FlameDamagePerLevel = 0.18f;
 
-    /// <summary>Structures never stack: a new build's center must clear every existing
-    /// one by this (loose enough that barriers CAN form a shoulder-to-shoulder wall).</summary>
-    public const float MinSpacing = 0.9f;
+    /// <summary>Turrets are DIRECTIONAL: they only engage targets inside this cone
+    /// around their placed facing (rotate at placement to aim it).</summary>
+    public const float TurretConeDegrees = 130f;
+
+    /// <summary>Workbench repairs: gold per 100 missing structure hit points — cheap
+    /// on purpose (upkeep, not a second purchase).</summary>
+    public const float RepairCostPer100Hp = 4f;
+    public static int RepairCost(float missingHp) =>
+        missingHp < 1f ? 0 : Math.Max(1, (int)MathF.Ceiling(missingHp * RepairCostPer100Hp / 100f));
+
+    /// <summary>The turret cone test, shared by server targeting and the client's
+    /// placement preview. Rotation: 0 = west, 1 = north, 2 = east, 3 = south.</summary>
+    public static System.Numerics.Vector2 Facing(byte rotation) => rotation switch
+    {
+        0 => new System.Numerics.Vector2(-1, 0),
+        1 => new System.Numerics.Vector2(0, -1),
+        2 => new System.Numerics.Vector2(1, 0),
+        _ => new System.Numerics.Vector2(0, 1),
+    };
+
+    public static bool InCone(System.Numerics.Vector2 from, byte rotation, System.Numerics.Vector2 target)
+    {
+        var to = target - from;
+        float len = to.Length();
+        if (len < 0.001f) return true;
+        float cosHalf = MathF.Cos(TurretConeDegrees * 0.5f * MathF.PI / 180f);
+        return System.Numerics.Vector2.Dot(to / len, Facing(rotation)) >= cosHalf;
+    }
     /// <summary>Builds must happen within this range of the player doing the building.</summary>
     public const float BuildReach = 5.0f;
     /// <summary>How far from the wagon/workbench build placement is allowed at all —
