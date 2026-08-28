@@ -4326,9 +4326,9 @@ public static class HeadlessNetTest
               campA.World.Map.Seed == campServer.World.Map.Seed,
               "clients rebuild the same defense arena from the seed");
         var defMap47 = campServer.World.Map;
-        Check(defMap47.SpawnPortals.Count == 3 && defMap47.WagonSpot != Vector2.Zero &&
+        Check(defMap47.SpawnPortals.Count is >= 3 and <= 5 && defMap47.WagonSpot != Vector2.Zero &&
               defMap47.WorkbenchSpot != Vector2.Zero,
-              "the arena has three portals, a wagon and a workbench");
+              $"the arena rolls its portals ({defMap47.SpawnPortals.Count}), a wagon and a workbench");
         Check(defMap47.SpawnPortals.All(pp => defMap47.GroundPathExists(pp, defMap47.WagonSpot)),
               "every portal keeps a walkable lane to the wagon");
         Check(campServer.World.DefPhase == Server.DefensePhase.Build &&
@@ -4947,6 +4947,71 @@ public static class HeadlessNetTest
         clientB.World.Me.Position = server.World.Map.PlayerSpawn;
         clientB.World.Me.Height = srvRain.Height;
         Pump(0.4f);
+
+        Console.WriteLine("\n-- Batch 52: rolled footprints, highlands, bridges, carved arenas --");
+        // Forest runs across seeds: footprints roll from the seed, big uplands rise,
+        // bridges span the gaps — and the guaranteed route survives all of it.
+        var forestTheme52 = data.ZoneThemes.First(t => t.Id == "forest");
+        int bridgeTiles52 = 0, upland52 = 0, walk52 = 0;
+        var forestDims52 = new HashSet<(int, int)>();
+        bool bossPath52 = true;
+        foreach (int s52 in new[] { 424242, 987654, 1337, 20260815, 555001, 90210 })
+        {
+            var m52 = new World.GameMap(s52, forestTheme52, World.MapKind.Forest);
+            forestDims52.Add((m52.Width, m52.Height));
+            for (int y = 1; y < m52.Height - 1; y++)
+                for (int x = 1; x < m52.Width - 1; x++)
+                {
+                    if (m52.BridgeLevel(x, y) > 0) bridgeTiles52++;
+                    if (m52.IsSolid(x, y) || m52.IsWater(x, y)) continue;
+                    walk52++;
+                    if (m52.GroundLevel(x, y) >= 1) upland52++;
+                }
+            bossPath52 &= m52.GroundPathExists(m52.PlayerSpawn, m52.BossSpot);
+        }
+        Check(forestDims52.Count >= 3,
+              $"forest footprints roll from the seed ({forestDims52.Count} distinct sizes over 6 seeds)");
+        Check(upland52 > walk52 / 10,
+              $"real uplands rise over the runs ({upland52} of {walk52} walkable tiles sit high)");
+        Check(bridgeTiles52 >= 4,
+              $"bridges span the gaps ({bridgeTiles52} deck tiles over 6 seeds)");
+        Check(bossPath52, "every rolled run still walks spawn to boss");
+        // Same seed twice = the same map, tile for tile (clients rebuild from the seed).
+        var twinA52 = new World.GameMap(20260815, forestTheme52, World.MapKind.Forest);
+        var twinB52 = new World.GameMap(20260815, forestTheme52, World.MapKind.Forest);
+        bool twinSame52 = twinA52.Width == twinB52.Width && twinA52.Height == twinB52.Height;
+        for (int y = 0; y < twinA52.Height && twinSame52; y++)
+            for (int x = 0; x < twinA52.Width && twinSame52; x++)
+                twinSame52 = twinA52.GroundLevel(x, y) == twinB52.GroundLevel(x, y) &&
+                             twinA52.WallHeight(x, y) == twinB52.WallHeight(x, y) &&
+                             twinA52.BridgeLevel(x, y) == twinB52.BridgeLevel(x, y) &&
+                             twinA52.Ramp(x, y) == twinB52.Ramp(x, y) &&
+                             twinA52.IsWater(x, y) == twinB52.IsWater(x, y);
+        Check(twinSame52, "the same seed rebuilds the identical forest, tile for tile");
+
+        // Defense arenas across seeds: rolled footprints, 3-5 portals in fresh spots,
+        // every mouth with a walkable lane to the wagon, the camp path to the door open.
+        var defDims52 = new HashSet<(int, int)>();
+        var portalPrints52 = new HashSet<string>();
+        bool portalCounts52 = true, portalPaths52 = true, doorPaths52 = true;
+        foreach (int s52 in new[] { 11, 2222, 333, 4444, 55, 976431 })
+        {
+            var d52 = new World.GameMap(s52, null, World.MapKind.Defense);
+            defDims52.Add((d52.Width, d52.Height));
+            portalPrints52.Add(string.Join(";",
+                d52.SpawnPortals.Select(p => $"{p.X:0.0},{p.Y:0.0}")));
+            portalCounts52 &= d52.SpawnPortals.Count is >= 3 and <= 5;
+            portalPaths52 &= d52.SpawnPortals.All(p => d52.GroundPathExists(p, d52.WagonSpot));
+            doorPaths52 &= d52.GroundPathExists(d52.WagonSpot,
+                new Vector2(d52.Width - 2.5f, d52.WagonSpot.Y));
+        }
+        Check(defDims52.Count >= 3,
+              $"defense arenas roll their footprint ({defDims52.Count} distinct sizes over 6 seeds)");
+        Check(portalPrints52.Count == 6,
+              "portal layouts differ arena to arena — no more fixed spawn spots");
+        Check(portalCounts52, "every arena fields 3-5 portals");
+        Check(portalPaths52, "every portal in every rolled arena keeps a lane to the wagon");
+        Check(doorPaths52, "the camp always keeps its path to the door home");
 
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();

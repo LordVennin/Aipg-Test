@@ -1650,8 +1650,13 @@ public partial class ServerWorld
         HashSet<int> blockedTiles = null)
     {
         int w = Map.Width, n = NodeCount;
-        f.Dist ??= new ushort[n];
-        f.Next ??= new int[n];
+        // Maps roll their own sizes now: a field must be re-allocated whenever the
+        // node count changed, never silently reused at the old dimensions.
+        if (f.Dist == null || f.Dist.Length != n)
+        {
+            f.Dist = new ushort[n];
+            f.Next = new int[n];
+        }
         Array.Fill(f.Dist, ushort.MaxValue);
         Array.Fill(f.Next, -1);
         if (start < 0) return;
