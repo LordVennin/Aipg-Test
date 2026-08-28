@@ -126,13 +126,19 @@ public class GameMap
         Weather = theme?.Weather ?? "";
         Kind = kind;
         if (width <= 0 || height <= 0)
+        {
+            // Run maps ROLL their footprint from the seed — no more one-size-fits-all
+            // rectangles. Clients rebuild the identical map from the shared seed, so
+            // the dice must come from the seed alone.
+            var dice = new Random(unchecked(seed * 48271 + 11));
             (width, height) = kind switch
             {
                 MapKind.Hub => (22, 16),
-                MapKind.Forest => (96, 26),
-                MapKind.Defense => (40, 28),
+                MapKind.Forest => (86 + dice.Next(45), 26 + dice.Next(11)),
+                MapKind.Defense => (38 + dice.Next(27), 28 + dice.Next(17)),
                 _ => (44, 44),
             };
+        }
         Width = width;
         Height = height;
         _ground = new byte[width * height];
@@ -570,33 +576,104 @@ public class GameMap
     /// mouth keeps a validated ground path to the wagon. The exit door (east) is
     /// how the crew leaves after the last wave.
     /// </summary>
+    /// <summary>
+    /// The wagon-defense arena, CARVED out of solid rock: every run rolls its own
+    /// cavern. The footprint (constructor), the camp's position on the east wall,
+    /// the portal count (3-5) and where each mouth opens, the winding lanes they
+    /// carve toward the camp and the chambers hanging off them all come from the
+    /// seed — no two stands are the same battlefield, and none of them are a
+    /// preset square room.
+    /// </summary>
     private void GenerateDefenseArena(Random rng)
     {
-        for (int y = 0; y < Height; y++)
-            for (int x = 0; x < Width; x++)
-                if (x == 0 || y == 0 || x == Width - 1 || y == Height - 1)
-                    _wall[Idx(x, y)] = 2;
+        // Solid rock everywhere; the arena is whatever gets carved out of it.
+        for (int i = 0; i < _wall.Length; i++) _wall[i] = 2;
 
-        // Wagon and workbench sit ON tile centers — builds lock to the same grid.
-        WagonSpot = new Vector2(Width - 9.5f, Height / 2f + 0.5f);
-        WorkbenchSpot = new Vector2(Width - 6.5f, Height / 2f - 2.5f);
-        PlayerSpawn = new Vector2(Width - 6.5f, Height / 2f + 2.5f);
-        ExitDoor = new Vector2(Width - 1.6f, Height / 2f);
-        NpcSpots.Add(new Vector2(Width - 6.5f, Height / 2f - 1.2f)); // mercenary handler
+        void Carve(Vector2 c, float r)
+        {
+            int x0 = Math.Max(1, (int)(c.X - r)), x1 = Math.Min(Width - 2, (int)(c.X + r) + 1);
+            int y0 = Math.Max(1, (int)(c.Y - r)), y1 = Math.Min(Height - 2, (int)(c.Y + r) + 1);
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                    if (Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), c) <= r)
+                        _wall[Idx(x, y)] = 0;
+        }
 
-        SpawnPortals.Add(new Vector2(1.6f, Height * 0.28f));
-        SpawnPortals.Add(new Vector2(1.6f, Height * 0.72f));
-        SpawnPortals.Add(new Vector2(Width * 0.35f, 1.6f));
+        // The camp: near the east wall (the way home) at a random height. Wagon and
+        // workbench sit ON tile centers — builds lock to the same grid.
+        int campY = 7 + rng.Next(Math.Max(1, Height - 14));
+        WagonSpot = new Vector2(Width - 9.5f, campY + 0.5f);
+        WorkbenchSpot = WagonSpot + new Vector2(3f, -3f);
+        PlayerSpawn = WagonSpot + new Vector2(3f, 2f);
+        NpcSpots.Add(WagonSpot + new Vector2(3f, 1.3f)); // mercenary handler
+        ExitDoor = new Vector2(Width - 1.6f, WagonSpot.Y);
+        Carve(WagonSpot, 7f);
+        Carve(WagonSpot + new Vector2(4.5f, 0f), 2.6f);
+        Carve(new Vector2(Width - 3f, WagonSpot.Y), 2.4f); // the doorstep
 
-        // Rock clumps: cover and choke-building material, kept away from the wagon
-        // camp, the portals and the exit.
-        int clumps = 14;
+        // Portals: 3-5 mouths along the west, north and south edges — spread apart,
+        // far from the camp, somewhere new every run.
+        int portalCount = 3 + rng.Next(3);
+        float minCampDist = MathF.Max(14f, MathF.Min(Width, Height) * 0.5f);
+        int attempts = 0;
+        while (SpawnPortals.Count < portalCount && attempts++ < 220)
+        {
+            int side = rng.Next(3);
+            var p = side switch
+            {
+                0 => new Vector2(2.1f, 3.5f + rng.Next(Math.Max(1, Height - 7))),
+                1 => new Vector2(3.5f + rng.Next(Math.Max(1, Width * 2 / 3)), 2.1f),
+                _ => new Vector2(3.5f + rng.Next(Math.Max(1, Width * 2 / 3)), Height - 2.1f),
+            };
+            if (Vector2.Distance(p, WagonSpot) < minCampDist && attempts < 170) continue;
+            if (SpawnPortals.Any(q => Vector2.Distance(p, q) < 9f) && attempts < 195) continue;
+            SpawnPortals.Add(p);
+        }
+        if (SpawnPortals.Count == 0) SpawnPortals.Add(new Vector2(2.1f, Height / 2f));
+
+        // Winding lanes: each portal wanders toward the camp, carving open floor as
+        // it goes and swelling into a chamber now and then.
+        foreach (var portal in SpawnPortals)
+        {
+            Carve(portal, 2.4f);
+            var pos = portal;
+            int guard = 0;
+            while (Vector2.Distance(pos, WagonSpot) > 3f && guard++ < 600)
+            {
+                Carve(pos, 1.4f + (float)rng.NextDouble() * 1.1f);
+                if (rng.Next(10) == 0) Carve(pos, 3.2f + (float)rng.NextDouble() * 2.2f);
+                var toCamp = WagonSpot - pos;
+                toCamp /= MathF.Max(0.001f, toCamp.Length());
+                var jig = new Vector2((float)rng.NextDouble() * 2f - 1f,
+                                      (float)rng.NextDouble() * 2f - 1f);
+                var step = toCamp + jig * 0.9f;
+                float len = step.Length();
+                step = len < 0.1f ? toCamp : step / len;
+                pos += step;
+                pos.X = Math.Clamp(pos.X, 2f, Width - 3f);
+                pos.Y = Math.Clamp(pos.Y, 2f, Height - 3f);
+            }
+        }
+
+        // Extra chambers hanging off the lanes: build room and flanking pockets.
+        // Only EXISTING open floor is widened, so every chamber stays connected.
+        int chambers = 4 + Width * Height / 260;
+        for (int i = 0; i < chambers; i++)
+        {
+            int x = rng.Next(3, Width - 3), y = rng.Next(3, Height - 3);
+            if (_wall[Idx(x, y)] != 0) continue;
+            Carve(new Vector2(x + 0.5f, y + 0.5f), 2.6f + (float)rng.NextDouble() * 2.6f);
+        }
+
+        // Rock clumps back INSIDE the open floor: cover and choke-building anchors,
+        // kept away from the wagon camp and the portal mouths.
+        int clumps = 8 + Width * Height / 180;
         for (int i = 0; i < clumps; i++)
         {
             int cx = rng.Next(4, Width - 5);
             int cy = rng.Next(3, Height - 4);
             var c = new Vector2(cx + 0.5f, cy + 0.5f);
-            if (Vector2.Distance(c, WagonSpot) < 7f) continue;
+            if (Vector2.Distance(c, WagonSpot) < 7.5f) continue;
             if (SpawnPortals.Any(p => Vector2.Distance(c, p) < 5f)) continue;
             int w = rng.Next(1, 4), h = rng.Next(1, 3);
             byte tall = (byte)rng.Next(1, 3);
@@ -625,27 +702,39 @@ public class GameMap
                 }
             }
 
-        // The wagon camp itself stays flat and clear.
-        for (int y = -3; y <= 3; y++)
-            for (int x = -4; x <= 4; x++)
+        // The wagon camp itself stays flat and clear, and the strip from the camp to
+        // the exit door stays open — the way home never rocks over.
+        for (int y = -4; y <= 4; y++)
+            for (int x = -5; x <= 5; x++)
             {
                 int tx = (int)WagonSpot.X + x, ty = (int)WagonSpot.Y + y;
                 if (tx < 1 || ty < 1 || tx >= Width - 1 || ty >= Height - 1) continue;
                 _wall[Idx(tx, ty)] = 0;
             }
+        for (int y = (int)WagonSpot.Y - 2; y <= (int)WagonSpot.Y + 2; y++)
+        {
+            if (y < 1 || y >= Height - 1) continue;
+            for (int x = (int)WagonSpot.X; x < Width - 1; x++)
+                _wall[Idx(x, y)] = 0;
+        }
     }
 
     // ------------------------------------------------------------------ forest run generation
 
     /// <summary>
-    /// A run map: a LONG hallway with real terrain — a meandering corridor, terrace
-    /// bands crossing the hall (stairs only near the corridor line, cliffs elsewhere),
-    /// overlook plateaus hugging the side walls, pillar clusters, ponds and the theme's
-    /// big trees. Entry door behind the spawn (west), exit door at the far east end,
-    /// with a cleared arena in front of it for the final map's boss. Pack anchors are
-    /// laid along the corridor at generation time. A ground-surface BFS validates the
-    /// spawn-to-exit path; if decorations ever pinch it shut, the corridor line is
-    /// carved flat as a deterministic fallback.
+    /// A run map: a LONG hallway with real terrain, its footprint rolled from the
+    /// seed. A meandering corridor is the guaranteed route; big HIGHLAND MASSIFS
+    /// (jittered-edge landmasses, some with level-2 crowns) rise across it — the
+    /// corridor climbs them by stair flights graded into the cliffs, or slices a
+    /// ground-level canyon straight through. BRIDGES span the gaps between
+    /// neighboring massifs (and vault the canyons), overlook plateaus hug the side
+    /// walls, pillar clusters, ponds and the theme's big trees fill in the rest.
+    /// Entry door behind the spawn (west), exit door at the far east end, with a
+    /// cleared arena in front of it for the final map's boss. Pack anchors are laid
+    /// along the corridor AND on the massif tops at generation time. A
+    /// ground-surface BFS validates the spawn-to-exit path; if generation ever
+    /// pinches it shut, the corridor line is carved flat as a deterministic
+    /// fallback, and the connect pass stairs any stranded high ground.
     /// </summary>
     private void GenerateForestRun(Random rng)
     {
@@ -661,32 +750,154 @@ public class GameMap
         {
             corridor[x] = cy;
             if (x % 3 == 0)
-                cy = Math.Clamp(cy + rng.Next(-1, 2), 4, Height - 5);
+                cy = Math.Clamp(cy + rng.Next(-2, 3), 4, Height - 5);
         }
 
-        // Terrace bands crossing the hall: raised strips with stair columns cut in at
-        // the corridor rows (±1) — everywhere else the band edge is a sheer cliff.
-        int bx = 12 + rng.Next(5);
-        while (bx < Width - 16)
+        // HIGHLAND MASSIFS: big raised landmasses with organic (jittered) cliff
+        // edges — some span the whole hall, some lobe off the north or south wall.
+        // The corridor either CLIMBS a full crossing by stair flights cut into both
+        // edges, or slices a ground-level CANYON through it (cliff walls looming on
+        // both sides). Their tops are real playfield — pack anchors land up there,
+        // and bridges (below) span the gaps between neighbors.
+        var massifs = new List<(int x0, int x1, int y0, int y1, bool canyon)>();
+        int mx = 11 + rng.Next(6);
+        while (mx < Width - 32)
         {
-            int bw = 3 + rng.Next(3);
-            for (int y = 1; y < Height - 1; y++)
-                for (int x = bx; x < bx + bw; x++)
-                    _ground[Idx(x, y)] = 1;
-            foreach (int side in new[] { bx - 1, bx + bw })
+            int mw = 10 + rng.Next(13);
+            int mx1 = Math.Min(mx + mw, Width - 16);
+            if (mx1 - mx < 5) break;
+            int shape = rng.Next(3); // 0 = full crossing, 1 = north lobe, 2 = south lobe
+            int my0 = shape == 2 ? Height / 2 + rng.Next(-2, 3) : 1;
+            int my1 = shape == 1 ? Height / 2 + rng.Next(-2, 3) : Height - 1;
+            bool canyon = shape == 0 && rng.Next(10) < 4;
+
+            // Raise the mass, x-edges wandering a little per row.
+            int inL = 0, inR = 0;
+            for (int y = my0; y < my1; y++)
             {
-                var dir = side < bx ? RampDirection.PlusX : RampDirection.MinusX;
-                int mid = corridor[Math.Clamp(side, 0, Width - 1)];
-                for (int y = mid - 1; y <= mid + 1; y++)
+                if (rng.Next(3) == 0) inL = Math.Clamp(inL + rng.Next(-1, 2), 0, 3);
+                if (rng.Next(3) == 0) inR = Math.Clamp(inR + rng.Next(-1, 2), 0, 3);
+                for (int x = mx + inL; x < mx1 - inR; x++)
+                    _ground[Idx(x, y)] = 1;
+            }
+
+            // A level-2 crown on the bigger masses, kept clear of the corridor line.
+            if (mx1 - mx >= 9 && rng.Next(100) < 35)
+            {
+                int cy0 = Math.Max(my0 + 2, 2), cy1 = Math.Min(my1 - 2, Height - 2);
+                for (int y = cy0; y < cy1; y++)
+                    for (int x = mx + 3; x < mx1 - 3; x++)
+                        if (Math.Abs(y - corridor[x]) > 2 && _ground[Idx(x, y)] == 1)
+                            _ground[Idx(x, y)] = 2;
+            }
+
+            if (canyon)
+            {
+                // The corridor rows slice through at ground level.
+                for (int x = mx - 1; x <= mx1 && x < Width - 1; x++)
                 {
-                    if (y < 1 || y >= Height - 1) continue;
-                    int i = Idx(side, y);
-                    _ground[i] = 0;
-                    _ramp[i] = (byte)dir;
-                    _rampStyle[i] = 1;
+                    if (x < 1) continue;
+                    for (int y = corridor[x] - 1; y <= corridor[x] + 1; y++)
+                        if (y >= 1 && y < Height - 1)
+                            _ground[Idx(x, y)] = 0;
                 }
             }
-            bx += bw + 11 + rng.Next(8);
+            else
+            {
+                // Stair flights graded into each edge at the corridor rows: per row,
+                // the FIRST raised column from the outside becomes the stair tile
+                // (its low side is open ground, its ascent side the massif top).
+                foreach (bool fromWest in new[] { true, false })
+                {
+                    int probeX = fromWest ? Math.Max(1, mx - 1) : Math.Min(Width - 2, mx1);
+                    int mid = corridor[probeX];
+                    for (int y = mid - 1; y <= mid + 1; y++)
+                    {
+                        if (y < 1 || y >= Height - 1 || y < my0 || y >= my1) continue;
+                        int sx = -1;
+                        if (fromWest)
+                        {
+                            for (int x = mx; x < mx1 - 1; x++)
+                                if (_ground[Idx(x, y)] == 1) { sx = x; break; }
+                        }
+                        else
+                        {
+                            for (int x = mx1 - 1; x > mx; x--)
+                                if (_ground[Idx(x, y)] == 1) { sx = x; break; }
+                        }
+                        if (sx < 1) continue;
+                        int i = Idx(sx, y);
+                        _ground[i] = 0;
+                        _ramp[i] = (byte)(fromWest ? RampDirection.PlusX : RampDirection.MinusX);
+                        _rampStyle[i] = 1;
+                    }
+                }
+            }
+            massifs.Add((mx, mx1, my0, my1, canyon));
+            mx = mx1 + 5 + rng.Next(6);
+        }
+
+        // BRIDGES: where two neighboring massifs face each other across a short gap,
+        // a plank deck (level 1) spans it — cross on top while others pass beneath.
+        for (int m = 1; m < massifs.Count; m++)
+        {
+            var (ax0, ax1, ay0, ay1, _) = massifs[m - 1];
+            var (bx0, bx1, by0, by1, _) = massifs[m];
+            int gap = bx0 - ax1;
+            if (gap < 3 || gap > 9 || rng.Next(10) < 2) continue;
+            int yLo = Math.Max(Math.Max(ay0, by0), 2), yHi = Math.Min(Math.Min(ay1, by1), Height - 2);
+            var rows = new List<int>();
+            for (int y = yLo; y < yHi; y++)
+            {
+                if (_ground[Idx(ax1 - 1, y)] < 1 || _ground[Idx(bx0, y)] < 1) continue;
+                bool clear = _ramp[Idx(ax1 - 1, y)] == 0 && _ramp[Idx(bx0, y)] == 0;
+                for (int x = ax1; x < bx0 && clear; x++)
+                {
+                    int i = Idx(x, y);
+                    clear = _wall[i] == 0 && _ground[i] == 0 && _ramp[i] == 0 && _feature[i] == 0;
+                }
+                if (clear) rows.Add(y);
+            }
+            // Prefer a 2-wide deck (adjacent valid rows); take a lone row otherwise.
+            int pick = -1;
+            var wide = rows.Where(y => rows.Contains(y + 1)).ToList();
+            if (wide.Count > 0) pick = wide[rng.Next(wide.Count)];
+            else if (rows.Count > 0) pick = rows[rng.Next(rows.Count)];
+            if (pick < 0) continue;
+            foreach (int y in new[] { pick, pick + 1 })
+            {
+                if (!rows.Contains(y)) continue;
+                for (int x = ax1; x < bx0; x++)
+                    _bridge[Idx(x, y)] = 1;
+            }
+        }
+
+        // Canyon bridges: a deck vaulting the slice the corridor runs through, so
+        // the high ground connects OVER the road while walkers pass under it.
+        foreach (var (cx0, cx1, _, _, isCanyon) in massifs)
+        {
+            if (!isCanyon || rng.Next(10) < 3) continue;
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                int x = cx0 + 2 + rng.Next(Math.Max(1, cx1 - cx0 - 5));
+                int mid = corridor[x];
+                bool ok = corridor[x + 1] == mid; // the deck needs a straight canyon slice
+                for (int dx = 0; dx < 2 && ok; dx++)
+                    for (int y = mid - 1; y <= mid + 1 && ok; y++)
+                    {
+                        int i = Idx(x + dx, y);
+                        ok = _ground[i] == 0 && _wall[i] == 0 && _ramp[i] == 0 && _feature[i] == 0;
+                    }
+                for (int dx = 0; dx < 2 && ok; dx++)
+                    ok = mid - 2 >= 1 && mid + 2 < Height - 1 &&
+                         _ground[Idx(x + dx, mid - 2)] == 1 && _ground[Idx(x + dx, mid + 2)] == 1 &&
+                         _ramp[Idx(x + dx, mid - 2)] == 0 && _ramp[Idx(x + dx, mid + 2)] == 0;
+                if (!ok) continue;
+                for (int dx = 0; dx < 2; dx++)
+                    for (int y = mid - 1; y <= mid + 1; y++)
+                        _bridge[Idx(x + dx, y)] = 1;
+                break;
+            }
         }
 
         // Overlook plateaus hugging the side walls, each with a stair inset facing the
@@ -698,13 +909,17 @@ public class GameMap
             int px = 14 + rng.Next(Math.Max(1, Width - 30 - pw));
             bool north = rng.Next(2) == 0;
             int py = north ? 1 : Height - 1 - ph;
-            // Skip plateaus that would land on a terrace ramp column or the boss arena.
+            // Skip plateaus that would land on stairs, a bridge, mixed-height ground
+            // (a massif edge) or the boss arena — a plateau must rise off ONE level.
             bool blocked = false;
+            byte baseLv = InBounds(px, py + ph / 2) ? _ground[Idx(px, py + ph / 2)] : (byte)0;
             for (int x = px - 1; x <= px + pw && !blocked; x++)
                 for (int y = py; y < py + ph && !blocked; y++)
-                    blocked = !InBounds(x, y) || _ramp[Idx(x, y)] != 0 || x >= Width - 14;
+                    blocked = !InBounds(x, y) || _ramp[Idx(x, y)] != 0 || x >= Width - 14 ||
+                              _wall[Idx(x, y)] > 2 || _bridge[Idx(x, y)] != 0 ||
+                              _water[Idx(x, y)] != 0 || _ground[Idx(x, y)] != baseLv;
             if (blocked) continue;
-            byte level = (byte)(_ground[Idx(px, py + ph / 2)] + 1);
+            byte level = (byte)(baseLv + 1);
             for (int y = py; y < py + ph; y++)
                 for (int x = px; x < px + pw; x++)
                     _ground[Idx(x, y)] = level;
@@ -734,6 +949,7 @@ public class GameMap
                 {
                     if (Math.Abs(y - corridor[x]) <= 1) continue;   // corridor stays open
                     if (_ramp[Idx(x, y)] != 0) continue;            // stairs stay usable
+                    if (_bridge[Idx(x, y)] != 0) continue;          // nothing pokes through a deck
                     if (x >= Width - 13) continue;                  // boss arena stays open
                     _wall[Idx(x, y)] = tall;
                 }
@@ -785,6 +1001,20 @@ public class GameMap
             PackSpots.Add(new Vector2(ax + 0.5f, corridor[ax] + 0.5f));
             ax += 9 + rng.Next(6);
         }
+
+        // And the high ground is contested too: one anchor atop each massif,
+        // wherever a clear perch exists after trees and ponds settled in.
+        foreach (var (tx0, tx1, ty0, ty1, _) in massifs)
+            for (int attempt = 0; attempt < 12; attempt++)
+            {
+                int x = rng.Next(tx0 + 1, Math.Max(tx0 + 2, tx1 - 1));
+                int y = rng.Next(Math.Max(2, ty0 + 1), Math.Max(3, Math.Min(Height - 2, ty1 - 1)));
+                int i = Idx(x, y);
+                if (_ground[i] < 1 || _wall[i] != 0 || _ramp[i] != 0 || _water[i] != 0 ||
+                    _feature[i] != 0 || _bridge[i] != 0) continue;
+                PackSpots.Add(new Vector2(x + 0.5f, y + 0.5f));
+                break;
+            }
 
         // Connectivity guarantee: if generation pinched the hall shut anywhere, carve
         // the corridor line flat. Deterministic — clients regenerate the exact map.
@@ -971,13 +1201,15 @@ public class GameMap
                     break;
                 }
         }
-        // Whatever is STILL stranded becomes scenery, never fake floor.
+        // Whatever is STILL stranded becomes scenery, never fake floor. Stranded
+        // tree-footprint tiles rockify too — the canopy simply overhangs the outcrop
+        // (the trunk root is already solid and skips via the wall check).
         var final = ReachableFrom(PlayerSpawn);
         for (int y = 1; y < Height - 1; y++)
             for (int x = 1; x < Width - 1; x++)
             {
                 int i = Idx(x, y);
-                if (final[i] || _wall[i] != 0 || _water[i] != 0 || _feature[i] != 0) continue;
+                if (final[i] || _wall[i] != 0 || _water[i] != 0) continue;
                 _wall[i] = 1;
                 _ramp[i] = 0;
                 _rampStyle[i] = 0;
@@ -1048,6 +1280,7 @@ public class GameMap
                 for (int dx = 0; dx < 2 && clear; dx++)
                     clear = _wall[Idx(x + dx, y + dy)] == 0 && _ground[Idx(x + dx, y + dy)] == g0 &&
                             _ramp[Idx(x + dx, y + dy)] == 0 && _water[Idx(x + dx, y + dy)] == 0 &&
+                            _bridge[Idx(x + dx, y + dy)] == 0 &&
                             _feature[Idx(x + dx, y + dy)] == 0;
             if (!clear) continue;
             // Only the TRUNK blocks: one solid two-level tile at the root; the rest of

@@ -1112,3 +1112,29 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   structures hand their share back; the workbench shows supplies, capacity
   and per-row costs.
 - Protocol v37 (per-player supplies ride DefenseState); give_supplies debug.
+
+---
+
+# Addendum (batch 52): rolled footprints, carved arenas, highlands + bridges
+
+- **Map footprints roll from the seed.** Forest runs now span 86-130 x 26-36
+  tiles, defense arenas 38-64 x 28-44 — no more one-size rectangles. Clients
+  rebuild the identical map from the shared seed (protocol v38).
+- **The defense arena is carved, not boxed.** Every stand is a cavern cut out
+  of solid rock: the camp opens against the east wall at a random height,
+  3-5 portals (rolled per run) open along the west/north/south edges in
+  fresh spots, and each mouth carves a winding lane toward the camp with
+  chambers swelling off it. Rock clumps sprinkle back in as cover and
+  choke-anchors. Guarantees kept: every portal has a walkable lane to the
+  wagon, the camp stays flat and clear, the path to the exit door stays open.
+- **Forest runs got real geography.** The narrow terrace strips are gone;
+  in their place rise HIGHLAND MASSIFS — big jittered-edge landmasses (some
+  spanning the hall, some lobing off a side wall, ~35% wearing a level-2
+  crown). The corridor climbs them by stair flights graded into the cliffs
+  or slices a ground-level CANYON straight through. BRIDGES span the gaps
+  between neighboring massifs and vault the canyons — cross on the deck
+  while others pass beneath. Massif tops carry their own pack anchors, so
+  the high ground is contested, not scenery.
+- Safety nets unchanged and re-verified across seeds: spawn-to-boss path,
+  no stranded pockets (stranded tree footprints now rockify too), no orphan
+  or glitch stairs, same-seed determinism tile for tile.
