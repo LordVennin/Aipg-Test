@@ -2373,6 +2373,59 @@ public static class SpriteGen
                     Set(6, 2, lite); Set(6, 1, frond);
                 }
                 break;
+            case "graveyard:deadtree": // large 2x2-tile BARE trees — the graveyard's giants
+                if (variant == 0) // forked skeleton oak
+                {
+                    Init(60, 84);
+                    var bark = new Color(76, 64, 52); var barkD = Shade(bark, 0.66f); var barkL = Shade(bark, 1.24f);
+                    Rect(27, 52, 6, 29, bark);
+                    VLine(27, 52, 29, barkL); VLine(32, 52, 29, barkD);
+                    Rect(22, 77, 6, 4, barkD); Rect(33, 77, 6, 4, barkD); // root flare
+                    Rect(28, 62, 3, 6, new Color(22, 18, 16));            // the hollow
+                    // Two great forks, each splintering into bare twigs.
+                    for (int i = 0; i < 14; i++) { Set(27 - i, 51 - i, bark); Set(26 - i, 51 - i, barkD); }
+                    for (int i = 0; i < 16; i++) { Set(33 + i, 51 - i, bark); Set(34 + i, 51 - i, barkD); }
+                    for (int i = 0; i < 9; i++) Set(29, 51 - i * 2, bark);
+                    for (int i = 0; i < 6; i++) { Set(13 - i, 37 - i * 2, barkD); Set(20 - i, 30 - i, bark); }
+                    for (int i = 0; i < 6; i++) { Set(49 + i / 2, 35 - i * 2, barkD); Set(42 + i, 28 - i, bark); }
+                    Set(29, 32, barkD); Set(30, 27, bark); Set(28, 22, barkD); // crown twigs
+                    Set(8, 24, barkD); Set(55, 21, barkD); Set(31, 16, barkD);
+                }
+                else if (variant == 1) // leaning snag, snapped crown
+                {
+                    Init(56, 76);
+                    var bark = new Color(70, 60, 50); var barkD = Shade(bark, 0.66f); var barkL = Shade(bark, 1.22f);
+                    // The trunk leans east as it climbs.
+                    for (int i = 0; i < 26; i++)
+                    {
+                        Rect(24 + i / 3, 70 - i, 6, 1, bark);
+                        Set(24 + i / 3, 70 - i, barkL); Set(29 + i / 3, 70 - i, barkD);
+                    }
+                    Rect(20, 69, 5, 4, barkD); Rect(31, 69, 5, 4, barkD);
+                    // The snapped top: jagged spikes where the crown tore away.
+                    Set(32, 43, bark); Set(34, 41, barkD); Set(36, 44, bark); Set(33, 39, barkD);
+                    // One surviving limb reaching west.
+                    for (int i = 0; i < 12; i++) { Set(24 - i, 52 - i / 2, bark); Set(23 - i, 51 - i / 2, barkD); }
+                    Set(10, 43, barkD); Set(7, 45, barkD);
+                }
+                else // gallows-flat crown, crow-perch silhouette
+                {
+                    Init(62, 80);
+                    var bark = new Color(80, 68, 54); var barkD = Shade(bark, 0.66f); var barkL = Shade(bark, 1.24f);
+                    Rect(28, 44, 6, 33, bark);
+                    VLine(28, 44, 33, barkL); VLine(33, 44, 33, barkD);
+                    Rect(23, 73, 6, 4, barkD); Rect(34, 73, 6, 4, barkD);
+                    // A near-horizontal bough each way — the gallows look.
+                    for (int i = 0; i < 18; i++) { Set(28 - i, 44 - i / 5, bark); Set(28 - i, 45 - i / 5, barkD); }
+                    for (int i = 0; i < 16; i++) { Set(34 + i, 43 - i / 6, bark); Set(34 + i, 44 - i / 6, barkD); }
+                    // Drooping twigs off the boughs.
+                    Set(14, 46, barkD); Set(15, 48, barkD); Set(45, 45, barkD); Set(46, 47, barkD);
+                    for (int i = 0; i < 7; i++) Set(31, 43 - i * 2, bark);
+                    Set(31, 28, barkD); Set(24, 33, barkD); Set(39, 31, barkD);
+                    // The crow.
+                    Set(20, 40, new Color(18, 16, 18)); Set(21, 40, new Color(18, 16, 18)); Set(21, 39, new Color(18, 16, 18));
+                }
+                break;
             case "forest:bigtree": // large 2x2-tile canopy trees (generated landmarks)
                 if (variant == 2) // dark fir: stacked triangular tiers
                 {

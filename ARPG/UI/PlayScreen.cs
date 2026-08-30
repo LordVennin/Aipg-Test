@@ -64,6 +64,10 @@ public class PlayScreen : IScreen
     private bool _devLearnSummons, _devRaiseSummons;
     /// <summary>ARPG_DEVUI=knight: spawn Barrow Knights next to the player (GUI automation).</summary>
     private bool _devSpawnKnights;
+    /// <summary>ARPG_DEVUI=reaper: keep culling nearby enemies so scripted walkthroughs
+    /// survive any map (GUI automation).</summary>
+    private bool _devReaper;
+    private float _devReaperNextAt;
     /// <summary>ARPG_DEVUI=gold: grant 1000 gold shortly after joining (GUI automation).</summary>
     private bool _devGiveGold;
     private bool _devGiveSupplies;
@@ -237,6 +241,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("sheet")) _characterSheet.Open = true;
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
             if (devUi.Contains("knight")) _devSpawnKnights = true;
+            if (devUi.Contains("reaper")) _devReaper = true;
             if (devUi.Contains("gold")) _devGiveGold = true;
             if (devUi.Contains("supplies")) _devGiveSupplies = true;
             if (devUi.Contains("pettome")) _devGivePet = 2;
@@ -425,6 +430,11 @@ public class PlayScreen : IScreen
         {
             _devSpawnKnights = false;
             _client.SendDebugCommand("spawn_enemy", "bone_knight");
+        }
+        if (_devReaper && _clientTime > _devReaperNextAt)
+        {
+            _devReaperNextAt = _clientTime + 1.5f;
+            _client.SendDebugCommand("kill_nearby");
         }
         if (_devEquipSet != null && _clientTime > 1.5f)
         {

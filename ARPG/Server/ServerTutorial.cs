@@ -55,13 +55,16 @@ public partial class ServerWorld
             _events.NpcAdded(odessa);
         }
 
-        // The dead along the road — authored placements, gentle levels.
+        // The dead along the road — authored placements, gentle levels (the road
+        // band sits on the map's center row).
+        float rc = Map.Height / 2 + 0.5f;
         foreach (var (kind, x, y) in new (string, float, float)[]
         {
-            ("grunt", 17.5f, 22.5f), ("grunt", 18.5f, 23.5f),
-            ("spitter", 24.5f, 19.5f),
-            ("grunt", 34.5f, 10.5f), ("grunt", 36.5f, 11.5f), ("shambler", 35.5f, 9.5f),
-            ("crypt_leaper", 44.5f, 9.5f),
+            ("grunt", 17.5f, rc), ("grunt", 18.5f, rc + 1f),
+            ("spitter", 25.5f, rc - 2f),
+            ("grunt", 36.5f, rc), ("grunt", 38.5f, rc + 1f), ("shambler", 37.5f, rc - 1f),
+            ("crypt_leaper", 46.5f, rc),
+            ("grunt", 56.5f, rc), ("shambler", 58.5f, rc + 1f), // the high ground is held too
         })
             if (Data.Enemies.ContainsKey(kind))
                 SpawnEnemy(kind, new Vector2(x, y), level: 1);

@@ -4875,15 +4875,21 @@ public static class HeadlessNetTest
               tutA54.GroundPathExists(tutA54.PlayerSpawn,
                   new Vector2(tutA54.ExitDoor.X - 1f, tutA54.ExitDoor.Y)),
               "camp walks to the boss and the gate on foot");
-        Check(tutA54.BossSpot.X > tutA54.PlayerSpawn.X + 30f &&
-              tutA54.BossSpot.Y < tutA54.PlayerSpawn.Y - 8f,
-              "the road runs east and climbs northeast");
+        Check(tutA54.BossSpot.X > tutA54.PlayerSpawn.X + 55f &&
+              MathF.Abs(tutA54.BossSpot.Y - tutA54.PlayerSpawn.Y) < 4f,
+              "the road runs STRAIGHT east, camp to gate");
         Check(tutA54.CountUnreachableWalkable() == 0 && tutA54.CountOrphanRamps() == 0,
               "no stranded floor, no orphan stairs on the authored map");
         bool ruinsEast54 = true;
-        for (int y = 2; y <= 13; y++) ruinsEast54 &= tutA54.IsRuins(55, y);
-        Check(ruinsEast54 && !tutA54.IsRuins(20, 22),
+        for (int y = 5; y <= 16; y++) ruinsEast54 &= tutA54.IsRuins(74, y);
+        Check(ruinsEast54 && !tutA54.IsRuins(20, 11),
               "the east end is ruins ground; the graveyard is not");
+        int deadTrees54 = 0;
+        for (int y = 1; y < tutA54.Height - 1; y++)
+            for (int x = 1; x < tutA54.Width - 1; x++)
+                if (tutA54.Feature(x, y) == World.TileFeature.BigTreeRoot) deadTrees54++;
+        Check(deadTrees54 >= 5,
+              $"big dead trees loom over the fields ({deadTrees54} planted)");
 
         // The Sanctum grew a third door — optional, never on the way to anything.
         Check(campServer.World.Map.TutorialDoor != Vector2.Zero,
@@ -4921,6 +4927,21 @@ public static class HeadlessNetTest
         CPump(3.5f);
         Check(srvB54.Alive && Vector2.Distance(srvB54.Position, tutMap54.PlayerSpawn) < 2f,
               "death sends you back to the caravan on your feet");
+
+        // Even a FULL wipe is forgiving here: the campaign's Sanctum-reclaims rule
+        // must not fire on the Old Road — the caravan stands everyone back up.
+        var srvA54 = campServer.World.Players[campA.World.MyPlayerId];
+        campA.SendDebugCommand("die");
+        campB.SendDebugCommand("die");
+        CPump(0.5f);
+        Check(!srvA54.Alive && !srvB54.Alive, "the whole party lies in the mud");
+        CPump(4.0f);
+        Check(campServer.World.Map.Kind == World.MapKind.Tutorial,
+              "a full wipe does NOT hand the party back to the Sanctum");
+        Check(srvA54.Alive && srvB54.Alive &&
+              Vector2.Distance(srvA54.Position, tutMap54.PlayerSpawn) < 2f &&
+              Vector2.Distance(srvB54.Position, tutMap54.PlayerSpawn) < 2f,
+              "the caravan drags the whole fallen party back to camp");
 
         // Reaching the ruins' edge cues the 'clear the way' scene.
         campA.World.Me.Position = new Vector2(tutMap54.Width - 15f, 10.5f);
