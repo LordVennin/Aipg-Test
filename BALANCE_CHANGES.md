@@ -1168,3 +1168,8 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   0.8 radius; one body can be struck by several arrows, clusters eat the
   whole volley, and gaps in the scatter genuinely miss.
 - Protocol v39.
+
+- (batch 53 follow-up) Pet heel fix: the companion's follow target now
+  trails whichever side it's already on instead of a fixed west-side
+  offset — running west no longer plants the pet underfoot; it falls in
+  ~1 tile behind the walk in every direction.
