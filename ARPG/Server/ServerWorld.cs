@@ -74,6 +74,9 @@ public interface IServerEvents
     void NpcRemoved(ServerNpc npc);
     /// <summary>The defense run's phase/wave/wagon state changed.</summary>
     void DefenseStateChanged(ServerWorld world);
+    /// <summary>A scripted scene fires for everyone (tutorial beats): clients play the
+    /// cutscene identified by id locally — letterbox, camera focus, dialogue.</summary>
+    void CutscenePlayed(string id);
 }
 
 /// <summary>One merchant stock slot as offered to a specific player.</summary>
@@ -131,7 +134,8 @@ public partial class ServerWorld
     /// arena's exit stays sealed until the last wave is beaten.</summary>
     public bool ExitLocked => Campaign &&
         ((MapIndex == 3 && BossAlive) ||
-         (Map.Kind == MapKind.Defense && DefPhase != DefensePhase.Won));
+         (Map.Kind == MapKind.Defense && DefPhase != DefensePhase.Won) ||
+         (Map.Kind == MapKind.Tutorial && BossAlive));
     public bool BossAlive => _bossEnemyId >= 0 &&
                              Enemies.TryGetValue(_bossEnemyId, out var b) && !b.Dead;
     public int ReadyCount => _readyAtDoor.Count;
@@ -148,12 +152,18 @@ public partial class ServerWorld
     private readonly ZoneTheme _theme;
     private readonly HashSet<int> _readyAtDoor = new();
     private readonly HashSet<int> _readyAtDefenseDoor = new();
+    private readonly HashSet<int> _readyAtTutorialDoor = new();
     private readonly HashSet<int> _openedChests = new();
     private int _bossEnemyId = -1;
     private int _forestEntries;
     private int _defenseEntries;
     /// <summary>MapIndex sentinel for the defense arena (the campaign counts 0..3).</summary>
     public const int DefenseMapIndex = -1;
+    /// <summary>Sentinel MapIndex for the authored tutorial introduction.</summary>
+    public const int TutorialMapIndex = -2;
+    /// <summary>Fixed seed for the tutorial map — the terrain is authored anyway;
+    /// this only styles the deterministic clutter identically for everyone, forever.</summary>
+    public const int TutorialSeed = 20777;
 
     public ServerWorld(GameData data, int mapSeed, IServerEvents events, string zoneThemeId = null,
         bool campaign = false)
@@ -408,6 +418,7 @@ public partial class ServerWorld
         if (!Campaign) return;
         _readyAtDoor.Clear();
         _readyAtDefenseDoor.Clear();
+        _readyAtTutorialDoor.Clear();
         Enemies.Clear();       // clients wipe on MapChange — no death broadcasts needed
         Projectiles.Clear();
         Drops.Clear();
@@ -429,9 +440,11 @@ public partial class ServerWorld
         if (newIndex == DefenseMapIndex) _defenseEntries++;
         MapIndex = newIndex;
         var newKind = newIndex == 0 ? MapKind.Hub
-            : newIndex == DefenseMapIndex ? MapKind.Defense : MapKind.Forest;
+            : newIndex == DefenseMapIndex ? MapKind.Defense
+            : newIndex == TutorialMapIndex ? MapKind.Tutorial : MapKind.Forest;
         int seed = newIndex == DefenseMapIndex
             ? unchecked(_runSeed * 31 + _defenseEntries * 65537 + 12345)
+            : newIndex == TutorialMapIndex ? TutorialSeed
             : CampaignMapSeed(newIndex);
         Map = new GameMap(seed, ThemeFor(newKind), newKind);
         // Coming home wakes the fallen: anyone still down stands back up in the hub.
@@ -482,6 +495,7 @@ public partial class ServerWorld
         _events.MapChanged(this);
         if (newIndex > 0) SetupForest(); // packs spawn AFTER the map broadcast
         else if (newIndex == DefenseMapIndex) SetupDefense();
+        else if (newIndex == TutorialMapIndex) SetupTutorial();
         _events.ZoneStateChanged(this);
     }
 
@@ -491,7 +505,9 @@ public partial class ServerWorld
     private ZoneTheme ThemeFor(MapKind kind) =>
         kind == MapKind.Hub
             ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "sanctum") ?? _theme
-            : _theme;
+            : kind == MapKind.Tutorial
+                ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "graveyard") ?? _theme
+                : _theme;
 
     /// <summary>The exit door: standing near it, the interact key toggles READY. When
     /// every living player is ready the group moves on (hub -> map 1 -> 2 -> 3 -> hub).
@@ -504,30 +520,76 @@ public partial class ServerWorld
         // once the last wave is beaten, the exit door home.
         if (Map.Kind == MapKind.Defense) { DefenseReady(p); return; }
 
-        // Hub: two doors — the run door east, the defense door west. The nearer
-        // in-reach door is the one being answered.
-        bool defenseDoor = Map.Kind == MapKind.Hub &&
-            Vector2.Distance(p.Position, Map.DefenseDoor) <= 2.6f &&
-            Vector2.Distance(p.Position, Map.DefenseDoor) <
-            Vector2.Distance(p.Position, Map.ExitDoor);
-        if (!defenseDoor && Vector2.Distance(p.Position, Map.ExitDoor) > 2.6f) return;
-        if (!defenseDoor && ExitLocked)
+        // Tutorial map: the entry door leaves for home any time; the ruins gate
+        // opens home only once the way is clear.
+        if (Map.Kind == MapKind.Tutorial)
         {
-            _events.MessageFor(p, "The way is sealed — the Gravelord still stands.");
+            bool atGate = Vector2.Distance(p.Position, Map.ExitDoor) <= 2.6f;
+            bool atEntry = Vector2.Distance(p.Position, Map.EntryDoor) <= 2.6f;
+            if (!atGate && !atEntry) return;
+            if (atGate && ExitLocked)
+            {
+                _events.MessageFor(p, "The gate is barred — clear the way first.");
+                return;
+            }
+            bool tutReady = _readyAtDoor.Add(playerId);
+            if (!tutReady) _readyAtDoor.Remove(playerId);
+            int tutAlive = Players.Values.Count(pl => pl.Alive);
+            foreach (var pl in Players.Values)
+                _events.MessageFor(pl,
+                    $"{p.Name} is {(tutReady ? "ready" : "no longer ready")} at the door ({_readyAtDoor.Count}/{tutAlive}).");
+            _events.ZoneStateChanged(this);
+            if (tutAlive > 0 && _readyAtDoor.Count >= tutAlive) TransitionTo(0);
             return;
         }
-        var set = defenseDoor ? _readyAtDefenseDoor : _readyAtDoor;
+
+        // Hub: three doors — the run door east, the caravan (defense) door west,
+        // the introduction south. The nearest in-reach door is the one answered.
+        int doorTarget;
+        HashSet<int> set;
+        HashSet<int>[] others;
+        string doorName;
+        if (Map.Kind == MapKind.Hub)
+        {
+            var candidates = new (Vector2 pos, int target, HashSet<int> ready, string name)[]
+            {
+                (Map.ExitDoor, MapIndex >= 3 ? 0 : MapIndex + 1, _readyAtDoor, "the door"),
+                (Map.DefenseDoor, DefenseMapIndex, _readyAtDefenseDoor, "the caravan door"),
+                (Map.TutorialDoor, TutorialMapIndex, _readyAtTutorialDoor, "the old road door"),
+            };
+            var best = candidates
+                .Where(c => c.pos != Vector2.Zero && Vector2.Distance(p.Position, c.pos) <= 2.6f)
+                .OrderBy(c => Vector2.Distance(p.Position, c.pos))
+                .ToList();
+            if (best.Count == 0) return;
+            doorTarget = best[0].target;
+            set = best[0].ready;
+            doorName = best[0].name;
+            others = candidates.Where(c => c.ready != set).Select(c => c.ready).ToArray();
+        }
+        else
+        {
+            if (Vector2.Distance(p.Position, Map.ExitDoor) > 2.6f) return;
+            if (ExitLocked)
+            {
+                _events.MessageFor(p, "The way is sealed — the Gravelord still stands.");
+                return;
+            }
+            doorTarget = MapIndex >= 3 ? 0 : MapIndex + 1;
+            set = _readyAtDoor;
+            others = new[] { _readyAtDefenseDoor, _readyAtTutorialDoor };
+            doorName = "the door";
+        }
         bool nowReady = set.Add(playerId);
         if (!nowReady) set.Remove(playerId);
-        (defenseDoor ? _readyAtDoor : _readyAtDefenseDoor).Remove(playerId); // one door at a time
+        foreach (var other in others) other.Remove(playerId); // one door at a time
         int alive = Players.Values.Count(pl => pl.Alive);
-        string doorName = defenseDoor ? "the caravan door" : "the door";
         foreach (var pl in Players.Values)
             _events.MessageFor(pl,
                 $"{p.Name} is {(nowReady ? "ready" : "no longer ready")} at {doorName} ({set.Count}/{alive}).");
         _events.ZoneStateChanged(this);
         if (alive > 0 && set.Count >= alive)
-            TransitionTo(defenseDoor ? DefenseMapIndex : MapIndex >= 3 ? 0 : MapIndex + 1);
+            TransitionTo(doorTarget);
     }
 
     /// <summary>The equipped flask ITEM matching the requested kind (health or mana)
@@ -808,6 +870,7 @@ public partial class ServerWorld
         TickSpawners();
         TickPlayers(dt);
         TickDefense(dt);
+        TickTutorial();
         CheckPartyWipe();
 
         // Batched skill-XP sync: damage-based grants mark players dirty; the full
@@ -848,6 +911,19 @@ public partial class ServerWorld
                     // Arena keeps the quick respawn for tests and debugging.
                     p.RespawnTimer -= dt;
                     if (p.RespawnTimer <= 0) RevivePlayer(p, atSpawn: true, healthFraction: 1f);
+                }
+                else if (Map.Kind == MapKind.Tutorial)
+                {
+                    // The introduction is forgiving: the caravan drags you back to
+                    // camp on its own — and the crew ribs you for it.
+                    p.RespawnTimer -= dt;
+                    if (p.RespawnTimer <= 0)
+                    {
+                        RevivePlayer(p, atSpawn: true, healthFraction: 1f);
+                        foreach (var pl in Players.Values)
+                            _events.MessageFor(pl,
+                                TutorialDeathQuips[_tutorialQuip++ % TutorialDeathQuips.Length]);
+                    }
                 }
                 else if (p.ReviveProgress > 0 && Time - p.LastRevivePulseAt > 0.4f)
                 {
@@ -3245,6 +3321,14 @@ public partial class ServerWorld
             {
                 killer.Supplies += DefenseBalance.SupplyPerKill;
                 _events.DefenseStateChanged(this);
+            }
+            // Tutorial gate boss down: the victory scene plays and the gate unlocks.
+            if (Map.Kind == MapKind.Tutorial && e.Id == _bossEnemyId)
+            {
+                _events.CutscenePlayed("tut_victory");
+                _events.ZoneStateChanged(this); // the ruins gate opens
+                foreach (var pl in Players.Values)
+                    _events.MessageFor(pl, "The way is clear — the caravan can move in!");
             }
             // Party XP: the killer earns full value, every OTHER player earns
             // XpBalance.PartyShare of it — so one high-damage build sniping every kill

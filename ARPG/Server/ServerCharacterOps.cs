@@ -687,6 +687,12 @@ public partial class ServerWorld
                 p.Health = p.Stats.MaxHealth;
                 _events.PlayerHealthChanged(p);
                 break;
+            case "die":
+                // Dev shortcut: eat a lethal, unmitigable hit (tests the death flows).
+                if (p.Alive)
+                    DamagePlayerTyped(p, new List<(DamageKind, float)>
+                        { (DamageKind.Dark, p.Health + p.EnergyShield + 99999f) }, attackHit: false);
+                break;
             case "give_gold":
                 c.Gold += int.TryParse(arg, out int goldAmt) && goldAmt > 0 ? goldAmt : 500;
                 changed = true;

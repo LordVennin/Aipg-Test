@@ -4853,6 +4853,116 @@ public static class HeadlessNetTest
         CPump(4.5f);
         Check(campServer.World.MapIndex == 0, "the wall trial run wraps up back home");
 
+        Console.WriteLine("\n-- Batch 54: the introduction (the Old Road) --");
+        // The authored map: identical whatever seed asks for it, always raining,
+        // assistance stones laid, camp-to-boss-to-gate all on foot, east/northeast.
+        var tutTheme54 = data.ZoneThemes.First(t => t.Id == "graveyard");
+        var tutA54 = new World.GameMap(1, tutTheme54, World.MapKind.Tutorial);
+        var tutB54 = new World.GameMap(999999, tutTheme54, World.MapKind.Tutorial);
+        bool tutSame54 = tutA54.Width == tutB54.Width && tutA54.Height == tutB54.Height;
+        for (int y = 0; y < tutA54.Height && tutSame54; y++)
+            for (int x = 0; x < tutA54.Width && tutSame54; x++)
+                tutSame54 = tutA54.GroundLevel(x, y) == tutB54.GroundLevel(x, y) &&
+                            tutA54.WallHeight(x, y) == tutB54.WallHeight(x, y) &&
+                            tutA54.Ramp(x, y) == tutB54.Ramp(x, y) &&
+                            tutA54.IsWater(x, y) == tutB54.IsWater(x, y) &&
+                            tutA54.IsRuins(x, y) == tutB54.IsRuins(x, y);
+        Check(tutSame54, "the introduction is authored — identical terrain whatever the seed");
+        Check(tutA54.Weather == "rain", "the Old Road is always raining");
+        Check(tutA54.TutorialHints.Count >= 5,
+              $"assistance stones line the way ({tutA54.TutorialHints.Count})");
+        Check(tutA54.GroundPathExists(tutA54.PlayerSpawn, tutA54.BossSpot) &&
+              tutA54.GroundPathExists(tutA54.PlayerSpawn,
+                  new Vector2(tutA54.ExitDoor.X - 1f, tutA54.ExitDoor.Y)),
+              "camp walks to the boss and the gate on foot");
+        Check(tutA54.BossSpot.X > tutA54.PlayerSpawn.X + 30f &&
+              tutA54.BossSpot.Y < tutA54.PlayerSpawn.Y - 8f,
+              "the road runs east and climbs northeast");
+        Check(tutA54.CountUnreachableWalkable() == 0 && tutA54.CountOrphanRamps() == 0,
+              "no stranded floor, no orphan stairs on the authored map");
+        bool ruinsEast54 = true;
+        for (int y = 2; y <= 13; y++) ruinsEast54 &= tutA54.IsRuins(55, y);
+        Check(ruinsEast54 && !tutA54.IsRuins(20, 22),
+              "the east end is ruins ground; the graveyard is not");
+
+        // The Sanctum grew a third door — optional, never on the way to anything.
+        Check(campServer.World.Map.TutorialDoor != Vector2.Zero,
+              "the hub's south wall holds the old road door");
+        campA.World.Me.Position = campServer.World.Map.TutorialDoor + new Vector2(0f, -0.9f);
+        campB.World.Me.Position = campServer.World.Map.TutorialDoor + new Vector2(0.7f, -0.9f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(1.0f);
+        Check(campServer.World.Map.Kind == World.MapKind.Tutorial &&
+              campServer.World.MapIndex == Server.ServerWorld.TutorialMapIndex,
+              "the south door opens onto the Old Road");
+        Check(campA.World.Map.Kind == World.MapKind.Tutorial && campA.World.Map.Weather == "rain",
+              "clients rebuild the road from the fixed seed, rain included");
+        var tutMap54 = campServer.World.Map;
+        Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.Wagon) &&
+              campServer.World.Npcs.Count == 2,
+              "the caravan and its crew stand at camp");
+        Check(campServer.World.Enemies.Values.Any(e => !e.Dead && e.Def.Id == "gravelord"),
+              "the weathered Gravelord holds the gate");
+        Check(campServer.World.ExitLocked, "the ruins gate is barred while it stands");
+        CPump(1.5f); // the arrival beat fires shortly after the map opens
+        Check(campA.World.CutscenesSeen.Contains("tut_intro") &&
+              campB.World.CutscenesSeen.Contains("tut_intro"),
+              "the arrival scene plays for everyone");
+
+        // Death here is a walk of shame, not a run-ender: back at the caravan, ribbed.
+        var srvB54 = campServer.World.Players[campB.World.MyPlayerId];
+        campB.World.Me.Position = tutMap54.PlayerSpawn + new Vector2(5f, 0f);
+        CPump(0.3f);
+        campB.SendDebugCommand("die");
+        CPump(0.5f);
+        Check(!srvB54.Alive, "the debug reaper works");
+        CPump(3.5f);
+        Check(srvB54.Alive && Vector2.Distance(srvB54.Position, tutMap54.PlayerSpawn) < 2f,
+              "death sends you back to the caravan on your feet");
+
+        // Reaching the ruins' edge cues the 'clear the way' scene.
+        campA.World.Me.Position = new Vector2(tutMap54.Width - 15f, 10.5f);
+        campA.World.Me.Height = 1f; // up on the plateau
+        CPump(1.0f);
+        Check(campA.World.CutscenesSeen.Contains("tut_clearway") &&
+              campB.World.CutscenesSeen.Contains("tut_clearway"),
+              "approaching the ruins plays the 'clear the way' scene");
+
+        // The boss falls: the caravan celebrates and the gate opens home.
+        var tutBoss54 = campServer.World.Enemies.Values
+            .First(e => !e.Dead && e.Def.Id == "gravelord");
+        campA.World.Me.Position = tutBoss54.Position + new Vector2(-1.5f, 0f);
+        campA.World.Me.Height = 1f;
+        campB.World.Me.Position = tutBoss54.Position + new Vector2(-1.5f, 0.8f);
+        campB.World.Me.Height = 1f;
+        CPump(0.4f);
+        for (int i = 0; i < 40 && !tutBoss54.Dead; i++)
+        {
+            campA.SendDebugCommand("kill_nearby");
+            campA.SendDebugCommand("heal");
+            campB.SendDebugCommand("heal");
+            CPump(0.3f);
+        }
+        Check(tutBoss54.Dead, "the Gravelord falls");
+        CPump(0.6f);
+        Check(campA.World.CutscenesSeen.Contains("tut_victory"),
+              "the caravan celebrates on cue");
+        Check(!campServer.World.ExitLocked, "the ruins gate opens");
+        campA.SendDebugCommand("heal");
+        campB.SendDebugCommand("heal");
+        campA.World.Me.Position = tutMap54.ExitDoor + new Vector2(-1.2f, 0f);
+        campA.World.Me.Height = 1f;
+        campB.World.Me.Position = tutMap54.ExitDoor + new Vector2(-1.2f, 0.8f);
+        campB.World.Me.Height = 1f;
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(1.0f);
+        Check(campServer.World.MapIndex == 0 && campServer.World.Map.Kind == World.MapKind.Hub,
+              "the gate leads back to the Sanctum (the real hub comes later)");
+
         campA.Disconnect();
         campB.Disconnect();
         CPump(0.3f);
@@ -5166,9 +5276,30 @@ public static class HeadlessNetTest
               $"the pet trails behind a westward run (dx {petSum53.Position.X - srvPet53.Position.X:0.00}, dist {trail53:0.00})");
 
         // The errand: a coin dropped tiles away gets fetched and banked hands-free.
+        // (Reset to the spawn and probe for open ground first — the trailing walk
+        // above ends near the demo terrain, where a blind offset can land in rock.)
+        clientB.World.Me.Position = server.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = server.World.Map.GroundHeightAt(server.World.Map.PlayerSpawn);
+        srvPet53.Position = server.World.Map.PlayerSpawn;
+        srvPet53.Height = clientB.World.Me.Height;
+        Pump(0.5f);
         int goldBefore53 = srvPet53.Character.Gold;
-        var coinAt53 = srvPet53.Position + new Vector2(4.5f, 0);
-        server.World.SpawnGoldDrop(60, coinAt53, srvPet53.Height);
+        var coinAt53 = srvPet53.Position + new Vector2(4.5f, 0f);
+        foreach (var cand53 in new[]
+        {
+            new Vector2(4.5f, 0f), new Vector2(-4.5f, 0f), new Vector2(0f, 4.5f),
+            new Vector2(0f, -4.5f), new Vector2(3.2f, 3.2f),
+        })
+        {
+            var spot = srvPet53.Position + cand53;
+            if (server.World.Map.SampleHeight(spot, srvPet53.Height) is { } ch53 &&
+                !server.World.Map.CircleBlocked(spot, 0.3f, ch53))
+            {
+                coinAt53 = spot;
+                break;
+            }
+        }
+        server.World.SpawnGoldDrop(60, coinAt53, server.World.Map.GroundHeightAt(coinAt53));
         Pump(4.0f);
         Check(srvPet53.Character.Gold >= goldBefore53 + 60 &&
               server.World.Drops.Values.All(d =>

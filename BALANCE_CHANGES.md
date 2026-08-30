@@ -1173,3 +1173,32 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   trails whichever side it's already on instead of a fixed west-side
   offset — running west no longer plants the pet underfoot; it falls in
   ~1 tile behind the walk in every direction.
+
+---
+
+# Addendum (batch 54): The Old Road — the introduction
+
+- **A third Sanctum door** (south wall) leads to the tutorial — optional,
+  never forced, and it returns you to the test room when done (the real hub
+  moves into the ruins once this map feels right).
+- **The map is AUTHORED**: 64x30, identical every visit, no rng in the
+  terrain — a curated push east/northeast from the caravan camp through a
+  drowned graveyard (pools, reeds, grave rows), up a stair onto the high
+  ground, and into RUINS (flagstone floors, colonnades, rubble) where a
+  weathered Gravelord (45% health, level 1) holds the gate. Always raining.
+- **A cutscene system**: the server broadcasts a scene id; every client
+  plays it locally — letterbox bars, camera pans to the scene's marks,
+  timed speaker lines (click advances, ENTER skips), controls locked while
+  the world keeps simulating. Three scenes: the arrival, "clear the way"
+  at the ruins' edge, and the victory celebration when the boss falls.
+- **Forgiving deaths**: dying on the Old Road sends you back to the caravan
+  on your feet after a beat, with the crew ribbing you for it ("Glad we
+  hired more than one of you." — four rotating quips).
+- **Assistance stones**: six glowing markers along the road; stand close
+  and the HUD explains movement, loot, flasks, high ground, skills, and
+  the ruins objective.
+- **Graveyard set expanded** toward forest parity: dead shrubs, sunken
+  skulls, mire stones, broken fence bits, withered reeds (8 clutter), plus
+  a big dead tree feature — and a new RUINS set (rubble, cracked slabs,
+  fallen capitals, broken columns, arch fragments) on ruins-flagged ground.
+- Protocol v40; die/wave-style debug reaper for the death flows.

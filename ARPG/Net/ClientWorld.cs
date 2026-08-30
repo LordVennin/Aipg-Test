@@ -361,6 +361,9 @@ public class ClientWorld
         foreach (var p in Players.Values) p.SnapNext = true;
     }
     public readonly List<FloatingNumber> FloatingNumbers = new();
+    /// <summary>Every cutscene id this client has been told to play (in order) —
+    /// the play screen consumes GameClient.CutsceneQueued; this list is the record.</summary>
+    public readonly List<string> CutscenesSeen = new();
     /// <summary>Diagnostic counter: dodge events received (used by the headless net test).</summary>
     public int DodgeEventsSeen;
     /// <summary>Diagnostic counter: blocked-hit events received (used by the headless net test).</summary>

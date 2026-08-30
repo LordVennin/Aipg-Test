@@ -26,6 +26,7 @@ public class PlayScreen : IScreen
     private readonly IsoCamera _camera = new();
     private readonly WorldRenderer _renderer;
     private readonly HudUI _hud;
+    private readonly CutscenePlayer _cutscene = new();
     private readonly InventoryUI _inventory;
     private readonly SkillMenuUI _skillMenu;
     private readonly CharacterSheetUI _characterSheet;
@@ -347,6 +348,20 @@ public class PlayScreen : IScreen
         _clientTime += dt;
         _fpsCounter++;
         _fpsTimer += dt;
+        // Scripted scenes: start whatever the server queued, and while one plays the
+        // player's hands come off the controls (capture flags starve movement, mouse
+        // actions and hotkeys below) — the world itself keeps simulating.
+        if (_client.CutsceneQueued != null)
+        {
+            _cutscene.Start(_client.CutsceneQueued, _client.World.Map);
+            _client.CutsceneQueued = null;
+        }
+        if (_cutscene.Active)
+        {
+            _cutscene.Update(dt, _game.Input);
+            _game.Input.MouseCapturedByUI = true;
+            _game.Input.KeyboardCapturedByUI = true;
+        }
         if (_fpsTimer >= 0.5f) { _debug.Fps = (int)(_fpsCounter / _fpsTimer); _fpsCounter = 0; _fpsTimer = 0; }
         if (_devDropScrolls && _clientTime > 1.5f)
         {
@@ -780,7 +795,14 @@ public class PlayScreen : IScreen
                     .FirstOrDefault(n => NumVec2.Distance(me.Position, n.Position) <= 3f);
                 var chestNear = _client.World.Chests.Values
                     .FirstOrDefault(c => !c.Opened && NumVec2.Distance(me.Position, c.Position) <= 2.2f);
-                bool doorNear = (_client.World.Map.ExitDoor != NumVec2.Zero &&
+                bool tutorialDoorNear =
+                    (_client.World.Map.TutorialDoor != NumVec2.Zero &&
+                     NumVec2.Distance(me.Position, _client.World.Map.TutorialDoor) <= 2.4f) ||
+                    (_client.World.Map.Kind == World.MapKind.Tutorial &&
+                     _client.World.Map.EntryDoor != NumVec2.Zero &&
+                     NumVec2.Distance(me.Position, _client.World.Map.EntryDoor) <= 2.4f);
+                bool doorNear = tutorialDoorNear ||
+                                (_client.World.Map.ExitDoor != NumVec2.Zero &&
                                  NumVec2.Distance(me.Position, _client.World.Map.ExitDoor) <= 2.4f) ||
                                 (_client.World.Map.DefenseDoor != NumVec2.Zero &&
                                  NumVec2.Distance(me.Position, _client.World.Map.DefenseDoor) <= 2.4f);
@@ -948,8 +970,10 @@ public class PlayScreen : IScreen
             }
         }
 
-        // Camera follows the player.
-        _camera.Center = NumVec2.Lerp(_camera.Center, me.Position, Math.Clamp(dt * 8f, 0, 1));
+        // Camera follows the player — unless a scripted scene is directing the shot.
+        var camTarget = _cutscene.Active ? _cutscene.Focus : me.Position;
+        float camRate = _cutscene.Active ? 3.2f : 8f;
+        _camera.Center = NumVec2.Lerp(_camera.Center, camTarget, Math.Clamp(dt * camRate, 0, 1));
     }
 
     private void HandleHotbarSlot(int slot, bool down, NumVec2 target)
@@ -1182,6 +1206,7 @@ public class PlayScreen : IScreen
                 frac >= 1f ? new Color(255, 226, 120) : new Color(120, 180, 255));
         }
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
+        _cutscene.Draw(sb, screen); // letterbox + dialogue over everything
         // Panels draw bottom-to-top so the last-raised window overlays the rest;
         // the debug panel always sits above the stack.
         foreach (var panel in _panelZ) panel.Draw(sb);

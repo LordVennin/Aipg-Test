@@ -88,9 +88,13 @@ public class HudUI
             var subFont = FontManager.Get(12);
             string zoneName = _client.World.Map?.Kind == World.MapKind.Hub
                 ? "The Sanctum"
-                : $"Mirewood Depths {_client.World.ZoneMapIndex} / 3";
+                : _client.World.Map?.Kind == World.MapKind.Tutorial
+                    ? "The Old Road"
+                    : $"Mirewood Depths {_client.World.ZoneMapIndex} / 3";
             string zoneSub = _client.World.Map?.Kind == World.MapKind.Hub
                 ? (_client.World.ZoneLoop > 1 ? $"expedition {_client.World.ZoneLoop} awaits" : "gear up, then take the door")
+                : _client.World.Map?.Kind == World.MapKind.Tutorial
+                ? "clear the way to the ruins"
                 : $"enemy level {_client.World.ZoneEnemyLevel}" +
                   (_client.World.ZoneReadyCount > 0
                       ? $"  ·  {_client.World.ZoneReadyCount}/{Math.Max(1, _client.World.ZoneAlivePlayers)} at the door"
@@ -100,6 +104,41 @@ public class HudUI
             var zsSize = subFont.MeasureString(zoneSub);
             sb.DrawString(subFont, zoneSub, new Vector2(screen.X / 2f - zsSize.X / 2, 46), new Color(170, 162, 140));
         }
+
+        // --- tutorial assistance: standing near a hint stone shows its tip ---
+        if (_client.World.Map?.Kind == World.MapKind.Tutorial)
+            foreach (var (hintPos, hintTitle, hintText) in _client.World.Map.TutorialHints)
+            {
+                if (System.Numerics.Vector2.Distance(me.Position, hintPos) > 2.3f) continue;
+                var htFont = FontManager.GetBold(15);
+                var hbFont = FontManager.Get(13);
+                // Word-wrap the body to a readable width.
+                const int wrapW = 470;
+                var lines = new List<string>();
+                string current = "";
+                foreach (var word in hintText.Split(' '))
+                {
+                    string trial = current.Length == 0 ? word : current + " " + word;
+                    if (hbFont.MeasureString(trial).X > wrapW && current.Length > 0)
+                    {
+                        lines.Add(current);
+                        current = word;
+                    }
+                    else current = trial;
+                }
+                if (current.Length > 0) lines.Add(current);
+                int panelW = wrapW + 28;
+                int panelH = 34 + lines.Count * 18 + 10;
+                var panel = new Rectangle(screen.X / 2 - panelW / 2, screen.Y - 176 - panelH, panelW, panelH);
+                sb.Draw(TextureGen.Pixel, panel, new Color(14, 20, 30, 232));
+                sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Y, panel.Width, 2), new Color(120, 190, 235));
+                sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Bottom - 2, panel.Width, 2), new Color(60, 95, 120));
+                sb.DrawString(htFont, hintTitle, new Vector2(panel.X + 14, panel.Y + 8), new Color(150, 205, 240));
+                for (int li = 0; li < lines.Count; li++)
+                    sb.DrawString(hbFont, lines[li],
+                        new Vector2(panel.X + 14, panel.Y + 32 + li * 18), new Color(216, 220, 226));
+                break; // one stone at a time
+            }
 
         // --- health orb (bottom left) ---
         int orbSize = 96;

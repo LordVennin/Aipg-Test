@@ -286,14 +286,21 @@ public class WorldRenderer
                 uint n = TileHash(map.Seed, x, y);
                 float roll = (n & 0xFFFF) / 65536f;
                 int wall = map.WallHeight(x, y);
+                // Ruins tiles dress in ruin props regardless of the map's theme —
+                // that's how the tutorial's east end turns to broken masonry.
+                string tileStyle = map.IsRuins(x, y) ? "ruins" : style;
                 if (wall == 1)
                 {
                     // Features stand on ANY elevation now — terrace tops grow their
-                    // small trees just like the ground floor.
-                    uint featVariants = style == "forest" ? 3u : 2u;
-                    if (roll < Theme.WallFeatureChance)
+                    // small trees just like the ground floor. Ruins wall-features
+                    // ALWAYS dress (a bare block reads as a glitch in a colonnade).
+                    uint featVariants = tileStyle switch
+                    {
+                        "forest" => 3u, "graveyard" => 3u, "ruins" => 2u, _ => 2u,
+                    };
+                    if (roll < Theme.WallFeatureChance || tileStyle == "ruins")
                         _features.Add((x, y, map.GroundLevel(x, y) + wall,
-                            $"{style}:feature:{(n >> 16) % featVariants}"));
+                            $"{tileStyle}:feature:{(n >> 16) % featVariants}"));
                     continue;
                 }
                 if (wall > 0 || map.Ramp(x, y) != RampDirection.None || map.BridgeLevel(x, y) > 0 ||
@@ -307,9 +314,13 @@ public class WorldRenderer
                     float oy = ((n >> 24 & 0xFF) / 255f - 0.5f) * 0.6f;
                     var pos = new NumVec2(x + 0.5f + ox, y + 0.5f + oy);
                     // Forest mix: grass-heavy plus stones, a mossy boulder, a lichen
-                    // slab and ferns — rocks give the woods some bones.
-                    uint variants = style == "forest" ? 9u : 3u;
-                    _clutter.Add((pos, map.GroundLevel(x, y), $"{style}:clutter:{(n >> 8) % variants}"));
+                    // slab and ferns; the graveyard fields a matching spread of
+                    // markers, bones, dead shrubs and mire; ruins scatter rubble.
+                    uint variants = tileStyle switch
+                    {
+                        "forest" => 9u, "graveyard" => 8u, "ruins" => 3u, _ => 3u,
+                    };
+                    _clutter.Add((pos, map.GroundLevel(x, y), $"{tileStyle}:clutter:{(n >> 8) % variants}"));
                 }
             }
     }
@@ -420,6 +431,16 @@ public class WorldRenderer
                         sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + gx, (int)screen.Y - 16 + gy, 2, 1),
                             new Color(120, 170, 205));
                     }
+                    continue;
+                }
+                if (map.IsRuins(x, y))
+                {
+                    // Ground-level ruins paving: the same worn flagstone as the tops,
+                    // with the baked mortar pattern doing the masonry work.
+                    float rn0 = GroundNoise(map.Seed ^ 0x52554E53, x, y);
+                    int rg0 = (int)(88 + rn0 * 26) + (((x + y) & 1) == 0 ? 7 : 0);
+                    sb.Draw(TextureGen.DiamondBrick, new Vector2((int)screen.X - 32, (int)screen.Y - 16),
+                        new Color(rg0, rg0, Math.Min(255, rg0 + 9)));
                     continue;
                 }
                 if (brick)
@@ -689,6 +710,15 @@ public class WorldRenderer
                             Math.Min(255, _elevTop.R + lift + check),
                             Math.Min(255, _elevTop.G + lift + check),
                             Math.Min(255, _elevTop.B + lift + check));
+                    }
+                    if (map.IsRuins(x, y))
+                    {
+                        // Ruins floor: worn grey flagstone replaces the sod wherever
+                        // the old city's paving survives (the tutorial's east end).
+                        float rn = GroundNoise(map.Seed ^ 0x52554E53, x, y);
+                        int rc = ((x + y) & 1) == 0 ? 7 : 0;
+                        int rg = Math.Min(255, (int)(96 + rn * 26) + rc + lift);
+                        top = new Color(rg, rg, Math.Min(255, rg + 9));
                     }
                     // A tree TRUNK doesn't cover its tile the way a wall block does —
                     // a cliff whose only open side faces a trunk must still draw its
@@ -1326,6 +1356,32 @@ public class WorldRenderer
         DrawDoor(world.Map.ExitDoor, exit: true);
         DrawDoor(world.Map.EntryDoor, exit: false);
         DrawDoor(world.Map.DefenseDoor, exit: false); // hub only: the caravan door west
+        DrawDoor(world.Map.TutorialDoor, exit: false); // hub only: the old road south
+
+        // Tutorial assistance stones: a small standing stone with a slow-pulsing rune.
+        foreach (var (hintPos, _, _) in world.Map.TutorialHints)
+        {
+            float hh = world.Map.GroundHeightAt(hintPos);
+            var hs = camera.WorldToScreen(hintPos, hh);
+            if (hs.X < -60 || hs.X > camera.ScreenWidth + 60 ||
+                hs.Y < -60 || hs.Y > camera.ScreenHeight + 60) continue;
+            long hc = Environment.TickCount64;
+            float hp = 0.55f + 0.45f * MathF.Sin(hc * 0.003f + hintPos.X);
+            AddLight(hs, 70f, new Color(150, 200, 235));
+            _sorted.Add((hintPos.X + hintPos.Y + hh * 1.0f, batch =>
+            {
+                var stone = new Color(116, 122, 134);
+                batch.Draw(TextureGen.Circle32, new Rectangle((int)hs.X - 9, (int)hs.Y - 5, 18, 9),
+                    new Color(0, 0, 0, 80));
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 5, (int)hs.Y - 26, 10, 26), stone);
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 7, (int)hs.Y - 4, 14, 4),
+                    new Color(84, 90, 100));
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 2, (int)hs.Y - 21, 4, 10),
+                    new Color(150, 205, 240) * hp);
+                batch.Draw(TextureGen.Circle32, new Rectangle((int)hs.X - 7, (int)hs.Y - 24, 14, 14),
+                    new Color(120, 190, 235) * (0.25f * hp));
+            }));
+        }
 
         // Defense structures: the wagon, workbench and every player-built turret and
         // barrier — sorted like any other entity, with health bars where it matters.
