@@ -726,6 +726,13 @@ public class GameServer : IServerEvents
     public void DefenseStateChanged(ServerWorld world) =>
         Broadcast(DefenseStatePacket(), DeliveryMethod.ReliableOrdered);
 
+    public void CutscenePlayed(string id)
+    {
+        var w = Packets.Make(PacketType.CutsceneEvent);
+        w.Put(id);
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void CorpseRemoved(ServerCorpse c)
     {
         var w = Packets.Make(PacketType.CorpseRemove);

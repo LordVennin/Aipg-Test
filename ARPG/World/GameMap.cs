@@ -34,6 +34,10 @@ public enum MapKind : byte
     /// <summary>The wagon-defense arena: waves pour from spawn portals toward the
     /// wagon; players build turrets and barriers between waves.</summary>
     Defense = 3,
+    /// <summary>The AUTHORED introduction: the caravan's rain-soaked push through the
+    /// graveyard to the ruins. Built from fixed instructions — identical every time,
+    /// so it can be curated by hand.</summary>
+    Tutorial = 4,
 }
 
 /// <summary>
@@ -67,6 +71,7 @@ public class GameMap
     private readonly byte[] _feature;  // TileFeature per tile (theme-generated landmarks)
     private readonly byte[] _water;    // 1 = water: impassable to walkers, open to shots/sight
     private readonly byte[] _tallGrass; // 1 = tall grass: walkable, renders over entity legs
+    private readonly byte[] _ruins;    // 1 = ruins ground: flagstone tint + ruin props (render-only)
 
     /// <summary>Vertical step an entity can absorb when moving between surfaces. Level
     /// differences at or under this are walkable (ramp ends); full levels are not.</summary>
@@ -101,6 +106,12 @@ public class GameMap
     /// <summary>Hub only: the door into the DEFENSE loop, across the room from the
     /// forest run door (west wall, facing ExitDoor on the east).</summary>
     public Vector2 DefenseDoor { get; private set; }
+    /// <summary>Hub only: the door into the tutorial introduction (south wall) —
+    /// optional, never forced.</summary>
+    public Vector2 TutorialDoor { get; private set; }
+    /// <summary>Tutorial map: authored assistance stones — stand close and the HUD
+    /// shows the tip. Client-side only; the map is identical everywhere.</summary>
+    public List<(Vector2 Pos, string Title, string Text)> TutorialHints { get; } = new();
     /// <summary>Defense maps: where the wagon stands (the thing waves try to break).</summary>
     public Vector2 WagonSpot { get; private set; }
     /// <summary>Defense maps: the workbench structure beside the wagon (build access).</summary>
@@ -136,6 +147,7 @@ public class GameMap
                 MapKind.Hub => (22, 16),
                 MapKind.Forest => (86 + dice.Next(45), 26 + dice.Next(11)),
                 MapKind.Defense => (38 + dice.Next(27), 28 + dice.Next(17)),
+                MapKind.Tutorial => (64, 30), // authored — never rolled
                 _ => (44, 44),
             };
         }
@@ -149,13 +161,17 @@ public class GameMap
         _feature = new byte[width * height];
         _water = new byte[width * height];
         _tallGrass = new byte[width * height];
+        _ruins = new byte[width * height];
         switch (kind)
         {
             case MapKind.Hub: GenerateHub(); break;
             case MapKind.Forest: GenerateForestRun(new Random(seed)); break;
             case MapKind.Defense: GenerateDefenseArena(new Random(seed)); break;
+            case MapKind.Tutorial: GenerateTutorial(); break; // AUTHORED — the seed only styles clutter
             default: Generate(new Random(seed)); break;
         }
+        // The introduction is always rain-soaked, whatever the theme says.
+        if (kind == MapKind.Tutorial) Weather = "rain";
     }
 
     private int Idx(int x, int y) => y * Width + x;
@@ -180,6 +196,8 @@ public class GameMap
     /// <summary>Tall grass: purely visual walkable cover — the renderer draws a blade
     /// fringe OVER whatever stands in the tile, hiding its lower half.</summary>
     public bool IsTallGrass(int x, int y) => InBounds(x, y) && _tallGrass[Idx(x, y)] == 1;
+    /// <summary>Ruins ground (tutorial map's east end): flagstone tint + ruin props.</summary>
+    public bool IsRuins(int x, int y) => InBounds(x, y) && _ruins[Idx(x, y)] == 1;
 
     /// <summary>Legacy-style solid check (used by tests/debug helpers on the ground layer).</summary>
     public bool IsWallAt(Vector2 pos) => IsSolid((int)MathF.Floor(pos.X), (int)MathF.Floor(pos.Y));
@@ -554,6 +572,7 @@ public class GameMap
         PlayerSpawn = new Vector2(5.5f, Height / 2f);
         ExitDoor = new Vector2(Width - 2.5f, Height / 2f);
         DefenseDoor = new Vector2(1.5f, Height / 2f);   // across the room from the run door
+        TutorialDoor = new Vector2(10.5f, Height - 1.6f); // south wall: the introduction, never forced
         FountainSpot = new Vector2(10.5f, Height / 2f); // mid-room, on the walk to the door
         StashSpot = new Vector2(4.5f, 2.6f);            // against the north wall by the spawn
         NpcSpots.Add(new Vector2(Width * 0.62f, 3.6f));           // gear merchant, north side
@@ -564,6 +583,125 @@ public class GameMap
         ChestSpots.Add(new Vector2(2.6f, Height - 3.5f));
         ChestSpots.Add(new Vector2(6.5f, 2.4f));
         ChestSpots.Add(new Vector2(6.5f, Height - 2.4f));
+    }
+
+    // ------------------------------------------------------------------ tutorial (authored)
+
+    /// <summary>
+    /// THE INTRODUCTION, laid out by hand — no rng touches the terrain, so every
+    /// visit is the identical, curated push: the caravan camps in the rain-soaked
+    /// southwest corner of a drowned graveyard; the road runs EAST through graves
+    /// and swamp pools, then climbs NORTHEAST up a stair onto the high ground and
+    /// on into the RUINS, where the Gravelord holds the gate. Assistance stones
+    /// line the way. The gate door leads back to the Sanctum once the way is clear.
+    /// </summary>
+    private void GenerateTutorial()
+    {
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+                if (x == 0 || y == 0 || x == Width - 1 || y == Height - 1)
+                    _wall[Idx(x, y)] = 2;
+
+        // --- The caravan camp (southwest): spawn, wagon spot, the door home.
+        PlayerSpawn = new Vector2(6.5f, 22.5f);
+        WagonSpot = new Vector2(4.5f, 21.5f);
+        EntryDoor = new Vector2(1.6f, 22.5f);
+        NpcSpots.Add(new Vector2(5.5f, 24.2f)); // Brakka, by the fire
+        NpcSpots.Add(new Vector2(3.2f, 23.4f)); // Odessa, under the wagon's awning
+
+        // --- The high ground: a plateau across the north/east half. The road will
+        // climb onto it by the stair below; its south rim is a jagged cliff.
+        for (int y = 1; y <= 15; y++)
+            for (int x = 26; x <= Width - 2; x++)
+                _ground[Idx(x, y)] = 1;
+        // Jagged rim: deterministic nibble pattern, no rng.
+        for (int x = 26; x <= Width - 2; x++)
+            if (x % 5 == 2) _ground[Idx(x, 15)] = 0;
+            else if (x % 7 == 3) _ground[Idx(x, 1)] = 1; // (border wall hides this row)
+
+        // --- The stair NE: three stairs climb the rim at x 30-32.
+        for (int x = 30; x <= 32; x++)
+        {
+            int i = Idx(x, 16);
+            _ground[i] = 0;
+            _ramp[i] = (byte)RampDirection.MinusY;
+            _rampStyle[i] = 1;
+        }
+        for (int x = 30; x <= 32; x++) _ground[Idx(x, 15)] = 1; // the rim above the stair is solid ground
+
+        // --- Swamp pools south of the road and one north pond (authored blobs).
+        void Pool(int x0, int y0, int x1, int y1)
+        {
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    bool edge = x == x0 || x == x1 || y == y0 || y == y1;
+                    if (edge && (x + y) % 2 == 0) continue; // ragged shoreline
+                    _water[Idx(x, y)] = 1;
+                }
+        }
+        Pool(14, 26, 20, 28);
+        Pool(23, 25, 29, 27);
+        Pool(12, 17, 16, 19);
+        Pool(36, 20, 42, 24); // the drowned flat below the cliff, east of the stair
+        // Reeds and marsh grass hug the shorelines.
+        void Reeds(int x0, int y0, int x1, int y1)
+        {
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                    if (_water[Idx(x, y)] == 0 && _wall[Idx(x, y)] == 0 && (x * 3 + y * 5) % 4 != 0)
+                        _tallGrass[Idx(x, y)] = 1;
+        }
+        Reeds(13, 25, 21, 25);
+        Reeds(22, 24, 30, 24);
+        Reeds(11, 20, 17, 20);
+        Reeds(35, 19, 43, 19);
+
+        // --- Graves flanking the road (low headstone walls; the theme dresses them).
+        foreach (var (gx, gy) in new[]
+        {
+            (12, 19), (14, 18), (16, 19), (19, 18), (21, 19), (24, 18),
+            (12, 26), (22, 21), (26, 20), (10, 18), (28, 19),
+            (34, 12), (36, 13), (38, 12), (41, 13), (43, 12), (34, 7), (37, 6), (40, 7),
+        })
+            if (_water[Idx(gx, gy)] == 0) _wall[Idx(gx, gy)] = 1;
+
+        // --- THE RUINS (east end of the plateau): flagstone ground, a colonnade of
+        // broken pillars, rubble — and the gate the caravan wants.
+        for (int y = 2; y <= 15; y++)
+            for (int x = 48; x <= Width - 2; x++)
+                _ruins[Idx(x, y)] = 1;
+        foreach (var (px, py) in new[]
+        {
+            (50, 6), (53, 6), (56, 6), (59, 6),
+            (50, 14), (53, 14), (56, 14), (59, 14),
+        })
+            _wall[Idx(px, py)] = 1; // pillar bases — ruin features stand on these
+        // The gate itself: two solid jambs framing a three-tile opening east.
+        _wall[Idx(61, 7)] = 2;
+        _wall[Idx(61, 8)] = 2;
+        _wall[Idx(61, 12)] = 2;
+        _wall[Idx(61, 13)] = 2;
+        BossSpot = new Vector2(56.5f, 10.5f);
+        ExitDoor = new Vector2(62.5f, 10.5f);
+
+        // --- Assistance stones: stand near one and the HUD explains.
+        TutorialHints.Add((new Vector2(10.5f, 22.5f), "Moving & Fighting",
+            "WASD moves you. Click swings at whatever is under the cursor. SPACE rolls you clear of trouble."));
+        TutorialHints.Add((new Vector2(16.5f, 21.5f), "Loot",
+            "The dead drop gear — stand close and press F to take a piece. Gold banks itself when you walk over it."));
+        TutorialHints.Add((new Vector2(26.5f, 21.5f), "Flasks",
+            "Q sips your health flask, E your mana flask. The Sanctum's fountain refills them between trips."));
+        TutorialHints.Add((new Vector2(33.5f, 17.5f), "High Ground",
+            "Stairs and ramps are the only way up a cliff — and archers love holding the tops."));
+        TutorialHints.Add((new Vector2(38.5f, 10.5f), "Skills",
+            "K opens your skills — drag one onto the hotbar. I opens your bag, P the passive tree."));
+        TutorialHints.Add((new Vector2(46.5f, 10.5f), "The Ruins",
+            "Something big holds the gate ahead. Clear the way and the caravan moves in."));
+
+        // Safety nets (both deterministic): no orphan stairs, no stranded floor.
+        CleanOrphanRamps();
+        ConnectStrandedAreas();
     }
 
     // ------------------------------------------------------------------ defense arena generation

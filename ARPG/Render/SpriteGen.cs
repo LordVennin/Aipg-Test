@@ -2043,7 +2043,7 @@ public static class SpriteGen
                     Rect(1, 3, 8, 2, wood);
                     Rect(4, 10, 2, 2, dark);
                 }
-                else // bone pile
+                else if (variant == 2) // bone pile
                 {
                     Init(12, 7);
                     var bone = new Color(205, 198, 178); var dark = Shade(bone, 0.75f);
@@ -2051,8 +2051,64 @@ public static class SpriteGen
                     Rect(1, 5, 3, 1, dark);
                     Set(9, 3, bone); Set(3, 3, bone); Set(6, 2, dark);
                 }
+                else if (variant == 3) // dead shrub
+                {
+                    Init(11, 11);
+                    var twig = new Color(88, 70, 52); var dark = Shade(twig, 0.7f);
+                    VLine(5, 4, 6, twig);
+                    Set(4, 3, twig); Set(3, 2, dark); Set(6, 3, twig); Set(7, 2, dark);
+                    Set(5, 2, dark); Set(2, 4, dark); Set(8, 4, dark);
+                    Rect(4, 9, 3, 1, dark);
+                }
+                else if (variant == 4) // half-sunk skull
+                {
+                    Init(9, 7);
+                    var bone = new Color(210, 202, 182); var dark = Shade(bone, 0.7f);
+                    Rect(2, 2, 5, 4, bone);
+                    Rect(2, 5, 5, 1, dark);
+                    Set(3, 3, new Color(30, 28, 26)); Set(5, 3, new Color(30, 28, 26));
+                    Set(4, 5, dark);
+                }
+                else if (variant == 5) // mire stones
+                {
+                    Init(13, 6);
+                    var wet = new Color(96, 100, 96); var dark = Shade(wet, 0.7f);
+                    Rect(2, 3, 3, 2, wet); Rect(6, 2, 4, 3, dark); Set(11, 3, wet);
+                    Rect(2, 4, 9, 1, new Color(56, 62, 54)); // the mud they sink in
+                }
+                else if (variant == 6) // broken fence bit
+                {
+                    Init(14, 10);
+                    var wood = new Color(90, 72, 50); var dark = Shade(wood, 0.7f);
+                    VLine(2, 3, 6, wood); VLine(11, 2, 7, wood);
+                    Rect(2, 4, 10, 1, dark);
+                    Set(6, 4, wood); Set(7, 3, dark); // the sagging middle rail snaps
+                }
+                else // withered reeds
+                {
+                    Init(10, 12);
+                    var reed = new Color(122, 116, 76); var dark = Shade(reed, 0.7f);
+                    VLine(2, 4, 7, reed); VLine(5, 2, 9, dark); VLine(8, 5, 6, reed);
+                    Set(5, 1, reed); Set(2, 3, dark); Set(8, 4, dark);
+                }
                 break;
             case "graveyard:feature":
+                if (variant == 2) // dead tree — the graveyard's answer to the forest giants
+                {
+                    Init(26, 34);
+                    var bark = new Color(74, 62, 50); var dark = Shade(bark, 0.68f); var lite = Shade(bark, 1.25f);
+                    // Trunk with a hollow, forking into bare limbs.
+                    Rect(11, 12, 4, 19, bark);
+                    VLine(11, 12, 19, lite); VLine(14, 12, 19, dark);
+                    Rect(10, 29, 6, 3, dark);
+                    Rect(12, 20, 2, 4, new Color(24, 20, 18)); // the hollow
+                    // Limbs: jagged, leafless.
+                    for (int i = 0; i < 7; i++) { Set(11 - i, 12 - i / 2, bark); Set(10 - i, 11 - i / 2, dark); }
+                    for (int i = 0; i < 8; i++) { Set(14 + i, 11 - i / 2, bark); Set(15 + i, 10 - i / 2, dark); }
+                    for (int i = 0; i < 5; i++) Set(12, 11 - i, bark);
+                    Set(12, 5, dark); Set(4, 8, dark); Set(22, 6, dark); // twig tips
+                    break;
+                }
                 if (variant == 0) // obelisk
                 {
                     Init(14, 30);
@@ -2078,6 +2134,57 @@ public static class SpriteGen
                 }
                 break;
 
+            case "ruins:clutter":
+                if (variant == 0) // rubble spill
+                {
+                    Init(14, 8);
+                    var stone = new Color(128, 126, 134); var dark = Shade(stone, 0.7f);
+                    Rect(2, 4, 5, 3, stone); Rect(7, 3, 4, 4, dark);
+                    Set(5, 2, stone); Set(11, 4, stone); Set(3, 2, dark);
+                }
+                else if (variant == 1) // cracked paving slab
+                {
+                    Init(15, 8);
+                    var slab = new Color(118, 118, 128); var dark = Shade(slab, 0.72f);
+                    Rect(2, 2, 11, 5, slab);
+                    Rect(2, 6, 11, 1, dark);
+                    Set(5, 3, dark); Set(6, 4, dark); Set(7, 5, dark); // the crack
+                    Set(9, 2, dark);
+                }
+                else // fallen capital
+                {
+                    Init(13, 9);
+                    var stone = new Color(140, 138, 146); var dark = Shade(stone, 0.7f); var lite = Shade(stone, 1.2f);
+                    Rect(2, 3, 9, 5, stone);
+                    Rect(2, 2, 9, 2, lite);
+                    Rect(2, 7, 9, 1, dark);
+                    VLine(5, 3, 5, dark); VLine(8, 3, 5, dark); // fluting on its side
+                }
+                break;
+            case "ruins:feature":
+                if (variant == 0) // broken column
+                {
+                    Init(16, 30);
+                    var stone = new Color(146, 144, 154); var dark = Shade(stone, 0.68f); var lite = Shade(stone, 1.22f);
+                    Rect(3, 24, 10, 4, dark);      // plinth
+                    Rect(5, 6, 6, 19, stone);      // shaft
+                    VLine(5, 6, 19, lite); VLine(10, 6, 19, dark); VLine(7, 6, 19, dark);
+                    // The snapped top: a jagged break line.
+                    Set(5, 5, stone); Set(7, 4, stone); Set(9, 5, stone); Set(6, 4, dark); Set(8, 3, dark);
+                }
+                else // arch fragment
+                {
+                    Init(22, 28);
+                    var stone = new Color(138, 136, 146); var dark = Shade(stone, 0.68f); var lite = Shade(stone, 1.2f);
+                    Rect(2, 8, 5, 18, stone);      // the standing jamb
+                    VLine(2, 8, 18, lite); VLine(6, 8, 18, dark);
+                    Rect(2, 25, 6, 2, dark);
+                    // The sprung arch reaching over and snapping off mid-air.
+                    Set(7, 7, stone); Set(9, 5, stone); Set(11, 4, stone); Set(13, 3, stone);
+                    Set(8, 6, dark); Set(10, 4, dark); Set(12, 3, dark); Set(15, 3, dark);
+                    Set(16, 4, stone); // the broken far end, hanging
+                }
+                break;
             case "tomb:clutter":
                 if (variant == 0) // urn
                 {

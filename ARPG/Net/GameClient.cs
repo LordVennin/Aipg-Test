@@ -32,6 +32,10 @@ public class GameClient
     private float _stateTimer;
 
     public ClientWorld World { get; } = new();
+
+    /// <summary>A cutscene id waiting for the play screen to start playing (set by
+    /// CutsceneEvent packets; consumed by PlayScreen each frame).</summary>
+    public string CutsceneQueued;
     public ClientStatus Status { get; private set; } = ClientStatus.Disconnected;
     public string PlayerName { get; }
     public string LastDisconnectReason { get; private set; }
@@ -936,6 +940,14 @@ public class GameClient
             case PacketType.NpcRemove:
                 World.Npcs.Remove(r.GetInt());
                 break;
+            case PacketType.CutsceneEvent:
+            {
+                string cutsceneId = r.GetString();
+                World.CutscenesSeen.Add(cutsceneId);
+                CutsceneQueued = cutsceneId; // the play screen picks it up and plays it
+                break;
+            }
+
             case PacketType.DefenseState:
             {
                 World.DefensePhase = r.GetByte();

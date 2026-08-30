@@ -157,6 +157,9 @@ public enum PacketType : byte
     /// <summary>Client -> server: repair every damaged structure at the workbench
     /// (build phases only; cost = DefenseBalance.RepairCost of the missing hp).</summary>
     RepairRequest,
+    /// <summary>Server -> client: play the scripted scene with this id (tutorial beats).
+    /// Clients run the cutscene locally — letterbox, camera focus, dialogue.</summary>
+    CutsceneEvent,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

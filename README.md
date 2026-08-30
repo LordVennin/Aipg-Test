@@ -907,7 +907,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (673 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (694 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.
