@@ -5151,6 +5151,20 @@ public static class HeadlessNetTest
         server.World.DamageSummon(petSum53, 9999f);
         Check(server.World.Summons.ContainsKey(petSum53.Id), "pets cannot be hurt");
 
+        // Following: run WEST and the companion must fall in BEHIND (east of the
+        // owner), never underfoot — the heel point trails the walk, not a fixed side.
+        // (Sweep stray gold from earlier kills first, or the rat leaves on an errand.)
+        foreach (var stray in server.World.Drops.Values.Where(d => d.IsGold).ToList())
+            server.World.Drops.Remove(stray.DropId);
+        for (int i = 0; i < 22; i++)
+        {
+            clientB.World.Me.Position += new Vector2(-0.14f, 0f);
+            Pump(0.1f);
+        }
+        float trail53 = Vector2.Distance(petSum53.Position, srvPet53.Position);
+        Check(petSum53.Position.X > srvPet53.Position.X + 0.25f && trail53 <= 2.5f,
+              $"the pet trails behind a westward run (dx {petSum53.Position.X - srvPet53.Position.X:0.00}, dist {trail53:0.00})");
+
         // The errand: a coin dropped tiles away gets fetched and banked hands-free.
         int goldBefore53 = srvPet53.Character.Gold;
         var coinAt53 = srvPet53.Position + new Vector2(4.5f, 0);

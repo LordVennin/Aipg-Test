@@ -2660,7 +2660,14 @@ public partial class ServerWorld
     /// for them (server-authoritative, same as walking over it yourself).</summary>
     private void TickPet(ServerSummon s, ServerPlayer owner, float dt)
     {
-        var goal = owner.Position + new Vector2(-0.7f, 0.6f);
+        // Heel BEHIND the walk, not at a fixed side: the target sits on whichever
+        // side of the owner the pet already trails, so a moving owner always pulls
+        // away from it and the pet falls in behind — no more running west into
+        // your own rat.
+        var away = s.Position - owner.Position;
+        float awayLen = away.Length();
+        var heel = awayLen > 0.05f ? away / awayLen : new Vector2(0.76f, 0.65f);
+        var goal = owner.Position + heel * 0.9f;
         WorldItem coin = null;
         if (s.SkillId == "pet_rat")
         {
@@ -2675,7 +2682,7 @@ public partial class ServerWorld
             if (coin != null) goal = coin.Position;
         }
         float distToGoal = Vector2.Distance(s.Position, goal);
-        if (distToGoal > (coin != null ? 0.15f : 1.0f))
+        if (distToGoal > (coin != null ? 0.15f : 0.35f))
         {
             var dir = (goal - s.Position).NormalizedOrZero();
             float h = s.Height;
