@@ -56,7 +56,48 @@ public class LootGenerator
             {
                 BaseItemId = "flamethrower_blueprint", ItemLevel = itemLevel, Rarity = ItemRarity.Normal,
             });
+        // Pets: the rarest ordinary find — a coinflip between the known companions.
+        if (_rng.NextDouble() < table.PetDropChance)
+        {
+            var pet = GeneratePet(_rng.Next(2) == 0 ? "pet_rat" : "pet_tome", itemLevel);
+            if (pet != null) drops.Add(pet);
+        }
         return drops;
+    }
+
+    /// <summary>
+    /// Generate a UNIQUE pet. The grimoire always carries exactly two random TIER-1
+    /// suffix modifiers (any family — the book doesn't care which gear a suffix
+    /// usually rides), rolled once at drop time and never re-rolled; the rat is its
+    /// implicit boon alone.
+    /// </summary>
+    public ItemInstance GeneratePet(string baseId, int itemLevel)
+    {
+        var itemBase = _data.Items.GetValueOrDefault(baseId);
+        if (itemBase == null || itemBase.Category != ItemCategory.Pet) return null;
+        var item = new ItemInstance
+        {
+            BaseItemId = itemBase.Id,
+            ItemLevel = Math.Max(1, itemLevel),
+            Rarity = ItemRarity.Unique,
+            BaseModifierLimit = itemBase.BaseModifierLimit,
+            MaxPrefixes = 0,
+            MaxSuffixes = 2,
+        };
+        if (baseId == "pet_tome")
+        {
+            var tierOne = _data.Modifiers.Values
+                .Where(m => m.AffixType == AffixType.Suffix && m.Tier == 1).ToList();
+            for (int i = 0; i < 2 && tierOne.Count > 0; i++)
+            {
+                var pick = tierOne[_rng.Next(tierOne.Count)];
+                tierOne.RemoveAll(m => m.ModifierGroup == pick.ModifierGroup);
+                float value = pick.MinimumValue +
+                              (float)_rng.NextDouble() * (pick.MaximumValue - pick.MinimumValue);
+                item.Modifiers.Add(new ItemModifierRoll { ModifierId = pick.Id, Value = MathF.Round(value) });
+            }
+        }
+        return item;
     }
 
     /// <summary>
@@ -221,8 +262,9 @@ public class LootGenerator
     private ItemBase PickEquipmentBase(LootTable table, int itemLevel)
     {
         int ilvl = Math.Max(1, itemLevel);
+        // Pets never come from the equipment pool — they have their own rare roll.
         var candidates = _data.Items.Values.Where(b =>
-            b.IsEquippable && b.RequiredLevel <= ilvl).ToList();
+            b.IsEquippable && b.Category != ItemCategory.Pet && b.RequiredLevel <= ilvl).ToList();
         var current = candidates.Where(b => b.RequiredLevel >= ilvl - BaseLevelWindow).ToList();
         if (current.Count > 0) candidates = current;
         return WeightedPick(candidates, b =>

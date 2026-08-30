@@ -195,6 +195,9 @@ public class LootTable
     public float MercContractDropChance { get; set; } = 0.012f;
     /// <summary>Independent chance (0..1) that the Flamethrower Blueprint drops.</summary>
     public float BlueprintDropChance { get; set; } = 0.003f;
+    /// <summary>Independent chance (0..1) that a PET drops (rat or grimoire, coinflip) —
+    /// the rarest ordinary find in the game.</summary>
+    public float PetDropChance { get; set; } = 0.0015f;
     /// <summary>Independent chance (0..1) that gold drops; amount scales with enemy level.</summary>
     public float GoldDropChance { get; set; } = 0.4f;
     public int GoldMin { get; set; } = 4;

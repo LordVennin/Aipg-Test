@@ -87,8 +87,9 @@ public class InventoryUI
         _slotRects[EquipSlot.Belt] = new Rectangle(x + 178, y + 262, 84, 40);
         _slotRects[EquipSlot.Ring2] = new Rectangle(x + 272, y + 262, 40, 40);
         _slotRects[EquipSlot.Boots] = new Rectangle(x + 334, y + 252, 60, 60);
-        // Flask strip between the belt row and the bag grid.
+        // Flask strip between the belt row and the bag grid — the pet perches between.
         _slotRects[EquipSlot.Flask1] = new Rectangle(x + 128, y + 316, 40, 48);
+        _slotRects[EquipSlot.Pet] = new Rectangle(x + 198, y + 316, 44, 48);
         _slotRects[EquipSlot.Flask2] = new Rectangle(x + 272, y + 316, 40, 48);
     }
 
@@ -403,6 +404,19 @@ public class InventoryUI
                     new Vector2(rect.Right - cSize.X - 3, rect.Bottom - cSize.Y - 1), new Color(255, 240, 190));
             }
             return;
+        }
+
+        // Pets show their little critter portrait on the unique brown-gold ground.
+        if (b.Category == ItemCategory.Pet)
+        {
+            var petTex = SpriteGen.GetPetSprite(b.Id);
+            if (petTex != null)
+            {
+                float pScale = MathF.Min((rect.Width - 8f) / petTex.Width, (rect.Height - 8f) / petTex.Height);
+                int pW = (int)(petTex.Width * pScale), pH = (int)(petTex.Height * pScale);
+                sb.Draw(petTex, new Rectangle(rect.Center.X - pW / 2, rect.Center.Y - pH / 2, pW, pH), Color.White);
+                return;
+            }
         }
 
         // Skill Scrolls hang unrolled — a different silhouette from crafting scrolls.

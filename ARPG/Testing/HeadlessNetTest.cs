@@ -4788,6 +4788,65 @@ public static class HeadlessNetTest
         Check(!outCone49.Dead && MathF.Abs(outCone49.Health - outHp49) < 0.01f,
               "targets behind the turret are ignored — the cone shows the truth");
 
+        // Clear the trial wave to drop back into a build phase for the batch-53 trials.
+        for (int i = 0; i < 90 && campServer.World.DefPhase == Server.DefensePhase.Wave; i++)
+        {
+            foreach (var e in campServer.World.Enemies.Values.ToList())
+                if (!e.Dead) e.Position = srvA49.Position + new Vector2(1.2f, 0);
+            campA.SendDebugCommand("kill_nearby");
+            campA.SendDebugCommand("heal");
+            campB.SendDebugCommand("heal");
+            CPump(0.4f);
+        }
+
+        Console.WriteLine("\n-- Batch 53: casters scorch the camp + the final-wave boss --");
+        Check(campServer.World.DefPhase == Server.DefensePhase.Build,
+              "trial wave cleared — back to building");
+        // A grave caller's ground burst aimed at a defender must also chew the wall
+        // they hide behind (structures used to be immune to enemy AoE).
+        var srvB53 = campServer.World.Players[campB.World.MyPlayerId];
+        campB.World.Me.Position = snapped49.Position + new Vector2(0.9f, 0);
+        srvB53.Position = snapped49.Position + new Vector2(0.9f, 0);
+        CPump(0.3f);
+        srvB53.Position = snapped49.Position + new Vector2(0.9f, 0);
+        var caster53 = campServer.World.SpawnEnemy("grave_caller",
+            snapped49.Position + new Vector2(5.5f, 0));
+        caster53.State = Server.EnemyState.Chase;
+        float barrierHp53 = snapped49.Health;
+        CPump(2.5f);
+        Check(snapped49.Health < barrierHp53 - 1f,
+              $"a caster's ground burst scorches structures too ({barrierHp53:0} -> {snapped49.Health:0})");
+        caster53.Position = srvB53.Position + new Vector2(1f, 0);
+        campB.SendDebugCommand("kill_nearby");
+        campA.SendDebugCommand("heal");
+        campB.SendDebugCommand("heal");
+        CPump(0.5f);
+
+        // Skip to the final wave and sound the horn: the Gravelord answers it.
+        campA.SendDebugCommand("wave_skip");
+        CPump(0.3f);
+        Check(campServer.World.WaveNumber == World.DefenseBalance.WavesTotal &&
+              campA.World.DefenseWave == World.DefenseBalance.WavesTotal,
+              "the debug horn skips to the final wave");
+        campA.World.Me.Position = defMap49.WorkbenchSpot + new Vector2(0.8f, 0);
+        campB.World.Me.Position = defMap49.WorkbenchSpot + new Vector2(-0.8f, 0.5f);
+        CPump(0.4f);
+        campA.RequestDoorReady();
+        campB.RequestDoorReady();
+        CPump(1.0f);
+        Check(campServer.World.DefPhase == Server.DefensePhase.Wave, "the final wave called");
+        var boss53 = campServer.World.Enemies.Values
+            .FirstOrDefault(e => !e.Dead && e.Def.Id == "gravelord");
+        Check(boss53 != null, "the final wave brings the Gravelord");
+        float bossMarch53 = boss53 != null
+            ? Vector2.Distance(boss53.Position, defMap49.WagonSpot) : 0f;
+        campA.World.Me.Position = defMap49.ExitDoor + new Vector2(-1.4f, 0);
+        campB.World.Me.Position = defMap49.ExitDoor + new Vector2(-1.4f, 0.8f);
+        CPump(2.0f);
+        Check(boss53 != null && !boss53.Dead &&
+              Vector2.Distance(boss53.Position, defMap49.WagonSpot) < bossMarch53 - 0.5f,
+              "the Gravelord marches on the wagon");
+
         campServer.World.DamageStructure(campServer.World.Wagon, 1_000_000f);
         campA.SendDebugCommand("heal");
         campB.SendDebugCommand("heal");
@@ -4812,45 +4871,75 @@ public static class HeadlessNetTest
         srvRain.RecomputeStats(data);
         server.World.LearnSkill(bId, "arrow_rain");
         Check(srvRain.Character.GetSkill("arrow_rain") != null, "Arrow Rain is learnable");
-        // A tight cluster in the drop circle, one straggler outside it, and one dummy
-        // hoisted a full level up — the sky is supposed to hit every terrace.
+        // The volley is a DETERMINISTIC function of its target point (SkillMath) —
+        // the test can compute exactly where and when every arrow will strike, and
+        // plant dummies on the impact spots: one on the earliest arrow, one hoisted
+        // a level up, one straggler outside every impact, one midpoint between two
+        // arrows of different waves (to prove one body can be struck twice), and a
+        // latecomer dropped onto the final arrow mid-volley.
         var rainAt = new Vector2(30.5f, 8.5f);
         clientB.World.Me.Position = rainAt + new Vector2(-4f, 0); // the client's word is law for position
         srvRain.Position = rainAt + new Vector2(-4f, 0);
         srvRain.Mana = srvRain.Stats.MaxMana;
-        var rainA = server.World.SpawnEnemy("grunt", rainAt + new Vector2(-0.6f, 0));
-        var rainB = server.World.SpawnEnemy("grunt", rainAt + new Vector2(0.6f, 0.4f));
+        const float rainRadius50 = 2.2f; // arrow_rain level 1
+        var arrows50 = Enumerable.Range(0, Skills.SkillMath.RainArrowCount)
+            .Select(i => (pos: rainAt + Skills.SkillMath.RainArrowOffset(rainAt, i, rainRadius50),
+                          delay: Skills.SkillMath.RainArrowLandDelay(i)))
+            .OrderBy(a => a.delay).ToList();
+        var firstArrow50 = arrows50[0];
+        var lastArrow50 = arrows50[^1];
         var rainOut = server.World.SpawnEnemy("grunt", rainAt + new Vector2(6f, 0));
-        var rainHigh = server.World.SpawnEnemy("grunt", rainAt + new Vector2(0.2f, -0.9f));
+        float pairReach50 = 2f * (Skills.SkillMath.RainArrowRadius + rainOut.Def.Radius) - 0.1f;
+        // A midpoint covered by two arrows whose waves land >= 0.2s apart.
+        Vector2 multiAt50 = default;
+        float multiFirst50 = -1f;
+        foreach (var a1 in arrows50)
+        {
+            if (a1.delay > 0.55f) break; // early wave only — the latecomer needs time to spawn
+            foreach (var a2 in arrows50)
+                if (a2.delay >= a1.delay + 0.2f &&
+                    Vector2.Distance(a1.pos, a2.pos) <= pairReach50)
+                {
+                    multiAt50 = (a1.pos + a2.pos) * 0.5f;
+                    multiFirst50 = a1.delay;
+                    break;
+                }
+            if (multiFirst50 >= 0) break;
+        }
+        Check(multiFirst50 >= 0, "the scatter offers a two-wave overlap for the multi-hit trial");
+        var rainA = server.World.SpawnEnemy("grunt", firstArrow50.pos);
+        var rainHigh = server.World.SpawnEnemy("grunt", arrows50[1].pos);
         rainHigh.Height += 1f; // a body on a terrace above the mark
-        // Pin the test dummies where they stand: the volley lands at the LOCKED point.
-        rainA.FrozenUntil = rainB.FrozenUntil = rainOut.FrozenUntil =
-            rainHigh.FrozenUntil = server.World.Time + 12f;
-        float rainAHp = rainA.Health, rainBHp = rainB.Health,
-              rainOutHp = rainOut.Health, rainHighHp = rainHigh.Health;
+        var rainMulti = server.World.SpawnEnemy("grunt", multiAt50);
+        rainA.FrozenUntil = rainOut.FrozenUntil = rainHigh.FrozenUntil =
+            rainMulti.FrozenUntil = server.World.Time + 12f;
+        float rainAHp = rainA.Health, rainOutHp = rainOut.Health,
+              rainHighHp = rainHigh.Health, rainMultiHp = rainMulti.Health;
         Pump(0.8f); // clear the global use-time lockout from the previous section
         server.World.UseSkill(bId, "arrow_rain", rainAt);
-        Pump(0.55f); // wind-up done, the first arrows still in the air
+        Pump(0.55f); // wind-up done (0.35), the first arrows still in the air (0.80)
         Check(MathF.Abs(rainA.Health - rainAHp) < 0.01f &&
-              MathF.Abs(rainB.Health - rainBHp) < 0.01f,
+              MathF.Abs(rainMulti.Health - rainMultiHp) < 0.01f,
               "no hitbox before the arrows begin to land");
-        Pump(0.4f); // the first strike window lands
-        Check(rainA.Health < rainAHp - 0.5f && rainB.Health < rainBHp - 0.5f,
-              $"the volley hits everything in the circle AS arrows land ({rainAHp:0}->{rainA.Health:0}, {rainBHp:0}->{rainB.Health:0})");
-        float rainAHpMid = rainA.Health;
-        // A latecomer wanders under the volley mid-fall: still clipped.
-        var rainLate = server.World.SpawnEnemy("grunt", rainAt + new Vector2(-0.4f, -0.6f));
+        // Pump to just past the multi-hit spot's FIRST covering arrow.
+        Pump(0.35f + multiFirst50 + 0.06f - 0.55f);
+        Check(rainA.Health < rainAHp - 0.1f,
+              $"an arrow strikes exactly where it lands ({rainAHp:0}->{rainA.Health:0})");
+        float rainMultiMid = rainMulti.Health;
+        Check(rainMultiMid < rainMultiHp - 0.1f, "the overlap body takes its first arrow");
+        // A latecomer dropped onto the FINAL arrow's spot, mid-volley: still clipped.
+        var rainLate = server.World.SpawnEnemy("grunt", lastArrow50.pos);
         rainLate.FrozenUntil = server.World.Time + 12f;
         float rainLateHp = rainLate.Health;
-        Pump(0.6f); // the volley finishes
-        Check(rainHigh.Health < rainHighHp - 0.5f,
+        Pump(0.9f); // the volley finishes (last arrow lands at +1.13)
+        Check(rainHigh.Health < rainHighHp - 0.1f,
               $"arrows fall on higher ground inside the mark too ({rainHighHp:0}->{rainHigh.Health:0})");
-        Check(rainLate.Health < rainLateHp - 0.5f,
-              "a body wandering in mid-volley is still clipped");
-        Check(MathF.Abs(rainA.Health - rainAHpMid) < 0.01f,
-              "each enemy is clipped once per volley — later ticks pass over it");
+        Check(rainLate.Health < rainLateHp - 0.1f,
+              "a body wandering under the volley's tail is still clipped");
+        Check(rainMulti.Health < rainMultiMid - 0.1f,
+              $"one body can be struck by more than one arrow ({rainMultiHp:0}->{rainMultiMid:0}->{rainMulti.Health:0})");
         Check(MathF.Abs(rainOut.Health - rainOutHp) < 0.01f,
-              "arrows stay inside the marked circle");
+              "a body outside every impact is untouched");
         // Without a bow the volley refuses to fire.
         srvRain.Character.Equipment.Remove(Items.EquipSlot.MainHand);
         srvRain.RecomputeStats(data);
@@ -5012,6 +5101,88 @@ public static class HeadlessNetTest
         Check(portalCounts52, "every arena fields 3-5 portals");
         Check(portalPaths52, "every portal in every rolled arena keeps a lane to the wagon");
         Check(doorPaths52, "the camp always keeps its path to the door home");
+
+        Console.WriteLine("\n-- Batch 53: pets — the first uniques --");
+        // Generation rules: the grimoire is Unique with EXACTLY two distinct tier-1
+        // suffixes; the rat is Unique on its implicit boon alone; both keep their names.
+        var tome53 = server.World.Loot.GeneratePet("pet_tome", 5);
+        Check(tome53 != null && tome53.Rarity == Items.ItemRarity.Unique &&
+              tome53.Modifiers.Count == 2 &&
+              tome53.Modifiers.All(r => data.Modifiers[r.ModifierId].AffixType == Items.AffixType.Suffix &&
+                                        data.Modifiers[r.ModifierId].Tier == 1) &&
+              data.Modifiers[tome53.Modifiers[0].ModifierId].ModifierGroup !=
+              data.Modifiers[tome53.Modifiers[1].ModifierId].ModifierGroup,
+              "the grimoire rolls Unique with exactly two distinct tier-1 suffixes");
+        var rat53 = server.World.Loot.GeneratePet("pet_rat", 5);
+        Check(rat53 != null && rat53.Rarity == Items.ItemRarity.Unique && rat53.Modifiers.Count == 0,
+              "the rat rolls Unique on its implicit boon alone");
+        Check(rat53.DisplayName(data) == "Nib, the Gutter Rat" &&
+              tome53.DisplayName(data) == "The Vagrant Grimoire",
+              "uniques keep their own names");
+        int pets53 = 0;
+        for (int i = 0; i < 400; i++)
+            pets53 += server.World.Loot.RollDrops("boss", 5)
+                .Count(d => d.GetBase(data)?.Category == Items.ItemCategory.Pet);
+        Check(pets53 >= 1, $"pets ride the rare loot stream ({pets53} in 400 boss rolls)");
+        bool petFromPool53 = false;
+        for (int i = 0; i < 250; i++)
+            petFromPool53 |= server.World.Loot
+                .GenerateEquipment(data.GetLootTable("boss"), 5)
+                ?.GetBase(data)?.Category == Items.ItemCategory.Pet;
+        Check(!petFromPool53, "pets never roll out of the ordinary equipment pool");
+
+        // Equipping: the rat's +4% move speed, the companion body, its immunity.
+        var srvPet53 = server.World.Players[bId];
+        float baseSpeed53 = srvPet53.Stats.MovementSpeed;
+        float baseRegen53 = srvPet53.Stats.ManaRegeneration;
+        srvPet53.Character.Equipment[Items.EquipSlot.Pet] = rat53;
+        srvPet53.RecomputeStats(data);
+        Check(srvPet53.Stats.MovementSpeed > baseSpeed53 * 1.02f &&
+              srvPet53.Stats.MovementSpeed < baseSpeed53 * 1.06f,
+              $"the rat grants +4% move speed ({baseSpeed53:0.00} -> {srvPet53.Stats.MovementSpeed:0.00})");
+        Pump(0.3f);
+        var petSum53 = server.World.Summons.Values
+            .FirstOrDefault(su => su.OwnerId == bId && su.SkillId == "pet_rat");
+        Check(petSum53 != null, "an equipped rat takes the field as a companion");
+        Check(clientB.World.Summons.Values.Any(su => su.SkillId == "pet_rat"),
+              "the companion replicates to clients");
+        Check(server.World.NearestSummonNear(petSum53.Position, 3f, petSum53.Height)?.IsPet != true,
+              "pets are never targetable prey");
+        server.World.DamageSummon(petSum53, 9999f);
+        Check(server.World.Summons.ContainsKey(petSum53.Id), "pets cannot be hurt");
+
+        // The errand: a coin dropped tiles away gets fetched and banked hands-free.
+        int goldBefore53 = srvPet53.Character.Gold;
+        var coinAt53 = srvPet53.Position + new Vector2(4.5f, 0);
+        server.World.SpawnGoldDrop(60, coinAt53, srvPet53.Height);
+        Pump(4.0f);
+        Check(srvPet53.Character.Gold >= goldBefore53 + 60 &&
+              server.World.Drops.Values.All(d =>
+                  !d.IsGold || Vector2.Distance(d.Position, coinAt53) > 0.5f),
+              $"the rat fetches dropped gold for its owner ({goldBefore53} -> {srvPet53.Character.Gold})");
+
+        // Swapping to the grimoire lifts mana regen and swaps the companion; bare
+        // slot dismisses it.
+        srvPet53.Character.Equipment[Items.EquipSlot.Pet] = tome53;
+        srvPet53.RecomputeStats(data);
+        Check(srvPet53.Stats.ManaRegeneration > baseRegen53,
+              $"the grimoire lifts mana regeneration ({baseRegen53:0.00} -> {srvPet53.Stats.ManaRegeneration:0.00})");
+        Pump(0.3f);
+        Check(server.World.Summons.Values.Any(su => su.OwnerId == bId && su.SkillId == "pet_tome") &&
+              !server.World.Summons.Values.Any(su => su.OwnerId == bId && su.SkillId == "pet_rat"),
+              "swapping pets swaps the companion");
+        srvPet53.Character.Equipment.Remove(Items.EquipSlot.Pet);
+        srvPet53.RecomputeStats(data);
+        Pump(0.3f);
+        Check(!server.World.Summons.Values.Any(su => su.OwnerId == bId && su.IsPet),
+              "an empty pet slot dismisses the companion");
+
+        // The F1 debug drop: both pets, rolled for real, at your feet.
+        server.World.DebugCommand(bId, "drop_pets", "");
+        Check(server.World.Drops.Values.Count(d => d.Item != null &&
+                  d.Item.GetBase(data)?.Category == Items.ItemCategory.Pet &&
+                  d.Item.Rarity == Items.ItemRarity.Unique) >= 2,
+              "the debug menu drops both unique pets");
 
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();

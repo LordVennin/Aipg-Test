@@ -321,4 +321,35 @@ public static class SkillMath
                          (1f + ManaCostPerScrollPct * attachedScrolls);
         return s;
     }
+
+    // -------------------------------------------------------------- arrow rain
+    // The volley is a deterministic function of its target point, SHARED by the
+    // server (each arrow is its own hitbox at its own landing moment) and the
+    // client (each drawn arrow falls onto exactly that spot at exactly that time)
+    // — what you see land is literally what hits.
+
+    public const int RainArrowCount = 12;
+    /// <summary>Impact radius of ONE arrow (plus the victim's body radius).</summary>
+    public const float RainArrowRadius = 0.8f;
+    /// <summary>Damage each individual arrow deals, as a fraction of the skill's
+    /// rolled hit — several arrows can strike the same body.</summary>
+    public const float RainArrowDamageMult = 0.4f;
+    /// <summary>Length of the client's whole volley effect (fall + stuck shafts).</summary>
+    public const float RainVisualDuration = 1.5f;
+    /// <summary>Seconds after the cast resolves before this arrow strikes.</summary>
+    public static float RainArrowLandDelay(int index) => 0.45f + (index % 6) / 6f * 0.4f;
+
+    /// <summary>This arrow's landing spot, as an offset from the volley center.</summary>
+    public static System.Numerics.Vector2 RainArrowOffset(System.Numerics.Vector2 center,
+        int index, float radius)
+    {
+        int seed = (int)(center.X * 389) ^ (int)(center.Y * 719);
+        int h = seed ^ unchecked(index * (int)0x9E3779B1);
+        float u = (h & 0xFF) / 255f * 2f - 1f;
+        float v = ((h >> 8) & 0xFF) / 255f * 2f - 1f;
+        var o = new System.Numerics.Vector2(u, v);
+        float len = o.Length();
+        if (len > 1f) o /= len;
+        return o * radius * 0.92f;
+    }
 }

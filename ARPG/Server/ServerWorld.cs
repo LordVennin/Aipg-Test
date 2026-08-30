@@ -1216,10 +1216,17 @@ public partial class ServerWorld
                     victim.Position = Map.MoveWithCollision(victim.Position, away * 2.0f, ServerPlayer.Radius, ref kh);
                     victim.Height = kh;
                 }
+                // A boss slam in the defense arena cracks the camp too.
+                if (Map.Kind == MapKind.Defense)
+                    foreach (var st in Structures.Values.ToList())
+                        if (Vector2.Distance(st.Position, e.Position) <= e.Def.SlamRadius + st.Radius)
+                            DamageStructure(st, e.Def.SlamDamage * e.DamageScale);
                 // The shockwave doesn't care whether the legs it breaks are alive or
-                // raised: summons inside the ring take the hit and the knockback too.
+                // raised: summons inside the ring take the hit and the knockback too
+                // (pets scurry clear — they're bystanders, not fighters).
                 foreach (var s in Summons.Values.ToList())
                 {
+                    if (s.IsPet) continue;
                     if (MathF.Abs(s.Height - e.Height) > 0.75f) continue;
                     if (Vector2.Distance(s.Position, e.Position) > e.Def.SlamRadius) continue;
                     var sAway = (s.Position - e.Position).NormalizedOrZero();
@@ -1248,13 +1255,20 @@ public partial class ServerWorld
                         { (e.Def.CastKind, e.Def.CastDamage * e.DamageScale) }, attackHit: false);
                 }
                 // Summons standing in the circle burn too (DamageSummon can remove
-                // from the dictionary, so snapshot first).
+                // from the dictionary, so snapshot first). Pets are bystanders.
                 foreach (var s in Summons.Values.ToList())
                 {
+                    if (s.IsPet) continue;
                     if (MathF.Abs(s.Height - e.Height) > 0.75f) continue;
                     if (Vector2.Distance(s.Position, e.CastTarget) > e.Def.CastRadius) continue;
                     DamageSummon(s, e.Def.CastDamage * e.DamageScale);
                 }
+                // Defense camps have no dodge roll: a caster's ground burst scorches
+                // turrets, barriers and the wagon caught in the circle.
+                if (Map.Kind == MapKind.Defense)
+                    foreach (var st in Structures.Values.ToList())
+                        if (Vector2.Distance(st.Position, e.CastTarget) <= e.Def.CastRadius + st.Radius)
+                            DamageStructure(st, e.Def.CastDamage * e.DamageScale);
                 continue;
             }
 
@@ -1543,6 +1557,7 @@ public partial class ServerWorld
         }
         foreach (var s in Summons.Values)
         {
+            if (s.IsPet) continue;
             if (!MeleeReachable(e.Position, e.Height, s.Position, s.Height)) continue;
             if (!InArc(s.Position)) continue;
             float d = Vector2.Distance(s.Position, e.Position);
@@ -1856,6 +1871,7 @@ public partial class ServerWorld
                 bool consumed = false;
                 foreach (var s2 in Summons.Values)
                 {
+                    if (s2.IsPet) continue; // pets are too small (and too loved) to shoot
                     if (MathF.Abs(s2.Height - pr.Height) > 0.75f) continue;
                     if (SegmentDistance(prevPos, pr.Position, s2.Position) <= ServerSummon.Radius + 0.25f)
                     {
@@ -2178,17 +2194,15 @@ public partial class ServerWorld
                 effectPoint = ClampToRange(p.Position, target, stats.Range);
                 if (def.Tags?.Contains("Rain") == true)
                 {
-                    // Sky volleys (Arrow Rain) don't burst — they open a short RAIN
-                    // WINDOW over the circle: damage ticks WHILE the arrows land (in
-                    // sync with the visual), each enemy clipped once, latecomers who
-                    // wander in mid-volley included. And the sky doesn't care about
-                    // terraces: every elevation inside the circle is hit.
+                    // Sky volleys (Arrow Rain) don't burst — they open a RAIN WINDOW:
+                    // every arrow is its own hitbox at its own landing spot and
+                    // moment (see RainVolley / TickRainVolleys).
                     _rainVolleys.Add(new RainVolley
                     {
                         Position = effectPoint, Radius = stats.Radius,
                         OwnerId = playerId, SkillId = skillId,
                         Stats = stats, ChargeMult = chargeMult,
-                        TicksLeft = RainTicks, NextTickAt = Time + RainFirstTickDelay,
+                        StartedAt = Time,
                     });
                 }
                 else
@@ -2409,6 +2423,7 @@ public partial class ServerWorld
     /// near the summoner after the skill's respawn time.</summary>
     public void DamageSummon(ServerSummon s, float damage)
     {
+        if (s.IsPet) return; // pets can't be hurt — they're companions, not combatants
         if (s.Dead || damage <= 0) return;
         s.Health -= damage;
         _events.DamageDealt(false, -s.Id, damage, DamageKind.Blunt, s.Position);
@@ -2430,6 +2445,9 @@ public partial class ServerWorld
 
     private void TickSummons(float dt)
     {
+        // Companions mirror the Pet slot exactly, every tick.
+        foreach (var p in Players.Values) EnsurePetSummon(p);
+
         // Pending respawns: free, near the (living) summoner.
         for (int i = _summonRespawns.Count - 1; i >= 0; i--)
         {
@@ -2456,6 +2474,13 @@ public partial class ServerWorld
             {
                 Summons.Remove(s.Id);
                 _events.SummonDespawned(s);
+                continue;
+            }
+
+            // Pets don't fight — they heel, and the rat has errands to run.
+            if (s.IsPet)
+            {
+                TickPet(s, owner, dt);
                 continue;
             }
 
@@ -2595,6 +2620,84 @@ public partial class ServerWorld
         return goal;
     }
 
+    // ------------------------------------------------------------------ pets
+
+    /// <summary>How far from the OWNER the rat will range for a coin.</summary>
+    public const float PetGoldSniffRange = 9f;
+    public const float PetMoveSpeed = 4.8f;
+
+    /// <summary>Keep a player's companion in sync with their Pet slot: equip spawns
+    /// it, unequip (or swapping pets) dismisses it. Runs every tick — cheap, and it
+    /// catches every path an item can take into or out of the slot.</summary>
+    private void EnsurePetSummon(ServerPlayer p)
+    {
+        string wanted = null;
+        if (p.Character.Equipment.TryGetValue(EquipSlot.Pet, out var petItem) && petItem != null &&
+            Data.Items.GetValueOrDefault(petItem.BaseItemId)?.Category == ItemCategory.Pet)
+            wanted = petItem.BaseItemId; // the base id doubles as the summon's SkillId
+        ServerSummon existing = null;
+        foreach (var su in Summons.Values)
+            if (su.OwnerId == p.Id && su.IsPet) { existing = su; break; }
+        if (existing != null && existing.SkillId == wanted) return;
+        if (existing != null)
+        {
+            Summons.Remove(existing.Id);
+            _events.SummonDespawned(existing);
+        }
+        if (wanted == null) return;
+        var pet = new ServerSummon
+        {
+            Id = _nextSummonId++, OwnerId = p.Id, SkillId = wanted,
+            Position = p.Position + new Vector2(-0.6f, 0.5f), Height = p.Height,
+            Health = 1f, MaxHealth = 1f, Damage = 0f, Melee = false,
+        };
+        Summons[pet.Id] = pet;
+        _events.SummonSpawned(pet);
+    }
+
+    /// <summary>Pet behavior: heel at the owner's shoulder — except the rat, which
+    /// sniffs out dropped GOLD near its owner, scurries to it, and banks the coins
+    /// for them (server-authoritative, same as walking over it yourself).</summary>
+    private void TickPet(ServerSummon s, ServerPlayer owner, float dt)
+    {
+        var goal = owner.Position + new Vector2(-0.7f, 0.6f);
+        WorldItem coin = null;
+        if (s.SkillId == "pet_rat")
+        {
+            float best = float.MaxValue;
+            foreach (var drop in Drops.Values)
+            {
+                if (!drop.IsGold) continue;
+                if (Vector2.Distance(drop.Position, owner.Position) > PetGoldSniffRange) continue;
+                float d = Vector2.Distance(drop.Position, s.Position);
+                if (d < best) { best = d; coin = drop; }
+            }
+            if (coin != null) goal = coin.Position;
+        }
+        float distToGoal = Vector2.Distance(s.Position, goal);
+        if (distToGoal > (coin != null ? 0.15f : 1.0f))
+        {
+            var dir = (goal - s.Position).NormalizedOrZero();
+            float h = s.Height;
+            s.Position = Map.MoveWithCollision(s.Position, dir * PetMoveSpeed * dt, 0.2f, ref h);
+            s.Height = h;
+        }
+        // Terrain can strand a critter with no pathfinding — pop it back to heel.
+        if (Vector2.Distance(s.Position, owner.Position) > PetGoldSniffRange + 5f)
+        {
+            s.Position = owner.Position;
+            s.Height = owner.Height;
+        }
+        if (coin != null && Vector2.Distance(s.Position, coin.Position) <= 0.6f &&
+            MathF.Abs(s.Height - coin.Height) <= 0.75f)
+        {
+            owner.Character.Gold += coin.GoldAmount;
+            Drops.Remove(coin.DropId);
+            _events.WorldItemRemoved(coin, owner.Id);
+            _events.CharacterChanged(owner);
+        }
+    }
+
     /// <summary>Soft push-apart between overlapping summons (same recipe as enemies),
     /// so a pack fans out around its summoner instead of stacking into one sprite.</summary>
     private void SeparateSummons(float dt)
@@ -2606,6 +2709,7 @@ public partial class ServerWorld
             {
                 var a = list[i];
                 var b = list[j];
+                if (a.IsPet || b.IsPet) continue; // small enough to weave through legs
                 if (MathF.Abs(a.Height - b.Height) > 0.75f) continue;
                 float minDist = ServerSummon.Radius * 2.2f;
                 var delta = b.Position - a.Position;
@@ -2632,6 +2736,7 @@ public partial class ServerWorld
         float bestD = range;
         foreach (var s in Summons.Values)
         {
+            if (s.IsPet) continue; // pets are never prey
             if (MathF.Abs(s.Height - height) > 0.75f) continue;
             float d = Vector2.Distance(s.Position, point);
             if (d < bestD) { bestD = d; best = s; }
@@ -2824,18 +2929,13 @@ public partial class ServerWorld
 
     // ------------------------------------------------------------------ rain volleys
 
-    /// <summary>How long after the cast resolves before the first arrows strike
-    /// (matches the client's falling-volley animation), the gap between damage
-    /// ticks, and how many ticks a volley rains for.</summary>
-    public const float RainFirstTickDelay = 0.45f;
-    public const float RainTickInterval = 0.2f;
-    public const int RainTicks = 3;
-
-    /// <summary>An Arrow Rain in progress: a circle the sky is actively striking.
-    /// Every tick clips enemies inside the circle that haven't been hit yet — at ANY
-    /// height (arrows fall onto every terrace) — so damage lands while arrows land,
-    /// and a body wandering in mid-volley still gets caught. One hit per enemy per
-    /// volley keeps the damage budget identical to a single burst.</summary>
+    /// <summary>An Arrow Rain in progress: SkillMath.RainArrowCount individual
+    /// arrows, each with its own deterministic landing spot and moment (shared with
+    /// the client's animation — what you see land is what hits). Every arrow is its
+    /// own small hitbox for SkillMath.RainArrowDamageMult of the skill's roll, at
+    /// ANY height (the sky doesn't care about terraces) — so a clustered pack eats
+    /// many arrows, one body can be struck several times, and a latecomer walking
+    /// under the tail of the volley still gets clipped.</summary>
     private class RainVolley
     {
         public Vector2 Position;
@@ -2844,9 +2944,8 @@ public partial class ServerWorld
         public string SkillId;
         public EffectiveSkillStats Stats;
         public float ChargeMult;
-        public int TicksLeft;
-        public float NextTickAt;
-        public readonly HashSet<int> HitIds = new();
+        public float StartedAt;
+        public readonly bool[] Landed = new bool[SkillMath.RainArrowCount];
     }
 
     private readonly List<RainVolley> _rainVolleys = new();
@@ -2856,19 +2955,29 @@ public partial class ServerWorld
         for (int i = _rainVolleys.Count - 1; i >= 0; i--)
         {
             var rv = _rainVolleys[i];
-            if (Time < rv.NextTickAt) continue;
-            rv.NextTickAt = Time + RainTickInterval;
-            rv.TicksLeft--;
-            foreach (var e in Enemies.Values.ToList())
+            bool allLanded = true;
+            for (int a = 0; a < SkillMath.RainArrowCount; a++)
             {
-                if (e.Dead || rv.HitIds.Contains(e.Id)) continue;
-                if (Vector2.Distance(e.Position, rv.Position) > rv.Radius + e.Def.Radius) continue;
-                rv.HitIds.Add(e.Id);
-                var (dmg, kind) = RollSkillHit(e, rv.Stats, out var comps);
-                HitEnemy(e, dmg * rv.ChargeMult, rv.OwnerId, rv.SkillId, kind);
-                ApplyAilments(e, comps, dmg * rv.ChargeMult, rv.Stats);
+                if (rv.Landed[a]) continue;
+                if (Time < rv.StartedAt + SkillMath.RainArrowLandDelay(a))
+                {
+                    allLanded = false;
+                    continue;
+                }
+                rv.Landed[a] = true;
+                var impact = rv.Position + SkillMath.RainArrowOffset(rv.Position, a, rv.Radius);
+                foreach (var e in Enemies.Values.ToList())
+                {
+                    if (e.Dead) continue;
+                    if (Vector2.Distance(e.Position, impact) >
+                        SkillMath.RainArrowRadius + e.Def.Radius) continue;
+                    var (dmg, kind) = RollSkillHit(e, rv.Stats, out var comps);
+                    float scaled = dmg * SkillMath.RainArrowDamageMult * rv.ChargeMult;
+                    HitEnemy(e, scaled, rv.OwnerId, rv.SkillId, kind);
+                    ApplyAilments(e, comps, scaled, rv.Stats);
+                }
             }
-            if (rv.TicksLeft <= 0) _rainVolleys.RemoveAt(i);
+            if (allLanded) _rainVolleys.RemoveAt(i);
         }
     }
 

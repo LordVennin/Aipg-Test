@@ -69,7 +69,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 38; // v38: rolled map footprints, carved arenas, highlands + bridges
+    public const int ProtocolVersion = 39; // v39: pets + unique rarity, per-arrow rain, defense boss
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

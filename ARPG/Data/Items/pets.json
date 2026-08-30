@@ -1,0 +1,34 @@
+[
+  {
+    "Id": "pet_rat",
+    "Name": "Nib, the Gutter Rat",
+    "Category": "Pet",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 0,
+    "DropWeight": 0,
+    "BaseGoldValue": 400,
+    "BaseStats": {
+      "MovementSpeed": 4
+    },
+    "SpriteColor": "8A6A45",
+    "Description": "A quick brown companion with an eye for coin. Nib scurries after dropped gold and brings it home so you never break stride."
+  },
+  {
+    "Id": "pet_tome",
+    "Name": "The Vagrant Grimoire",
+    "Category": "Pet",
+    "InventoryWidth": 1,
+    "InventoryHeight": 1,
+    "RequiredLevel": 1,
+    "BaseModifierLimit": 2,
+    "DropWeight": 0,
+    "BaseGoldValue": 400,
+    "BaseStats": {
+      "ManaRegeneration": 2
+    },
+    "SpriteColor": "B08A4C",
+    "Description": "A stray spellbook that drifts at the shoulder of whoever last read it aloud. No two copies mutter the same marginalia."
+  }
+]
