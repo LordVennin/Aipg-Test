@@ -698,6 +698,9 @@ public partial class ServerWorld
     private void CheckPartyWipe()
     {
         if (!Campaign || Players.Count == 0) return;
+        // The introduction is forgiving: the caravan drags the fallen back to camp
+        // (TickPlayers' respawn countdown), so even a full wipe never ends the visit.
+        if (Map.Kind == MapKind.Tutorial) return;
         if (Players.Values.Any(pl => pl.Alive)) { _wipeReturnAt = 0f; return; }
         if (_wipeReturnAt <= 0f)
         {

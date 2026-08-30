@@ -147,7 +147,7 @@ public class GameMap
                 MapKind.Hub => (22, 16),
                 MapKind.Forest => (86 + dice.Next(45), 26 + dice.Next(11)),
                 MapKind.Defense => (38 + dice.Next(27), 28 + dice.Next(17)),
-                MapKind.Tutorial => (64, 30), // authored — never rolled
+                MapKind.Tutorial => (84, 22), // a long straight road east — never rolled
                 _ => (44, 44),
             };
         }
@@ -588,115 +588,170 @@ public class GameMap
     // ------------------------------------------------------------------ tutorial (authored)
 
     /// <summary>
-    /// THE INTRODUCTION, laid out by hand — no rng touches the terrain, so every
-    /// visit is the identical, curated push: the caravan camps in the rain-soaked
-    /// southwest corner of a drowned graveyard; the road runs EAST through graves
-    /// and swamp pools, then climbs NORTHEAST up a stair onto the high ground and
-    /// on into the RUINS, where the Gravelord holds the gate. Assistance stones
-    /// line the way. The gate door leads back to the Sanctum once the way is clear.
+    /// THE INTRODUCTION: a straight push WEST-TO-EAST along the Old Road. The
+    /// anchors are authored and never move — the caravan camp and door home at the
+    /// west end, the road band through the middle, the stair up to the high ground
+    /// at the two-thirds mark, the ruins court, the Gravelord's gate east — while
+    /// the dressing between them (tree lines pinching the road, pools, grave rows,
+    /// big dead trees, reeds and grass) is rolled from a FIXED seed, so the map is
+    /// still identical on every visit but never reads as an empty room.
     /// </summary>
     private void GenerateTutorial()
     {
+        // Fixed-seed filler: identical every time, organic to look at.
+        var rng = new Random(20777);
+        int yc = Height / 2; // the road's center row (11 on the 84x22 layout)
+
         for (int y = 0; y < Height; y++)
             for (int x = 0; x < Width; x++)
                 if (x == 0 || y == 0 || x == Width - 1 || y == Height - 1)
                     _wall[Idx(x, y)] = 2;
 
-        // --- The caravan camp (southwest): spawn, wagon spot, the door home.
-        PlayerSpawn = new Vector2(6.5f, 22.5f);
-        WagonSpot = new Vector2(4.5f, 21.5f);
-        EntryDoor = new Vector2(1.6f, 22.5f);
-        NpcSpots.Add(new Vector2(5.5f, 24.2f)); // Brakka, by the fire
-        NpcSpots.Add(new Vector2(3.2f, 23.4f)); // Odessa, under the wagon's awning
-
-        // --- The high ground: a plateau across the north/east half. The road will
-        // climb onto it by the stair below; its south rim is a jagged cliff.
-        for (int y = 1; y <= 15; y++)
-            for (int x = 26; x <= Width - 2; x++)
-                _ground[Idx(x, y)] = 1;
-        // Jagged rim: deterministic nibble pattern, no rng.
-        for (int x = 26; x <= Width - 2; x++)
-            if (x % 5 == 2) _ground[Idx(x, 15)] = 0;
-            else if (x % 7 == 3) _ground[Idx(x, 1)] = 1; // (border wall hides this row)
-
-        // --- The stair NE: three stairs climb the rim at x 30-32.
-        for (int x = 30; x <= 32; x++)
+        // --- Tree lines: jittered solid bands squeeze in from north and south, so
+        // the space is a winding ROAD through terrain instead of a square hall.
+        int depthN = 2, depthS = 2;
+        for (int x = 1; x < Width - 1; x++)
         {
-            int i = Idx(x, 16);
+            if (x % 2 == 0) depthN = Math.Clamp(depthN + rng.Next(-1, 2), 1, 4);
+            else depthS = Math.Clamp(depthS + rng.Next(-1, 2), 1, 4);
+            for (int y = 1; y <= depthN; y++) _wall[Idx(x, y)] = 2;
+            for (int y = Height - 1 - depthS; y < Height - 1; y++) _wall[Idx(x, y)] = 2;
+        }
+
+        // --- The caravan camp (west end): spawn, wagon, the door home.
+        PlayerSpawn = new Vector2(6.5f, yc + 1.5f);
+        WagonSpot = new Vector2(4.5f, yc - 0.5f);
+        EntryDoor = new Vector2(1.6f, yc + 0.5f);
+        NpcSpots.Add(new Vector2(5.5f, yc + 2.8f)); // Brakka, by the fire
+        NpcSpots.Add(new Vector2(3.2f, yc + 1.6f)); // Odessa, under the awning
+        for (int y = yc - 4; y <= yc + 4; y++)
+            for (int x = 2; x <= 11; x++)
+                if (y >= 1 && y < Height - 1) _wall[Idx(x, y)] = 0;
+
+        // --- The rise: everything east of the stair line sits one level up, its
+        // west edge jagged per row; the road climbs it by a stair flight dead ahead.
+        int riseX = 51;
+        var riseEdge = new int[Height];
+        for (int y = 0; y < Height; y++) riseEdge[y] = riseX + rng.Next(0, 3);
+        for (int y = 1; y < Height - 1; y++)
+            for (int x = riseEdge[y]; x < Width - 1; x++)
+                _ground[Idx(x, y)] = 1;
+        for (int y = yc - 1; y <= yc + 1; y++)
+        {
+            // Grade the road's own rows into stairs at the first raised column.
+            int sx = riseEdge[y];
+            int i = Idx(sx, y);
             _ground[i] = 0;
-            _ramp[i] = (byte)RampDirection.MinusY;
+            _ramp[i] = (byte)RampDirection.PlusX; // rising east — straight ahead
             _rampStyle[i] = 1;
         }
-        for (int x = 30; x <= 32; x++) _ground[Idx(x, 15)] = 1; // the rim above the stair is solid ground
 
-        // --- Swamp pools south of the road and one north pond (authored blobs).
+        // --- THE RUINS (east of the rise): a broad flagstone court. The tree lines
+        // pull back, a colonnade flanks the road, and the gate closes the east end.
+        int ruinsX = 64;
+        for (int y = 1; y < Height - 1; y++)
+            for (int x = ruinsX; x < Width - 1; x++)
+            {
+                _ruins[Idx(x, y)] = 1;
+                if (y >= 3 && y <= Height - 4) _wall[Idx(x, y)] = 0; // the court opens up
+            }
+        foreach (int px in new[] { 66, 69, 72, 75 })
+        {
+            _wall[Idx(px, yc - 4)] = 1; // colonnade bases — ruin features stand on these
+            _wall[Idx(px, yc + 4)] = 1;
+        }
+        _wall[Idx(79, yc - 3)] = 2; // the gate: two jambs, a three-tile opening
+        _wall[Idx(79, yc - 2)] = 2;
+        _wall[Idx(79, yc + 2)] = 2;
+        _wall[Idx(79, yc + 3)] = 2;
+        BossSpot = new Vector2(75.5f, yc + 0.5f);
+        ExitDoor = new Vector2(81.5f, yc + 0.5f);
+
+        // --- Swamp pools flanking the road (never on it), with ragged shorelines.
         void Pool(int x0, int y0, int x1, int y1)
         {
-            for (int y = y0; y <= y1; y++)
-                for (int x = x0; x <= x1; x++)
+            for (int y = Math.Max(1, y0); y <= Math.Min(Height - 2, y1); y++)
+                for (int x = Math.Max(1, x0); x <= Math.Min(Width - 2, x1); x++)
                 {
+                    if (_wall[Idx(x, y)] != 0) continue;
                     bool edge = x == x0 || x == x1 || y == y0 || y == y1;
-                    if (edge && (x + y) % 2 == 0) continue; // ragged shoreline
+                    if (edge && (x + y) % 2 == 0) continue;
                     _water[Idx(x, y)] = 1;
                 }
         }
-        Pool(14, 26, 20, 28);
-        Pool(23, 25, 29, 27);
-        Pool(12, 17, 16, 19);
-        Pool(36, 20, 42, 24); // the drowned flat below the cliff, east of the stair
-        // Reeds and marsh grass hug the shorelines.
-        void Reeds(int x0, int y0, int x1, int y1)
+        Pool(14, yc + 3, 19, yc + 6);
+        Pool(22, yc - 7, 27, yc - 4);
+        Pool(31, yc + 3, 38, yc + 7);
+        Pool(41, yc - 6, 45, yc - 3);
+
+        // --- Grave rows, rocks and BIG DEAD TREES fill the land between the
+        // anchors (fixed-seed placement; the road band stays clear).
+        void PlantDeadTree(int tx, int ty)
         {
-            for (int y = y0; y <= y1; y++)
-                for (int x = x0; x <= x1; x++)
-                    if (_water[Idx(x, y)] == 0 && _wall[Idx(x, y)] == 0 && (x * 3 + y * 5) % 4 != 0)
-                        _tallGrass[Idx(x, y)] = 1;
+            for (int dy = 0; dy < 2; dy++)
+                for (int dx = 0; dx < 2; dx++)
+                {
+                    int i = Idx(tx + dx, ty + dy);
+                    if (_wall[i] != 0 || _water[i] != 0 || _ramp[i] != 0 || _feature[i] != 0 ||
+                        _ground[i] != _ground[Idx(tx, ty)]) return;
+                }
+            for (int dy = 0; dy < 2; dy++)
+                for (int dx = 0; dx < 2; dx++)
+                    _feature[Idx(tx + dx, ty + dy)] = (byte)TileFeature.BigTreePart;
+            _wall[Idx(tx, ty)] = 2;
+            _feature[Idx(tx, ty)] = (byte)TileFeature.BigTreeRoot;
         }
-        Reeds(13, 25, 21, 25);
-        Reeds(22, 24, 30, 24);
-        Reeds(11, 20, 17, 20);
-        Reeds(35, 19, 43, 19);
-
-        // --- Graves flanking the road (low headstone walls; the theme dresses them).
-        foreach (var (gx, gy) in new[]
+        for (int i = 0; i < 26; i++) // headstones and markers
         {
-            (12, 19), (14, 18), (16, 19), (19, 18), (21, 19), (24, 18),
-            (12, 26), (22, 21), (26, 20), (10, 18), (28, 19),
-            (34, 12), (36, 13), (38, 12), (41, 13), (43, 12), (34, 7), (37, 6), (40, 7),
-        })
-            if (_water[Idx(gx, gy)] == 0) _wall[Idx(gx, gy)] = 1;
-
-        // --- THE RUINS (east end of the plateau): flagstone ground, a colonnade of
-        // broken pillars, rubble — and the gate the caravan wants.
-        for (int y = 2; y <= 15; y++)
-            for (int x = 48; x <= Width - 2; x++)
-                _ruins[Idx(x, y)] = 1;
-        foreach (var (px, py) in new[]
+            int gx = rng.Next(12, ruinsX - 2), gy = rng.Next(2, Height - 2);
+            if (Math.Abs(gy - yc) <= 2) continue;                    // the road stays open
+            int gi = Idx(gx, gy);
+            if (_wall[gi] != 0 || _water[gi] != 0 || _ramp[gi] != 0) continue;
+            _wall[gi] = 1;
+        }
+        for (int i = 0; i < 22; i++) // big dead trees loom over the fields
         {
-            (50, 6), (53, 6), (56, 6), (59, 6),
-            (50, 14), (53, 14), (56, 14), (59, 14),
-        })
-            _wall[Idx(px, py)] = 1; // pillar bases — ruin features stand on these
-        // The gate itself: two solid jambs framing a three-tile opening east.
-        _wall[Idx(61, 7)] = 2;
-        _wall[Idx(61, 8)] = 2;
-        _wall[Idx(61, 12)] = 2;
-        _wall[Idx(61, 13)] = 2;
-        BossSpot = new Vector2(56.5f, 10.5f);
-        ExitDoor = new Vector2(62.5f, 10.5f);
+            int tx = rng.Next(12, ruinsX - 3), ty = rng.Next(2, Height - 3);
+            if (Math.Abs(ty - yc) <= 2 && Math.Abs(ty + 1 - yc) <= 2) continue;
+            if (ty <= yc + 1 && ty + 1 >= yc - 1) continue;          // footprint off the road
+            PlantDeadTree(tx, ty);
+        }
+
+        // --- Reeds and marsh grass hug every shoreline; loose grass tufts the road.
+        for (int y = 1; y < Height - 1; y++)
+            for (int x = 1; x < Width - 1; x++)
+            {
+                int i = Idx(x, y);
+                if (_wall[i] != 0 || _water[i] != 0 || _ramp[i] != 0 || _feature[i] != 0) continue;
+                bool nearWater = IsWater(x + 1, y) || IsWater(x - 1, y) ||
+                                 IsWater(x, y + 1) || IsWater(x, y - 1);
+                if (nearWater && (x * 3 + y * 5) % 4 != 0) _tallGrass[i] = 1;
+                else if (x < ruinsX && rng.Next(100) < 7) _tallGrass[i] = 1;
+            }
+
+        // --- The road itself stays walkable end to end, whatever the filler rolled.
+        for (int x = 2; x < Width - 2; x++)
+            for (int y = yc - 1; y <= yc + 1; y++)
+            {
+                int i = Idx(x, y);
+                if (x == 79 && (y < yc - 1 || y > yc + 1)) continue; // never the gate jambs
+                _wall[i] = 0;
+                _water[i] = 0;
+                _feature[i] = 0;
+            }
 
         // --- Assistance stones: stand near one and the HUD explains.
-        TutorialHints.Add((new Vector2(10.5f, 22.5f), "Moving & Fighting",
+        TutorialHints.Add((new Vector2(10.5f, yc + 1.5f), "Moving & Fighting",
             "WASD moves you. Click swings at whatever is under the cursor. SPACE rolls you clear of trouble."));
-        TutorialHints.Add((new Vector2(16.5f, 21.5f), "Loot",
+        TutorialHints.Add((new Vector2(16.5f, yc - 0.5f), "Loot",
             "The dead drop gear — stand close and press F to take a piece. Gold banks itself when you walk over it."));
-        TutorialHints.Add((new Vector2(26.5f, 21.5f), "Flasks",
+        TutorialHints.Add((new Vector2(27.5f, yc + 1.5f), "Flasks",
             "Q sips your health flask, E your mana flask. The Sanctum's fountain refills them between trips."));
-        TutorialHints.Add((new Vector2(33.5f, 17.5f), "High Ground",
+        TutorialHints.Add((new Vector2(48.5f, yc + 1.5f), "High Ground",
             "Stairs and ramps are the only way up a cliff — and archers love holding the tops."));
-        TutorialHints.Add((new Vector2(38.5f, 10.5f), "Skills",
+        TutorialHints.Add((new Vector2(56.5f, yc - 0.5f), "Skills",
             "K opens your skills — drag one onto the hotbar. I opens your bag, P the passive tree."));
-        TutorialHints.Add((new Vector2(46.5f, 10.5f), "The Ruins",
+        TutorialHints.Add((new Vector2(62.5f, yc + 0.5f), "The Ruins",
             "Something big holds the gate ahead. Clear the way and the caravan moves in."));
 
         // Safety nets (both deterministic): no orphan stairs, no stranded floor.

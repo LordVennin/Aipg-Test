@@ -69,7 +69,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 40; // v40: tutorial map, cutscenes, hub third door
+    public const int ProtocolVersion = 41; // v41: straight-road tutorial layout, dead trees
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

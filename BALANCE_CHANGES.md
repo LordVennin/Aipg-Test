@@ -1202,3 +1202,26 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   a big dead tree feature — and a new RUINS set (rubble, cracked slabs,
   fallen capitals, broken columns, arch fragments) on ruins-flagged ground.
 - Protocol v40; die/wave-style debug reaper for the death flows.
+
+---
+
+# Addendum (batch 55): The Old Road, reshaped
+
+- **The road now runs STRAIGHT east** — 84x22, a long narrow push along the
+  map's center row from the caravan camp to the ruins gate, instead of the
+  old wandering hallway. The anchors are authored and never move (camp,
+  stair-rise at the two-thirds mark, ruins court, boss gate).
+- **Fixed-seed dressing fills the emptiness**: the space between the anchors
+  is rolled from one hard-coded seed — jittered tree-line walls pinching the
+  road, four ragged pools, grave rows, reed shorelines, scattered grass —
+  so the map is STILL identical on every visit but no longer reads as an
+  empty square hallway. A road-clear pass keeps the center rows walkable.
+- **Big dead trees**: a new multi-tile graveyard tree set (three variants —
+  a forked skeleton oak, a leaning snag, a gallows crown with a crow) looms
+  over the fields; graveyard-themed maps grow these instead of the forest's
+  leafy giants.
+- **Full-wipe fix**: a party wipe on the Old Road no longer hands everyone
+  back to the Sanctum — the caravan's forgiving respawn (back at camp, with
+  a quip) now covers the whole party going down at once.
+- `ARPG_DEVUI=reaper` keeps culling nearby enemies (GUI automation walkthroughs).
+- Protocol v41 (tutorial layout changed; clients rebuild the map from seed).

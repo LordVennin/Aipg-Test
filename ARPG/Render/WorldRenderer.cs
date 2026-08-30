@@ -575,7 +575,11 @@ public class WorldRenderer
                     // tile at ITS elevation, and on raised ground the terrace top +
                     // cliff faces still draw beneath — a tree on a terrace used to
                     // leave a black hole where its ground never rendered.
-                    var tex = SpriteGen.GetPropSprite($"forest:bigtree:{(TileHash(map.Seed, x, y) >> 5) % 4}");
+                    // Theme decides the species: leafy giants in the forest, bare
+                    // gnarled DEAD TREES on graveyard ground.
+                    var tex = Theme?.PropStyle == "graveyard"
+                        ? SpriteGen.GetPropSprite($"graveyard:deadtree:{(TileHash(map.Seed, x, y) >> 5) % 3}")
+                        : SpriteGen.GetPropSprite($"forest:bigtree:{(TileHash(map.Seed, x, y) >> 5) % 4}");
                     if (tex != null)
                     {
                         var center = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f), ground);
