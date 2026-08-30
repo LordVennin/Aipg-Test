@@ -25,6 +25,9 @@ public enum ItemCategory
     /// <summary>Non-equippable special items (mercenary contracts, blueprints):
     /// carried, stashed and traded to NPCs — never worn, never enchanted.</summary>
     Curio,
+    /// <summary>Companion creatures worn in the dedicated Pet slot: unique-rarity
+    /// finds with small implicit boons and a visible critter trailing the owner.</summary>
+    Pet,
 }
 
 public enum ItemRarity
@@ -32,6 +35,9 @@ public enum ItemRarity
     Normal,
     Magic,
     Rare,
+    /// <summary>One-of-a-kind named items (the pets are the first). Brown-gold in
+    /// the UI; rolled by their own generation rules, never by the rarity table.</summary>
+    Unique,
 }
 
 public enum EquipSlot
@@ -48,6 +54,8 @@ public enum EquipSlot
     OffHand,
     Flask1,
     Flask2,
+    /// <summary>The companion slot: one equipped Pet, its critter walking the world.</summary>
+    Pet,
 }
 
 /// <summary>
@@ -123,8 +131,10 @@ public class ItemBase
     public bool IsEquippable =>
         Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll or ItemCategory.Curio);
     /// <summary>Categories that can receive prefix/suffix modifiers (enchantable gear).
-    /// Flasks carry only their base stats for now.</summary>
-    public bool IsEnchantable => IsEquippable && Category != ItemCategory.Flask;
+    /// Flasks carry only their base stats for now; pets roll at DROP time only —
+    /// their modifiers are part of the find, never crafted afterward.</summary>
+    public bool IsEnchantable => IsEquippable &&
+        Category is not (ItemCategory.Flask or ItemCategory.Pet);
 
     /// <summary>Which equipment slots this category may occupy. Adding a new weapon category only
     /// requires extending this mapping and the data files — no inventory/skill system changes.</summary>
@@ -144,6 +154,7 @@ public class ItemBase
         ItemCategory.Amulet => new[] { EquipSlot.Amulet },
         ItemCategory.Ring => new[] { EquipSlot.Ring1, EquipSlot.Ring2 },
         ItemCategory.Flask => new[] { EquipSlot.Flask1, EquipSlot.Flask2 },
+        ItemCategory.Pet => new[] { EquipSlot.Pet },
         _ => Array.Empty<EquipSlot>(),
     };
 }

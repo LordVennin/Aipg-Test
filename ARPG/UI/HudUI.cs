@@ -392,6 +392,8 @@ public class DebugUI
             ("Give Skill Scroll", "give_scroll", ""),
             ("Give Enchant Scrolls", "give_enchant", ""),
             ("Drop All Scrolls", "drop_scrolls", ""),
+            ("Drop Pets", "drop_pets", ""),
+            ("Skip To Final Wave", "wave_skip", ""),
             ("Grant Skill XP", "skill_xp", ""),
             ("Grant Character XP", "char_xp", ""),
             ("Kill Nearby Enemies", "kill_nearby", ""),

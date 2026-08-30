@@ -402,6 +402,9 @@ public class ServerSummon
     public const float AttackCooldown = 1.4f;
     public const float MoveSpeed = 3.6f;
     public bool Dead => Health <= 0;
+    /// <summary>Equipped-pet companions (SkillId "pet_*"): pure flavor bodies —
+    /// never targeted, never damaged, never fighting.</summary>
+    public bool IsPet => SkillId != null && SkillId.StartsWith("pet_");
 }
 
 /// <summary>A defense-map structure: the wagon, the workbench, or a player-built

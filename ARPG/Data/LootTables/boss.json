@@ -5,6 +5,7 @@
   "EnchantScrollDropChance": 1.0,
   "MercContractDropChance": 0.35,
   "BlueprintDropChance": 0.08,
+  "PetDropChance": 0.02,
   "GoldDropChance": 1.0,
   "GoldMin": 40,
   "GoldMax": 90,

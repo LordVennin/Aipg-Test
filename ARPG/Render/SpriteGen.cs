@@ -1579,6 +1579,78 @@ public static class SpriteGen
     /// <summary>Standing frame only (HUD cards and other static uses).</summary>
     public static Texture2D GetSummonSprite(string skillId = null) => GetSummonFrames(skillId)?[0];
 
+    /// <summary>Companion pet frames (2 each): the gutter rat scurries low to the
+    /// ground; the vagrant grimoire is drawn upright with fluttering pages (the
+    /// renderer adds the hover). Brown-gold, matching their unique rarity.</summary>
+    public static Texture2D[] GetPetFrames(string petId)
+    {
+        if (_device == null) return null;
+        string key = "pet:" + petId;
+        if (_cache.TryGetValue(key, out var cached)) return cached;
+        var frames = petId == "pet_tome"
+            ? new[] { DrawPetTome(0), DrawPetTome(1) }
+            : new[] { DrawPetRat(0), DrawPetRat(1) };
+        _cache[key] = frames;
+        return frames;
+    }
+
+    public static Texture2D GetPetSprite(string petId) => GetPetFrames(petId)?[0];
+
+    private static Texture2D DrawPetRat(int frame)
+    {
+        const int w = 14, h = 9;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+        var fur = new Color(138, 106, 69);
+        var furDark = new Color(104, 78, 50);
+        var belly = new Color(172, 142, 104);
+        var pink = new Color(196, 132, 122);
+        // Body: a low teardrop, nose to the right.
+        Rect(3, 3, 9, 6, fur);
+        Rect(4, 6, 8, 6, belly);
+        Rect(9, 4, 11, 5, fur);        // head
+        Set(12, 5, pink);              // nose
+        Set(10, 3, furDark);           // ear
+        Set(10, 4, new Color(24, 20, 18)); // eye
+        // Tail: a thin curl behind, flicking with the scurry frame.
+        int flick = frame == 1 ? 1 : 0;
+        Set(2, 4 + flick, pink);
+        Set(1, 3 + flick, pink);
+        Set(0, 2 + flick, pink);
+        // Legs: alternate pairs per frame for the scurry.
+        if (frame == 0) { Set(4, 7, furDark); Set(8, 7, furDark); }
+        else { Set(5, 7, furDark); Set(9, 7, furDark); }
+        return BakeStrip(px, w, h);
+    }
+
+    private static Texture2D DrawPetTome(int frame)
+    {
+        const int w = 12, h = 13;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+        var cover = new Color(148, 108, 56);
+        var coverDark = new Color(110, 78, 40);
+        var page = new Color(226, 214, 182);
+        var rune = new Color(196, 150, 80);
+        // An open book seen edge-on: two leaves of pages over a leather cover.
+        Rect(1, 4, 10, 9, cover);
+        Rect(1, 9, 10, 10, coverDark);
+        Rect(2, 3, 5, 7, page);
+        Rect(6, 3, 9, 7, page);
+        Set(5, 3, coverDark); Set(5, 4, coverDark); // the spine gutter
+        // A fluttering corner page on alternate frames.
+        if (frame == 1) { Set(1, 2, page); Set(10, 2, page); }
+        // The rune glinting on the spine below.
+        Set(5, 10, rune); Set(6, 10, rune);
+        // Faint drifting motes above (the muttering marginalia).
+        Set(frame == 0 ? 2 : 9, 0, rune * 0.8f);
+        return BakeStrip(px, w, h);
+    }
+
     private static Texture2D DrawSummonFrame(bool warrior, int frame, bool merc = false)
     {
         const int w = 16, h = 22;

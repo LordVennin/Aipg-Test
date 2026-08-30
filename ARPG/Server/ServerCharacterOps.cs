@@ -704,6 +704,37 @@ public partial class ServerWorld
                     changed = true;
                 }
                 break;
+            case "give_pet":
+                // Dev shortcut: roll a pet straight into the Pet slot ("rat"/"tome").
+                var petGive = Loot.GeneratePet(arg == "tome" ? "pet_tome" : "pet_rat",
+                    Math.Max(1, c.Level));
+                if (petGive != null)
+                {
+                    c.Equipment[EquipSlot.Pet] = petGive;
+                    p.RecomputeStats(Data);
+                    changed = true;
+                }
+                break;
+            case "drop_pets":
+            {
+                // Dev shortcut: both unique pets land at your feet, rolled exactly
+                // like real drops (the grimoire gets its two tier-1 suffixes).
+                var ratDrop = Loot.GeneratePet("pet_rat", Math.Max(1, c.Level));
+                var tomeDrop = Loot.GeneratePet("pet_tome", Math.Max(1, c.Level));
+                if (ratDrop != null)
+                    SpawnDrop(ratDrop, p.Position + new System.Numerics.Vector2(0.9f, 0.3f), p.Height);
+                if (tomeDrop != null)
+                    SpawnDrop(tomeDrop, p.Position + new System.Numerics.Vector2(-0.9f, 0.5f), p.Height);
+                break;
+            }
+            case "wave_skip":
+                // Dev shortcut: jump a defense run to its final (boss) wave.
+                if (Map.Kind == MapKind.Defense && DefPhase == DefensePhase.Build)
+                {
+                    WavesCleared = DefenseBalance.WavesTotal - 1;
+                    _events.DefenseStateChanged(this);
+                }
+                break;
             case "give_curio":
             {
                 string curioId = string.IsNullOrEmpty(arg) ? "merc_contract" : arg;

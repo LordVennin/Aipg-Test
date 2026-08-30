@@ -1151,6 +1151,35 @@ public class WorldRenderer
         {
             var pos = summon.Position;
             var screen = camera.WorldToScreen(pos, summon.Height);
+
+            // Companion pets: not skeleton rigs — the rat scurries low, the grimoire
+            // hovers at shoulder height with a slow bob and fluttering pages.
+            if (summon.SkillId != null && summon.SkillId.StartsWith("pet_"))
+            {
+                var petFrames = SpriteGen.GetPetFrames(summon.SkillId);
+                if (petFrames == null) continue;
+                bool tome = summon.SkillId == "pet_tome";
+                bool petMoving = NumVec2.Distance(summon.Position, summon.NetTarget) > 0.05f;
+                var petTex = petFrames[tome
+                    ? (int)(animClock / 260 + summon.Id) % 2
+                    : petMoving ? (int)(animClock / 110 + summon.Id) % 2 : 0];
+                float hover = tome ? 12f + MathF.Sin((animClock + summon.Id * 400) / 340f) * 2.5f : 0f;
+                var petScreen = screen;
+                bool petLeft = summon.FacingLeft;
+                _sorted.Add((pos.X + pos.Y + summon.Height * 1.0f + 0.08f + UnderDeckBias(pos, summon.Height), batch =>
+                {
+                    int w2 = petTex.Width * 2, h2 = petTex.Height * 2;
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(petScreen.X - 7), (int)(petScreen.Y - 4), 14, 7),
+                        new Color(0, 0, 0, 70));
+                    batch.Draw(petTex,
+                        new Rectangle((int)petScreen.X - w2 / 2, (int)(petScreen.Y - hover) - h2 + 2, w2, h2),
+                        null, Color.White, 0f, Vector2.Zero,
+                        petLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
+                }));
+                continue;
+            }
+
             var summonFrames = SpriteGen.GetSummonFrames(summon.SkillId);
             if (summonFrames == null) continue;
             bool mine = summon.OwnerId == world.MyPlayerId;
@@ -2034,15 +2063,24 @@ public class WorldRenderer
             if (fx.Kind == "arrowrain")
             {
                 // Arrow Rain's landing window, ONE timeline (1.5s): the ring holds
-                // while the staggered volley streaks down (server damage ticks land
-                // in this same window), each arrow sticks where it hit, and the
-                // whole tableau fades at the end. Land times sit at t 0.30-0.57 —
-                // matching ServerWorld.RainFirstTickDelay/RainTickInterval.
+                // while the staggered volley streaks down, each arrow sticks where it
+                // hit, and the whole tableau fades at the end. Landing SPOTS and
+                // MOMENTS come from SkillMath's shared scatter — the server damages
+                // exactly where and when each drawn arrow lands.
                 var arrowTex = SpriteGen.GetProjectileSprite("Arrow");
                 float radPx = fx.Radius * 2f * IsoCamera.HalfTileW;
                 int seedR = (int)(fx.Position.X * 389) ^ (int)(fx.Position.Y * 719);
                 float tR = t;
                 float fadeAll = Math.Clamp((1f - tR) / 0.25f, 0f, 1f);
+                var rainCenter = new System.Numerics.Vector2(fx.Position.X, fx.Position.Y);
+                var lands = new Vector2[Skills.SkillMath.RainArrowCount];
+                for (int ar = 0; ar < lands.Length; ar++)
+                {
+                    var wo = Skills.SkillMath.RainArrowOffset(rainCenter, ar, fx.Radius);
+                    var wp = camera.WorldToScreen(
+                        new NumVec2(fx.Position.X + wo.X, fx.Position.Y + wo.Y), fx.Height);
+                    lands[ar] = new Vector2(wp.X, wp.Y);
+                }
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
                     float ringA = Math.Clamp((0.62f - tR) / 0.2f, 0f, 1f) * 0.55f;
@@ -2056,15 +2094,14 @@ public class WorldRenderer
                                 new Color(210, 190, 130) * ringA);
                         }
                     if (arrowTex == null) return;
-                    for (int ar = 0; ar < 12; ar++)
+                    for (int ar = 0; ar < lands.Length; ar++)
                     {
                         int hashA = seedR ^ (ar * unchecked((int)0x9E3779B1));
-                        float axp = ((hashA & 0xFF) / 255f * 2f - 1f) * radPx * 0.85f;
-                        float ayp = (((hashA >> 8) & 0xFF) / 255f * 2f - 1f) * radPx * 0.42f;
                         // Pointing down-left-ish, matching the fall from the upper right.
                         float tilt = 1.8f + ((hashA >> 16) & 0x3F) / 63f * 0.4f;
-                        var landAt = new Vector2(screen.X + axp, screen.Y + ayp);
-                        float startT = (ar % 6) / 6f * 0.27f;
+                        var landAt = lands[ar];
+                        float startT = Skills.SkillMath.RainArrowLandDelay(ar) /
+                                       Skills.SkillMath.RainVisualDuration - 0.30f;
                         float ft = Math.Clamp((tR - startT) / 0.30f, 0f, 1f);
                         if (ft <= 0f) continue;
                         if (ft < 1f)
@@ -2770,6 +2807,8 @@ public class WorldRenderer
     {
         ItemRarity.Magic => new Color(110, 140, 255),
         ItemRarity.Rare => new Color(255, 220, 80),
+        // Uniques read as OLD gold — brownish, burnished, unmistakably not a rare.
+        ItemRarity.Unique => new Color(196, 142, 72),
         _ => Color.White,
     };
 

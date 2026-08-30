@@ -1138,3 +1138,33 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
 - Safety nets unchanged and re-verified across seeds: spawn-to-boss path,
   no stranded pockets (stranded tree footprints now rockify too), no orphan
   or glitch stairs, same-seed determinism tile for tile.
+
+---
+
+# Addendum (batch 53): pets, the defense boss, honest AoE
+
+- **Pets — the game's first UNIQUE items** (brown-gold, worn in a new Pet
+  slot, visible companion in the world, rarest ordinary find: 0.15% per
+  kill, 2% per boss roll, coinflip between the two):
+  - *Nib, the Gutter Rat*: +4% move speed, and it physically fetches
+    dropped gold within 9 tiles of you — server-authoritative pickup,
+    banked hands-free. No other effects.
+  - *The Vagrant Grimoire*: +2% mana regeneration, plus ALWAYS exactly two
+    random tier-1 suffix modifiers rolled at drop time (any suffix family;
+    never re-rollable — pets can't be enchanted).
+  - Pets are pure companions: never targeted, never damaged, never in the
+    enemy's math. F1 debug: "Drop Pets" (real rolls at your feet) and a
+    give_pet command.
+- **The Caravan Stand has a boss now**: the final wave opens with the
+  GRAVELORD striding out of a random portal — boss loot table, slam that
+  cracks structures, one more level than the wave. F1 "Skip To Final Wave"
+  jumps a build phase straight there.
+- **Enemy AoE damages the camp**: a grave caller's ground burst and any
+  boss slam now scorch turrets, barriers and the wagon in their circle —
+  structures are no longer immune to everything but chewing.
+- **Arrow Rain, per-arrow hitboxes**: all 12 arrows are individual impacts
+  at deterministic spots and moments (shared math with the animation — what
+  you see land is what hits). Each arrow deals 40% of the skill's roll in a
+  0.8 radius; one body can be struck by several arrows, clusters eat the
+  whole volley, and gaps in the scatter genuinely miss.
+- Protocol v39.

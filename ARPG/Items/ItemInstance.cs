@@ -101,6 +101,8 @@ public class ItemInstance
     public string DisplayName(GameData data)
     {
         var baseDef = GetBase(data);
+        // Uniques carry their own name — modifiers never rename them.
+        if (Rarity == ItemRarity.Unique) return baseDef.Name;
         if (Rarity == ItemRarity.Normal || Modifiers.Count == 0) return baseDef.Name;
         if (Rarity == ItemRarity.Magic)
         {
@@ -136,6 +138,7 @@ public class ItemInstance
         {
             ItemRarity.Magic => 1.4f,
             ItemRarity.Rare => 2.2f,
+            ItemRarity.Unique => 4f,
             _ => 1f,
         };
         value *= rarityMult * (1f + 0.05f * (ItemLevel - 1));

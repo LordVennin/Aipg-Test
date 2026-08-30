@@ -203,6 +203,20 @@ public partial class ServerWorld
                        DefenseBalance.WavePerExtraPlayer * (players - 1);
         _nextWaveSpawnAt = Time + 1.5f;
         _portalCursor = 0;
+        // The final wave brings its own BOSS: the Gravelord strides out of a random
+        // portal ahead of the horde, boss loot table and all.
+        if (wave >= DefenseBalance.WavesTotal && Data.Enemies.ContainsKey("gravelord"))
+        {
+            var bossPortal = Map.SpawnPortals.Count > 0
+                ? Map.SpawnPortals[_rng.Next(Map.SpawnPortals.Count)]
+                : Map.PlayerSpawn;
+            var boss = SpawnEnemy("gravelord", bossPortal,
+                level: CampaignEnemyLevel + DefenseBalance.WaveLevelStep * (wave - 1) + 1);
+            boss.State = EnemyState.Chase;
+            _events.WorldEffect("burst", bossPortal, 1.6f, 0.6f, boss.Height);
+            foreach (var pl in Players.Values)
+                _events.MessageFor(pl, "The ground shakes — the Gravelord answers the final horn!");
+        }
         // The camp crew steps clear while the fighting runs.
         foreach (var npc in Npcs.ToList())
         {
