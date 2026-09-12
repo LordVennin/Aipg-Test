@@ -81,7 +81,7 @@ public class PlayScreen : IScreen
     /// <summary>ARPG_DEVUI=gear[:family]: wear a full armor set shortly after joining
     /// (GUI automation — verifies the worn-armor overlays).</summary>
     private string _devEquipSet;
-    /// <summary>ARPG_DEVUI=face:S|N|E|W — pin the aim facing (GUI automation: headless
+    /// <summary>ARPG_DEVUI=face:S|N|E|W|SE|SW|NE|NW — pin the aim facing (GUI automation: headless
     /// X servers don't deliver real mouse motion, so screenshots can't aim).</summary>
     private NumVec2? _devFaceOverride;
     private bool _devWarpNext;
@@ -267,6 +267,10 @@ public class PlayScreen : IScreen
                     "N" => NumVec2.Normalize(new NumVec2(-1, -1)),
                     "E" => NumVec2.Normalize(new NumVec2(1, -1)),
                     "W" => NumVec2.Normalize(new NumVec2(-1, 1)),
+                    "SE" => new NumVec2(1, 0),   // world axes ARE the screen diagonals
+                    "SW" => new NumVec2(0, 1),
+                    "NE" => new NumVec2(0, -1),
+                    "NW" => new NumVec2(-1, 0),
                     _ => NumVec2.Normalize(new NumVec2(1, 1)), // S
                 };
         }

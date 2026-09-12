@@ -1275,3 +1275,25 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   `learn:<skill>[+<skill>]` learns skills free onto the hotbar.
 - Protocol v42 (SkillEffect carries the radius; corpse and projectile packets
   carry the source id / pierce flag).
+
+---
+
+# Addendum (batch 57): the 45° turns
+
+- **Eight facings from five baked views.** The procedural human rig gained two
+  three-quarter views — front-right and back-right — drawn by the same rules
+  as the front/back/side: the near shoulder, arm and leg sit a pixel further
+  toward the facing and catch the light, the far flank hides in shadow, both
+  eyes push toward the front edge with a nose hint (or, from behind, the back
+  of the head and one cheek). The aim direction now cuts the screen angle into
+  eight 45° sectors; the western turns mirror the east-facing strips. Walking
+  along a world axis (the screen diagonals) shows a three-quarter turn.
+- **Every armor and helmet layer turns too**: robe skirts, the leather strap
+  (diagonal across the turned chest), mail rings, plate pauldrons and ridge;
+  hood, cowl, cap and helm (its slit wraps the front edge; a seam runs the
+  back). Bows show their full arc on side AND three-quarter views, edge-on
+  only when facing straight toward or away.
+- Held weapons keep four orientations for now (they orbit with the aim, so
+  they already sit correctly on the diagonals). The creation screen turntable
+  spins through all eight.
+- No protocol change (purely client-side rendering).

@@ -3495,12 +3495,23 @@ public static class HeadlessNetTest
               chainOff.InactiveItems.Contains(chainCowl.InstanceId),
               "deactivation cascades: the cowl standing on the robe's +INT falls with it");
 
-        // 4-way body facing: aim (mouse) direction picks front/back/side, side mirrors west.
+        // 8-way body facing: aim (mouse) direction picks front/back/side or a
+        // three-quarter turn; everything west-facing mirrors an east-facing strip.
         Check(Render.WorldRenderer.BodyDirIndex(new Vector2(1, 1), out bool faceS) == Render.SpriteGen.DirSouth && !faceS &&
               Render.WorldRenderer.BodyDirIndex(new Vector2(-1, -1), out _) == Render.SpriteGen.DirNorth &&
               Render.WorldRenderer.BodyDirIndex(new Vector2(1, -1), out bool faceE) == Render.SpriteGen.DirEast && !faceE &&
               Render.WorldRenderer.BodyDirIndex(new Vector2(-1, 1), out bool faceW) == Render.SpriteGen.DirEast && faceW,
-              "aim direction maps to the four body facings (S / N / E / W-mirrored)");
+              "aim direction maps to the four cardinal body facings (S / N / E / W-mirrored)");
+        Check(Render.WorldRenderer.BodyDirIndex(new Vector2(1, 0), out bool faceSE) == Render.SpriteGen.DirSouthEast && !faceSE &&
+              Render.WorldRenderer.BodyDirIndex(new Vector2(0, 1), out bool faceSW) == Render.SpriteGen.DirSouthEast && faceSW &&
+              Render.WorldRenderer.BodyDirIndex(new Vector2(0, -1), out bool faceNE) == Render.SpriteGen.DirNorthEast && !faceNE &&
+              Render.WorldRenderer.BodyDirIndex(new Vector2(-1, 0), out bool faceNW) == Render.SpriteGen.DirNorthEast && faceNW,
+              "the world axes (screen diagonals) pick the three-quarter views (SE / SW / NE / NW)");
+        // Sector edges: 22.5° either side of a cardinal still reads as that cardinal.
+        Check(Render.WorldRenderer.BodyDirIndex(new Vector2(1f, 0.7f), out _) == Render.SpriteGen.DirSouth &&
+              Render.WorldRenderer.BodyDirIndex(new Vector2(1f, 0.4f), out _) == Render.SpriteGen.DirSouthEast &&
+              Render.SpriteGen.PlayerDirCount == 5,
+              "facing sectors are 45° wide around five baked views");
 
         Console.WriteLine("\n-- New enemies: Crypt Leaper + Grave Caller --");
         Check(data.Enemies["crypt_leaper"].DashMinLevel == 1 &&

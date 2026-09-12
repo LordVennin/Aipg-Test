@@ -1590,8 +1590,10 @@ public class WorldRenderer
                 var offHandBase = p.OffHandBaseId != null ? _data.Items.GetValueOrDefault(p.OffHandBaseId) : null;
                 int bodyDir = BodyDirIndex(p.Facing, out bool bodyFlip);
                 // A bow's full arc only shows when its plane faces the camera — the side
-                // views. Facing toward/away, the held bow is seen edge-on instead.
-                var weaponTex = weaponBase?.Category == Items.ItemCategory.Bow && bodyDir != SpriteGen.DirEast
+                // and three-quarter views. Facing straight toward/away, the held bow is
+                // seen edge-on instead.
+                var weaponTex = weaponBase?.Category == Items.ItemCategory.Bow &&
+                                bodyDir is SpriteGen.DirSouth or SpriteGen.DirNorth
                     ? SpriteGen.GetBowFrontSprite(weaponBase)
                     : SpriteGen.GetWeaponSprite(weaponBase);
                 var offHandTex = SpriteGen.GetWeaponSprite(offHandBase);
@@ -3063,19 +3065,34 @@ public class WorldRenderer
         _ => Color.White,
     };
 
-    /// <summary>4-way body facing from a world-space aim direction. World +X projects
+    /// <summary>8-way body facing from a world-space aim direction. World +X projects
     /// toward screen lower-right and +Y toward lower-left, so screen-x = fx - fy and
-    /// screen-y = fx + fy. Vertical wins ties (front/back views dominate); the side
-    /// view mirrors for west via <paramref name="flip"/>.</summary>
+    /// screen-y = fx + fy. The screen angle is cut into eight 45° sectors: the four
+    /// cardinals keep their baked views, the diagonals use the three-quarter views
+    /// (South-East / North-East), and everything west-facing is the east-facing strip
+    /// mirrored via <paramref name="flip"/>. Walking along a world axis therefore
+    /// shows a three-quarter turn — the facing players see most.</summary>
     public static int BodyDirIndex(System.Numerics.Vector2 facing, out bool flip)
     {
         float sx = facing.X - facing.Y;
         float sy = facing.X + facing.Y;
         flip = false;
-        if (Math.Abs(sy) >= Math.Abs(sx))
-            return sy >= 0 ? SpriteGen.DirSouth : SpriteGen.DirNorth;
-        flip = sx < 0;
-        return SpriteGen.DirEast;
+        if (sx == 0f && sy == 0f) return SpriteGen.DirSouth;
+        // Sector 0 = east, counting clockwise on screen (y down): 1 SE, 2 S, 3 SW,
+        // 4 W, 5 NW, 6 N, 7 NE.
+        float ang = MathF.Atan2(sy, sx);
+        int sector = (int)MathF.Floor((ang + MathF.PI / 8f) / (MathF.PI / 4f)) & 7;
+        switch (sector)
+        {
+            case 0: return SpriteGen.DirEast;
+            case 1: return SpriteGen.DirSouthEast;
+            case 2: return SpriteGen.DirSouth;
+            case 3: flip = true; return SpriteGen.DirSouthEast;
+            case 4: flip = true; return SpriteGen.DirEast;
+            case 5: flip = true; return SpriteGen.DirNorthEast;
+            case 6: return SpriteGen.DirNorth;
+            default: return SpriteGen.DirNorthEast;
+        }
     }
 
     public static Color ParseColor(string hex, Color fallback)
