@@ -1297,3 +1297,40 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   they already sit correctly on the diagonals). The creation screen turntable
   spins through all eight.
 - No protocol change (purely client-side rendering).
+
+---
+
+# Addendum (batch 58): the HUD, the dodge, the burst, the inspector
+
+- **Energy Shield caps the health orb**: instead of a separate strip above
+  the orb, the shield now fills the TOP HALF of the life globe from the crown
+  down (a full shield covers half the orb), with a bright edge where it
+  stops - the classic ARPG globe overlay. In bar mode it rides the top half
+  of the health bar.
+- **HUD Style option** (Options -> Gameplay): "Orbs" (default) or "Bars" -
+  two long horizontal bars along the bottom edge either side of the hotbar,
+  health left, mana right (reserved mana as a dim block at the far end).
+  Flasks, the name line, the player list and the summon roster re-anchor
+  to the bars.
+- **Dodge dust**: every dash kicks up a puff at the feet drifting the
+  OPPOSITE way to the dodge, with a little grit thrown back. Your own is
+  predicted at the key press; everyone else's comes with the dodge echo.
+- **Zone banner vs target display**: hovering an enemy used to draw the
+  zone name straight through the top-of-screen target panel. The banner
+  (and the key hints) now shift down below the panel while it shows.
+- **Arcane Burst footprint**: the charge ring and the detonation were drawn
+  at 2R on screen (a world circle of radius R spans R*sqrt2 half-tiles) -
+  the same 40% overstatement the slams had - and the charge ring shrank
+  into the point instead of marking the area. The charge ring now closes
+  from just outside onto the TRUE boundary, the detonation's outer ring
+  lands exactly on it with a crisp rim, and both use the server's effective
+  radius, so a leveled or scrolled burst draws wider. The hitbox itself was
+  already right (radius + target body).
+- **Tooltip inspector**: the mechanics paragraph under deflection gear is
+  gone from every item. Armor, Energy Shield and Deflection lines are now
+  UNDERLINED terms; hold Alt and the tooltip stays put so the cursor can
+  travel onto it, and hovering a term opens an explainer popup whose numbers
+  come straight from the balance constants (armor's level-scaled soft cap,
+  the shield's 4s / 25%-per-second recharge, deflection's descending check
+  chain).
+- No protocol change.

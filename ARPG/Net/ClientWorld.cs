@@ -501,8 +501,13 @@ public class ClientWorld
         }
     }
 
-    public void AddEffect(Vector2 pos, float radius, float duration, string kind, float height = 0f, float delay = 0f) =>
-        Effects.Add(new ClientEffect { Position = pos, Radius = radius, TimeLeft = duration, Duration = duration, Kind = kind, Height = height, Delay = delay });
+    public void AddEffect(Vector2 pos, float radius, float duration, string kind, float height = 0f, float delay = 0f,
+        Vector2? dir = null) =>
+        Effects.Add(new ClientEffect
+        {
+            Position = pos, Radius = radius, TimeLeft = duration, Duration = duration, Kind = kind,
+            Height = height, Delay = delay, Dir = dir ?? Vector2.Zero,
+        });
 
     /// <summary>A line-shaped effect (dash telegraphs): Points[0] = start, Points[1] = end.</summary>
     public void AddLineEffect(Vector2 from, Vector2 to, float duration, string kind, float height = 0f) =>

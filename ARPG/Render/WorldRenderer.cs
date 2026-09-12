@@ -2373,91 +2373,104 @@ public class WorldRenderer
             }
             if (fx.Kind == "burstcharge")
             {
-                // Arcane Burst's charge-up: a shrinking violet ring with sparks spiraling
-                // INTO the focus — the inverse of the detonation, telegraphing the area.
+                // Arcane Burst's charge-up: a violet ring closing from just outside the
+                // area onto its TRUE boundary (R*sqrt2 half-tiles on screen), sparks
+                // spiraling into the focus — read the exact footprint before it lands.
                 float chargeT = t;
-                float ringPx = fx.Radius * 2f * IsoCamera.HalfTileW * (1.15f - 0.75f * chargeT);
-                var ringCol = new Color(150, 90, 235) * (0.35f + 0.5f * chargeT);
+                float cax = fx.Radius * 1.414f * IsoCamera.HalfTileW * (1.3f - 0.3f * chargeT);
+                float cay = fx.Radius * 1.414f * IsoCamera.HalfTileH * (1.3f - 0.3f * chargeT);
+                var ringCol = new Color(150, 90, 235) * (0.35f + 0.55f * chargeT);
                 long spinClock = Environment.TickCount64;
-                var fxPos = fx.Position;
-                float fxHeight = fx.Height;
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    for (int seg2 = 0; seg2 < 14; seg2++)
+                    for (int seg2 = 0; seg2 < 22; seg2++)
                     {
-                        float a2 = seg2 / 14f * MathF.Tau;
+                        float a2 = seg2 / 22f * MathF.Tau;
                         batch.Draw(TextureGen.Pixel, new Rectangle(
-                            (int)(screen.X + MathF.Cos(a2) * ringPx) - 1,
-                            (int)(screen.Y + MathF.Sin(a2) * ringPx * 0.5f) - 1, 3, 2), ringCol);
+                            (int)(screen.X + MathF.Cos(a2) * cax) - 1,
+                            (int)(screen.Y + MathF.Sin(a2) * cay) - 1, 3, 2), ringCol);
                     }
                     for (int sp = 0; sp < 5; sp++)
                     {
                         float ang2 = spinClock * 0.006f + sp * 1.256f;
-                        float rr = ringPx * (1f - chargeT * 0.85f) * (0.55f + 0.09f * sp);
+                        float rr = (1f - chargeT * 0.85f) * (0.55f + 0.09f * sp);
                         batch.Draw(TextureGen.Pixel, new Rectangle(
-                            (int)(screen.X + MathF.Cos(ang2) * rr) - 1,
-                            (int)(screen.Y + MathF.Sin(ang2) * rr * 0.5f) - 8 - 1, 2, 2),
+                            (int)(screen.X + MathF.Cos(ang2) * cax * rr) - 1,
+                            (int)(screen.Y + MathF.Sin(ang2) * cay * rr) - 8 - 1, 2, 2),
                             new Color(220, 190, 255) * (0.5f + 0.5f * chargeT));
                     }
                     // Brightening core as the detonation nears.
-                    int core = (int)(6 + 10 * chargeT);
+                    int core = (int)(6 + 14 * chargeT);
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)screen.X - core / 2, (int)screen.Y - 8 - core / 2, core, core),
-                        new Color(200, 150, 255) * (0.35f + 0.6f * chargeT));
+                        new Color(200, 160, 255) * (0.3f + 0.6f * chargeT));
                 }));
                 continue;
             }
+
             if (fx.Kind == "burst")
             {
-                // Detonation: a bright core flash, TWO expanding rings, radial sparks and
-                // a field of arcane motes covering the whole area of effect — the AoE
-                // footprint reads clearly instead of a growing purple puddle.
+                // Detonation, drawn at the TRUE damage ellipse: a ground wash over the
+                // exact area, a core flash, two rings expanding out to the boundary
+                // (the outer one lands exactly on it), radial sparks and a field of
+                // arcane motes across the whole footprint. The radius is the server's
+                // effective one, so a leveled or scrolled burst draws wider.
                 float bfade = 1f - t;
-                float fullPx = fx.Radius * 2f * IsoCamera.HalfTileW;
-                float outerPx = fullPx * (0.35f + 0.75f * t);
-                float innerPx = outerPx * 0.6f;
+                float fullX = fx.Radius * 1.414f * IsoCamera.HalfTileW;
+                float fullY = fx.Radius * 1.414f * IsoCamera.HalfTileH;
+                float grow = 0.35f + 0.65f * MathF.Min(1f, t * 1.15f);
                 int seedB = (int)(fx.Position.X * 553) ^ (int)(fx.Position.Y * 719);
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    // Faint ground wash over the exact damage area.
                     batch.Draw(TextureGen.Circle32,
-                        new Rectangle((int)(screen.X - fullPx), (int)(screen.Y - fullPx / 2f),
-                            (int)(fullPx * 2), (int)fullPx),
-                        new Color(140, 70, 220) * (0.18f * bfade));
+                        new Rectangle((int)(screen.X - fullX), (int)(screen.Y - fullY),
+                            (int)(fullX * 2), (int)(fullY * 2)),
+                        new Color(140, 70, 220) * (0.2f * bfade));
                     for (int ring = 0; ring < 2; ring++)
                     {
-                        float rp = ring == 0 ? outerPx : innerPx;
+                        float rs = ring == 0 ? grow : grow * 0.6f;
                         var rc = (ring == 0 ? new Color(170, 90, 255) : new Color(225, 190, 255)) * bfade;
-                        for (int seg2 = 0; seg2 < 18; seg2++)
+                        int segs = ring == 0 ? 30 : 18;
+                        for (int seg2 = 0; seg2 < segs; seg2++)
                         {
-                            float a2 = seg2 / 18f * MathF.Tau;
+                            float a2 = seg2 / (float)segs * MathF.Tau;
                             batch.Draw(TextureGen.Pixel, new Rectangle(
-                                (int)(screen.X + MathF.Cos(a2) * rp) - 1,
-                                (int)(screen.Y + MathF.Sin(a2) * rp * 0.5f) - 1, 3, 2), rc);
+                                (int)(screen.X + MathF.Cos(a2) * fullX * rs) - 1,
+                                (int)(screen.Y + MathF.Sin(a2) * fullY * rs) - 1, 3, 2), rc);
                         }
                     }
+                    // A crisp rim at the exact boundary once the outer ring arrives.
+                    if (grow >= 0.99f)
+                        for (int s3 = 0; s3 < 36; s3++)
+                        {
+                            float a2 = s3 * MathF.Tau / 36f;
+                            batch.Draw(TextureGen.Pixel, new Rectangle(
+                                (int)(screen.X + MathF.Cos(a2) * fullX) - 1,
+                                (int)(screen.Y + MathF.Sin(a2) * fullY) - 1, 2, 2),
+                                new Color(235, 215, 255) * (bfade * 0.9f));
+                        }
                     // Radial sparks flung outward, decelerating.
                     for (int sp = 0; sp < 14; sp++)
                     {
                         float ang2 = sp * (MathF.Tau / 14f) + 0.4f;
-                        float rr = outerPx * (0.5f + 0.55f * t);
+                        float rr = grow * (0.5f + 0.5f * t);
                         batch.Draw(TextureGen.Pixel, new Rectangle(
-                            (int)(screen.X + MathF.Cos(ang2) * rr) - 1,
-                            (int)(screen.Y + MathF.Sin(ang2) * rr * 0.5f) - 6 - 1, 2, 2),
+                            (int)(screen.X + MathF.Cos(ang2) * fullX * rr) - 1,
+                            (int)(screen.Y + MathF.Sin(ang2) * fullY * rr) - 6 - 1, 2, 2),
                             new Color(235, 210, 255) * bfade);
                     }
-                    // Motes scattered across the FULL radius, drifting upward as they fade
+                    // Motes scattered across the FULL area, drifting upward as they fade
                     // — deterministic per burst, no particle state to track.
                     for (int m = 0; m < 18; m++)
                     {
                         var rngM = new Random(seedB + m * 89);
                         float aM = (float)(rngM.NextDouble() * Math.PI * 2);
-                        float dM = fullPx * MathF.Sqrt((float)rngM.NextDouble());
+                        float dM = MathF.Sqrt((float)rngM.NextDouble());
                         float rise = 4f + (14f + 18f * (float)rngM.NextDouble()) * t;
                         int sz = 2 + rngM.Next(2);
                         batch.Draw(TextureGen.Pixel, new Rectangle(
-                            (int)(screen.X + MathF.Cos(aM) * dM) - 1,
-                            (int)(screen.Y + MathF.Sin(aM) * dM * 0.5f - rise) - 1, sz, sz),
+                            (int)(screen.X + MathF.Cos(aM) * fullX * dM) - 1,
+                            (int)(screen.Y + MathF.Sin(aM) * fullY * dM - rise) - 1, sz, sz),
                             new Color(190, 130, 255) * (bfade * (0.45f + 0.55f * (float)rngM.NextDouble())));
                     }
                     // Core flash, collapsing fast.
@@ -2466,6 +2479,45 @@ public class WorldRenderer
                         batch.Draw(TextureGen.Circle32,
                             new Rectangle((int)screen.X - core / 2, (int)screen.Y - 8 - core / 2, core, core),
                             new Color(240, 220, 255) * (bfade * 0.9f));
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "dodgedust")
+            {
+                // Dodge dust: puffs kicked up at the feet, drifting the OPPOSITE way to
+                // the dash and swelling as they fade, plus a little grit thrown back.
+                var dIso = new Vector2(fx.Dir.X - fx.Dir.Y, (fx.Dir.X + fx.Dir.Y) * 0.5f);
+                if (dIso.LengthSquared() > 0.001f) dIso.Normalize(); else dIso = new Vector2(1, 0);
+                var back = -dIso;
+                int seedD = (int)(fx.Position.X * 461) ^ (int)(fx.Position.Y * 883);
+                var dustCol = _floorB;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.05f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    for (int d = 0; d < 5; d++)
+                    {
+                        var rngD = new Random(seedD + d * 53);
+                        float side = (float)(rngD.NextDouble() - 0.5) * 16f;
+                        float travel = (8f + 18f * (float)rngD.NextDouble()) * MathF.Sqrt(t);
+                        var pp = new Vector2(screen.X, screen.Y - 2) + back * travel +
+                                 new Vector2(-back.Y, back.X) * side * (0.5f + t);
+                        int sz = (int)(6 + 10 * t + rngD.Next(4));
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(pp.X - sz), (int)(pp.Y - sz / 2f - 3f * t), sz * 2, sz),
+                            dustCol * (0.42f * (1f - t)));
+                    }
+                    for (int g = 0; g < 4; g++)
+                    {
+                        var rngG = new Random(seedD + g * 97);
+                        float spread = (float)(rngG.NextDouble() - 0.5) * 0.9f;
+                        var gd = new Vector2(back.X * MathF.Cos(spread) - back.Y * MathF.Sin(spread),
+                                             back.X * MathF.Sin(spread) + back.Y * MathF.Cos(spread));
+                        float dist = (14f + 16f * (float)rngG.NextDouble()) * t;
+                        float hop = 6f * MathF.Sin(MathF.Min(1f, t * 1.6f) * MathF.PI);
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)(screen.X + gd.X * dist), (int)(screen.Y - 2 + gd.Y * dist * 0.5f - hop), 2, 2),
+                            Dim(dustCol, 0.7f) * (0.8f * (1f - t)));
+                    }
                 }));
                 continue;
             }

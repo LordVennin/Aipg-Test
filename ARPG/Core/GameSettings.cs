@@ -15,6 +15,9 @@ public class GameSettings
     /// <summary>Also draw stun/chill buildup strips under enemies' small overhead
     /// health bars (they always show on the top-of-screen hover display).</summary>
     public bool ShowOverheadStatusBars { get; set; }
+    /// <summary>HUD style: false = the classic health/mana ORBS in the corners, true =
+    /// long horizontal BARS along the bottom edge either side of the hotbar.</summary>
+    public bool HudBars { get; set; }
     /// <summary>Zone theme used when hosting/starting single player. Themes shape map
     /// GENERATION (the forest grows big trees), so this is decided before the map exists
     /// and replicated to joining clients.</summary>

@@ -234,7 +234,7 @@ public class OptionsPanel
     private int _controlsScroll;
     private int _controlsContentTop, _controlsContentBottom, _controlRowsHeight;
     private Button _damageNumbersButton, _healthBarsButton, _playerListButton;
-    private Button _fullscreenButton, _resolutionButton, _soundButton, _lightingButton, _statusBarsButton;
+    private Button _fullscreenButton, _resolutionButton, _soundButton, _lightingButton, _statusBarsButton, _hudStyleButton;
 
     public OptionsPanel(GameMain game, Action onClose)
     {
@@ -351,6 +351,13 @@ public class OptionsPanel
                 RefreshLabels();
             }) { FontSize = 15 };
         gameplay.Children.Add(_statusBarsButton);
+        _hudStyleButton = new Button(HudStyleLabel(),
+            new Rectangle(cx + 250, contentY + 120, 240, 30), () =>
+            {
+                game.Settings.HudBars = !game.Settings.HudBars;
+                RefreshLabels();
+            }) { FontSize = 15 };
+        gameplay.Children.Add(_hudStyleButton);
         gameplay.Children.Add(new Label("Zone theme shapes the NEXT map you host (forest grows big trees).",
             cx, contentY + 160, 14));
 
@@ -392,6 +399,7 @@ public class OptionsPanel
     }
 
     private string SoundLabel() => $"Sound: {_game.Settings.SoundVolume * 100:0}%";
+    private string HudStyleLabel() => $"HUD Style: {(_game.Settings.HudBars ? "Bars" : "Orbs")}";
 
     private static string ToggleLabel(string name, bool on) => $"{name}: {(on ? "ON" : "OFF")}";
     private string ResolutionLabel() =>
@@ -435,6 +443,7 @@ public class OptionsPanel
             if (_soundButton != null) _soundButton.Text = SoundLabel();
             if (_lightingButton != null) _lightingButton.Text = ToggleLabel("Lighting", _game.Settings.Lighting);
             if (_statusBarsButton != null) _statusBarsButton.Text = ToggleLabel("Overhead Status Bars", _game.Settings.ShowOverheadStatusBars);
+            if (_hudStyleButton != null) _hudStyleButton.Text = HudStyleLabel();
             _fullscreenButton.Text = ToggleLabel("Fullscreen", _game.Settings.Fullscreen);
             _resolutionButton.Text = ResolutionLabel();
         }
