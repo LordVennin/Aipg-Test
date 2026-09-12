@@ -154,7 +154,9 @@ public class SkillTreeUI
                 !tree.ById.TryGetValue(pair[1], out var b)) continue;
             var pa = NodeScreen(a);
             var pb = NodeScreen(b);
-            if (!InView(pa) && !InView(pb)) continue;
+            // Clip the segment to the view: a panned tree's connections must stop at
+            // the panel edge instead of running out over the rest of the screen.
+            if (!ClipSegment(ref pa, ref pb, view)) continue;
             bool lit = character.AllocatedPassives.Contains(a.Id) &&
                        character.AllocatedPassives.Contains(b.Id);
             bool half = character.AllocatedPassives.Contains(a.Id) ||
@@ -254,6 +256,28 @@ public class SkillTreeUI
             _ => fx.Stat.ToString(),
         };
         return $"+{fx.Value:0.#} {name}";
+    }
+
+    /// <summary>Liang-Barsky clip of segment a-b to a rectangle. False when nothing of
+    /// the segment lies inside; otherwise a and b are moved onto the visible part.</summary>
+    public static bool ClipSegment(ref Vector2 a, ref Vector2 b, Rectangle r)
+    {
+        float t0 = 0f, t1 = 1f;
+        float dx = b.X - a.X, dy = b.Y - a.Y;
+        bool Clip(float p, float q)
+        {
+            if (p == 0f) return q >= 0f;
+            float t = q / p;
+            if (p < 0f) { if (t > t1) return false; if (t > t0) t0 = t; }
+            else { if (t < t0) return false; if (t < t1) t1 = t; }
+            return true;
+        }
+        if (!Clip(-dx, a.X - r.Left) || !Clip(dx, r.Right - a.X) ||
+            !Clip(-dy, a.Y - r.Top) || !Clip(dy, r.Bottom - a.Y)) return false;
+        var na = new Vector2(a.X + dx * t0, a.Y + dy * t0);
+        var nb = new Vector2(a.X + dx * t1, a.Y + dy * t1);
+        a = na; b = nb;
+        return (b - a).LengthSquared() > 0.25f;
     }
 
     private static void DrawLine(SpriteBatch sb, Vector2 a, Vector2 b, Color color, int thickness)

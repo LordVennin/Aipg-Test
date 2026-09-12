@@ -1352,3 +1352,15 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   even a long brawl costs a fraction of a frame.
 - The blow's world direction rides the damage event (protocol v43); the old
   five-droplet burst and its fading speckle are gone.
+
+---
+
+# Addendum (batch 60): tree lines stay in the box, and the HUD nags you
+
+- **Passive tree connections clip to the panel**: panning the tree used to let
+  the lines between nodes run out over the rest of the screen; every segment
+  is now clipped to the tree's view rectangle (nodes were already culled).
+- **Pending-choice badges** (top left of the HUD): small pulsing pills show
+  "N passive points to spend" with the tree key, and "<skill> can level up"
+  (or "N skills can level up") with the skill-menu key, whenever there is
+  something waiting. They disappear once spent.
