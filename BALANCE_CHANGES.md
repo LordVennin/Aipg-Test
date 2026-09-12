@@ -1302,11 +1302,12 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
 
 # Addendum (batch 58): the HUD, the dodge, the burst, the inspector
 
-- **Energy Shield caps the health orb**: instead of a separate strip above
-  the orb, the shield now fills the TOP HALF of the life globe from the crown
-  down (a full shield covers half the orb), with a bright edge where it
-  stops - the classic ARPG globe overlay. In bar mode it rides the top half
-  of the health bar.
+- **Energy Shield shares the health orb**: instead of a separate strip above
+  the orb, the shield fills the RIGHT half of the life globe bottom-up by its
+  own fraction while health fills the whole globe underneath, so both levels
+  read as heights at a glance and missing health stays visible beside (and
+  above) the shield. In bar mode it rides the top half of the health bar as a
+  second strip.
 - **HUD Style option** (Options -> Gameplay): "Orbs" (default) or "Bars" -
   two long horizontal bars along the bottom edge either side of the hotbar,
   health left, mana right (reserved mana as a dim block at the far end).
