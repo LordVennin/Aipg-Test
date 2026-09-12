@@ -786,7 +786,15 @@ public partial class ServerWorld
             }
         }
 
-        if (changed) _events.CharacterChanged(p);
+        if (changed)
+        {
+            // Dev grants that change worn gear must re-derive the server's stats, or a
+            // dev-equipped energy shield never recharges (the client computed a max the
+            // server didn't know about).
+            p.RecomputeStats(Data);
+            _events.CharacterChanged(p);
+            _events.PlayerHealthChanged(p);
+        }
     }
 
     private bool GiveItem(ServerPlayer p, ItemInstance item)

@@ -30,6 +30,11 @@ public class HudUI
     /// each frame; highlighted in the summon roster beside the mana orb).</summary>
     public string FocusedSummonSkillId;
 
+    /// <summary>Pixels the top-center stack (key hints, zone banner) shifts DOWN this
+    /// frame — PlayScreen sets it to the hovered-enemy panel's bottom edge so the
+    /// banner never draws through the target display.</summary>
+    public int TopInset;
+
     public void Update(float dt)
     {
         for (int i = _messages.Count - 1; i >= 0; i--)
@@ -63,13 +68,13 @@ public class HudUI
                 _ => "the wagon is lost...",
             };
             var znSize = zoneFont.MeasureString(zoneName);
-            sb.DrawString(zoneFont, zoneName, new Vector2(screen.X / 2f - znSize.X / 2, 26), new Color(230, 215, 165));
+            sb.DrawString(zoneFont, zoneName, new Vector2(screen.X / 2f - znSize.X / 2, 26 + TopInset), new Color(230, 215, 165));
             var zsSize = subFont.MeasureString(zoneSub);
-            sb.DrawString(subFont, zoneSub, new Vector2(screen.X / 2f - zsSize.X / 2, 46),
+            sb.DrawString(subFont, zoneSub, new Vector2(screen.X / 2f - zsSize.X / 2, 46 + TopInset),
                 w.DefensePhase == 1 ? new Color(230, 170, 120) : new Color(170, 162, 140));
             // Wagon health, front and center under the banner.
             float wagonFrac = Math.Clamp(w.WagonHealth / w.WagonMaxHealth, 0f, 1f);
-            var wagonBar = new Rectangle(screen.X / 2 - 130, 64, 260, 10);
+            var wagonBar = new Rectangle(screen.X / 2 - 130, 64 + TopInset, 260, 10);
             sb.Draw(TextureGen.Pixel, wagonBar, new Color(20, 18, 16, 220));
             sb.Draw(TextureGen.Pixel,
                 new Rectangle(wagonBar.X, wagonBar.Y, (int)(wagonBar.Width * wagonFrac), wagonBar.Height),
@@ -100,9 +105,9 @@ public class HudUI
                       ? $"  ·  {_client.World.ZoneReadyCount}/{Math.Max(1, _client.World.ZoneAlivePlayers)} at the door"
                       : "");
             var znSize = zoneFont.MeasureString(zoneName);
-            sb.DrawString(zoneFont, zoneName, new Vector2(screen.X / 2f - znSize.X / 2, 26), new Color(230, 215, 165));
+            sb.DrawString(zoneFont, zoneName, new Vector2(screen.X / 2f - znSize.X / 2, 26 + TopInset), new Color(230, 215, 165));
             var zsSize = subFont.MeasureString(zoneSub);
-            sb.DrawString(subFont, zoneSub, new Vector2(screen.X / 2f - zsSize.X / 2, 46), new Color(170, 162, 140));
+            sb.DrawString(subFont, zoneSub, new Vector2(screen.X / 2f - zsSize.X / 2, 46 + TopInset), new Color(170, 162, 140));
         }
 
         // --- tutorial assistance: standing near a hint stone shows its tip ---
@@ -140,66 +145,140 @@ public class HudUI
                 break; // one stone at a time
             }
 
-        // --- health orb (bottom left) ---
+        // --- health + mana: ORBS (default) or the long horizontal BARS option ---
+        // Anchors for everything that hangs off the resource displays (flasks, the
+        // name line, the summon roster, the player list) are computed per style.
+        bool bars = _settings.HudBars;
         int orbSize = 96;
-        var orbRect = new Rectangle(18, screen.Y - orbSize - 18, orbSize, orbSize);
-        sb.Draw(TextureGen.Circle32, orbRect, new Color(40, 14, 14));
-        float frac = me.MaxHealth > 0 ? Math.Clamp(me.Health / me.MaxHealth, 0f, 1f) : 0f;
-        if (frac > 0)
-        {
-            int srcY = (int)(32 * (1 - frac));
-            var src = new Rectangle(0, srcY, 32, 32 - srcY);
-            var dst = new Rectangle(orbRect.X, orbRect.Y + (int)(orbSize * (1 - frac)), orbSize, (int)(orbSize * frac));
-            sb.Draw(TextureGen.Circle32, dst, src, new Color(190, 40, 40));
-        }
         var font = FontManager.GetBold(15);
-        string hpText = $"{me.Health:0}/{me.MaxHealth:0}";
-        var hpSize = font.MeasureString(hpText);
-        sb.DrawString(font, hpText, new Vector2(orbRect.Center.X - hpSize.X / 2, orbRect.Center.Y - hpSize.Y / 2), Color.White);
-
-        // Energy Shield: a cyan bar capping the health orb (only when the build has any).
+        float frac = me.MaxHealth > 0 ? Math.Clamp(me.Health / me.MaxHealth, 0f, 1f) : 0f;
         float maxEs = _client.World.MyStats.MaxEnergyShield;
-        if (maxEs > 0)
-        {
-            float esFrac = Math.Clamp(me.EnergyShield / maxEs, 0f, 1f);
-            var esBar = new Rectangle(orbRect.X, orbRect.Y - 10, orbRect.Width, 6);
-            sb.Draw(TextureGen.Pixel, esBar, new Color(14, 30, 40, 220));
-            sb.Draw(TextureGen.Pixel, new Rectangle(esBar.X, esBar.Y, (int)(esBar.Width * esFrac), esBar.Height),
-                new Color(90, 200, 235));
-            sb.DrawString(FontManager.Get(11), $"{me.EnergyShield:0}/{maxEs:0}",
-                new Vector2(esBar.Right + 6, esBar.Y - 3), new Color(140, 210, 235));
-        }
-
-        // --- mana orb (bottom right) ---
-        // Summons RESERVE maximum mana: the reserved band renders as a dim violet cap
-        // at the orb's top and the text shows the usable pool.
+        float esFrac = maxEs > 0 ? Math.Clamp(me.EnergyShield / maxEs, 0f, 1f) : 0f;
         float maxMana = _client.World.MyStats.MaxMana;
         float reserved = Math.Clamp(me.ManaReserved, 0f, maxMana);
         float usableMax = MathF.Max(0f, maxMana - reserved);
-        var manaRect = new Rectangle(screen.X - orbSize - 18, screen.Y - orbSize - 18, orbSize, orbSize);
-        sb.Draw(TextureGen.Circle32, manaRect, new Color(12, 16, 42));
         float manaFrac = maxMana > 0 ? Math.Clamp(me.Mana / maxMana, 0f, 1f) : 0f;
-        if (manaFrac > 0)
-        {
-            int mSrcY = (int)(32 * (1 - manaFrac));
-            var mSrc = new Rectangle(0, mSrcY, 32, 32 - mSrcY);
-            var mDst = new Rectangle(manaRect.X, manaRect.Y + (int)(orbSize * (1 - manaFrac)), orbSize, (int)(orbSize * manaFrac));
-            sb.Draw(TextureGen.Circle32, mDst, mSrc, new Color(50, 90, 220));
-        }
-        if (maxMana > 0 && reserved > 0)
-        {
-            float resFrac = Math.Clamp(reserved / maxMana, 0f, 1f);
-            int rH = (int)(32 * resFrac);
-            var rSrc = new Rectangle(0, 0, 32, rH);
-            var rDst = new Rectangle(manaRect.X, manaRect.Y, orbSize, (int)(orbSize * resFrac));
-            sb.Draw(TextureGen.Circle32, rDst, rSrc, new Color(70, 50, 110, 230));
-        }
+        var esColor = new Color(90, 200, 235);
+        string hpText = $"{me.Health:0}/{me.MaxHealth:0}";
         string manaText = $"{me.Mana:0}/{usableMax:0}";
-        var manaSize = font.MeasureString(manaText);
-        sb.DrawString(font, manaText, new Vector2(manaRect.Center.X - manaSize.X / 2, manaRect.Center.Y - manaSize.Y / 2), Color.White);
-        if (reserved > 0)
-            sb.DrawString(FontManager.Get(11), $"{reserved:0} reserved",
-                new Vector2(manaRect.X - 4, manaRect.Y - 14), new Color(170, 150, 220));
+        // Where the flasks, name line, player list and summon roster anchor.
+        int flaskHpX, flaskHpY, flaskMpX, flaskMpY, nameX, nameY, listBottomY, rosterRightX, rosterY;
+        Rectangle orbRect, manaRect;
+
+        if (!bars)
+        {
+            // --- health orb (bottom left) ---
+            orbRect = new Rectangle(18, screen.Y - orbSize - 18, orbSize, orbSize);
+            sb.Draw(TextureGen.Circle32, orbRect, new Color(40, 14, 14));
+            if (frac > 0)
+            {
+                int srcY = (int)(32 * (1 - frac));
+                var src = new Rectangle(0, srcY, 32, 32 - srcY);
+                var dst = new Rectangle(orbRect.X, orbRect.Y + (int)(orbSize * (1 - frac)), orbSize, (int)(orbSize * frac));
+                sb.Draw(TextureGen.Circle32, dst, src, new Color(190, 40, 40));
+            }
+            // Energy Shield CAPS the orb: a cyan layer filling the TOP HALF of the globe
+            // from the crown downward as the shield fills — a full shield covers half
+            // the orb, an empty one nothing (the classic life-globe overlay).
+            if (maxEs > 0 && esFrac > 0)
+            {
+                int esSrcH = Math.Max(1, (int)(16 * esFrac));
+                var esSrc = new Rectangle(0, 0, 32, esSrcH);
+                var esDst = new Rectangle(orbRect.X, orbRect.Y, orbSize, Math.Max(2, (int)(orbSize * 0.5f * esFrac)));
+                sb.Draw(TextureGen.Circle32, esDst, esSrc, esColor * 0.82f);
+                // A thin bright edge where the shield stops.
+                sb.Draw(TextureGen.Pixel, new Rectangle(esDst.X + 8, esDst.Bottom - 1, esDst.Width - 16, 1), new Color(200, 240, 255) * 0.7f);
+            }
+            var hpSize = font.MeasureString(hpText);
+            sb.DrawString(font, hpText, new Vector2(orbRect.Center.X - hpSize.X / 2, orbRect.Center.Y - hpSize.Y / 2), Color.White);
+            if (maxEs > 0)
+                sb.DrawString(FontManager.Get(11), $"ES {me.EnergyShield:0}/{maxEs:0}",
+                    new Vector2(orbRect.Right + 6, orbRect.Y - 2), new Color(140, 210, 235));
+
+            // --- mana orb (bottom right) ---
+            // Summons RESERVE maximum mana: the reserved band renders as a dim violet cap
+            // at the orb's top and the text shows the usable pool.
+            manaRect = new Rectangle(screen.X - orbSize - 18, screen.Y - orbSize - 18, orbSize, orbSize);
+            sb.Draw(TextureGen.Circle32, manaRect, new Color(12, 16, 42));
+            if (manaFrac > 0)
+            {
+                int mSrcY = (int)(32 * (1 - manaFrac));
+                var mSrc = new Rectangle(0, mSrcY, 32, 32 - mSrcY);
+                var mDst = new Rectangle(manaRect.X, manaRect.Y + (int)(orbSize * (1 - manaFrac)), orbSize, (int)(orbSize * manaFrac));
+                sb.Draw(TextureGen.Circle32, mDst, mSrc, new Color(50, 90, 220));
+            }
+            if (maxMana > 0 && reserved > 0)
+            {
+                float resFrac = Math.Clamp(reserved / maxMana, 0f, 1f);
+                int rH = (int)(32 * resFrac);
+                var rSrc = new Rectangle(0, 0, 32, rH);
+                var rDst = new Rectangle(manaRect.X, manaRect.Y, orbSize, (int)(orbSize * resFrac));
+                sb.Draw(TextureGen.Circle32, rDst, rSrc, new Color(70, 50, 110, 230));
+            }
+            var manaSize = font.MeasureString(manaText);
+            sb.DrawString(font, manaText, new Vector2(manaRect.Center.X - manaSize.X / 2, manaRect.Center.Y - manaSize.Y / 2), Color.White);
+            if (reserved > 0)
+                sb.DrawString(FontManager.Get(11), $"{reserved:0} reserved",
+                    new Vector2(manaRect.X - 4, manaRect.Y - 14), new Color(170, 150, 220));
+
+            flaskHpX = orbRect.Right + 8; flaskHpY = orbRect.Bottom - 56;
+            flaskMpX = manaRect.X - 34; flaskMpY = manaRect.Bottom - 56;
+            nameX = 20; nameY = orbRect.Y - 22;
+            listBottomY = orbRect.Y - 40;
+            rosterRightX = manaRect.X - 54; rosterY = screen.Y - 52 - 20;
+        }
+        else
+        {
+            // --- long bars (bottom edge): health left of the hotbar, mana right of it ---
+            const int barH = 22;
+            int barY = screen.Y - 44;
+            int hotbarHalf = (character.Hotbar.Length * 54 + (character.Hotbar.Length - 1) * 8) / 2;
+            orbRect = new Rectangle(18, barY, screen.X / 2 - hotbarHalf - 30, barH);
+            manaRect = new Rectangle(screen.X / 2 + hotbarHalf + 12, barY, screen.X - 18 - (screen.X / 2 + hotbarHalf + 12), barH);
+            void Frame(Rectangle r, Color edge)
+            {
+                sb.Draw(TextureGen.Pixel, new Rectangle(r.X - 1, r.Y - 1, r.Width + 2, 1), edge);
+                sb.Draw(TextureGen.Pixel, new Rectangle(r.X - 1, r.Bottom, r.Width + 2, 1), edge);
+                sb.Draw(TextureGen.Pixel, new Rectangle(r.X - 1, r.Y, 1, r.Height), edge);
+                sb.Draw(TextureGen.Pixel, new Rectangle(r.Right, r.Y, 1, r.Height), edge);
+            }
+            sb.Draw(TextureGen.Pixel, orbRect, new Color(40, 14, 14, 235));
+            sb.Draw(TextureGen.Pixel, new Rectangle(orbRect.X, orbRect.Y, (int)(orbRect.Width * frac), barH), new Color(190, 40, 40));
+            // Energy Shield rides the TOP HALF of the health bar.
+            if (maxEs > 0 && esFrac > 0)
+            {
+                sb.Draw(TextureGen.Pixel, new Rectangle(orbRect.X, orbRect.Y, (int)(orbRect.Width * esFrac), barH / 2), esColor * 0.85f);
+                sb.Draw(TextureGen.Pixel, new Rectangle(orbRect.X, orbRect.Y + barH / 2 - 1, (int)(orbRect.Width * esFrac), 1), new Color(200, 240, 255) * 0.7f);
+            }
+            Frame(orbRect, new Color(90, 40, 40));
+            var hpSize = font.MeasureString(hpText);
+            sb.DrawString(font, hpText, new Vector2(orbRect.Center.X - hpSize.X / 2, orbRect.Center.Y - hpSize.Y / 2), Color.White);
+            if (maxEs > 0)
+                sb.DrawString(FontManager.Get(11), $"ES {me.EnergyShield:0}/{maxEs:0}",
+                    new Vector2(orbRect.X + 46, orbRect.Y - 15), new Color(140, 210, 235)); // clear of the flask hint
+
+            sb.Draw(TextureGen.Pixel, manaRect, new Color(12, 16, 42, 235));
+            sb.Draw(TextureGen.Pixel, new Rectangle(manaRect.X, manaRect.Y, (int)(manaRect.Width * manaFrac), barH), new Color(50, 90, 220));
+            if (maxMana > 0 && reserved > 0)
+            {
+                // Reserved mana: a dim violet block at the FAR end of the bar (the part
+                // of the pool the summons hold).
+                float resFrac = Math.Clamp(reserved / maxMana, 0f, 1f);
+                int rw = (int)(manaRect.Width * resFrac);
+                sb.Draw(TextureGen.Pixel, new Rectangle(manaRect.Right - rw, manaRect.Y, rw, barH), new Color(70, 50, 110, 235));
+                sb.DrawString(FontManager.Get(11), $"{reserved:0} reserved",
+                    new Vector2(manaRect.Right - 70, manaRect.Y - 15), new Color(170, 150, 220));
+            }
+            Frame(manaRect, new Color(40, 50, 100));
+            var manaSize = font.MeasureString(manaText);
+            sb.DrawString(font, manaText, new Vector2(manaRect.Center.X - manaSize.X / 2, manaRect.Center.Y - manaSize.Y / 2), Color.White);
+
+            flaskHpX = 18; flaskHpY = barY - 64;
+            flaskMpX = screen.X - 18 - 26; flaskMpY = barY - 64;
+            nameX = 52; nameY = barY - 62;
+            listBottomY = barY - 84;
+            rosterRightX = flaskMpX - 12; rosterY = barY - 76;
+        }
 
         // --- summon roster (left of the mana orb): one card per summon skill with at ---
         // least one LIVING minion, showing count / limit; the focused card (the one the
@@ -215,8 +294,8 @@ public class HudUI
             var countFont = FontManager.GetBold(13);
             var hintFont2 = FontManager.Get(11);
             int cardW = 44, cardH = 52, cardGap = 6;
-            int cx = manaRect.X - 54 - summonSkills.Count * (cardW + cardGap);
-            int cy = screen.Y - cardH - 20;
+            int cx = rosterRightX - summonSkills.Count * (cardW + cardGap);
+            int cy = rosterY;
             foreach (var learnedSummon in summonSkills)
             {
                 var sDef = _data.Skills[learnedSummon.SkillId];
@@ -246,7 +325,7 @@ public class HudUI
             {
                 string cycleHint = $"{input.Bindings[InputAction.CycleSummonFocus].Display()} switch";
                 sb.DrawString(hintFont2, cycleHint,
-                    new Vector2(manaRect.X - 54 - summonSkills.Count * (cardW + cardGap), cy - 14),
+                    new Vector2(rosterRightX - summonSkills.Count * (cardW + cardGap), cy - 14),
                     new Color(140, 136, 124));
             }
         }
@@ -305,21 +384,21 @@ public class HudUI
             sb.DrawString(hintFont3, keyHint,
                 new Vector2(fx0 + fw / 2f - hSize.X / 2, fy0 + fh + 2), new Color(150, 146, 132));
         }
-        DrawFlask(orbRect.Right + 8, orbRect.Bottom - 56, healthKind: true,
+        DrawFlask(flaskHpX, flaskHpY, healthKind: true,
             me.PotionHealSecondsLeft, input.Bindings[InputAction.HealthPotion].Display());
-        DrawFlask(manaRect.X - 34, manaRect.Bottom - 56, healthKind: false,
+        DrawFlask(flaskMpX, flaskMpY, healthKind: false,
             me.PotionManaSecondsLeft, input.Bindings[InputAction.ManaPotion].Display());
 
         // Character level + name above the orb
         var nameFont = FontManager.Get(14);
-        sb.DrawString(nameFont, $"{character.Name}  ·  Level {character.Level}", new Vector2(20, orbRect.Y - 22), new Color(220, 210, 180));
+        sb.DrawString(nameFont, $"{character.Name}  ·  Level {character.Level}", new Vector2(nameX, nameY), new Color(220, 210, 180));
 
         // --- player list + pings (bottom left, above the health orb; Options toggle) ---
         if (_settings.ShowPlayerList)
         {
             var listFont = FontManager.Get(13);
             var players = _client.World.Players.Values.OrderBy(p => p.Id).ToList();
-            int ly = orbRect.Y - 40 - (players.Count - 1) * 18;
+            int ly = listBottomY - (players.Count - 1) * 18;
             foreach (var p in players)
             {
                 string line = $"{p.Name}  {p.PingMs} ms";
@@ -402,7 +481,7 @@ public class HudUI
                        $"{input.Bindings[InputAction.DebugMenu].Display()} Debug · " +
                        $"{input.Bindings[InputAction.Pause].Display()} Menu";
         var hintSize = hintFont.MeasureString(hints);
-        sb.DrawString(hintFont, hints, new Vector2(screen.X / 2f - hintSize.X / 2, 8), new Color(140, 136, 124));
+        sb.DrawString(hintFont, hints, new Vector2(screen.X / 2f - hintSize.X / 2, 8 + TopInset), new Color(140, 136, 124));
     }
 }
 

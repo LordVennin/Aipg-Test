@@ -14,7 +14,39 @@ namespace ARPG.UI;
 /// </summary>
 public static class ItemTooltip
 {
-    private record Line(string Text, Color Color, bool Bold = false, bool Separator = false);
+    private record Line(string Text, Color Color, bool Bold = false, bool Separator = false, string Term = null);
+
+    /// <summary>Where a drawn tooltip landed: its panel and the on-screen rectangles of
+    /// the UNDERLINED defense terms (Armor / Energy Shield / Deflection) — hovering one
+    /// while the tooltip is held open (Alt) shows its explainer.</summary>
+    public sealed class Layout
+    {
+        public Rectangle Rect;
+        public readonly List<(Rectangle Rect, string Term)> Terms = new();
+    }
+
+    public const string TermArmor = "Armor", TermEnergyShield = "Energy Shield", TermDeflection = "Deflection";
+
+    /// <summary>The short mechanics explainer behind an underlined term, built from the
+    /// live balance constants so it can never drift from the math.</summary>
+    public static string Explain(string term) => term switch
+    {
+        TermArmor =>
+            $"Armor reduces PHYSICAL damage taken. Reduction = armor / (armor + {ArmorBalance.SoftCapBase:0} + " +
+            $"{ArmorBalance.SoftCapPerLevel:0} x level), so the same armor is worth less as you level - keep it growing. " +
+            "Spells, elements and damage over time ignore it.",
+        TermEnergyShield =>
+            "Energy Shield is a second pool that absorbs EVERY kind of damage before your health. " +
+            $"It recharges at {EnergyShieldBalance.RechargePctPerSecond:0}% of its maximum per second once you have gone " +
+            $"{EnergyShieldBalance.RechargeDelay:0} seconds without taking damage (even a fully absorbed hit resets that). " +
+            $"Intelligence raises it: +{AttributeBalance.EnergyShieldPctPer10Intelligence:0}% per 10 INT.",
+        TermDeflection =>
+            $"Deflection rating becomes an initial chance (capped at {Deflection.InitialChanceCap:0}%, diminishing with level). " +
+            $"Each incoming ATTACK rolls a chain of checks at descending chances (-{Deflection.ChanceStepPercent:0} points each); " +
+            $"every success deflects {Deflection.ReductionPerLayer:P0} of the damage still coming. " +
+            $"Spells and damage over time are never deflected. Dexterity scales rating by +{AttributeBalance.DeflectionPctPerDexterity:0.#}% per point.",
+        _ => "",
+    };
 
     /// <summary>The generic attack added-damage stats and their damage types — one
     /// affix family that works identically on maces, bows and quivers.</summary>
@@ -32,10 +64,18 @@ public static class ItemTooltip
     /// <summary>Red warning color for gear whose requirements are no longer met.</summary>
     public static readonly Color UnmetColor = new(255, 95, 85);
 
-    public static void Draw(SpriteBatch sb, GameData data, ItemInstance item, Point mouse, Point screenSize,
-        bool requirementsNotMet = false)
+    /// <summary>Every text line the tooltip would show (tests and tools).</summary>
+    public static IReadOnlyList<string> TextLines(GameData data, ItemInstance item) =>
+        BuildLines(data, item, false).Where(l => !l.Separator).Select(l => l.Text).ToList();
+
+    public static Layout Draw(SpriteBatch sb, GameData data, ItemInstance item, Point mouse, Point screenSize,
+        bool requirementsNotMet = false, bool held = false)
     {
         var lines = BuildLines(data, item, requirementsNotMet);
+        var layout = new Layout();
+        // The Alt hint only matters when there is something to inspect.
+        if (lines.Any(l => l.Term != null))
+            lines.Add(new Line(held ? "hover an underlined term" : "hold Alt to inspect", new Color(120, 116, 104)));
 
         var font = FontManager.Get(15);
         var boldFont = FontManager.GetBold(16);
@@ -56,6 +96,7 @@ public static class ItemTooltip
         if (pos.Y + height > screenSize.Y) pos.Y = (int)Math.Max(0, screenSize.Y - height - 4);
 
         var rect = new Rectangle(pos.X, pos.Y, (int)width, (int)height);
+        layout.Rect = rect;
         sb.Draw(TextureGen.Pixel, rect, new Color(10, 10, 16, 245));
         var borderColor = WorldRenderer.RarityColor(item.Rarity) * 0.8f;
         sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Y, rect.Width, 2), borderColor);
@@ -74,8 +115,53 @@ public static class ItemTooltip
             }
             var f = line.Bold ? boldFont : font;
             var size = f.MeasureString(line.Text);
-            sb.DrawString(f, line.Text, new Vector2(pos.X + width / 2 - size.X / 2, y), line.Color);
+            float lx = pos.X + width / 2 - size.X / 2;
+            sb.DrawString(f, line.Text, new Vector2(lx, y), line.Color);
+            if (line.Term != null)
+            {
+                // Underline the term itself (the label before the colon); the rect is
+                // what the Alt-held inspector hit-tests.
+                int colon = line.Text.IndexOf(':');
+                string label = colon > 0 ? line.Text[..colon] : line.Text;
+                var lsize = f.MeasureString(label);
+                var termRect = new Rectangle((int)lx - 2, (int)y - 1, (int)lsize.X + 4, (int)size.Y + 2);
+                sb.Draw(TextureGen.Pixel, new Rectangle((int)lx, (int)(y + size.Y - 1), (int)lsize.X, 1), line.Color * 0.9f);
+                layout.Terms.Add((termRect, line.Term));
+            }
             y += size.Y + 3;
+        }
+        return layout;
+    }
+
+    /// <summary>The explainer popup for an underlined term, beside the mouse and kept
+    /// on screen; drawn OVER the held tooltip.</summary>
+    public static void DrawExplainer(SpriteBatch sb, string term, Point mouse, Point screenSize)
+    {
+        string body = Explain(term);
+        if (body.Length == 0) return;
+        var titleFont = FontManager.GetBold(15);
+        var font = FontManager.Get(14);
+        var bodyLines = WrapText(body, 54).ToList();
+        float width = titleFont.MeasureString(term).X + 24;
+        foreach (var l in bodyLines) width = Math.Max(width, font.MeasureString(l).X + 24);
+        float height = 12 + titleFont.MeasureString(term).Y + 6 + bodyLines.Count * (font.MeasureString("X").Y + 2) + 10;
+        var pos = new Point(mouse.X + 18, mouse.Y + 12);
+        if (pos.X + width > screenSize.X) pos.X = (int)(mouse.X - width - 8);
+        if (pos.Y + height > screenSize.Y) pos.Y = (int)Math.Max(0, screenSize.Y - height - 4);
+        var rect = new Rectangle(pos.X, pos.Y, (int)width, (int)height);
+        sb.Draw(TextureGen.Pixel, rect, new Color(14, 16, 24, 250));
+        var edge = new Color(150, 200, 235);
+        sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Y, rect.Width, 2), edge);
+        sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Bottom - 2, rect.Width, 2), edge * 0.6f);
+        sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Y, 2, rect.Height), edge * 0.6f);
+        sb.Draw(TextureGen.Pixel, new Rectangle(rect.Right - 2, rect.Y, 2, rect.Height), edge * 0.6f);
+        float y = pos.Y + 8;
+        sb.DrawString(titleFont, term, new Vector2(pos.X + 12, y), edge);
+        y += titleFont.MeasureString(term).Y + 6;
+        foreach (var l in bodyLines)
+        {
+            sb.DrawString(font, l, new Vector2(pos.X + 12, y), new Color(215, 218, 226));
+            y += font.MeasureString("X").Y + 2;
         }
     }
 
@@ -133,13 +219,13 @@ public static class ItemTooltip
             data.Modifiers.GetValueOrDefault(roll.ModifierId)?.StatAffected == t ? roll.Value : 0f);
         float totalArmor = bs.GetValueOrDefault(StatType.Armor) + ModTotal(StatType.Armor);
         if (totalArmor > 0)
-            baseLines.Add(new Line($"Armor: {totalArmor:0}", white));
+            baseLines.Add(new Line($"Armor: {totalArmor:0}", white, Term: TermArmor));
         float totalDeflection = bs.GetValueOrDefault(StatType.DeflectionRating) + ModTotal(StatType.DeflectionRating);
         if (totalDeflection > 0)
-            baseLines.Add(new Line($"Deflection Rating: {totalDeflection:0}", new Color(150, 220, 150)));
+            baseLines.Add(new Line($"Deflection Rating: {totalDeflection:0}", new Color(150, 220, 150), Term: TermDeflection));
         float totalEs = bs.GetValueOrDefault(StatType.EnergyShield) + ModTotal(StatType.EnergyShield);
         if (totalEs > 0)
-            baseLines.Add(new Line($"Energy Shield: {totalEs:0}", new Color(140, 200, 240)));
+            baseLines.Add(new Line($"Energy Shield: {totalEs:0}", new Color(140, 200, 240), Term: TermEnergyShield));
 
         foreach (var (stat, value) in bs)
         {
@@ -224,13 +310,6 @@ public static class ItemTooltip
         if (reqs.Count > 0)
             lines.Add(new Line($"Requires: {string.Join(", ", reqs)}{(reduced ? "  (reduced)" : "")}",
                 requirementsNotMet ? UnmetColor : new Color(220, 170, 130)));
-        if (totalDeflection > 0)
-        {
-            foreach (var dLine in WrapText(
-                "Deflection: incoming Attacks run repeated checks at descending chances; " +
-                "each success deflects 20% of the remaining damage.", 46))
-                lines.Add(new Line(dLine, new Color(130, 160, 130)));
-        }
         lines.Add(new Line($"Item Level: {item.ItemLevel}", gray));
         if (itemBase.Category != ItemCategory.SkillScroll)
             lines.Add(new Line($"Value: {item.GoldValue(data)} gold", new Color(240, 200, 90)));

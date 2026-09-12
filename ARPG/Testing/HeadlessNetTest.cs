@@ -150,6 +150,8 @@ public static class HeadlessNetTest
         Check(dodgerServer.InvulnerableUntil > server.World.Time - 0.5f &&
               dodgerServer.InvulnerableUntil <= server.World.Time + 1f,
               "server granted dodge i-frames");
+        Check(clientB.World.Effects.Any(fx => fx.Kind == "dodgedust" && fx.Dir.X > 0.9f),
+              "the dash kicks up dust on other clients, drifting back along the dodge direction");
         float nextDodgeAt = dodgerServer.NextDodgeAt;
         Check(nextDodgeAt > server.World.Time, "server started the dodge cooldown");
         clientA.RequestDodge(new Vector2(0, 1)); // immediately again: must be rejected
@@ -5544,6 +5546,43 @@ public static class HeadlessNetTest
               "the aftershock visual replaces the tremor");
         clientB.SendDebugCommand("kill_nearby");
         Pump(0.3f);
+
+        Console.WriteLine("\n-- Batch 58: tooltip inspector, Arcane Burst footprint, HUD bars --");
+        // Item tooltips no longer carry the per-stat mechanics paragraph; the defense
+        // lines are underlined TERMS whose explainers come from the live balance knobs.
+        var tunic58 = MkNorm("poachers_tunic");
+        var tunicLines58 = UI.ItemTooltip.TextLines(data, tunic58);
+        Check(tunicLines58.Any(l => l.StartsWith("Deflection Rating:")) &&
+              !tunicLines58.Any(l => l.StartsWith("Deflection: incoming")),
+              "the deflection mechanics paragraph is gone from item tooltips");
+        Check(UI.ItemTooltip.Explain(UI.ItemTooltip.TermArmor).Contains($"{Stats.ArmorBalance.SoftCapBase:0}") &&
+              UI.ItemTooltip.Explain(UI.ItemTooltip.TermEnergyShield).Contains($"{Stats.EnergyShieldBalance.RechargeDelay:0} seconds") &&
+              UI.ItemTooltip.Explain(UI.ItemTooltip.TermDeflection).Contains($"{Stats.Deflection.InitialChanceCap:0}%"),
+              "Armor / Energy Shield / Deflection explainers quote the live balance numbers");
+        Check(!new Core.GameSettings().HudBars, "the HUD defaults to orbs; bars are an option");
+
+        // Arcane Burst: the charge ring and the detonation both carry the server's
+        // effective radius (level + scrolls), so the footprint scales with the skill.
+        clientB.RequestLearnSkill("arcane_burst");
+        Pump(0.3f);
+        var abLearned58 = qChar56.GetSkill("arcane_burst");
+        abLearned58.Level = 4;
+        var abStats58 = Skills.SkillMath.Compute(data, data.Skills["arcane_burst"], 4,
+            abLearned58.ScrollDefinitions(data), srv56.Stats);
+        srv56.Mana = srv56.Stats.MaxMana;
+        srv56.LastSyncedMana = srv56.Mana;
+        srv56.SkillReadyAt.Clear();
+        srv56.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("arcane_burst", srv56.Position + new Vector2(2f, 0));
+        bool chargeSeen58 = false, burstSeen58 = false;
+        for (int i = 0; i < 14; i++)
+        {
+            Pump(0.08f);
+            chargeSeen58 |= clientB.World.Effects.Any(fx => fx.Kind == "burstcharge" && MathF.Abs(fx.Radius - abStats58.Radius) < 0.01f);
+            burstSeen58 |= clientB.World.Effects.Any(fx => fx.Kind == "burst" && MathF.Abs(fx.Radius - abStats58.Radius) < 0.01f);
+        }
+        Check(abStats58.Radius > data.Skills["arcane_burst"].Radius + 0.2f && chargeSeen58 && burstSeen58,
+              $"Arcane Burst's charge ring and detonation draw at the effective radius ({abStats58.Radius:0.00} vs base {data.Skills["arcane_burst"].Radius:0.00})");
 
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();

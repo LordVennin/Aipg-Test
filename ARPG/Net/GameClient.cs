@@ -1113,8 +1113,7 @@ public class GameClient
                     // Wind-up CASTS telegraph at the target: a gathering-energy charge
                     // effect fills the wind-up (Arcane Burst's charge-up).
                     if (phase == 1 && def.Archetype == Skills.SkillArchetype.AreaBurst)
-                        World.AddEffect(effectPoint,
-                            skillId == "arrow_rain" ? effRadius : MathF.Max(0.9f, effRadius * 0.8f),
+                        World.AddEffect(effectPoint, effRadius,
                             MathF.Max(0.2f, def.WindupTime),
                             skillId == "arrow_rain" ? "arrowrainring" : "burstcharge", effectHeight);
                     // Wind-up SLAMS mark their landing circle on the ground while the
@@ -1156,7 +1155,7 @@ public class GameClient
                                     // fade — server damage ticks land while they fall.
                                     World.AddEffect(effectPoint, effRadius, 1.5f, "arrowrain", effectHeight);
                                 else
-                                    World.AddEffect(effectPoint, effRadius, 0.3f, "burst", effectHeight);
+                                    World.AddEffect(effectPoint, effRadius, 0.45f, "burst", effectHeight);
                                 break;
                         }
                 }
@@ -1166,12 +1165,18 @@ public class GameClient
             case PacketType.DodgeEvent:
             {
                 int playerId = r.GetInt();
-                r.GetVec2(); // direction (movement is predicted/synced separately)
+                var dodgeDir = r.GetVec2(); // movement is predicted/synced separately
                 r.GetFloat(); // distance
                 float duration = r.GetFloat();
                 World.DodgeEventsSeen++;
                 if (World.Players.TryGetValue(playerId, out var dodger))
+                {
                     dodger.DodgeTimeLeft = duration;
+                    // Our own dash already puffed at press time (prediction); everyone
+                    // else's dust comes from this echo.
+                    if (playerId != World.MyPlayerId)
+                        World.AddEffect(dodger.Position, 0.5f, 0.42f, "dodgedust", dodger.Height, dir: dodgeDir);
+                }
                 break;
             }
 

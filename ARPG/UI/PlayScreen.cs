@@ -87,6 +87,10 @@ public class PlayScreen : IScreen
     private bool _devWarpNext;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
+    /// <summary>The tooltip held open by Alt (and where its mouse anchor was), so the
+    /// cursor can travel onto it to inspect underlined terms.</summary>
+    private Items.ItemInstance _heldTooltipItem;
+    private Point _heldTooltipMouse;
     private bool _lmbClaimedByUI;
     private bool _rmbClaimedByUI;
     private float _revivePulseTimer;
@@ -648,6 +652,9 @@ public class PlayScreen : IScreen
                 _dodgeTimeLeft = dodgeStats.DodgeDuration;
                 _dodgeCooldownEnd = _clientTime + dodgeStats.DodgeCooldown;
                 me.DodgeTimeLeft = dodgeStats.DodgeDuration; // local dash visual
+                // Dust kicked up BEHIND the dash: a puff at the feet drifting the
+                // opposite way (remote players get theirs from the DodgeEvent echo).
+                _client.World.AddEffect(me.Position, 0.5f, 0.42f, "dodgedust", me.Height, dir: _dodgeDir);
                 _client.RequestDodge(_dodgeDir);
             }
 
@@ -1113,9 +1120,12 @@ public class PlayScreen : IScreen
     }
 
     /// <summary>Top-of-screen display for the hovered enemy: name (colored by rank)
-    /// over a large health bar, so you can pick targets across elevations at a glance.</summary>
+    /// over a large health bar, so you can pick targets across elevations at a glance.
+    /// While it shows, the HUD's top-center stack (key hints, zone banner) shifts
+    /// down below it instead of drawing through it.</summary>
     private void DrawTargetDisplay(SpriteBatch sb, Point screen)
     {
+        _hud.TopInset = 0;
         if (_renderer.HoveredEnemyId < 0 ||
             !_client.World.Enemies.TryGetValue(_renderer.HoveredEnemyId, out var e))
             return;
@@ -1137,6 +1147,7 @@ public class PlayScreen : IScreen
         int stripRows = (showStun ? 1 : 0) + (showChill ? 1 : 0);
         int panelW = (int)MathF.Max(barW + 24, nameSize.X + 40);
         var panel = new Rectangle(cx - panelW / 2, 6, panelW, 52 + stripRows * 7);
+        _hud.TopInset = panel.Bottom + 2;
         sb.Draw(TextureGen.Pixel, panel, new Color(12, 12, 16, 205));
         sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Y, panel.Width, 1), new Color(90, 85, 110));
         sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Bottom - 1, panel.Width, 1), new Color(90, 85, 110));
@@ -1250,7 +1261,29 @@ public class PlayScreen : IScreen
         else
         {
             var hovered = _inventory.HoveredItem ?? _skillMenu.HoveredScrollItem;
-            if (hovered != null)
+            // Hold Alt to HOLD the tooltip where it is: the mouse can leave the item
+            // and travel onto the tooltip to hover its underlined defense terms, each
+            // of which opens an explainer popup (the usual ARPG inspect gesture).
+            bool alt = input.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.LeftAlt) ||
+                       input.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.RightAlt);
+            if (!alt) _heldTooltipItem = null;
+            else if (_heldTooltipItem == null && hovered != null)
+            {
+                _heldTooltipItem = hovered;
+                _heldTooltipMouse = input.MousePosition;
+            }
+            if (_heldTooltipItem != null)
+            {
+                bool unmet = _client.World.MyStats.InactiveItems?.Contains(_heldTooltipItem.InstanceId) == true;
+                var layout = ItemTooltip.Draw(sb, _game.Data, _heldTooltipItem, _heldTooltipMouse, screen, unmet, held: true);
+                foreach (var (termRect, term) in layout.Terms)
+                    if (termRect.Contains(input.MousePosition))
+                    {
+                        ItemTooltip.DrawExplainer(sb, term, input.MousePosition, screen);
+                        break;
+                    }
+            }
+            else if (hovered != null)
             {
                 // Equipped-but-inactive gear (requirements no longer met) warns in red.
                 bool unmet = _client.World.MyStats.InactiveItems?.Contains(hovered.InstanceId) == true;
