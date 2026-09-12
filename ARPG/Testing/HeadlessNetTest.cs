@@ -134,6 +134,15 @@ public static class HeadlessNetTest
               Math.Abs(enemyOnB.Health - serverEnemy.Health) < 0.01f, "enemy damage synchronized to client B");
         Check(clientA.World.FloatingNumbers.Count > 0 || clientB.World.FloatingNumbers.Count > 0,
               "damage event produced floating numbers on clients");
+        // The blow's direction rides the damage event: the grunt's blood leaves its body
+        // the way the mace went (A struck from the WEST, so it flies and lands EAST of
+        // A — measured from the attacker, since the slam also knocks the grunt back).
+        int bloodBits = clientB.World.BloodDrops.Count + clientB.World.BloodStains.Count;
+        float bloodEast = clientB.World.BloodDrops.Select(d => d.Position.X - meAOnServer.Position.X)
+            .Concat(clientB.World.BloodStains.Select(st => st.Position.X - meAOnServer.Position.X))
+            .DefaultIfEmpty(0f).Average();
+        Check(bloodBits >= 5 && bloodEast > 0.6f,
+              $"a melee hit throws 5-12 blood drops along the swing ({bloodBits} pieces, mean {bloodEast:+0.00;-0.00} tiles past the attacker)");
 
         // A strike aimed far BEHIND max range must not hit (impact point clamps to range).
         float hpBefore2 = serverEnemy.Health;

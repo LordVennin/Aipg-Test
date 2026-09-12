@@ -33,7 +33,7 @@ public interface IServerEvents
     void MessageFor(ServerPlayer p, string text);
     void PlayerDodged(ServerPlayer p, Vector2 direction, float distance, float duration);
     /// <summary>A damage application, for floating combat numbers on all clients.</summary>
-    void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false);
+    void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false, Vector2 hitDir = default);
     /// <summary>A boss ground-slam burst, for the AoE visual on all clients.</summary>
     void EnemySlammed(ServerEnemy e, float radius, byte phase);
     /// <summary>A caster's ranged AoE: warning circle at the locked target spot
@@ -1936,7 +1936,7 @@ public partial class ServerWorld
                         var comps = RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
                         ApplyCritRoll(comps, pr.CritChance, pr.CritDamage);
                         var (dmg, hitKind) = MitigateForEnemy(e, comps);
-                        HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind);
+                        HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind, pr.Direction);
                         ApplyAilments(e, comps, dmg, pr.Ailments);
                         if (pr.SkillId != null && Data.Skills.TryGetValue(pr.SkillId, out var prDef))
                             ApplyStunBuildup(e, prDef);
@@ -2154,7 +2154,7 @@ public partial class ServerWorld
             foreach (var e in EnemiesNear(tr.Position, tr.Radius, tr.Height).ToList())
             {
                 var (dmg, kind) = RollSkillHit(e, tr.Stats, out var comps);
-                HitEnemy(e, dmg * mult, tr.OwnerId, tr.SkillId, kind);
+                HitEnemy(e, dmg * mult, tr.OwnerId, tr.SkillId, kind, e.Position - tr.Position);
                 ApplyAilments(e, comps, dmg * mult, tr.Stats);
                 if (!e.Dead) ApplyStunBuildup(e, tr.Def.StunBuildup * 0.4f, tr.Def.StunDuration);
             }
@@ -2233,7 +2233,7 @@ public partial class ServerWorld
                 foreach (var e in struckList)
                 {
                     var (dmg, kind) = RollSkillHit(e, stats, out var comps);
-                    HitEnemy(e, dmg * chargeMult, playerId, skillId, kind);
+                    HitEnemy(e, dmg * chargeMult, playerId, skillId, kind, e.Position - p.Position);
                     ApplyAilments(e, comps, dmg * chargeMult, stats);
                     if (e.Dead) continue;
                     if (def.Knockback > 0)
@@ -2257,7 +2257,7 @@ public partial class ServerWorld
                 foreach (var victim in EnemiesNearMelee(p, effectPoint, stats.Radius))
                 {
                     var (vDmg, vKind) = RollSkillHit(victim, stats, out var vComps);
-                    HitEnemy(victim, vDmg * chargeMult, playerId, skillId, vKind);
+                    HitEnemy(victim, vDmg * chargeMult, playerId, skillId, vKind, victim.Position - p.Position);
                     ApplyAilments(victim, vComps, vDmg * chargeMult, stats);
                     if (victim.Dead) continue;
                     if (def.Knockback > 0)
@@ -2275,7 +2275,7 @@ public partial class ServerWorld
                 effectPoint = p.Position;
                 foreach (var e in EnemiesNearMelee(p, p.Position, stats.Radius))
                 {
-                    { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind); ApplyAilments(e, comps, dmg, stats); }
+                    { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind, e.Position - p.Position); ApplyAilments(e, comps, dmg, stats); }
                     if (e.Dead) continue;
                     if (def.Knockback > 0)
                     {
@@ -2368,7 +2368,7 @@ public partial class ServerWorld
                     // hits what stands there.
                     float burstH = Map.GroundHeightAt(effectPoint);
                     foreach (var e in EnemiesNear(effectPoint, stats.Radius, burstH))
-                        { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind); ApplyAilments(e, comps, dmg, stats); }
+                        { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind, e.Position - effectPoint); ApplyAilments(e, comps, dmg, stats); }
                 }
                 break;
             }
@@ -2392,7 +2392,7 @@ public partial class ServerWorld
                     hitIds.Add(current.Id);
                     chainPoints.Add(current.Position);
                     var (dmg, kind) = RollSkillHit(current, stats, out var comps);
-                    HitEnemy(current, dmg, playerId, skillId, kind);
+                    HitEnemy(current, dmg, playerId, skillId, kind, current.Position - p.Position);
                     ApplyAilments(current, comps, dmg, stats);
                     var from = current.Position;
                     current = Enemies.Values
@@ -2692,7 +2692,7 @@ public partial class ServerWorld
                         // kill credit/XP to the summoner, scroll ailments), slashing damage.
                         var comps = RollComponentList(s.Damage * 0.85f, s.Damage * 1.15f, DamageKind.Slash, null);
                         var (dmg, kind) = MitigateForEnemy(prey, comps);
-                        HitEnemy(prey, dmg, s.OwnerId, s.SkillId, kind);
+                        HitEnemy(prey, dmg, s.OwnerId, s.SkillId, kind, prey.Position - s.Position);
                         if (!prey.Dead) ApplyAilments(prey, comps, dmg, scrollStats);
                     }
                     else
@@ -3337,8 +3337,17 @@ public partial class ServerWorld
         return list;
     }
 
-    private void HitEnemy(ServerEnemy e, float damage, int byPlayer, string skillId, DamageKind kind)
-        => DamageEnemy(e, damage, byPlayer, skillId, kind);
+    /// <summary>A direct hit on an enemy. <paramref name="hitDir"/> is the world-space
+    /// direction the blow travels (attacker toward victim, a projectile's flight, out
+    /// from a burst's center) — it rides the damage event so clients can throw the
+    /// victim's blood the way the strike went. Zero = unknown, spray every way.</summary>
+    private void HitEnemy(ServerEnemy e, float damage, int byPlayer, string skillId, DamageKind kind,
+        Vector2 hitDir = default)
+    {
+        e.LastHitDir = hitDir.NormalizedOrZero();
+        DamageEnemy(e, damage, byPlayer, skillId, kind);
+        e.LastHitDir = Vector2.Zero;
+    }
 
     private void DamageEnemy(ServerEnemy e, float damage, int byPlayer, string skillId,
         DamageKind kind = DamageKind.Blunt, bool emitEvents = true)
@@ -3368,14 +3377,14 @@ public partial class ServerWorld
         {
             e.Health = 0;
             e.State = EnemyState.Dead;
-            if (emitEvents) _events.DamageDealt(false, e.Id, damage, kind, e.Position);
+            if (emitEvents) _events.DamageDealt(false, e.Id, damage, kind, e.Position, hitDir: e.LastHitDir);
             _events.EnemyDied(e);
             OnEnemyKilled(e);
         }
         else if (emitEvents)
         {
             e.State = e.State == EnemyState.Idle ? EnemyState.Chase : e.State;
-            _events.DamageDealt(false, e.Id, damage, kind, e.Position);
+            _events.DamageDealt(false, e.Id, damage, kind, e.Position, hitDir: e.LastHitDir);
             _events.EnemyHealthChanged(e);
         }
     }

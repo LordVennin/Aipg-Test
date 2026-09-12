@@ -179,6 +179,9 @@ public class ServerEnemy
     public float RecoverUntil;
     /// <summary>While the server clock is below this, the enemy neither moves nor attacks.</summary>
     public float StunnedUntil;
+    /// <summary>World direction of the blow currently being applied (set around the
+    /// damage call by HitEnemy); rides the damage event for directional blood.</summary>
+    public Vector2 LastHitDir;
     /// <summary>While the server clock is below this, the enemy moves at reduced speed.</summary>
     public float SlowedUntil;
     /// <summary>Standing in a Ground Slam tremor: a lighter slow (TremorSlow fraction)

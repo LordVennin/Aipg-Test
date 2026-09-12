@@ -279,6 +279,26 @@ public class ClientStructure
 }
 
 /// <summary>A transient visual effect (skill flash, projectile impact).</summary>
+/// <summary>A drop of blood in flight (client-only cosmetics; see ClientWorld.SpawnBlood).</summary>
+public class BloodDrop
+{
+    public Vector2 Position;
+    public Vector2 Velocity;
+    /// <summary>Height above the ground in tiles, and the ground's own elevation.</summary>
+    public float Z, Vz, GroundHeight;
+    public int Rgb;
+    public int Size;
+}
+
+/// <summary>A landed drop: a pixel stain on the ground that stays put.</summary>
+public class BloodStain
+{
+    public Vector2 Position;
+    public float Height;
+    public int Rgb;
+    public int Width, Tall;
+}
+
 public class ClientEffect
 {
     public Vector2 Position;
@@ -328,6 +348,66 @@ public class ClientWorld
     public readonly Dictionary<int, ClientStructure> Structures = new();
     public readonly List<ClientEffect> Effects = new();
 
+    /// <summary>Blood in flight: pixel-sized drops thrown from a struck body along the
+    /// blow, arcing under gravity until they land and become stains.</summary>
+    public readonly List<BloodDrop> BloodDrops = new();
+    /// <summary>Blood on the ground: landed drops that STAY (until the map changes),
+    /// oldest evicted past the cap so a long fight can't grow the list unbounded.</summary>
+    public readonly List<BloodStain> BloodStains = new();
+    public const int MaxBloodStains = 1600;
+    public const int MaxBloodDrops = 400;
+
+    /// <summary>Throw a spray of blood from a body: 5-12 drops (more for a heavy hit)
+    /// leaving along <paramref name="dir"/> in a cone (every way when the direction is
+    /// unknown), each with its own speed, launch height and lift.</summary>
+    public void SpawnBlood(Vector2 pos, float height, Vector2 dir, int rgb, bool heavy)
+    {
+        int count = 5 + _bloodRng.Next(8) + (heavy ? 3 : 0);
+        bool directed = dir.LengthSquared() > 0.001f;
+        var baseDir = directed ? Vector2.Normalize(dir) : Vector2.Zero;
+        for (int i = 0; i < count; i++)
+        {
+            if (BloodDrops.Count >= MaxBloodDrops) break;
+            float ang = directed
+                ? MathF.Atan2(baseDir.Y, baseDir.X) + ((float)_bloodRng.NextDouble() - 0.5f) * 1.1f
+                : (float)(_bloodRng.NextDouble() * Math.PI * 2);
+            float speed = (directed ? 3.2f : 1.6f) + 4.2f * (float)_bloodRng.NextDouble();
+            BloodDrops.Add(new BloodDrop
+            {
+                Position = pos + new Vector2(((float)_bloodRng.NextDouble() - 0.5f) * 0.3f, ((float)_bloodRng.NextDouble() - 0.5f) * 0.3f),
+                GroundHeight = height,
+                Z = 0.35f + 0.45f * (float)_bloodRng.NextDouble(),
+                Velocity = new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * speed,
+                Vz = 0.6f + 2.6f * (float)_bloodRng.NextDouble(),
+                Rgb = rgb,
+                Size = _bloodRng.Next(3) == 0 ? 3 : 2,
+            });
+        }
+    }
+
+    private readonly Random _bloodRng = new();
+
+    private void TickBlood(float dt)
+    {
+        const float gravity = 11f;
+        for (int i = BloodDrops.Count - 1; i >= 0; i--)
+        {
+            var d = BloodDrops[i];
+            d.Position += d.Velocity * dt;
+            d.Vz -= gravity * dt;
+            d.Z += d.Vz * dt;
+            if (d.Z > 0f) continue;
+            // Landed: it stays where it fell, as a slightly wider stain than the drop.
+            BloodDrops.RemoveAt(i);
+            if (BloodStains.Count >= MaxBloodStains) BloodStains.RemoveAt(0);
+            BloodStains.Add(new BloodStain
+            {
+                Position = d.Position, Height = d.GroundHeight, Rgb = d.Rgb,
+                Width = d.Size + 1 + _bloodRng.Next(2), Tall = d.Size,
+            });
+        }
+    }
+
     // Campaign zone state (from ZoneState packets; drives the HUD banner + door hints).
     public int ZoneLoop = 1;
     public int ZoneMapIndex;
@@ -351,6 +431,8 @@ public class ClientWorld
     /// they travel together; their positions snap on the next state packet).</summary>
     public void ClearForMapChange()
     {
+        BloodDrops.Clear();
+        BloodStains.Clear();
         Enemies.Clear();
         Projectiles.Clear();
         Drops.Clear();
@@ -390,6 +472,7 @@ public class ClientWorld
     /// all hits are decided by the server).</summary>
     public void Tick(float dt)
     {
+        TickBlood(dt);
         foreach (var p in Players.Values)
         {
             if (p.SwingTimeLeft > 0) p.SwingTimeLeft -= dt;

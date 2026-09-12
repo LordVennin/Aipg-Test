@@ -398,7 +398,7 @@ public partial class ServerWorld
                     var comps = RollComponentList(DefenseBalance.FlameDamageMin * flameMult,
                         DefenseBalance.FlameDamageMax * flameMult, DamageKind.Fire, null);
                     var (dmg, kind) = MitigateForEnemy(e, comps);
-                    HitEnemy(e, dmg, s.OwnerId, null, kind);
+                    HitEnemy(e, dmg, s.OwnerId, null, kind, e.Position - s.Position);
                     burned = true;
                 }
                 if (burned)
