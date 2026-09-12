@@ -177,17 +177,20 @@ public class HudUI
                 var dst = new Rectangle(orbRect.X, orbRect.Y + (int)(orbSize * (1 - frac)), orbSize, (int)(orbSize * frac));
                 sb.Draw(TextureGen.Circle32, dst, src, new Color(190, 40, 40));
             }
-            // Energy Shield CAPS the orb: a cyan layer filling the TOP HALF of the globe
-            // from the crown downward as the shield fills — a full shield covers half
-            // the orb, an empty one nothing (the classic life-globe overlay).
+            // Energy Shield shares the globe SIDE BY SIDE with health: the shield fills
+            // the RIGHT half of the orb bottom-up by its own fraction while health fills
+            // the whole orb underneath, so both levels read as heights at a glance —
+            // missing health still shows on the left half (and above a low shield).
             if (maxEs > 0 && esFrac > 0)
             {
-                int esSrcH = Math.Max(1, (int)(16 * esFrac));
-                var esSrc = new Rectangle(0, 0, 32, esSrcH);
-                var esDst = new Rectangle(orbRect.X, orbRect.Y, orbSize, Math.Max(2, (int)(orbSize * 0.5f * esFrac)));
-                sb.Draw(TextureGen.Circle32, esDst, esSrc, esColor * 0.82f);
-                // A thin bright edge where the shield stops.
-                sb.Draw(TextureGen.Pixel, new Rectangle(esDst.X + 8, esDst.Bottom - 1, esDst.Width - 16, 1), new Color(200, 240, 255) * 0.7f);
+                int esSrcY = (int)(32 * (1 - esFrac));
+                var esSrc = new Rectangle(16, esSrcY, 16, 32 - esSrcY);
+                int esH = Math.Max(2, (int)(orbSize * esFrac));
+                var esDst = new Rectangle(orbRect.X + orbSize / 2, orbRect.Y + orbSize - esH, orbSize / 2, esH);
+                sb.Draw(TextureGen.Circle32, esDst, esSrc, esColor * 0.86f);
+                // A thin bright edge where the shield tops out, and the seam down the middle.
+                sb.Draw(TextureGen.Pixel, new Rectangle(esDst.X, esDst.Y, esDst.Width - 6, 1), new Color(200, 240, 255) * 0.7f);
+                sb.Draw(TextureGen.Pixel, new Rectangle(esDst.X, esDst.Y, 1, esDst.Height - 4), new Color(20, 40, 50) * 0.6f);
             }
             var hpSize = font.MeasureString(hpText);
             sb.DrawString(font, hpText, new Vector2(orbRect.Center.X - hpSize.X / 2, orbRect.Center.Y - hpSize.Y / 2), Color.White);
