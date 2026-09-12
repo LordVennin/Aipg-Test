@@ -948,6 +948,25 @@ public class WorldRenderer
 
         long animClock = Environment.TickCount64; // visual-only animation timer
 
+        // Blood on the ground: landed drops stay as pixel stains under everything that
+        // walks over them; drops still in flight arc above the ground along the blow.
+        foreach (var st in world.BloodStains)
+        {
+            var sp = camera.WorldToScreen(st.Position, st.Height);
+            var sc = new Color((st.Rgb >> 16) & 255, (st.Rgb >> 8) & 255, st.Rgb & 255);
+            var rect = new Rectangle((int)sp.X, (int)sp.Y, st.Width, st.Tall);
+            _sorted.Add((st.Position.X + st.Position.Y + st.Height * 1.0f + 0.012f + UnderDeckBias(st.Position, st.Height),
+                batch => batch.Draw(TextureGen.Pixel, rect, sc)));
+        }
+        foreach (var bd in world.BloodDrops)
+        {
+            var dp = camera.WorldToScreen(bd.Position, bd.GroundHeight);
+            var dc = new Color((bd.Rgb >> 16) & 255, (bd.Rgb >> 8) & 255, bd.Rgb & 255);
+            var rect = new Rectangle((int)dp.X, (int)(dp.Y - bd.Z * 24f), bd.Size, bd.Size);
+            _sorted.Add((bd.Position.X + bd.Position.Y + bd.GroundHeight * 1.0f + 0.28f + UnderDeckBias(bd.Position, bd.GroundHeight),
+                batch => batch.Draw(TextureGen.Pixel, rect, dc)));
+        }
+
         // Fallen enemies stay in the world as bodies: a quick topple animation (pivot
         // at the feet), a pool of their blood spreading beneath, then a lasting corpse
         // — sorted slightly under living entities so the fight walks over the dead.
@@ -1866,48 +1885,6 @@ public class WorldRenderer
                 case "hit":
                     AddLight(screen, 70f, new Color(255, 220, 180) * flashFade);
                     break;
-            }
-
-            if (fx.Kind.StartsWith("blood:"))
-            {
-                // Blood burst: the victim's ichor sprays from the hit — droplets arcing
-                // under gravity, then a brief ground speckle where they land. Fully
-                // deterministic from the position hash (same trick as slam debris).
-                var bloodC = ParseColor(fx.Kind[6..], new Color(126, 26, 26));
-                int bseed = (int)(fx.Position.X * 733) ^ (int)(fx.Position.Y * 911);
-                // Small per-hit burst — every strike sprays, so each spray stays modest
-                // (a handful of 1-2px droplets in a tight arc, not a fountain).
-                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.26f + UnderDeckBias(fx.Position, fx.Height), batch =>
-                {
-                    for (int k = 0; k < 5; k++)
-                    {
-                        var rng = new Random(bseed + k * 71);
-                        float ang = (float)(rng.NextDouble() * Math.PI * 2);
-                        float speed = 18f + 38f * (float)rng.NextDouble();
-                        float v0 = 20f + 45f * (float)rng.NextDouble();
-                        float age = t * fx.Duration;
-                        float px = screen.X + MathF.Cos(ang) * speed * age;
-                        float py = screen.Y - 14 + MathF.Sin(ang) * speed * age * 0.5f
-                                   - v0 * age + 260f * age * age;
-                        int sz = 1 + (k & 1);
-                        batch.Draw(TextureGen.Pixel, new Rectangle((int)px, (int)py, sz, sz),
-                            bloodC * (0.75f * (1f - t * t)));
-                    }
-                }));
-                if (t > 0.35f) // droplets landing: a fading ground speckle — sorted
-                {              // UNDER dropped items (blood never covers your loot)
-                    _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.02f + UnderDeckBias(fx.Position, fx.Height), batch =>
-                    {
-                        var rng2 = new Random(bseed * 13);
-                        for (int k = 0; k < 3; k++)
-                        {
-                            int ox = rng2.Next(-10, 11), oy = rng2.Next(-4, 5);
-                            batch.Draw(TextureGen.Pixel,
-                                new Rectangle((int)screen.X + ox, (int)screen.Y + oy, 2, 1),
-                                bloodC * (0.55f * (1f - t)));
-                        }
-                    }));
-                }
             }
 
             if (fx.Kind == "debris")

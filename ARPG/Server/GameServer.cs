@@ -931,7 +931,7 @@ public class GameServer : IServerEvents
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
-    public void DamageDealt(bool targetIsPlayer, int targetId, float amount, Skills.DamageKind kind, Vector2 position, bool blocked = false)
+    public void DamageDealt(bool targetIsPlayer, int targetId, float amount, Skills.DamageKind kind, Vector2 position, bool blocked = false, Vector2 hitDir = default)
     {
         var w = Packets.Make(PacketType.DamageEvent);
         w.Put(targetIsPlayer);
@@ -940,6 +940,7 @@ public class GameServer : IServerEvents
         w.Put((byte)kind);
         w.PutVec2(position);
         w.Put(blocked);
+        w.PutVec2(hitDir); // the blow's world direction (zero = unknown) — directional blood
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 

@@ -1335,3 +1335,20 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   the shield's 4s / 25%-per-second recharge, deflection's descending check
   chain).
 - No protocol change.
+
+---
+
+# Addendum (batch 59): blood that goes where the blow went, and stays
+
+- **Directional blood**: a physical hit on a bleeding enemy throws 5-12
+  pixel-sized drops from its body ALONG the blow - the swing's direction for
+  melee, the flight line for arrows, outward from the center for bursts and
+  slams (a heavy hit, 30%+ of the enemy's health, throws three more). Each
+  drop has its own speed, launch height and lift, arcs under gravity, and
+  where it lands it STAYS as a stain on the ground until the map changes.
+  Unknown directions (damage over time, debug kills) spray every way.
+- **Cost**: purely client-side cosmetics. Stains are capped at 1,600 (oldest
+  evicted) and drops in flight at 400; each is a single pixel-rect draw, so
+  even a long brawl costs a fraction of a frame.
+- The blow's world direction rides the damage event (protocol v43); the old
+  five-droplet burst and its fading speckle are gone.

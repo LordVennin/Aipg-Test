@@ -1191,6 +1191,7 @@ public class GameClient
                 fn.Kind = r.GetByte();
                 fn.Position = r.GetVec2();
                 fn.Blocked = r.GetBool();
+                var hitDir = r.GetVec2();
                 if (fn.Blocked) World.BlockedEventsSeen++;
                 if (fn.Blocked)
                     Audio.AudioManager.PlayWorld(fn.Position, "block");
@@ -1217,12 +1218,11 @@ public class GameClient
                     bloodHex = bloodied.Def?.Blood ?? "7E1A1A";
                 if (!string.IsNullOrEmpty(bloodHex))
                 {
-                    World.Effects.Add(new ClientEffect
-                    {
-                        Position = fn.Position, Height = fn.Height,
-                        Radius = 0.5f, TimeLeft = 0.5f, Duration = 0.5f,
-                        Kind = "blood:" + bloodHex,
-                    });
+                    // 5-12 pixel drops leave the body ALONG the blow (a heavy hit throws
+                    // a few more), arc down and stay on the ground where they land.
+                    bool heavy = World.Enemies.TryGetValue(targetId, out var struck) &&
+                                 struck.MaxHealth > 0 && fn.Amount >= struck.MaxHealth * 0.3f;
+                    World.SpawnBlood(fn.Position, fn.Height, hitDir, Convert.ToInt32(bloodHex, 16), heavy);
                     ClientPlayer swinger = null;
                     float bestSwing = 3.2f; // melee reach + slop
                     foreach (var p in World.Players.Values)

@@ -72,7 +72,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 42; // v42: effect radius in SkillEffect, corpse variants, piercing shots
+    public const int ProtocolVersion = 43; // v43: hit direction on damage events (directional blood)
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }
