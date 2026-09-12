@@ -5593,6 +5593,25 @@ public static class HeadlessNetTest
         Check(abStats58.Radius > data.Skills["arcane_burst"].Radius + 0.2f && chargeSeen58 && burstSeen58,
               $"Arcane Burst's charge ring and detonation draw at the effective radius ({abStats58.Radius:0.00} vs base {data.Skills["arcane_burst"].Radius:0.00})");
 
+        // Pending-choice badges: unspent passive points and level-ready skills.
+        var alertChar60 = new Sim.CharacterData { Level = 4 };
+        alertChar60.Skills.Add(new Sim.LearnedSkill { SkillId = "mace_strike", Level = 2,
+            Experience = Skills.SkillMath.XpToNextLevel(2) });
+        alertChar60.Skills.Add(new Sim.LearnedSkill { SkillId = "ground_slam", Level = 1, Experience = 0f });
+        var alerts60 = UI.HudUI.PendingAlerts(alertChar60);
+        Check(alerts60.PassivePoints == Skills.PassiveTree.PointsForLevel(4) && alerts60.LevelableSkills == 1,
+              $"the HUD knows what's waiting: {alerts60.PassivePoints} passive points, {alerts60.LevelableSkills} skill ready to level");
+        // Tree connections clip to the panel: a segment crossing the edge is cut at it,
+        // one fully outside is dropped.
+        var clipA = new Microsoft.Xna.Framework.Vector2(-50, 50);
+        var clipB = new Microsoft.Xna.Framework.Vector2(50, 50);
+        bool kept = UI.SkillTreeUI.ClipSegment(ref clipA, ref clipB, new Microsoft.Xna.Framework.Rectangle(0, 0, 100, 100));
+        var outA = new Microsoft.Xna.Framework.Vector2(-50, 150);
+        var outB = new Microsoft.Xna.Framework.Vector2(-10, 150);
+        bool dropped = !UI.SkillTreeUI.ClipSegment(ref outA, ref outB, new Microsoft.Xna.Framework.Rectangle(0, 0, 100, 100));
+        Check(kept && MathF.Abs(clipA.X) < 0.01f && MathF.Abs(clipB.X - 50f) < 0.01f && dropped,
+              "passive tree connections clip to the panel edge while panning");
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

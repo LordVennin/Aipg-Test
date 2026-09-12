@@ -46,11 +46,55 @@ public class HudUI
         }
     }
 
+    /// <summary>What the player has waiting for them: passive points not yet spent and
+    /// skills whose banked XP covers their next level (leveling is manual). Pure, so
+    /// the badges and the tests share it.</summary>
+    public static (int PassivePoints, int LevelableSkills) PendingAlerts(Sim.CharacterData character) =>
+        (Math.Max(0, PassiveTree.PointsForLevel(character.Level) - character.AllocatedPassives.Count),
+         character.Skills.Count(sk => sk.Level < SkillMath.MaxSkillLevel &&
+                                      sk.Experience >= SkillMath.XpToNextLevel(sk.Level)));
+
     public void Draw(SpriteBatch sb, Point screen, InputManager input, IReadOnlyDictionary<string, float> cooldownEnds, float clientTime)
     {
         var me = _client.World.Me;
         var character = _client.World.MyCharacter;
         if (me == null || character == null) return;
+
+        // --- pending-choice badges (top left): unspent passive points, skills that can
+        // level — small pills with the key that opens the right panel, pulsing gently ---
+        {
+            var (pendingPoints, levelable) = PendingAlerts(character);
+            var badgeFont = FontManager.Get(13);
+            var keyFont = FontManager.GetBold(13);
+            int by = 10 + TopInset;
+            float pulse = 0.6f + 0.4f * MathF.Sin(clientTime * 4f);
+            void Badge(string key, string text, Color accent)
+            {
+                var ks = keyFont.MeasureString(key);
+                var ts = badgeFont.MeasureString(text);
+                var pill = new Rectangle(14, by, (int)(ks.X + ts.X + 30), 24);
+                sb.Draw(TextureGen.Pixel, pill, new Color(16, 20, 28, 225));
+                sb.Draw(TextureGen.Pixel, new Rectangle(pill.X, pill.Y, 3, pill.Height), accent * pulse);
+                sb.Draw(TextureGen.Pixel, new Rectangle(pill.X, pill.Y, pill.Width, 1), accent * (0.5f * pulse));
+                sb.Draw(TextureGen.Pixel, new Rectangle(pill.X, pill.Bottom - 1, pill.Width, 1), accent * (0.5f * pulse));
+                sb.DrawString(keyFont, key, new Vector2(pill.X + 10, pill.Y + 4), accent);
+                sb.DrawString(badgeFont, text, new Vector2(pill.X + 16 + ks.X, pill.Y + 4), new Color(222, 218, 205));
+                by += 28;
+            }
+            if (pendingPoints > 0)
+                Badge(input.Bindings[InputAction.SkillTree].Display(),
+                    pendingPoints == 1 ? "1 passive point to spend" : $"{pendingPoints} passive points to spend",
+                    new Color(216, 190, 255));
+            if (levelable > 0)
+            {
+                string which = levelable == 1
+                    ? (_data.Skills.GetValueOrDefault(character.Skills.First(sk =>
+                          sk.Level < SkillMath.MaxSkillLevel && sk.Experience >= SkillMath.XpToNextLevel(sk.Level)).SkillId)?.Name
+                       ?? "a skill") + " can level up"
+                    : $"{levelable} skills can level up";
+                Badge(input.Bindings[InputAction.SkillMenu].Display(), which, new Color(150, 230, 140));
+            }
+        }
 
         // --- zone banner (top center): where the group is in the campaign loop ---
         if (_client.World.Map?.Kind == World.MapKind.Defense)
