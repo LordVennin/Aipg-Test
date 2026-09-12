@@ -974,9 +974,12 @@ public static class SpriteGen
             $":{Gloves?.PackedValue ?? 0:x8}:{Boots?.PackedValue ?? 0:x8}:{Belt?.PackedValue ?? 0:x8}";
     }
 
-    /// <summary>Facing directions for the baked body frames. West is the East strip
-    /// mirrored at draw time — the rig itself only knows three views.</summary>
-    public const int DirSouth = 0, DirNorth = 1, DirEast = 2;
+    /// <summary>Facing directions for the baked body frames. The rig knows FIVE views —
+    /// front, back, side, and the two three-quarter turns (front-right, back-right);
+    /// west, south-west and north-west are the east-facing strips mirrored at draw
+    /// time. Eight on-screen facings from five baked views.</summary>
+    public const int DirSouth = 0, DirNorth = 1, DirEast = 2, DirSouthEast = 3, DirNorthEast = 4;
+    public const int PlayerDirCount = 5;
 
     /// <summary>Build the full baked look straight from a CharacterData — creation
     /// choices plus worn armor. Used by menus (character select) that render a saved
@@ -1012,7 +1015,8 @@ public static class SpriteGen
     }
 
     /// <summary>Player body frames for one look, indexed [direction * 3 + frame]:
-    /// directions South (front) / North (back) / East (side, mirror for West), frames
+    /// directions South (front) / North (back) / East (side, mirror for West) /
+    /// South-East (three-quarter front) / North-East (three-quarter back), frames
     /// [0] idle + [1]/[2] walk. ONE human rig — style only changes silhouette pixels,
     /// so every armor layer fits every body. Cached per exact look (colors are free
     /// 24-bit values, but a session only ever holds a handful of players).</summary>
@@ -1036,12 +1040,16 @@ public static class SpriteGen
     public static Texture2D[] CreatePlayerFrames(in PlayerLook look)
     {
         if (_device == null) return null;
-        var frames = new Texture2D[9];
-        for (int dir = 0; dir < 3; dir++)
+        var frames = new Texture2D[PlayerDirCount * 3];
+        for (int dir = 0; dir < PlayerDirCount; dir++)
             for (int f = 0; f < 3; f++)
-                frames[dir * 3 + f] = dir == DirEast
-                    ? DrawHumanBodySide(look, f)
-                    : DrawHumanBody(look, dir, f);
+                frames[dir * 3 + f] = dir switch
+                {
+                    DirEast => DrawHumanBodySide(look, f),
+                    DirSouthEast => DrawHumanBodyQuarter(look, back: false, f),
+                    DirNorthEast => DrawHumanBodyQuarter(look, back: true, f),
+                    _ => DrawHumanBody(look, dir, f),
+                };
         return frames;
     }
 
@@ -1346,6 +1354,185 @@ public static class SpriteGen
                     Rect(8, 6, 10, 6, new Color(20, 18, 16));
                     Rect(5, 2, 5, 8, metDark);                // back seam
                     Set(4, 9, metDark); Set(10, 9, metDark);
+                    break;
+            }
+        }
+
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>The three-quarter views of the rig — front-right (South-East) and
+    /// back-right (North-East); mirrored at draw time for the two western turns.
+    /// The body is turned toward +x: the near shoulder/arm/leg sit a pixel further
+    /// right and catch the light, the far side hides behind the torso in shadow, the
+    /// face shows both eyes pushed toward the front edge (or, from behind, hair and
+    /// one cheek). Every armor and helmet style paints onto these coordinates too, so
+    /// worn gear turns with the body.</summary>
+    private static Texture2D DrawHumanBodyQuarter(in PlayerLook look, bool back, int frame)
+    {
+        const int w = 16, h = 27;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+
+        var skin = look.Skin;
+        var skinShade = Shade(skin, 0.78f);
+        var hairDark = Shade(look.Hair, 0.7f);
+        bool armored = look.ArmorStyle != 0;
+        var garb = armored ? look.ArmorColor : new Color(104, 98, 88);
+        var garbDark = Shade(garb, 0.72f);
+        var garbLight = Shade(garb, 1.22f);
+        var pants = new Color(70, 62, 56);
+        var pantsDark = Shade(pants, 0.78f);
+        var boots = look.Boots ?? new Color(52, 44, 38);
+        var bootsDark = Shade(boots, 0.75f);
+        var eyes = new Color(32, 28, 26);
+        bool fem = look.BodyStyle == 1;
+        bool robe = look.ArmorStyle == 1;
+
+        // Legs: the far leg (left on screen) a shade darker, the near leg shifted
+        // toward the facing; the stride swings them like the front view.
+        int lead = frame == 0 ? 0 : frame == 1 ? 1 : -1;
+        Rect(6, 20, 7, 24 + Math.Min(0, lead), pantsDark);                 // far leg
+        Rect(9, 20, 10, 24 - Math.Max(0, lead), pants);                    // near leg
+        Rect(6, 25, 7, 26, bootsDark);
+        Set(8, 25 + Math.Min(0, -lead), bootsDark);                         // far toe toward +x
+        Rect(9, 25, 10, 26, boots);
+        Set(11, 25 - Math.Max(0, -lead), boots);                            // near toe
+        Set(7, 26, Shade(boots, 0.6f)); Set(10, 26, bootsDark);
+
+        // Torso: seven wide, turned — the far column in shadow, the near edge lit.
+        int shL = fem ? 6 : 5, shR = fem ? 11 : 11;
+        Rect(shL, 11, shR, 16, garb);
+        Rect(shL, 12, shL, 16, garbDark);                                   // turned-away flank
+        if (fem && !robe)
+        {
+            Rect(7, 17, 10, 19, garb);
+            Set(6, 17, garbDark);
+        }
+        else
+            Rect(6, 17, 10, 19, garb);
+        Rect(shL, 11, shR, 11, garbDark);                                   // shoulder seam
+        if (back) Rect(8, 12, 8, 18, garbDark);                             // spine seam
+
+        switch (look.ArmorStyle)
+        {
+            case 1: // robe skirt, hem, a fold running down the turned side.
+                Rect(5, 20, 11, 24, garb);
+                Rect(5, 24, 11, 24, garbDark);
+                Set(5, 20, garbDark); Set(5, 22, garbDark);
+                Set(9, 14, garbDark); Set(9, 18, garbDark); Set(9, 22, garbDark);
+                break;
+            case 2: // leather: the chest strap runs diagonally across the turned chest.
+                if (!back) { Set(6, 13, garbDark); Set(7, 14, garbDark); Set(8, 14, garbDark); Set(9, 15, garbDark); Set(10, 15, garbDark); }
+                else Rect(6, 14, 10, 14, garbDark);
+                Set(shR, 11, garbLight); Set(shL + 1, 12, garbDark);
+                break;
+            case 3: // mail rings.
+                for (int my = 12; my <= 17; my++)
+                    for (int mx = shL; mx <= shR; mx++)
+                        if (((mx + my) & 1) == 0 && px[my * w + mx] == garb)
+                            Set(mx, my, garbLight);
+                break;
+            case 4: // plate: the near pauldron stands proud, the ridge sits off-center.
+                Set(shR + 1, 11, garb); Set(shR + 1, 12, garbDark);
+                Set(shL - 1, 11, garbDark);
+                Rect(back ? 7 : 9, 12, back ? 7 : 9, 17, garbLight);
+                Rect(shL, 15, shR, 15, garbDark);
+                break;
+        }
+
+        if (!robe)
+            Rect(6, 19, 10, 19, look.Belt ?? Shade(pants, 0.8f));
+
+        // Arms: the near arm hangs in front of the turned torso and swings with the
+        // stride; the far arm is a sliver behind the shoulder.
+        int armSwing = lead;
+        var hand = look.Gloves ?? skin;
+        Rect(shR + 1, 12, shR + 1, 16 + armSwing, garbDark);
+        Set(shR + 1, 17 + armSwing, hand);
+        Rect(shL - 1, 12, shL - 1, 15 - armSwing, garbDark);
+        Set(shL - 1, 16 - armSwing, Shade(hand, 0.8f));
+
+        // Head: turned — from the front both eyes push toward the +x edge with a nose
+        // hint past the cheek; from behind it's the back of the head and one cheek.
+        Rect(5, 3, 10, 9, skin);
+        Rect(5, 9, 10, 9, skinShade);
+        Rect(5, 3, 5, 8, skinShade);                                        // turned-away cheek
+        if (!back)
+        {
+            Set(7, 6, eyes); Set(10, 6, eyes);
+            Set(11, 7, skinShade);                                          // nose
+            Set(9, 8, skinShade);                                           // mouth corner
+        }
+        Rect(6, 10, 9, 10, skinShade);                                      // neck
+
+        if (look.HelmetStyle == 0)
+        {
+            if (look.HairStyle != Sim.Appearance.HairBald)
+            {
+                Rect(4, 1, 11, 2, look.Hair);
+                Rect(4, 3, 5, 5, look.Hair);                                // far side of the head is hair
+                Set(11, 3, look.Hair);
+                Set(4, 1, hairDark); Set(11, 2, hairDark);
+                if (back) Rect(5, 3, 9, 7, look.Hair);                      // the back of the head, one cheek left
+            }
+            else
+                Rect(5, 3, 10, 3, skinShade);
+            if (look.HairStyle == Sim.Appearance.HairLong)
+            {
+                Rect(4, 3, 5, 12, look.Hair);                               // fall down the far side / back
+                Set(4, 12, hairDark); Set(5, 12, hairDark);
+                if (back) Rect(5, 3, 9, 10, look.Hair);
+                else Rect(11, 3, 11, 6, look.Hair);
+            }
+            else if (look.HairStyle == Sim.Appearance.HairBun)
+            {
+                Rect(5, 0, 8, 0, look.Hair);
+                Set(5, 0, hairDark);
+            }
+        }
+        else
+        {
+            var met = look.HelmetColor;
+            var metDark = Shade(met, 0.7f);
+            var metLight = Shade(met, 1.25f);
+            switch (look.HelmetStyle)
+            {
+                case 1: // hood: deep on the turned side, open at the face edge.
+                    if (back) Rect(5, 3, 9, 9, met);
+                    Rect(4, 1, 11, 2, met);
+                    Rect(4, 3, 5, 10, met); Rect(11, 3, 11, 10, met);
+                    Set(4, 10, metDark); Set(11, 10, metDark); Set(11, 2, metDark);
+                    if (back) Rect(7, 4, 8, 9, metDark);
+                    break;
+                case 2: // cowl: the hood with its peak trailing back over the crown.
+                    if (back) Rect(5, 3, 9, 9, met);
+                    Rect(4, 1, 11, 2, met);
+                    Rect(4, 3, 5, 10, met); Rect(11, 3, 11, 10, met);
+                    Rect(5, 0, 8, 0, met); Set(5, 0, metLight);
+                    Set(4, 10, metDark); Set(11, 10, metDark);
+                    if (back) Rect(7, 4, 8, 9, metDark);
+                    break;
+                case 3: // cap: dome, rim, a cheek guard on each side.
+                    Rect(4, 1, 11, 3, met);
+                    Rect(4, 1, 11, 1, metLight);
+                    Rect(4, 4, 4, 5, met); Rect(11, 4, 11, 5, met);
+                    Rect(4, 3, 11, 3, metDark);
+                    break;
+                case 4: // helm: the slit wraps the front edge; a seam runs the back.
+                    Rect(4, 1, 11, 9, met);
+                    Rect(4, 1, 11, 1, metLight);
+                    Rect(4, 2, 4, 8, metDark);
+                    if (!back)
+                    {
+                        Rect(7, 6, 11, 6, new Color(20, 18, 16));
+                        Rect(9, 7, 10, 9, metDark);
+                    }
+                    else
+                        Rect(6, 2, 7, 8, metDark);
+                    Set(4, 9, metDark); Set(11, 9, metDark);
                     break;
             }
         }

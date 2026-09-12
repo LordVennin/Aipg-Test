@@ -548,13 +548,18 @@ saved and the interrupted action resumes automatically.
   (`Sim.Appearance` holds the swatch palettes and the packed-RGB helpers).
   Because every body uses the same rig, future armor overlays draw once and
   fit everyone; other RACES are planned as their own standalone patch later.
-- **4-way facing**: the body TURNS with the aim (mouse) direction — front,
-  back, and a true side profile that mirrors for west. Every layer (hair,
-  helmets, armor) is drawn for all three views, so a full helm shows its eye
-  slit only from the front and long hair falls down the back when you turn
-  away. Animation stays deliberately minimal: the walk cycle is the only
-  body animation, and held weapons hover/point per the aim like always.
-  Dev aid: `ARPG_DEVUI=face:N` (S/E/W) pins the facing for screenshot runs.
+- **8-way facing**: the body TURNS with the aim (mouse) direction through
+  eight facings from FIVE baked views — front, back, a true side profile,
+  and two three-quarter turns (front-right, back-right); the three
+  east-facing strips mirror for the western turns. Every layer (hair,
+  helmets, armor) is drawn for all five views, so a full helm's eye slit
+  wraps the front edge on a three-quarter turn and long hair falls down the
+  back when you turn away. Walking along a world axis (the screen
+  diagonals) shows a three-quarter turn — the facing players see most.
+  Animation stays deliberately minimal: the walk cycle is the only body
+  animation, and held weapons hover/point per the aim like always.
+  Dev aid: `ARPG_DEVUI=face:N` (S/E/W/SE/SW/NE/NW) pins the facing for
+  screenshot runs.
 - **Appearance replicates**: body style, hair style, the exact skin/hair RGB
   values AND the five worn armor slots ride the `PlayerAppearance` packet
   (protocol v29), so every client renders every player's chosen look, walk
@@ -907,7 +912,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (719 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (721 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.
