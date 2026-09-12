@@ -191,20 +191,33 @@ public partial class ServerWorld
                 }
 
                 // Hand rules: a two-handed weapon occupies both hands — EXCEPT a bow,
-                // which shares with (only) a quiver.
-                if (slot == EquipSlot.OffHand &&
-                    c.Equipment.GetValueOrDefault(EquipSlot.MainHand)?.GetBase(Data) is { IsWeapon: true, TwoHanded: true } mainBase &&
-                    !(mainBase.Category == ItemCategory.Bow && itemBase.Category == ItemCategory.Quiver))
+                // which shares with (only) a quiver. And a quiver is ammunition: it
+                // only goes on when a bow is already in the main hand.
+                if (slot == EquipSlot.OffHand)
                 {
-                    error = $"Cannot use the off-hand while the two-handed {mainBase.Name} is equipped.";
-                    return false;
+                    var mainBaseNow = c.Equipment.GetValueOrDefault(EquipSlot.MainHand)?.GetBase(Data);
+                    if (itemBase.Category == ItemCategory.Quiver && mainBaseNow?.Category != ItemCategory.Bow)
+                    {
+                        error = "A quiver needs a bow in the main hand.";
+                        return false;
+                    }
+                    if (mainBaseNow is { IsWeapon: true, TwoHanded: true } &&
+                        !(mainBaseNow.Category == ItemCategory.Bow && itemBase.Category == ItemCategory.Quiver))
+                    {
+                        error = $"Cannot use the off-hand while the two-handed {mainBaseNow.Name} is equipped.";
+                        return false;
+                    }
                 }
-                if (slot == EquipSlot.MainHand && itemBase.IsWeapon && itemBase.TwoHanded)
+                if (slot == EquipSlot.MainHand && itemBase.IsWeapon)
                 {
                     var offHand = c.Equipment.GetValueOrDefault(EquipSlot.OffHand);
-                    bool offHandStays = itemBase.Category == ItemCategory.Bow &&
-                                        offHand?.GetBase(Data).Category == ItemCategory.Quiver;
-                    if (offHand != null && !offHandStays)
+                    bool offIsQuiver = offHand?.GetBase(Data).Category == ItemCategory.Quiver;
+                    // A two-hander clears the off-hand (a bow keeps its quiver), and a
+                    // quiver never stays behind a weapon that isn't a bow.
+                    bool mustClear = offHand != null &&
+                        ((itemBase.TwoHanded && !(itemBase.Category == ItemCategory.Bow && offIsQuiver)) ||
+                         (offIsQuiver && itemBase.Category != ItemCategory.Bow));
+                    if (mustClear)
                     {
                         // Auto-unequip the off-hand item to the bag; fail if there is no room.
                         if (!inv.TryFindFreeSlot(Data, offHand, out int ox, out int oy))
@@ -678,8 +691,10 @@ public partial class ServerWorld
                 break;
             case "kill_nearby":
             {
+                // "mobs": spare bosses (GUI walkthroughs that want the boss fight).
                 foreach (var e in Enemies.Values.ToList())
-                    if (!e.Dead && System.Numerics.Vector2.Distance(e.Position, p.Position) < 7f)
+                    if (!e.Dead && System.Numerics.Vector2.Distance(e.Position, p.Position) < 7f &&
+                        !(arg == "mobs" && e.Affixes.HasFlag(EliteAffix.Boss)))
                         DamageEnemy(e, e.Health + 1, playerId, null);
                 break;
             }
@@ -718,6 +733,19 @@ public partial class ServerWorld
                 {
                     c.Equipment[EquipSlot.Pet] = petGive;
                     p.RecomputeStats(Data);
+                    changed = true;
+                }
+                break;
+            case "learn_skill":
+                // Dev shortcut: learn a skill by id, free, no trainer, and drop it onto
+                // the first empty hotbar slot (GUI automation captures).
+                if (Data.Skills.ContainsKey(arg))
+                {
+                    if (c.GetSkill(arg) == null)
+                        c.Skills.Add(new LearnedSkill { SkillId = arg });
+                    if (Array.IndexOf(c.Hotbar, arg) < 0)
+                        for (int i = 0; i < c.Hotbar.Length; i++)
+                            if (string.IsNullOrEmpty(c.Hotbar[i])) { c.Hotbar[i] = arg; break; }
                     changed = true;
                 }
                 break;

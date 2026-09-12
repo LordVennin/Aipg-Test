@@ -756,6 +756,9 @@ public static class HeadlessNetTest
         Pump(0.4f);
         clientA.SendDebugCommand("kill_nearby");
         Pump(0.4f);
+        // The Ground Slam above left a tremor on this very spot: its aftershock is
+        // BLUNT damage and would hit the fire-immune grunt. Let it finish first.
+        for (int i = 0; i < 10 && server.World.ActiveTremors.Count > 0; i++) Pump(0.5f);
         clientA.SendDebugCommand("spawn_enemy", "grunt");
         Pump(0.3f);
         var resistTarget = server.World.Enemies.Values.Where(e => !e.Dead)
@@ -4838,6 +4841,8 @@ public static class HeadlessNetTest
         var boss53 = campServer.World.Enemies.Values
             .FirstOrDefault(e => !e.Dead && e.Def.Id == "gravelord");
         Check(boss53 != null, "the final wave brings the Gravelord");
+        Check(boss53 != null && boss53.Affixes.HasFlag(Server.EliteAffix.Boss),
+              "...as a real boss (affix set: big body, boss bar, stun resistance)");
         float bossMarch53 = boss53 != null
             ? Vector2.Distance(boss53.Position, defMap49.WagonSpot) : 0f;
         campA.World.Me.Position = defMap49.ExitDoor + new Vector2(-1.4f, 0);
@@ -4954,6 +4959,8 @@ public static class HeadlessNetTest
         // The boss falls: the caravan celebrates and the gate opens home.
         var tutBoss54 = campServer.World.Enemies.Values
             .First(e => !e.Dead && e.Def.Id == "gravelord");
+        Check(tutBoss54.Affixes.HasFlag(Server.EliteAffix.Boss),
+              "the Old Road's Gravelord is a real boss (affix: big body, boss bar, stun resistance)");
         campA.World.Me.Position = tutBoss54.Position + new Vector2(-1.5f, 0f);
         campA.World.Me.Height = 1f;
         campB.World.Me.Position = tutBoss54.Position + new Vector2(-1.5f, 0.8f);
@@ -5349,6 +5356,183 @@ public static class HeadlessNetTest
                   d.Item.GetBase(data)?.Category == Items.ItemCategory.Pet &&
                   d.Item.Rarity == Items.ItemRarity.Unique) >= 2,
               "the debug menu drops both unique pets");
+
+        Console.WriteLine("\n-- Batch 56: zombie variants, piercing shots, earthquakes, the quiver rule --");
+        // Body variants: pack members pick per-id looks; bosses and single-look types don't.
+        var grunt56 = data.Enemies["grunt"];
+        Check(grunt56.SpriteVariants == 3 && data.Enemies["shambler"].SpriteVariants == 3 &&
+              data.Enemies["gravelord"].SpriteVariants == 1,
+              "grunts and shamblers carry three body variants; the Gravelord keeps one face");
+        Check(Render.SpriteGen.VariantFor(grunt56, 7) == 1 && Render.SpriteGen.VariantFor(grunt56, 8) == 2 &&
+              Render.SpriteGen.VariantFor(grunt56, 9) == 0 &&
+              Render.SpriteGen.VariantFor(data.Enemies["gravelord"], 7) == 0,
+              "individuals pick their variant by id (7 -> 1, 8 -> 2, 9 -> 0; bosses always 0)");
+
+        // Corpses remember which body they were, so the heap keeps the variant.
+        var srv56 = server.World.Players[bId];
+        clientB.World.Me.Position = server.World.Map.PlayerSpawn;
+        clientB.World.Me.Height = server.World.Map.GroundHeightAt(server.World.Map.PlayerSpawn);
+        Pump(0.3f);
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+        var corpseGrunt56 = server.World.SpawnEnemy("grunt", srv56.Position + new Vector2(1.2f, 0));
+        int corpseSrc56 = corpseGrunt56.Id;
+        Pump(0.2f);
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.4f);
+        Check(clientB.World.Corpses.Values.Any(c => c.SourceId == corpseSrc56 && c.TypeId == "grunt"),
+              "a corpse replicates the fallen enemy's id, so the body keeps its variant");
+
+        // The quiver rule: ammunition needs a bow. No bow -> refused; swapping the bow
+        // for a mace kicks the quiver back into the bag; a quiver stranded behind a
+        // non-bow contributes nothing (flagged inactive, red in the UI).
+        var qChar56 = srv56.Character;
+        qChar56.Equipment.Remove(Items.EquipSlot.OffHand);
+        qChar56.Equipment[Items.EquipSlot.MainHand] = MkNorm("wooden_club");
+        qChar56.Inventory.TryAdd(data, MkNorm("leather_quiver"));
+        srv56.RecomputeStats(data);
+        var qPlaced56 = qChar56.Inventory.Items.First(pl => pl.Item.BaseItemId == "leather_quiver");
+        server.World.MoveItem(bId, ItemLocation.AtGrid(qPlaced56.X, qPlaced56.Y),
+            ItemLocation.AtEquip(Items.EquipSlot.OffHand));
+        Check(qChar56.OffHand == null, "a quiver will not equip beside a mace");
+        qChar56.Equipment[Items.EquipSlot.MainHand] = MkNorm("short_bow");
+        srv56.RecomputeStats(data);
+        qPlaced56 = qChar56.Inventory.Items.First(pl => pl.Item.BaseItemId == "leather_quiver");
+        server.World.MoveItem(bId, ItemLocation.AtGrid(qPlaced56.X, qPlaced56.Y),
+            ItemLocation.AtEquip(Items.EquipSlot.OffHand));
+        Check(qChar56.OffHand?.BaseItemId == "leather_quiver", "...and equips once a bow is in hand");
+        qChar56.Inventory.TryAdd(data, MkNorm("wooden_club"));
+        var clubPlaced56 = qChar56.Inventory.Items.First(pl => pl.Item.BaseItemId == "wooden_club");
+        server.World.MoveItem(bId, ItemLocation.AtGrid(clubPlaced56.X, clubPlaced56.Y),
+            ItemLocation.AtEquip(Items.EquipSlot.MainHand));
+        Check(qChar56.MainHand?.BaseItemId == "wooden_club" && qChar56.OffHand == null &&
+              qChar56.Inventory.Items.Any(pl => pl.Item.BaseItemId == "leather_quiver"),
+              "swapping the bow for a mace sends the quiver back to the bag");
+        var strandChar56 = new Sim.CharacterData();
+        var strandQuiver56 = MkNorm("leather_quiver");
+        strandChar56.Equipment[Items.EquipSlot.MainHand] = MkNorm("wooden_club");
+        strandChar56.Equipment[Items.EquipSlot.OffHand] = strandQuiver56;
+        var strandStats56 = Stats.StatCalculator.Compute(data, strandChar56);
+        strandChar56.Equipment[Items.EquipSlot.MainHand] = MkNorm("short_bow");
+        var bowStats56 = Stats.StatCalculator.Compute(data, strandChar56);
+        Check(strandStats56.InactiveItems.Contains(strandQuiver56.InstanceId) &&
+              !bowStats56.InactiveItems.Contains(strandQuiver56.InstanceId) &&
+              bowStats56.AttackSpeedIncrease > strandStats56.AttackSpeedIncrease,
+              "a quiver behind a mace is inactive; behind a bow it counts");
+
+        // Impact visuals draw the EFFECTIVE area: a leveled Mace Slam's ring comes from
+        // the server's computed radius, not the base definition — and the wind-up
+        // marks the landing circle before the mace comes down.
+        clientB.RequestLearnSkill("mace_strike");
+        Pump(0.3f);
+        var msLearned56 = qChar56.GetSkill("mace_strike");
+        msLearned56.Level = 6;
+        var msStats56 = Skills.SkillMath.Compute(data, data.Skills["mace_strike"], 6,
+            msLearned56.ScrollDefinitions(data), srv56.Stats);
+        Check(msStats56.Radius > data.Skills["mace_strike"].Radius + 0.1f,
+              $"a level-6 Mace Slam is wider than the base definition ({msStats56.Radius:0.00} vs {data.Skills["mace_strike"].Radius:0.00})");
+        srv56.Mana = srv56.Stats.MaxMana;
+        srv56.LastSyncedMana = srv56.Mana;
+        srv56.SkillReadyAt.Clear();
+        srv56.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("mace_strike", srv56.Position + new Vector2(1f, 0));
+        bool ringSeen56 = false, impactSeen56 = false;
+        float impactR56 = 0f;
+        for (int i = 0; i < 12; i++)
+        {
+            Pump(0.08f);
+            ringSeen56 |= clientB.World.Effects.Any(fx => fx.Kind == "slamring");
+            var imp56 = clientB.World.Effects.FirstOrDefault(fx => fx.Kind == "impact");
+            if (imp56 != null) { impactSeen56 = true; impactR56 = imp56.Radius; }
+        }
+        Check(ringSeen56, "a wind-up slam marks its landing circle while the mace comes down");
+        Check(impactSeen56 && MathF.Abs(impactR56 - msStats56.Radius) < 0.01f,
+              $"the impact draws at the server's effective radius ({impactR56:0.00}, base {data.Skills["mace_strike"].Radius:0.00})");
+
+        // Piercing Shot: one shaft, every body on its line.
+        var psDef56 = data.Skills["piercing_shot"];
+        Check(psDef56.Pierce && psDef56.Chargeable && psDef56.RequiredWeapon == Items.ItemCategory.Bow &&
+              psDef56.Archetype == Skills.SkillArchetype.Projectile && psDef56.ManaCost > 0,
+              "Piercing Shot: a chargeable, piercing bow attack");
+        qChar56.Equipment[Items.EquipSlot.MainHand] = MkNorm("short_bow");
+        qChar56.Equipment.Remove(Items.EquipSlot.OffHand);
+        srv56.RecomputeStats(data);
+        clientB.RequestLearnSkill("piercing_shot");
+        Pump(0.3f);
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+        var near56 = server.World.SpawnEnemy("grunt", srv56.Position + new Vector2(2.0f, 0));
+        near56.Health = 300f;
+        near56.StunnedUntil = server.World.Time + 30f;
+        var far56 = server.World.SpawnEnemy("grunt", srv56.Position + new Vector2(3.6f, 0));
+        far56.Health = 300f;
+        far56.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        srv56.Mana = srv56.Stats.MaxMana;
+        srv56.LastSyncedMana = srv56.Mana;
+        srv56.SkillReadyAt.Clear();
+        srv56.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("piercing_shot", far56.Position);
+        bool pierceFlag56 = false;
+        for (int i = 0; i < 15 && (near56.Health >= 299.9f || far56.Health >= 299.9f); i++)
+        {
+            Pump(0.1f);
+            pierceFlag56 |= clientB.World.Projectiles.Values.Any(pr => pr.Pierce && !pr.Ghost);
+        }
+        Check(near56.Health < 299.9f && far56.Health < 299.9f,
+              $"one piercing shaft hits both bodies on its line ({near56.Health:0} / {far56.Health:0})");
+        Check(pierceFlag56, "the piercing flag replicates for the heavier arrow visual");
+
+        // Ground Slam is an earthquake now: the hit, a tremor that slows whatever
+        // stands in it for a few seconds, then a weaker aftershock.
+        var gsDef56 = data.Skills["ground_slam"];
+        Check(gsDef56.AftershockDelay > 2f && gsDef56.AftershockDamageMult < 1f &&
+              gsDef56.TremorSlow > 0f && gsDef56.Cooldown >= 4f,
+              "Ground Slam carries the aftershock numbers and a longer cooldown");
+        qChar56.Equipment[Items.EquipSlot.MainHand] = MkNorm("wooden_club");
+        srv56.RecomputeStats(data);
+        clientB.RequestLearnSkill("ground_slam");
+        Pump(0.3f);
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
+        var quakePrey56 = server.World.SpawnEnemy("grunt", srv56.Position + new Vector2(0.9f, 0));
+        quakePrey56.Health = 999f;
+        quakePrey56.StunnedUntil = server.World.Time + 30f;
+        Pump(0.2f);
+        srv56.Mana = srv56.Stats.MaxMana;
+        srv56.LastSyncedMana = srv56.Mana;
+        srv56.SkillReadyAt.Clear();
+        srv56.GlobalSkillReadyAt = 0;
+        clientB.RequestUseSkill("ground_slam", srv56.Position);
+        Pump(0.7f);
+        float afterFirst56 = quakePrey56.Health;
+        Check(afterFirst56 < 998.9f && server.World.ActiveTremors.Count == 1,
+              $"the slam lands and leaves a tremor behind (hp {afterFirst56:0}, {server.World.ActiveTremors.Count} tremor)");
+        var lateComer56 = server.World.SpawnEnemy("grunt", srv56.Position + new Vector2(0.6f, 0.4f));
+        lateComer56.Health = 999f;
+        lateComer56.StunnedUntil = server.World.Time + 30f;
+        Pump(0.4f);
+        Check(lateComer56.TremorSlowUntil > server.World.Time && lateComer56.TremorSlow > 0.2f,
+              "anything standing in the tremor is slowed while it shakes");
+        bool tremorFxSeen56 = clientB.World.Effects.Any(fx => fx.Kind == "tremor");
+        bool slowFlagSeen56 = false;
+        for (int i = 0; i < 12 && !slowFlagSeen56; i++)
+        {
+            Pump(0.05f);
+            slowFlagSeen56 = clientB.World.Enemies.TryGetValue(lateComer56.Id, out var lc56) &&
+                             (lc56.DebuffFlags & Server.EnemyDebuffs.Slowed) != 0;
+        }
+        Check(tremorFxSeen56 && slowFlagSeen56,
+              "the tremor shows on clients and its slow replicates as a debuff flag");
+        float lateBefore56 = lateComer56.Health;
+        Pump(3.0f);
+        Check(server.World.ActiveTremors.Count == 0 && lateComer56.Health < lateBefore56 - 0.01f,
+              $"the aftershock lands after the delay ({lateBefore56:0} -> {lateComer56.Health:0})");
+        Check(clientB.World.Effects.Any(fx => fx.Kind == "aftershock") ||
+              !clientB.World.Effects.Any(fx => fx.Kind == "tremor"),
+              "the aftershock visual replaces the tremor");
+        clientB.SendDebugCommand("kill_nearby");
+        Pump(0.3f);
 
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();

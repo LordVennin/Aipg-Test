@@ -149,6 +149,9 @@ public class ClientProjectile
     public float HeightStep;
     /// <summary>Sprite name override (shatter shards); null = the skill's sprite.</summary>
     public string SpriteOverride;
+    /// <summary>Piercing shots fly on through bodies (predicted ghosts don't stop on
+    /// the first enemy either) and draw heavier.</summary>
+    public bool Pierce;
     /// <summary>Client-side cast prediction: a cosmetic local projectile spawned the
     /// instant the cast was REQUESTED, so remote players see their bolt leave on click
     /// instead of a round trip later. Replaced by the authoritative projectile when the
@@ -251,6 +254,8 @@ public class ClientCorpse
 {
     public int Id;
     public string TypeId;
+    /// <summary>The fallen enemy's id (keeps the body on the same procedural variant).</summary>
+    public int SourceId;
     public Vector2 Position;
     public float Height;
     /// <summary>Local arrival time (ms) — drives the client-side fall animation.</summary>
@@ -449,7 +454,7 @@ public class ClientWorld
             // Predicted ghosts stop on the first enemy they visually touch — the REAL
             // hit is the server's call, but a cosmetic bolt gliding through a body
             // reads as a pass-through bug.
-            if (pr.Ghost)
+            if (pr.Ghost && !pr.Pierce)
             {
                 foreach (var e in Enemies.Values)
                 {

@@ -165,6 +165,20 @@ public class SkillDefinition
     /// invulnerability so ramming into an enemy doesn't hurt.</summary>
     public float LungeDistance { get; set; }
 
+    /// <summary>Projectiles fly THROUGH every enemy they touch instead of stopping at
+    /// the first (Piercing Shot); each enemy is hit once per projectile.</summary>
+    public bool Pierce { get; set; }
+
+    // ------------------------------------------------------------------ aftershock
+    /// <summary>Earthquake-style follow-up (Ground Slam): after the hit, the ground
+    /// keeps shaking in the impact circle for this many seconds — enemies inside are
+    /// slowed by TremorSlow — and then a second, weaker shock lands at
+    /// AftershockDamageMult of the skill's damage. 0 = no aftershock.</summary>
+    public float AftershockDelay { get; set; }
+    public float AftershockDamageMult { get; set; } = 0.6f;
+    /// <summary>Movement speed fraction removed inside the tremor (0.25 = 25% slower).</summary>
+    public float TremorSlow { get; set; } = 0.25f;
+
     /// <summary>"Attack" skills scale with attack speed; "Spell" with cast speed.</summary>
     public bool IsAttack => Tags.Contains(SkillTags.Attack);
 

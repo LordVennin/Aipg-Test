@@ -955,7 +955,8 @@ public class WorldRenderer
         {
             var cpos = corpse.Position;
             var cdef = _data.Enemies.GetValueOrDefault(corpse.TypeId);
-            var cframes = SpriteGen.GetEnemyFrames(cdef);
+            int cVariant = SpriteGen.VariantFor(cdef, corpse.SourceId);
+            var cframes = SpriteGen.GetEnemyFrames(cdef, cVariant);
             if (cframes == null) continue;
             var cScreen = camera.WorldToScreen(cpos, corpse.Height);
             float fallT = Math.Clamp((animClock - corpse.SpawnedAtMs) / 380f, 0f, 1f);
@@ -989,7 +990,7 @@ public class WorldRenderer
                 // identically), then the body SETTLES into a proper dead-heap sprite —
                 // slumped flesh, a bone pile, a crumpled robe — not a tipped walk frame.
                 float ease = 1f - (1f - fallT) * (1f - fallT);
-                var heap = SpriteGen.GetEnemyCorpseSprite(cdef);
+                var heap = SpriteGen.GetEnemyCorpseSprite(cdef, cVariant);
                 if (fallT >= 1f && heap != null)
                 {
                     var fx2 = cid % 2 == 0 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
@@ -1014,7 +1015,12 @@ public class WorldRenderer
             var def = e.Def;
             var color = ParseColor(def?.Color, new Color(190, 60, 60));
             float size = (def?.Radius ?? 0.4f) * 90f;
-            var frames = SpriteGen.GetEnemyFrames(def);
+            int variant = SpriteGen.VariantFor(def, e.Id);
+            var frames = SpriteGen.GetEnemyFrames(def, variant);
+            // How big this body draws relative to a plain grunt — the swing animation
+            // (crouch, lurch, claw reach) scales with it so the boss's rake reads as
+            // a boss's rake, not a grunt's swipe on a bigger sprite.
+            float animScale = (e.IsBoss ? 3f : 2f) * (def?.SpriteScale ?? 1f) / 2f;
 
             // Telegraphed melee swing animation (EnemyAttack events): phase 1 leans the
             // body back through the wind-up; phase 2 lurches it along the strike for a
@@ -1035,12 +1041,12 @@ public class WorldRenderer
                 if (e.AttackAnimPhase == 1)
                 {
                     windupT = Math.Clamp(elapsed / windupDur, 0f, 1f);
-                    animOff = -strikeDir * (4.5f * windupT * windupT); // ease into the crouch
+                    animOff = -strikeDir * (4.5f * animScale * windupT * windupT); // ease into the crouch
                 }
                 else if (e.AttackAnimPhase == 2 && elapsed < SwingAnimDur)
                 {
                     swingT = elapsed / SwingAnimDur;
-                    animOff = strikeDir * (7f * (1f - swingT));        // lurch, then settle
+                    animOff = strikeDir * (7f * animScale * (1f - swingT));        // lurch, then settle
                 }
             }
             _sorted.Add((pos.X + pos.Y + e.Height * 1.0f + 0.1f + UnderDeckBias(pos, e.Height), batch =>
@@ -1065,7 +1071,7 @@ public class WorldRenderer
                     {
                         // Red OUTLINE: the sprite's silhouette at 4 offsets underneath,
                         // then the untinted sprite on top — only the rim shows red.
-                        var sil = SpriteGen.GetEnemySilhouette(def, frame);
+                        var sil = SpriteGen.GetEnemySilhouette(def, frame, variant);
                         if (sil != null)
                         {
                             var fx2 = e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
@@ -1122,18 +1128,47 @@ public class WorldRenderer
                     }
                     else if (swingT >= 0f && swingT < 1f)
                     {
-                        // Lunge-style swing (zombies, the boss): raking claw streaks that
-                        // fly along the strike and fade.
                         float ang = MathF.Atan2(strikeDir.Y, strikeDir.X);
                         var perp = new Vector2(-strikeDir.Y, strikeDir.X);
-                        var baseP = new Vector2(screen.X + animOff.X, screen.Y + animOff.Y - 14) +
-                                    strikeDir * (10f + 16f * swingT);
                         var streakCol = new Color(238, 232, 214) * (1f - swingT);
-                        for (int k = -1; k <= 1; k++)
+                        if (e.IsBoss)
                         {
-                            var p0 = baseP + perp * (k * 5f);
-                            batch.Draw(TextureGen.Pixel, p0, null, streakCol, ang,
-                                new Vector2(0f, 0.5f), new Vector2(13f, 1.5f), SpriteEffects.None, 0f);
+                            // The boss's OWN rake: five long claw streaks fanned across
+                            // the strike, thick, reaching far past the body, each over a
+                            // dark afterimage, with dust kicked up where they land — a
+                            // grunt's little swipe on a 3x sprite read as a small hit.
+                            var baseP = new Vector2(screen.X + animOff.X, screen.Y + animOff.Y - 14f * animScale) +
+                                        strikeDir * ((12f + 26f * swingT) * animScale);
+                            var shadowCol = new Color(52, 26, 36) * (0.6f * (1f - swingT));
+                            for (int k = -2; k <= 2; k++)
+                            {
+                                float ca = ang + k * 0.17f;
+                                var dirK = new Vector2(MathF.Cos(ca), MathF.Sin(ca));
+                                var p0 = baseP + perp * (k * 5f * animScale) - dirK * 5f;
+                                float len = (24f - MathF.Abs(k) * 4f) * animScale * 0.8f;
+                                batch.Draw(TextureGen.Pixel, p0 + new Vector2(0f, 1.5f), null, shadowCol, ca,
+                                    new Vector2(0f, 0.5f), new Vector2(len, 3.2f), SpriteEffects.None, 0f);
+                                batch.Draw(TextureGen.Pixel, p0, null, streakCol, ca,
+                                    new Vector2(0f, 0.5f), new Vector2(len, 2.2f), SpriteEffects.None, 0f);
+                            }
+                            var tip = baseP + strikeDir * (16f * animScale);
+                            int ds = (int)((9f + 12f * swingT) * animScale);
+                            batch.Draw(TextureGen.Circle32,
+                                new Rectangle((int)(tip.X - ds), (int)(tip.Y - ds / 2f), ds * 2, ds),
+                                _floorB * (0.32f * (1f - swingT)));
+                        }
+                        else
+                        {
+                            // Lunge-style swing (zombies): raking claw streaks that fly
+                            // along the strike and fade, sized to the body.
+                            var baseP = new Vector2(screen.X + animOff.X, screen.Y + animOff.Y - 14f * animScale) +
+                                        strikeDir * ((10f + 16f * swingT) * animScale);
+                            for (int k = -1; k <= 1; k++)
+                            {
+                                var p0 = baseP + perp * (k * 5f * animScale);
+                                batch.Draw(TextureGen.Pixel, p0, null, streakCol, ang,
+                                    new Vector2(0f, 0.5f), new Vector2(13f * animScale, 1.5f), SpriteEffects.None, 0f);
+                            }
                         }
                     }
                     barY = (int)screen.Y - h + 2;
@@ -1531,7 +1566,9 @@ public class WorldRenderer
             var screen = camera.WorldToScreen(pos, p.Height);
             // Every player carries their own warm torchglow through dark zones — its
             // radius is a replicated stat (Radiant suffixes on chest/helm grow it).
-            if (p.Alive) AddLight(screen + new Vector2(0, -20), p.LightRadius, new Color(255, 240, 212));
+            // Drawn wide with a slightly tempered color: the glow blends out into the
+            // dark over a long feather instead of cutting off like a spotlight.
+            if (p.Alive) AddLight(screen + new Vector2(0, -20), p.LightRadius * 1.4f, new Color(238, 224, 198));
             var color = p.IsLocal ? new Color(90, 170, 255) : new Color(110, 235, 140);
             if (!p.Alive) color = new Color(80, 80, 90);
             if (p.DodgeTimeLeft > 0) color = Color.Lerp(color, Color.White, 0.65f); // dash flash / i-frame hint
@@ -1742,11 +1779,21 @@ public class WorldRenderer
             if (projSprite != null)
             {
                 // Named sprite (e.g. the ice spike shard), rotated along the flight path.
+                // Piercing shafts draw heavier and drag a pale wake behind them.
                 var isoDir = new Vector2(pr.Direction.X - pr.Direction.Y, (pr.Direction.X + pr.Direction.Y) * 0.5f);
                 float ang = MathF.Atan2(isoDir.Y, isoDir.X);
+                bool pierce = pr.Pierce;
+                var wakeDir = isoDir.LengthSquared() > 0.001f ? Vector2.Normalize(isoDir) : new Vector2(1, 0);
                 _sorted.Add((pr.Position.X + pr.Position.Y + pr.Height * 1.0f + 0.1f + UnderDeckBias(pr.Position, pr.Height), batch =>
+                {
+                    if (pierce)
+                        batch.Draw(TextureGen.Pixel, new Vector2(screen.X, screen.Y - 14) - wakeDir * 30f, null,
+                            new Color(226, 214, 190) * 0.45f, ang, new Vector2(0f, 0.5f),
+                            new Vector2(30f, 2f), SpriteEffects.None, 0f);
                     batch.Draw(projSprite, new Vector2(screen.X, screen.Y - 14), null, Color.White, ang,
-                        new Vector2(projSprite.Width / 2f, projSprite.Height / 2f), 2f, SpriteEffects.None, 0f)));
+                        new Vector2(projSprite.Width / 2f, projSprite.Height / 2f), pierce ? 2.7f : 2f,
+                        SpriteEffects.None, 0f);
+                }));
             }
             else if (projDef?.DamageKind == Skills.DamageKind.Fire && pr.FromPlayer)
             {
@@ -1808,7 +1855,7 @@ public class WorldRenderer
             float flashFade = 1f - t;
             switch (fx.Kind)
             {
-                case "slam" or "debris":
+                case "slam" or "debris" or "aftershock":
                     AddLight(screen, 90f + fx.Radius * 40f, new Color(255, 200, 140) * flashFade);
                     break;
                 case "darkburst":
@@ -2085,26 +2132,170 @@ public class WorldRenderer
 
             if (fx.Kind == "impact")
             {
-                // Ground impact: a radial crack overlay at full size immediately, fading
-                // out — reads as a hit mark, not a growing bubble.
+                // Slam impact, drawn at the TRUE damage ellipse (a world circle of
+                // radius R spans R*sqrt2 half-tiles on screen — the old overlay was
+                // stretched to 2R and overstated the hit area by 40%): a warm shock
+                // disc that flashes and fades, the crack overlay fitted inside it, and
+                // a crisp rim at the exact boundary. Inside the rim got hit; outside
+                // didn't. The radius is the server's effective one, so a widened slam
+                // draws wider.
                 var impactTex = SpriteGen.GetImpactSprite();
-                if (impactTex != null)
+                float iax = fx.Radius * 1.414f * IsoCamera.HalfTileW;
+                float iay = fx.Radius * 1.414f * IsoCamera.HalfTileH;
+                float ifade = 1f - t * t;
+                float discFade = MathF.Max(0f, 1f - t * 1.7f);
+                float rimFade = 1f - t;
+                var idest = new Rectangle((int)(screen.X - iax), (int)(screen.Y - iay), (int)(iax * 2), (int)(iay * 2));
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    float ifade = 1f - t * t;
-                    float iw = fx.Radius * 2f * IsoCamera.HalfTileW * 1.05f;
-                    var idest = new Rectangle((int)(screen.X - iw), (int)(screen.Y - iw / 2f),
-                        (int)(iw * 2), (int)iw);
-                    _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height),
-                        batch => batch.Draw(impactTex, idest, Color.White * ifade)));
-                }
+                    batch.Draw(TextureGen.Circle32, idest, new Color(240, 205, 120) * (0.34f * discFade));
+                    if (impactTex != null) batch.Draw(impactTex, idest, Color.White * ifade);
+                    var rim = new Color(255, 226, 130) * (0.95f * rimFade);
+                    var rimDark = new Color(150, 96, 30) * (0.95f * rimFade);
+                    int segs = Math.Max(28, (int)(iax * 0.55f));
+                    for (int s3 = 0; s3 < segs; s3++)
+                    {
+                        float a2 = s3 * MathF.Tau / segs;
+                        int rx = (int)(screen.X + MathF.Cos(a2) * iax);
+                        int ry = (int)(screen.Y + MathF.Sin(a2) * iay);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(rx - 1, ry - 1, 2, 2), (s3 & 1) == 0 ? rim : rimDark);
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "slamring")
+            {
+                // A wind-up slam's landing mark: the exact hit circle, tightening onto
+                // its final size as the mace comes down — read the area before it lands.
+                float shrink = 1.14f - 0.14f * t;
+                float rax = fx.Radius * 1.414f * IsoCamera.HalfTileW * shrink;
+                float ray = fx.Radius * 1.414f * IsoCamera.HalfTileH * shrink;
+                float pulse = 0.35f + 0.5f * t;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    for (int seg2 = 0; seg2 < 36; seg2++)
+                    {
+                        float a2 = seg2 / 36f * MathF.Tau;
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(a2) * rax) - 1,
+                            (int)(screen.Y + MathF.Sin(a2) * ray) - 1, 2, 2),
+                            new Color(240, 200, 120) * pulse);
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "tremor")
+            {
+                // Ground Slam's lingering quake: the hit circle keeps shuddering — a
+                // dusty haze inside, a faint boundary ring, cracks flickering open and
+                // shut, motes shaken up off the ground — until the aftershock lands.
+                float tax = fx.Radius * 1.414f * IsoCamera.HalfTileW;
+                float tay = fx.Radius * 1.414f * IsoCamera.HalfTileH;
+                long tclock = Environment.TickCount64;
+                int seedT = (int)(fx.Position.X * 641) ^ (int)(fx.Position.Y * 877);
+                float jx = MathF.Sin(tclock * 0.05f) * 1.5f, jy = MathF.Sin(tclock * 0.037f) * 0.8f;
+                var dustT = _floorB;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.12f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - tax + jx), (int)(screen.Y - tay + jy), (int)(tax * 2), (int)(tay * 2)),
+                        new Color(120, 96, 70) * 0.16f);
+                    for (int s3 = 0; s3 < 40; s3++)
+                    {
+                        float a2 = s3 * MathF.Tau / 40f;
+                        float glow = 0.3f + 0.15f * MathF.Sin(tclock * 0.01f + s3 * 0.7f);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + jx + MathF.Cos(a2) * tax) - 1,
+                            (int)(screen.Y + jy + MathF.Sin(a2) * tay) - 1, 2, 2),
+                            new Color(205, 170, 110) * glow);
+                    }
+                    for (int c = 0; c < 7; c++)
+                    {
+                        if (((tclock / 110) + c) % 3 == 0) continue; // cracks flicker shut
+                        var rngC = new Random(seedT + c * 131);
+                        float angC = c / 7f * MathF.Tau + (float)rngC.NextDouble() * 0.7f;
+                        float len = tax * (0.4f + 0.45f * (float)rngC.NextDouble());
+                        var dirC = new Vector2(MathF.Cos(angC), MathF.Sin(angC) * 0.5f);
+                        var posC = new Vector2(screen.X + jx, screen.Y + jy);
+                        for (int s2 = 0; s2 < 4; s2++)
+                        {
+                            var next = posC + dirC * (len / 4f);
+                            next.X += (float)(rngC.NextDouble() - 0.5) * 6f;
+                            next.Y += (float)(rngC.NextDouble() - 0.5) * 3f;
+                            batch.Draw(TextureGen.Pixel, new Rectangle((int)posC.X, (int)posC.Y, 2, 2), new Color(26, 20, 14) * 0.8f);
+                            var mid = (posC + next) * 0.5f;
+                            batch.Draw(TextureGen.Pixel, new Rectangle((int)mid.X, (int)mid.Y, 2, 2), new Color(32, 25, 17) * 0.8f);
+                            posC = next;
+                        }
+                    }
+                    for (int d = 0; d < 6; d++)
+                    {
+                        var rngD = new Random(seedT + d * 47);
+                        float ph = ((tclock + d * 173) % 900) / 900f;
+                        float angD = (float)(rngD.NextDouble() * Math.PI * 2);
+                        float rD = 0.25f + 0.65f * (float)rngD.NextDouble();
+                        var mp = new Vector2(screen.X + MathF.Cos(angD) * tax * rD,
+                                             screen.Y + MathF.Sin(angD) * tay * rD - 12f * ph);
+                        batch.Draw(TextureGen.Pixel, new Rectangle((int)mp.X, (int)mp.Y, 2, 2), dustT * (0.55f * (1f - ph)));
+                    }
+                }));
+                continue;
+            }
+
+            if (fx.Kind == "aftershock")
+            {
+                // The tremor's second shock: the ground flashes, the cracks burst back
+                // open out to the rim, and the boundary ring snaps bright then fades.
+                float sax = fx.Radius * 1.414f * IsoCamera.HalfTileW;
+                float say = fx.Radius * 1.414f * IsoCamera.HalfTileH;
+                int seedA = (int)(fx.Position.X * 641) ^ (int)(fx.Position.Y * 877);
+                float reachA = MathF.Min(1f, t * 3.5f);
+                float fadeA = 1f - t;
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - sax), (int)(screen.Y - say), (int)(sax * 2), (int)(say * 2)),
+                        new Color(240, 200, 120) * (0.3f * MathF.Max(0f, 1f - t * 2f)));
+                    for (int c = 0; c < 9; c++)
+                    {
+                        var rngC = new Random(seedA + c * 131);
+                        float angC = c / 9f * MathF.Tau + (float)rngC.NextDouble() * 0.6f;
+                        float len = sax * (0.55f + 0.45f * (float)rngC.NextDouble()) * reachA;
+                        var dirC = new Vector2(MathF.Cos(angC), MathF.Sin(angC) * 0.5f);
+                        var posC = new Vector2(screen.X, screen.Y);
+                        for (int s2 = 0; s2 < 5; s2++)
+                        {
+                            var next = posC + dirC * (len / 5f);
+                            next.X += (float)(rngC.NextDouble() - 0.5) * 7f;
+                            next.Y += (float)(rngC.NextDouble() - 0.5) * 4f;
+                            int wC = s2 < 2 ? 3 : 2;
+                            batch.Draw(TextureGen.Pixel, new Rectangle((int)posC.X, (int)posC.Y, wC, wC), new Color(24, 18, 12) * fadeA);
+                            var mid = (posC + next) * 0.5f;
+                            batch.Draw(TextureGen.Pixel, new Rectangle((int)mid.X, (int)mid.Y, wC, wC), new Color(30, 24, 16) * fadeA);
+                            posC = next;
+                        }
+                    }
+                    var rim = new Color(255, 226, 130) * (0.95f * fadeA);
+                    var rimDark = new Color(150, 96, 30) * (0.95f * fadeA);
+                    for (int s3 = 0; s3 < 44; s3++)
+                    {
+                        float a2 = s3 * MathF.Tau / 44f;
+                        batch.Draw(TextureGen.Pixel, new Rectangle(
+                            (int)(screen.X + MathF.Cos(a2) * sax) - 1,
+                            (int)(screen.Y + MathF.Sin(a2) * say) - 1, 2, 2), (s3 & 1) == 0 ? rim : rimDark);
+                    }
+                }));
                 continue;
             }
 
             if (fx.Kind == "arrowrainring")
             {
                 // Arrow Rain's wind-up telegraph: just the target ring, pulsing while
-                // the archer draws — the volley itself is the "arrowrain" effect.
-                float radPx = fx.Radius * 2f * IsoCamera.HalfTileW * (0.92f + 0.08f * MathF.Sin(t * 18f));
+                // the archer draws — the volley itself is the "arrowrain" effect. Drawn
+                // at the TRUE landing circle (R*sqrt2 half-tiles on screen).
+                float radPx = fx.Radius * 1.414f * IsoCamera.HalfTileW * (0.92f + 0.08f * MathF.Sin(t * 18f));
                 float pulse = 0.4f + 0.25f * t;
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {

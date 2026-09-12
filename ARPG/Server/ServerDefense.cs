@@ -210,7 +210,7 @@ public partial class ServerWorld
             var bossPortal = Map.SpawnPortals.Count > 0
                 ? Map.SpawnPortals[_rng.Next(Map.SpawnPortals.Count)]
                 : Map.PlayerSpawn;
-            var boss = SpawnEnemy("gravelord", bossPortal,
+            var boss = SpawnEnemy("gravelord", bossPortal, EliteAffix.Boss,
                 level: CampaignEnemyLevel + DefenseBalance.WaveLevelStep * (wave - 1) + 1);
             boss.State = EnemyState.Chase;
             _events.WorldEffect("burst", bossPortal, 1.6f, 0.6f, boss.Height);

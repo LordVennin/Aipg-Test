@@ -69,7 +69,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 41; // v41: straight-road tutorial layout, dead trees
+    public const int ProtocolVersion = 42; // v42: effect radius in SkillEffect, corpse variants, piercing shots
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

@@ -181,6 +181,10 @@ public class ServerEnemy
     public float StunnedUntil;
     /// <summary>While the server clock is below this, the enemy moves at reduced speed.</summary>
     public float SlowedUntil;
+    /// <summary>Standing in a Ground Slam tremor: a lighter slow (TremorSlow fraction)
+    /// refreshed every tick the enemy stays inside the shaking circle.</summary>
+    public float TremorSlowUntil;
+    public float TremorSlow;
 
     // Elite/pack state. Multipliers default to 1 so normal enemies are unaffected.
     public EliteAffix Affixes;
@@ -293,6 +297,10 @@ public class ServerProjectile
     /// <summary>Full skill stats snapshot for ailment rolls on impact (chances and
     /// magnitudes already folded with the caster's increases at cast time).</summary>
     public EffectiveSkillStats Ailments;
+    /// <summary>Piercing projectiles fly on through every body they strike; each enemy
+    /// takes the hit once (tracked here).</summary>
+    public bool Pierce;
+    public HashSet<int> HitIds;
     /// <summary>Sprite name override (shatter shards use "IceShard" instead of the
     /// parent skill's sprite). Null = the skill definition's ProjectileSprite.</summary>
     public string SpriteOverride;
@@ -356,6 +364,9 @@ public class ServerCorpse
     public int Id;
     /// <summary>The EnemyDefinition id this corpse belonged to (drives the body sprite).</summary>
     public string TypeId;
+    /// <summary>The fallen enemy's id — the body keeps the same procedural variant it
+    /// wore alive (packs of one type pick per-individual looks by id).</summary>
+    public int SourceId;
     public Vector2 Position;
     public float Height;
     public float DiedAt;

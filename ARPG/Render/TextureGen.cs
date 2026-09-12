@@ -54,7 +54,9 @@ public static class TextureGen
     }
 
     /// <summary>Soft radial light blob for the lighting pass: white core easing to
-    /// transparent at the rim (smoothstep-squared falloff — bright heart, long feather).
+    /// transparent at the rim. Smoothstep raised to 1.6 — a bright heart with a long,
+    /// gentle feather (the old squared profile fell off so fast past the half-radius
+    /// that torchlight read as a hard-edged spotlight disc).
     /// Drawn additively into the lightmap, then the lightmap multiplies the scene.</summary>
     public static Texture2D RadialLight { get; private set; }
 
@@ -70,7 +72,7 @@ public static class TextureGen
                 float d = MathF.Sqrt(dx * dx + dy * dy);
                 float t = Math.Clamp(1f - d, 0f, 1f);
                 float a = t * t * (3f - 2f * t);      // smoothstep
-                a *= a;                               // squared: tighter hot core
+                a = MathF.Pow(a, 1.6f);               // hot core, slow feather
                 data[y * size + x] = Color.White * a; // premultiplied-friendly
             }
         tex.SetData(data);

@@ -40,6 +40,10 @@ public class EnemyDefinition
     public string AttackStyle { get; set; } = "lunge";
     /// <summary>Sword-style swings track their victim through the wind-up.</summary>
     public bool AttackTracks => AttackStyle == "sword";
+    /// <summary>Number of procedural body variants this type draws (1 = every
+    /// individual looks identical). Packs pick per-individual variants by id so a
+    /// crowd of the same type doesn't read as one sprite stamped over and over.</summary>
+    public int SpriteVariants { get; set; } = 1;
     public float AggroRange { get; set; } = 8f;
     public bool Ranged { get; set; }
     public float ProjectileSpeed { get; set; } = 8f;

@@ -515,7 +515,7 @@ public class GameServer : IServerEvents
             byte debuffs = 0;
             if (World.Time < e.StunnedUntil) debuffs |= EnemyDebuffs.Stunned;
             if (e.BurnTimeLeft > 0) debuffs |= EnemyDebuffs.Burning;
-            if (World.Time < e.SlowedUntil) debuffs |= EnemyDebuffs.Slowed;
+            if (World.Time < e.SlowedUntil || World.Time < e.TremorSlowUntil) debuffs |= EnemyDebuffs.Slowed;
             if (e.ChillMagnitude > 5f) debuffs |= EnemyDebuffs.Chilled;
             if (World.Time < e.FrozenUntil) debuffs |= EnemyDebuffs.Frozen;
             if (World.Time < e.ElectrocutedUntil) debuffs |= EnemyDebuffs.Shocked;
@@ -654,6 +654,7 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.CorpseSpawn);
         w.Put(c.Id);
         w.Put(c.TypeId);
+        w.Put(c.SourceId);
         w.PutVec2(c.Position);
         w.Put(c.Height);
         return w;
@@ -802,6 +803,7 @@ public class GameServer : IServerEvents
         w.Put(p.MaxRange);
         w.Put(p.HeightStep);
         w.Put(p.SpriteOverride ?? "");
+        w.Put(p.Pierce);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -905,7 +907,7 @@ public class GameServer : IServerEvents
         return w;
     }
 
-    public void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint, byte phase = 0)
+    public void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint, byte phase = 0, float radius = 0f)
     {
         var w = Packets.Make(PacketType.SkillEffect);
         w.Put(p.Id);
@@ -913,6 +915,9 @@ public class GameServer : IServerEvents
         w.PutVec2(effectPoint);
         w.Put(p.Height);
         w.Put(phase);
+        // The EFFECTIVE area (level, scrolls, gear) — impact visuals draw the true
+        // hitbox, not the base definition's radius.
+        w.Put(radius);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
