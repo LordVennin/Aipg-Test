@@ -16,15 +16,28 @@ public static class SpriteGen
 
     public static void Initialize(GraphicsDevice device) => _device = device;
 
-    public static Texture2D[] GetEnemyFrames(EnemyDefinition def)
+    /// <summary>Which procedural body variant an individual wears: types that declare
+    /// SpriteVariants pick one by entity id, so a pack of the same type is a crowd of
+    /// different-looking bodies rather than one sprite stamped over and over. Pure —
+    /// the server, corpses and the hover outline all agree.</summary>
+    public static int VariantFor(EnemyDefinition def, int entityId) =>
+        def == null || def.SpriteVariants <= 1 ? 0 : Math.Abs(entityId) % def.SpriteVariants;
+
+    public static Texture2D[] GetEnemyFrames(EnemyDefinition def, int variant = 0)
     {
         if (def == null || _device == null || string.IsNullOrEmpty(def.SpriteStyle)) return null;
-        if (_cache.TryGetValue(def.Id, out var cached)) return cached;
+        variant = def.SpriteVariants > 1 ? Math.Abs(variant) % def.SpriteVariants : 0;
+        string key = variant == 0 ? def.Id : $"{def.Id}#v{variant}";
+        if (_cache.TryGetValue(key, out var cached)) return cached;
 
         var tint = WorldRenderer.ParseColor(def.Color, new Color(180, 60, 60));
         var frames = def.SpriteStyle switch
         {
-            "Zombie" => new[] { DrawZombie(tint, def.Id, 0), DrawZombie(tint, def.Id, 1), DrawZombie(tint, def.Id, 2) },
+            "Zombie" => new[]
+            {
+                DrawZombie(tint, def.Id, 0, variant), DrawZombie(tint, def.Id, 1, variant),
+                DrawZombie(tint, def.Id, 2, variant),
+            },
             "Ghoul" => new[] { DrawGhoul(tint, def.Id, 0), DrawGhoul(tint, def.Id, 1) },
             "Skeleton" => new[]
             {
@@ -34,7 +47,7 @@ public static class SpriteGen
             "Necro" => new[] { DrawNecromancer(tint, 0), DrawNecromancer(tint, 1) },
             _ => null,
         };
-        _cache[def.Id] = frames;
+        _cache[key] = frames;
         return frames;
     }
 
@@ -44,12 +57,12 @@ public static class SpriteGen
     /// against the ground, darkened, with ragged silhouette edges — plus a few loose
     /// bones shaken out of skeletons. Cached per definition.
     /// </summary>
-    public static Texture2D GetEnemyCorpseSprite(EnemyDefinition def)
+    public static Texture2D GetEnemyCorpseSprite(EnemyDefinition def, int variant = 0)
     {
         if (def == null || _device == null) return null;
-        var frames = GetEnemyFrames(def);
+        var frames = GetEnemyFrames(def, variant);
         if (frames == null || frames.Length == 0) return null;
-        string key = "corpse:" + def.Id;
+        string key = $"corpse:{def.Id}#{variant}";
         if (_cache.TryGetValue(key, out var cached)) return cached[0];
 
         var srcTex = frames[0];
@@ -1892,12 +1905,12 @@ public static class SpriteGen
     /// <summary>Solid-red silhouette of an enemy frame, cached per type+frame — the
     /// renderer draws it at small offsets beneath the sprite as a hover OUTLINE
     /// (tinting the whole sprite red made elites unreadable).</summary>
-    public static Texture2D GetEnemySilhouette(EnemyDefinition def, int frame)
+    public static Texture2D GetEnemySilhouette(EnemyDefinition def, int frame, int variant = 0)
     {
-        var frames = GetEnemyFrames(def);
+        var frames = GetEnemyFrames(def, variant);
         if (frames == null || frames.Length == 0) return null;
         frame = Math.Abs(frame) % frames.Length;
-        string key = $"sil:{def.Id}:{frame}";
+        string key = $"sil:{def.Id}:{frame}#{variant}";
         if (_cache.TryGetValue(key, out var cached)) return cached[0];
         var src = frames[frame];
         var data = new Color[src.Width * src.Height];
@@ -2722,10 +2735,14 @@ public static class SpriteGen
     /// ribs showing through the torn burial tunic, one skeletal arm, exposed skull patch,
     /// jagged hem like grave-wrappings, glowing ember eyes. 3-frame shamble. Faces right.
     /// </summary>
-    private static Texture2D DrawZombie(Color clothTint, string seedKey, int frame)
+    /// <summary>The grave-green zombie. Variant 0 is the hunched classic; 1 is the
+    /// "reacher" (upright, both arms out, bandaged brow); 2 is the "bloated" (squat,
+    /// burst belly, one arm torn off, jaw hanging). Same size and palette so a pack
+    /// reads as one kind of thing made of different bodies.</summary>
+    private static Texture2D DrawZombie(Color clothTint, string seedKey, int frame, int variant = 0)
     {
         var c = new Canvas();
-        var rng = new Random(seedKey.GetHashCode() & int.MaxValue);
+        var rng = new Random((seedKey.GetHashCode() + variant * 7919) & int.MaxValue);
 
         var skin = new Color(122, 150, 96);          // sickly grave-green
         var skinLight = new Color(150, 178, 120);
@@ -2744,6 +2761,112 @@ public static class SpriteGen
         int rightLegUp = frame == 2 ? 1 : 0;
         int bob = frame == 1 ? 1 : 0;
         int lurch = frame == 2 ? 1 : 0;              // whole body lurches forward on frame 2
+
+        if (variant == 1)
+        {
+            // THE REACHER: stands straighter, both arms thrust out at shoulder height
+            // (the classic lurch), a bandage wound across its brow, one ear gone.
+            c.Rect(9, 27, 3, 8 - leftLegUp, skinDark);
+            c.Set(10, 30, wound);
+            c.Rect(14, 27, 3, 8 - rightLegUp, skin);
+            c.Set(15, 29, Shade(skin, 0.5f));
+            c.Rect(8, 34 - leftLegUp, 4, 1, Shade(skin, 0.4f));        // dragging foot
+            c.Rect(14, 34 - rightLegUp, 3, 1, Shade(skin, 0.4f));
+
+            int ty1 = 16 + bob, tx1 = 8 + lurch;
+            c.Rect(tx1, ty1, 10, 11, cloth);
+            c.Rect(tx1 + 8, ty1, 2, 11, clothDark);
+            c.Rect(tx1, ty1 + 7, 10, 1, wrap);                          // rope belt
+            c.Rect(tx1 + 2, ty1 + 2, 3, 3, woundDark);                  // a tear over the ribs
+            c.Set(tx1 + 3, ty1 + 3, bone);
+            for (int i = 0; i < 4; i++)
+                c.Set(tx1 + rng.Next(10), ty1 + 10, Color.Transparent);
+            c.Set(tx1 + 1, ty1 + 9, wrap);
+
+            int ay1 = 17 + bob;
+            c.Rect(tx1 + 9, ay1, 8, 2, skin);                           // upper arm, flesh
+            c.Rect(tx1 + 14, ay1 - 1, 3, 1, skinDark);                  // hand curling up
+            c.Set(tx1 + 17, ay1, skinDark);
+            c.Rect(tx1 + 9, ay1 + 3, 7, 2, bone);                       // lower arm, bare bone
+            c.Set(tx1 + 12, ay1 + 3, boneDark);
+            c.Rect(tx1 + 15, ay1 + 2, 2, 1, bone);                      // claw
+            c.Set(tx1 + 16, ay1 + 5, boneDark);
+
+            int hx1 = 10 + lurch, hy1 = 8 + bob;
+            c.Rect(hx1, hy1, 8, 8, skin);
+            c.Rect(hx1, hy1, 8, 1, skinDark);
+            c.Rect(hx1, hy1 + 1, 8, 2, wrap);                           // bandaged brow
+            c.Set(hx1 + 3, hy1 + 1, Shade(wrap, 0.7f));
+            c.Set(hx1 + 6, hy1 + 2, Shade(wrap, 0.7f));
+            c.Set(hx1 + 2, hy1 + 4, eye);
+            c.Set(hx1 + 6, hy1 + 4, eyeCore);
+            c.Rect(hx1 + 2, hy1 + 6, 5, 1, woundDark);                  // mouth
+            c.Set(hx1 + 7, hy1 + 5, woundDark);                         // torn cheek
+            c.Rect(hx1 - 1, hy1 + 3, 1, 2, skinDark);                   // ear stump
+            c.Set(hx1 + 4, hy1 + 7, wound);
+
+            for (int i = 0; i < 7; i++)
+            {
+                int x = tx1 + rng.Next(11);
+                int y = hy1 + rng.Next(18);
+                if (x < 0 || x >= W || y < 0 || y >= H || c.Px[y * W + x].A == 0) continue;
+                c.Set(x, y, rng.Next(3) switch { 0 => wound, 1 => new Color(70, 96, 54), _ => skinLight });
+            }
+            return c.Bake(_device);
+        }
+
+        if (variant == 2)
+        {
+            // THE BLOATED: squat and wide, a burst belly bulging from a torn tunic, one
+            // arm ripped off at the shoulder, head sunk into the shoulders with the
+            // skull bare down one side and the jaw hanging loose.
+            c.Rect(8, 29, 3, 6 - leftLegUp, wrap);
+            c.Set(9, 31, Shade(wrap, 0.7f));
+            c.Rect(15, 29, 3, 6 - rightLegUp, skinDark);
+            c.Rect(8, 34 - leftLegUp, 3, 1, Shade(wrap, 0.5f));
+            c.Rect(15, 34 - rightLegUp, 3, 1, Shade(skin, 0.4f));
+
+            int ty2 = 19 + bob, tx2 = 6 + lurch;
+            c.Rect(tx2, ty2, 14, 10, cloth);
+            c.Rect(tx2 + 12, ty2, 2, 10, clothDark);
+            c.Rect(tx2 + 3, ty2 + 3, 8, 6, skinLight);                  // belly showing
+            c.Rect(tx2 + 3, ty2 + 8, 8, 1, skinDark);
+            c.Rect(tx2 + 5, ty2 + 4, 4, 1, wound);                      // split gut
+            c.Set(tx2 + 9, ty2 + 6, wound);
+            c.Set(tx2 + 4, ty2 + 7, woundDark);
+            c.Set(tx2 + 1, ty2 + 9, wrap);
+            c.Set(tx2 + 11, ty2 + 9, Color.Transparent);
+
+            int ay2 = 20 + bob;
+            c.Rect(tx2 + 13, ay2, 2, 2, wound);                         // torn shoulder stump
+            c.Set(tx2 + 14, ay2 + 2, woundDark);
+            c.Set(tx2 + 15, ay2 + 1, bone);
+            c.Rect(tx2 - 1, ay2 + 1, 3, 6, skin);                       // swollen arm hanging low
+            c.Rect(tx2 - 2, ay2 + 6, 4, 2, skinDark);
+            c.Set(tx2 - 1, ay2 + 8, boneDark);
+            c.Set(tx2, ay2 + 3, wound);
+
+            int hx2 = 9 + lurch, hy2 = 12 + bob;
+            c.Rect(hx2, hy2, 9, 8, skin);
+            c.Rect(hx2 + 5, hy2, 4, 6, bone);                           // skull bare down one side
+            c.Set(hx2 + 5, hy2, boneDark);
+            c.Set(hx2 + 6, hy2 + 3, boneDark);                          // empty socket
+            c.Set(hx2, hy2, skinDark);
+            c.Set(hx2 + 2, hy2 + 3, eye);
+            c.Set(hx2 + 6, hy2 + 3, eyeCore);
+            c.Rect(hx2 + 2, hy2 + 6, 5, 2, woundDark);                  // gaping mouth
+            c.Rect(hx2 + 3, hy2 + 8, 3, 1, bone);                       // jaw hanging below
+            c.Set(hx2 + 8, hy2 + 6, boneDark);
+
+            for (int i = 0; i < 8; i++)
+            {
+                int x = tx2 + rng.Next(14);
+                int y = hy2 + rng.Next(17);
+                if (x < 0 || x >= W || y < 0 || y >= H || c.Px[y * W + x].A == 0) continue;
+                c.Set(x, y, rng.Next(3) switch { 0 => wound, 1 => new Color(70, 96, 54), _ => skinLight });
+            }
+            return c.Bake(_device);
+        }
 
         // Legs: one wrapped in rotten bandages, one bare rotting flesh; shuffling feet.
         c.Rect(9, 28, 3, 7 - leftLegUp, wrap);

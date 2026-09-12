@@ -31,6 +31,7 @@
   "LootTableId": "default",
   "Color": "C04040",
   "SpriteStyle": "Zombie",
+  "SpriteVariants": 3,
   "AttackWindup": 0.5,
   "AttackRecovery": 0.25,
   "AttackArc": 120,
@@ -228,6 +229,7 @@
   "XpReward": 2,
   "Color": "7C8F5A",
   "SpriteStyle": "Zombie",
+  "SpriteVariants": 3,
   "SpriteScale": 0.72
  }
 ]

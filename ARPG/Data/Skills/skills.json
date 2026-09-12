@@ -56,7 +56,7 @@
   "Id": "ground_slam",
   "StunBuildup": 100,
   "Name": "Ground Slam",
-  "Description": "Raise your mace overhead and smash the earth \u2014 the ground cracks around you, hurling enemies back and briefly stunning them.",
+  "Description": "Raise your mace overhead and smash the earth \u2014 the ground cracks around you, hurling enemies back and briefly stunning them. The tremor keeps shaking for a few seconds, slowing everything inside it, then a second, weaker shock lands.",
   "Tags": [
    "Attack",
    "Melee",
@@ -68,10 +68,10 @@
   "Archetype": "MeleeArea",
   "DamageKind": "Blunt",
   "UsesWeaponDamage": true,
-  "WeaponDamageMultiplier": 1.3,
+  "WeaponDamageMultiplier": 1.2,
   "WeaponDamageMultiplierPerLevel": 0.1,
   "RequiredWeapon": "Mace",
-  "Cooldown": 2.2,
+  "Cooldown": 4.0,
   "Range": 0,
   "Radius": 2.2,
   "RadiusPerLevel": 0.12,
@@ -79,7 +79,10 @@
   "Knockback": 1.8,
   "ManaCost": 12,
   "UseTime": 0.6,
-  "WindupTime": 0.4
+  "WindupTime": 0.4,
+  "AftershockDelay": 3.0,
+  "AftershockDamageMult": 0.65,
+  "TremorSlow": 0.25
  },
  {
   "Id": "shield_bash",
@@ -297,5 +300,33 @@
   "ManaCost": 10,
   "UseTime": 0.5,
   "WindupTime": 0.35
+ },
+ {
+  "Id": "piercing_shot",
+  "Name": "Piercing Shot",
+  "Description": "Draw deep and loose a heavy shaft that punches clean through every enemy in its path. Hold to charge: hits harder and flies farther.",
+  "Tags": [
+   "Attack",
+   "Ranged",
+   "Projectile",
+   "Physical",
+   "Bow"
+  ],
+  "Archetype": "Projectile",
+  "DamageKind": "Thrust",
+  "UsesWeaponDamage": true,
+  "WeaponDamageMultiplier": 1.55,
+  "WeaponDamageMultiplierPerLevel": 0.1,
+  "RequiredWeapon": "Bow",
+  "Cooldown": 1.3,
+  "Range": 12,
+  "ProjectileSpeed": 17,
+  "ProjectileCount": 1,
+  "ManaCost": 7,
+  "UseTime": 0.45,
+  "ProjectileSprite": "Arrow",
+  "Pierce": true,
+  "Chargeable": true,
+  "StunBuildup": 20
  }
 ]

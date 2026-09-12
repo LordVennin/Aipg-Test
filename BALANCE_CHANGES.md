@@ -1225,3 +1225,53 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   a quip) now covers the whole party going down at once.
 - `ARPG_DEVUI=reaper` keeps culling nearby enemies (GUI automation walkthroughs).
 - Protocol v41 (tutorial layout changed; clients rebuild the map from seed).
+
+---
+
+# Addendum (batch 56): crowds, claws, quakes and quivers
+
+- **Zombie body variants**: grunts and shamblers now come in three procedural
+  bodies — the hunched classic, the "reacher" (upright, both arms out, a
+  bandaged brow) and the "bloated" (squat, burst belly, one arm torn off, jaw
+  hanging). Each individual picks its variant by id, corpses keep the body
+  they died in, and the Gravelord keeps its one face. A pack no longer reads
+  as one sprite stamped six times.
+- **The Gravelord's own rake**: the boss no longer borrows the grunt swipe.
+  Its swing is five long claw streaks fanned across the strike over dark
+  afterimages, with dust kicked up at the tip, and the crouch/lurch of the
+  wind-up scales with body size (shamblers swing smaller, the boss bigger).
+- **Slam impacts drawn at the TRUE hit area**: the crack overlay and the
+  generic impact circle were stretched to 2R on screen when a world circle of
+  radius R spans R·√2 half-tiles — they overstated Mace Slam's reach by ~40%.
+  The impact now draws a warm shock disc, the crack overlay and a crisp rim
+  ring at the exact boundary; a wind-up slam marks its landing circle while
+  the mace comes down; Arrow Rain's telegraph ring is fixed the same way.
+- **AoE stacking now shows**: the impact radius rides the SkillEffect packet
+  as the server's EFFECTIVE radius (skill level, Greater Impact scrolls,
+  gear), so a widened slam draws wider. Before, visuals always used the base
+  definition — Arrow Rain's per-arrow scatter also drifted from its hitboxes
+  once the skill leveled.
+- **Piercing Shot** (bow, 7 mana, 1.3s cooldown, 155% weapon damage +10%/lvl,
+  range 12, speed 17): a heavy shaft that flies THROUGH every enemy on its
+  line, hitting each once (20 stun buildup per hit). Hold to charge: up to
+  +70% damage and +70% range. Draws as a heavier arrow with a pale wake.
+- **Ground Slam is an earthquake**: 120% weapon damage on impact (was 130%),
+  knockback and stun as before, then the circle keeps shaking for 3 seconds —
+  enemies inside are 25% slower — and an aftershock lands for 65% of the
+  slam's damage (with 40% of its stun buildup). Cooldown 2.2s -> 4.0s so it
+  stops competing with Mace Slam on tempo and wins on area control instead.
+- **Torchlight feathers out**: the radial light profile is smoothstep^1.6
+  (was squared), and the player's torch draws at 1.4x its radius with a
+  slightly tempered color — the glow blends into the dark over a long feather
+  instead of ending in a spotlight edge.
+- **The quiver rule**: a quiver only equips when a bow is in the main hand;
+  swapping the bow for another weapon sends the quiver back to the bag; a
+  quiver stranded behind a non-bow contributes nothing (inactive, red).
+- **The Gravelord is a boss everywhere now**: the Old Road and defense-mode
+  Gravelords were spawned without the Boss affix — grunt-sized body, no boss
+  bar, full stun/freeze vulnerability. Both now spawn as real bosses like the
+  forest pack leader.
+- Dev hooks for captures: `ARPG_DEVUI=reaper` now spares bosses;
+  `learn:<skill>[+<skill>]` learns skills free onto the hotbar.
+- Protocol v42 (SkillEffect carries the radius; corpse and projectile packets
+  carry the source id / pierce flag).

@@ -206,6 +206,17 @@ public static class StatCalculator
             }
             if (!changed) break;
         }
+        // A quiver is ammunition: it only counts while an ACTIVE bow is in the main
+        // hand. (Equipping one without a bow is refused outright; this covers the bow
+        // being swapped out or deactivated afterwards — the quiver goes red.)
+        if (character.Equipment.GetValueOrDefault(EquipSlot.OffHand) is { } offQuiver &&
+            offQuiver.GetBase(data)?.Category == ItemCategory.Quiver)
+        {
+            var mainWeapon = character.Equipment.GetValueOrDefault(EquipSlot.MainHand);
+            if (mainWeapon == null || inactive.Contains(mainWeapon.InstanceId) ||
+                mainWeapon.GetBase(data)?.Category != ItemCategory.Bow)
+                inactive.Add(offQuiver.InstanceId);
+        }
 
         // 1) Aggregate flat/percent contributions from all ACTIVE equipped items.
         var total = new StatCollection();

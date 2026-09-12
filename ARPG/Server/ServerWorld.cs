@@ -26,7 +26,7 @@ public interface IServerEvents
     /// render the effect at exactly this point (no client-side recomputation). phase:
     /// 0 = instant cast (animation + effects), 1 = wind-up started (animation only),
     /// 2 = wind-up landed (impact effects at the REAL point, no animation restart).</summary>
-    void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint, byte phase = 0);
+    void SkillUsed(ServerPlayer p, string skillId, Vector2 effectPoint, byte phase = 0, float radius = 0f);
     /// <summary>A chain-lightning path (caster, then each victim in hit order) so clients
     /// can draw the bolt between the exact chain points.</summary>
     void ChainEffect(string skillId, List<Vector2> points, float height);
@@ -428,6 +428,7 @@ public partial class ServerWorld
         _buildTiles.Clear();
         _windups.Clear();
         _rainVolleys.Clear();
+        _tremors.Clear();
         _flow.Clear();
         _rallyFields.Clear();
         _wagonFlow = null;
@@ -866,6 +867,7 @@ public partial class ServerWorld
         Time += dt;
         UpdateWindups();
         TickRainVolleys();
+        TickTremors();
         TickFirePatches();
         TickSummons(dt);
         TickEnemies(dt);
@@ -1651,6 +1653,8 @@ public partial class ServerWorld
     {
         var dir = (target - e.Position).NormalizedOrZero();
         float slowMult = Time < e.SlowedUntil ? 0.5f : 1f;
+        // Ground Slam tremors: a lighter slow while the ground shakes underfoot.
+        if (Time < e.TremorSlowUntil) slowMult *= 1f - e.TremorSlow;
         // Chill slows movement proportionally to its magnitude (up to 50% at the cap).
         slowMult *= 1f - 0.5f * (e.ChillMagnitude / ChillMaxMagnitude);
         var delta = dir * e.Def.MoveSpeed * e.SpeedScale * slowMult * dt;
@@ -1926,6 +1930,7 @@ public partial class ServerWorld
                 foreach (var e in Enemies.Values)
                 {
                     if (e.Dead || MathF.Abs(e.Height - pr.Height) > 0.75f) continue;
+                    if (pr.Pierce && pr.HitIds.Contains(e.Id)) continue; // already run through
                     if (SegmentDistance(prevPos, pr.Position, e.Position) <= e.Def.Radius + 0.25f)
                     {
                         var comps = RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
@@ -1933,6 +1938,8 @@ public partial class ServerWorld
                         var (dmg, hitKind) = MitigateForEnemy(e, comps);
                         HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind);
                         ApplyAilments(e, comps, dmg, pr.Ailments);
+                        if (pr.SkillId != null && Data.Skills.TryGetValue(pr.SkillId, out var prDef))
+                            ApplyStunBuildup(e, prDef);
                         // Scroll of Shattering: cold projectiles burst into small shards
                         // that continue BEHIND the struck enemy in a shotgun spread.
                         if (pr.Ailments.ShatterShards > 0)
@@ -1940,6 +1947,14 @@ public partial class ServerWorld
                         // Scroll of Scorched Earth: fire projectiles scorch the ground.
                         if (pr.Ailments.FirePatch)
                             SpawnFirePatch(e.Position, e.Height, MathF.Max(2f, dmg * 0.2f), pr.OwnerId, pr.SkillId);
+                        if (pr.Pierce)
+                        {
+                            // Piercing Shot: the shaft keeps flying — every body along
+                            // the line takes its own hit, once each.
+                            pr.HitIds.Add(e.Id);
+                            _events.WorldEffect("hit", e.Position, 0.4f, 0.25f, e.Height);
+                            continue;
+                        }
                         RemoveProjectile(pr, pr.Position);
                         break;
                     }
@@ -2082,7 +2097,8 @@ public partial class ServerWorld
                 ExecuteAt = Time + def.WindupTime,
             });
             _events.SkillUsed(p, skillId,
-                SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range), phase: 1);
+                SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range), phase: 1,
+                radius: stats.Radius);
             return;
         }
 
@@ -2103,6 +2119,48 @@ public partial class ServerWorld
     }
 
     private readonly List<PendingStrike> _windups = new();
+
+    /// <summary>A Ground Slam tremor: the impact circle keeps shaking for the skill's
+    /// AftershockDelay — enemies inside are slowed by Slow — then the aftershock lands
+    /// at AftershockDamageMult of the slam's damage.</summary>
+    public class Tremor
+    {
+        public Vector2 Position;
+        public float Height, Radius, Slow, EndsAt;
+        public int OwnerId;
+        public string SkillId;
+        public SkillDefinition Def;
+        public EffectiveSkillStats Stats;
+    }
+
+    private readonly List<Tremor> _tremors = new();
+    public IReadOnlyList<Tremor> ActiveTremors => _tremors;
+
+    /// <summary>Keep every live tremor slowing what stands in it; land aftershocks
+    /// whose timers ran out (a weaker second hit on everything still inside).</summary>
+    private void TickTremors()
+    {
+        for (int i = _tremors.Count - 1; i >= 0; i--)
+        {
+            var tr = _tremors[i];
+            foreach (var e in EnemiesNear(tr.Position, tr.Radius, tr.Height))
+            {
+                e.TremorSlow = Time < e.TremorSlowUntil ? MathF.Max(e.TremorSlow, tr.Slow) : tr.Slow;
+                e.TremorSlowUntil = Time + 0.25f;
+            }
+            if (Time < tr.EndsAt) continue;
+            _tremors.RemoveAt(i);
+            float mult = tr.Def.AftershockDamageMult;
+            foreach (var e in EnemiesNear(tr.Position, tr.Radius, tr.Height).ToList())
+            {
+                var (dmg, kind) = RollSkillHit(e, tr.Stats, out var comps);
+                HitEnemy(e, dmg * mult, tr.OwnerId, tr.SkillId, kind);
+                ApplyAilments(e, comps, dmg * mult, tr.Stats);
+                if (!e.Dead) ApplyStunBuildup(e, tr.Def.StunBuildup * 0.4f, tr.Def.StunDuration);
+            }
+            _events.WorldEffect("aftershock", tr.Position, tr.Radius, 0.8f, tr.Height);
+        }
+    }
 
     /// <summary>Land queued wind-up strikes whose timers expired (called from the tick).</summary>
     private void UpdateWindups()
@@ -2228,6 +2286,20 @@ public partial class ServerWorld
                     }
                     ApplyStunBuildup(e, def);
                 }
+                // Earthquake follow-up (Ground Slam): the circle keeps shaking where
+                // the slam landed — a lighter slow on everything inside — until the
+                // aftershock lands (TickTremors). Broadcast so every client shows the
+                // tremor for its whole life.
+                if (def.AftershockDelay > 0)
+                {
+                    _tremors.Add(new Tremor
+                    {
+                        Position = p.Position, Height = p.Height, Radius = stats.Radius,
+                        Slow = def.TremorSlow, EndsAt = Time + def.AftershockDelay,
+                        OwnerId = playerId, SkillId = skillId, Def = def, Stats = stats,
+                    });
+                    _events.WorldEffect("tremor", p.Position, stats.Radius, def.AftershockDelay, p.Height);
+                }
                 break;
             }
             case SkillArchetype.Projectile:
@@ -2254,15 +2326,20 @@ public partial class ServerWorld
                         HeightStep = MathF.Abs(targetHeight - p.Height) > 0.05f
                             ? (targetHeight - p.Height) / MathF.Max(0.5f, Vector2.Distance(p.Position, target))
                             : 0f,
-                        MinDamage = stats.MinDamage,
-                        MaxDamage = stats.MaxDamage,
+                        MinDamage = stats.MinDamage * chargeMult,
+                        MaxDamage = stats.MaxDamage * chargeMult,
                         DamageKind = stats.DamageKind,
                         IgniteChance = stats.IgniteChance,
                         CritChance = stats.CritChance,
                         CritDamage = stats.CritDamage,
                         Added = stats.Added,
                         Ailments = stats,
+                        // Piercing shots fly through everything they hit; a charged
+                        // draw also flies farther.
+                        Pierce = def.Pierce,
+                        HitIds = def.Pierce ? new HashSet<int>() : null,
                     };
+                    if (def.Pierce) pr.MaxRange *= chargeMult;
                     Projectiles[pr.Id] = pr;
                     _events.ProjectileSpawned(pr);
                 }
@@ -2334,7 +2411,7 @@ public partial class ServerWorld
             }
         }
 
-        _events.SkillUsed(p, skillId, effectPoint, phase);
+        _events.SkillUsed(p, skillId, effectPoint, phase, stats.Radius);
     }
 
     /// <summary>Server-authoritative dodge: validates the cooldown and applies i-frames.
@@ -3100,16 +3177,21 @@ public partial class ServerWorld
     /// (never stun outright), the meter decays constantly, 100 triggers a short stun
     /// and resets it — and every triggered stun stacks 20% resistance onto the enemy,
     /// so the second stun takes noticeably longer to reach and chains die out.</summary>
-    public void ApplyStunBuildup(ServerEnemy e, SkillDefinition def)
+    public void ApplyStunBuildup(ServerEnemy e, SkillDefinition def) =>
+        ApplyStunBuildup(e, def.StunBuildup, def.StunDuration);
+
+    /// <summary>Stun buildup by explicit amount (aftershocks add a fraction of the
+    /// skill's full buildup).</summary>
+    public void ApplyStunBuildup(ServerEnemy e, float buildup, float stunDuration)
     {
-        if (def.StunBuildup <= 0 || e.Dead) return;
-        float gain = def.StunBuildup * MathF.Pow(1f - StunResistPerStack, e.StunResistStacks);
+        if (buildup <= 0 || e.Dead) return;
+        float gain = buildup * MathF.Pow(1f - StunResistPerStack, e.StunResistStacks);
         if (e.Affixes.HasFlag(EliteAffix.Boss)) gain *= 0.5f;
         e.StunBuildup += gain;
         if (e.StunBuildup < StunThreshold) return;
         e.StunBuildup = 0f;
         e.StunResistStacks++;
-        e.StunnedUntil = Time + (def.StunDuration > 0 ? def.StunDuration : DefaultStunDuration) *
+        e.StunnedUntil = Time + (stunDuration > 0 ? stunDuration : DefaultStunDuration) *
                          (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.5f : 1f);
     }
 
@@ -3305,7 +3387,7 @@ public partial class ServerWorld
         // raise dead, corpse explosion — will target these). Oldest evicted at the cap.
         var corpse = new ServerCorpse
         {
-            Id = _nextCorpseId++, TypeId = e.Def.Id,
+            Id = _nextCorpseId++, TypeId = e.Def.Id, SourceId = e.Id,
             Position = e.Position, Height = e.Height, DiedAt = Time,
         };
         Corpses.Add(corpse);

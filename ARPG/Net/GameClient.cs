@@ -244,6 +244,7 @@ public class GameClient
                 Id = _nextGhostId--,
                 FromPlayer = true,
                 Ghost = true,
+                Pierce = def.Pierce,
                 SkillId = skillId,
                 Position = me.Position + dir * 0.3f,
                 Height = me.Height,
@@ -899,7 +900,7 @@ public class GameClient
             }
             case PacketType.CorpseSpawn:
             {
-                var c = new ClientCorpse { Id = r.GetInt(), TypeId = r.GetString() };
+                var c = new ClientCorpse { Id = r.GetInt(), TypeId = r.GetString(), SourceId = r.GetInt() };
                 c.Position = r.GetVec2();
                 c.Height = r.GetFloat();
                 c.SpawnedAtMs = Environment.TickCount64;
@@ -976,6 +977,7 @@ public class GameClient
                 pr.HeightStep = r.GetFloat();
                 pr.SpriteOverride = r.GetString();
                 if (pr.SpriteOverride.Length == 0) pr.SpriteOverride = null;
+                pr.Pierce = r.GetBool();
                 // Adopt a matching ghost from our own cast prediction: keep the ghost's
                 // flight progress so the bolt doesn't snap backwards on confirmation.
                 if (pr.FromPlayer && World.Me is { } ghostOwner &&
@@ -1064,7 +1066,11 @@ public class GameClient
                 // 2 = wind-up landing (impact at the REAL point — the caster may have
                 // moved during the wind-up, so this point supersedes the cast point).
                 byte phase = r.GetByte();
+                // The EFFECTIVE area from the server (level + scrolls + gear): every
+                // impact visual draws the true hitbox, so a widened slam LOOKS wider.
+                float effRadius = r.GetFloat();
                 var def = _data.Skills.GetValueOrDefault(skillId);
+                if (def != null && effRadius <= 0f) effRadius = def.Radius;
                 if (def != null && phase != 2)
                 {
                     // Cast/swing sound: a per-skill id wins when the registry has one,
@@ -1108,9 +1114,14 @@ public class GameClient
                     // effect fills the wind-up (Arcane Burst's charge-up).
                     if (phase == 1 && def.Archetype == Skills.SkillArchetype.AreaBurst)
                         World.AddEffect(effectPoint,
-                            skillId == "arrow_rain" ? def.Radius : MathF.Max(0.9f, def.Radius * 0.8f),
+                            skillId == "arrow_rain" ? effRadius : MathF.Max(0.9f, effRadius * 0.8f),
                             MathF.Max(0.2f, def.WindupTime),
                             skillId == "arrow_rain" ? "arrowrainring" : "burstcharge", effectHeight);
+                    // Wind-up SLAMS mark their landing circle on the ground while the
+                    // mace comes down — you can read the exact area before it hits.
+                    if (phase == 1 && isSlam && def.Archetype == Skills.SkillArchetype.MeleeStrike)
+                        World.AddEffect(effectPoint, MathF.Max(0.8f, effRadius),
+                            MathF.Max(0.2f, def.WindupTime), "slamring", effectHeight);
 
                     if (phase != 1) // impact visuals come with the landing, never the wind-up
                         switch (def.Archetype)
@@ -1120,9 +1131,9 @@ public class GameClient
                                 // strikes are just the weapon swing.
                                 if (isSlam)
                                 {
-                                    World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
-                                        0.45f, "impact", effectHeight);
-                                    World.AddEffect(effectPoint, MathF.Max(0.8f, def.Radius),
+                                    World.AddEffect(effectPoint, MathF.Max(0.8f, effRadius),
+                                        0.5f, "impact", effectHeight);
+                                    World.AddEffect(effectPoint, MathF.Max(0.8f, effRadius),
                                         0.9f, "debris", effectHeight);
                                 }
                                 break;
@@ -1132,20 +1143,20 @@ public class GameClient
                                 {
                                     // Ground Slam: cracked earth radiating from the caster
                                     // plus a storm of little debris particles all around.
-                                    World.AddEffect(effectPoint, def.Radius, 0.9f, "groundcrack", effectHeight);
-                                    World.AddEffect(effectPoint, def.Radius, 0.45f, "impact", effectHeight);
-                                    World.AddEffect(effectPoint, def.Radius * 0.9f, 1.0f, "debris", effectHeight);
+                                    World.AddEffect(effectPoint, effRadius, 0.9f, "groundcrack", effectHeight);
+                                    World.AddEffect(effectPoint, effRadius, 0.5f, "impact", effectHeight);
+                                    World.AddEffect(effectPoint, effRadius * 0.9f, 1.0f, "debris", effectHeight);
                                 }
                                 else
-                                    World.AddEffect(effectPoint, def.Radius, 0.3f, "slam", effectHeight);
+                                    World.AddEffect(effectPoint, effRadius, 0.3f, "slam", effectHeight);
                                 break;
                             case Skills.SkillArchetype.AreaBurst:
                                 if (skillId == "arrow_rain")
                                     // The full volley timeline: arrows fall, stick and
                                     // fade — server damage ticks land while they fall.
-                                    World.AddEffect(effectPoint, def.Radius, 1.5f, "arrowrain", effectHeight);
+                                    World.AddEffect(effectPoint, effRadius, 1.5f, "arrowrain", effectHeight);
                                 else
-                                    World.AddEffect(effectPoint, def.Radius, 0.3f, "burst", effectHeight);
+                                    World.AddEffect(effectPoint, effRadius, 0.3f, "burst", effectHeight);
                                 break;
                         }
                 }

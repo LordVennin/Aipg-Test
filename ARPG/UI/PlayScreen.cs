@@ -68,6 +68,8 @@ public class PlayScreen : IScreen
     /// survive any map (GUI automation).</summary>
     private bool _devReaper;
     private float _devReaperNextAt;
+    /// <summary>ARPG_DEVUI=learn:&lt;skill&gt;: learn a skill free and hotbar it (GUI automation).</summary>
+    private string _devLearnSkill;
     /// <summary>ARPG_DEVUI=gold: grant 1000 gold shortly after joining (GUI automation).</summary>
     private bool _devGiveGold;
     private bool _devGiveSupplies;
@@ -252,6 +254,9 @@ public class PlayScreen : IScreen
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
             if (gearToken != null)
                 _devEquipSet = gearToken.Contains(':') ? gearToken.Split(':')[1] : "iron";
+            // learn:<skill id>[+<skill id>...] — learn free, onto the hotbar (captures).
+            var learnToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("learn:"));
+            if (learnToken != null) _devLearnSkill = learnToken.Split(':')[1];
             var weatherToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("weather:"));
             if (weatherToken != null)
                 _renderer.WeatherOverride = weatherToken.Split(':')[1]; // local test override
@@ -434,7 +439,13 @@ public class PlayScreen : IScreen
         if (_devReaper && _clientTime > _devReaperNextAt)
         {
             _devReaperNextAt = _clientTime + 1.5f;
-            _client.SendDebugCommand("kill_nearby");
+            _client.SendDebugCommand("kill_nearby", "mobs"); // bosses are spared: they're the shot
+        }
+        if (_devLearnSkill != null && _clientTime > 1.5f)
+        {
+            foreach (var id in _devLearnSkill.Split('+', StringSplitOptions.RemoveEmptyEntries))
+                _client.SendDebugCommand("learn_skill", id);
+            _devLearnSkill = null;
         }
         if (_devEquipSet != null && _clientTime > 1.5f)
         {

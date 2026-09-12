@@ -73,7 +73,8 @@ public partial class ServerWorld
         // boss fight, not a wall (its bar reads part-worn on purpose).
         if (Data.Enemies.ContainsKey("gravelord"))
         {
-            var boss = SpawnEnemy("gravelord", Map.BossSpot, level: 1);
+            // A BOSS, affix and all: the big body, the boss bar, half stun/freeze.
+            var boss = SpawnEnemy("gravelord", Map.BossSpot, EliteAffix.Boss, level: 1);
             boss.MaxHealth *= 0.45f;
             boss.Health = boss.MaxHealth;
             _bossEnemyId = boss.Id;
