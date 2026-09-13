@@ -1544,3 +1544,34 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   Debug spawns: `spawn_elite` buries its grunt, `spawn_enemy <type>+buried`
   buries a type.
 - Protocol v45 (buried flag on enemy spawns).
+
+---
+
+# Addendum (batch 69): uniques — seven strange rules
+
+Uniques are sealed items with fixed base stats and ONE rule the server enforces
+(`ItemBase.Unique`, `UniqueEffect`, `UniqueLines` in `Data/Items/uniques.json`).
+They never come out of the ordinary rarity roll: an ordinary kill drops one at
+0.4%, a **rare's guaranteed prize is a unique one time in eight**, a **boss
+drops one one time in three**. The tooltip shows the rule in gold with the
+item's flavour under it.
+
+- **Gravewake** (mace, lvl 6): enemies you kill with a melee blow rise as your
+  Thralls for 15s (up to 4; the oldest crumbles to make room). Thralls are
+  melee summons with no skill behind them — no mana reserved, no respawn.
+- **The Hollow Crown** (helmet, lvl 8): damage is taken from Mana before Life
+  (after Energy Shield); you cannot drink Mana Flasks. +20 ES, +40% mana
+  regen, +30 mana.
+- **Stormheart** (amulet, lvl 5): every dodge roll looses a lightning burst
+  where you land (30-60 Lightning, 1.6 tiles, mitigated like a spell); dodge
+  cooldown +1s.
+- **Cinderwrap** (gloves, lvl 7): melee hits scorch the ground under the enemy
+  (a fire patch dealing 25% of the hit per second, min 3, at most one per
+  0.6s); -20% Fire Resistance.
+- **The Long Winter** (ring, lvl 9): every hit you land Chills, and chills
+  three times as fast; +40% chill magnitude, 15% reduced Movement Speed.
+- **Grave Thrift** (belt, lvl 4): kills restore one charge to each flask;
+  flasks hold at most one charge.
+- **Pale Shepherd** (staff, lvl 10): +2 to maximum summons, summons deal 60%
+  more damage and have 40% more life, 50% less Spell Damage.
+- Dev: `give_unique <id>[+equip]`, `give_unique strip`. No protocol change.

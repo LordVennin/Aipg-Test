@@ -63,6 +63,8 @@ public class ServerPlayer
     public float InvulnerableUntil;
     /// <summary>While the dash lasts, the body smashes breakables it passes through.</summary>
     public float DodgeUntil;
+    /// <summary>Cinderwrap: next time a melee hit may scorch the ground (throttle).</summary>
+    public float CinderNextAt;
     /// <summary>Client position updates are ignored until this time (set on map
     /// transitions, while the client's in-flight states still carry old-map coords).</summary>
     public float IgnoreStateUntil;
@@ -525,6 +527,8 @@ public class ServerSummon
     /// <summary>Attack reach and swing time, set at spawn from the summon's profile.</summary>
     public float Reach = AttackRange;
     public float SwingTime = AttackCooldown;
+    /// <summary>Server time this minion crumbles on its own (0 = never): Gravewake thralls.</summary>
+    public float ExpiresAt;
     public const float Radius = 0.3f;
     public const float AttackRange = 6.5f;
     public const float AggroRange = 7.5f;

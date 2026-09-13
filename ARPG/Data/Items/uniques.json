@@ -1,0 +1,191 @@
+[
+ {
+  "Id": "gravewake",
+  "Name": "Gravewake",
+  "Category": "Mace",
+  "InventoryWidth": 1,
+  "InventoryHeight": 3,
+  "RequiredLevel": 6,
+  "RequiredStrength": 12,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "UniqueWeight": 10,
+  "BaseGoldValue": 900,
+  "Unique": true,
+  "UniqueEffect": "gravewake",
+  "BaseStats": {
+   "MinPhysicalDamage": 9,
+   "MaxPhysicalDamage": 16,
+   "BaseAttackSpeed": 1.0,
+   "WeaponRange": 1.5,
+   "AttackSpeed": 10
+  },
+  "UniqueLines": [
+   "Enemies you kill with a melee blow rise as your Thralls for 15 seconds (up to 4 at once)"
+  ],
+  "SpriteColor": "8A5A8C",
+  "Description": "A sexton's mallet, its head packed with grave-dirt. What it fells, it does not let rest."
+ },
+ {
+  "Id": "hollowcrown",
+  "Name": "The Hollow Crown",
+  "Category": "Helmet",
+  "InventoryWidth": 2,
+  "InventoryHeight": 2,
+  "RequiredLevel": 8,
+  "RequiredIntelligence": 10,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "UniqueWeight": 8,
+  "BaseGoldValue": 1100,
+  "Unique": true,
+  "UniqueEffect": "hollowcrown",
+  "ArmorStyle": "cap",
+  "BaseStats": {
+   "EnergyShield": 20,
+   "ManaRegeneration": 40,
+   "MaximumMana": 30
+  },
+  "UniqueLines": [
+   "Damage is taken from your Mana before your Life",
+   "You cannot drink Mana Flasks"
+  ],
+  "SpriteColor": "6A5A9C",
+  "Description": "A circlet with nothing inside it. Wear it and the mind stands where the body should."
+ },
+ {
+  "Id": "stormheart",
+  "Name": "Stormheart",
+  "Category": "Amulet",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "RequiredLevel": 5,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "UniqueWeight": 10,
+  "BaseGoldValue": 800,
+  "Unique": true,
+  "UniqueEffect": "stormheart",
+  "BaseStats": {
+   "LightningResistance": 20,
+   "Dexterity": 8
+  },
+  "UniqueLines": [
+   "Dodge rolls loose a lightning burst where you land (30-60 Lightning damage, 1.6 tiles)",
+   "Your dodge cooldown is 1 second longer"
+  ],
+  "SpriteColor": "7FB8FF",
+  "Description": "A shard of struck flint on a copper chain. It remembers the bolt, and repeats it."
+ },
+ {
+  "Id": "cinderwrap",
+  "Name": "Cinderwrap",
+  "Category": "Gloves",
+  "InventoryWidth": 2,
+  "InventoryHeight": 2,
+  "RequiredLevel": 7,
+  "RequiredStrength": 8,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "UniqueWeight": 10,
+  "BaseGoldValue": 850,
+  "Unique": true,
+  "UniqueEffect": "cinderwrap",
+  "ArmorStyle": null,
+  "BaseStats": {
+   "Armor": 12,
+   "AttackSpeed": 8,
+   "FireResistance": -20
+  },
+  "UniqueLines": [
+   "Your melee hits scorch the ground beneath the enemy",
+   "-20% to Fire Resistance"
+  ],
+  "SpriteColor": "C8642A",
+  "Description": "Bandages steeped in pitch and never quite put out. The knuckles glow through."
+ },
+ {
+  "Id": "longwinter",
+  "Name": "The Long Winter",
+  "Category": "Ring",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "RequiredLevel": 9,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "UniqueWeight": 8,
+  "BaseGoldValue": 1000,
+  "Unique": true,
+  "UniqueEffect": "longwinter",
+  "BaseStats": {
+   "ColdResistance": 25,
+   "ChillMagnitude": 40,
+   "MovementSpeed": -15
+  },
+  "UniqueLines": [
+   "Every hit you land Chills, and chills three times as fast",
+   "15% reduced Movement Speed"
+  ],
+  "SpriteColor": "BFE0F5",
+  "Description": "A band of ice that never melts. The cold gets into everything you touch, and into you."
+ },
+ {
+  "Id": "gravethrift",
+  "Name": "Grave Thrift",
+  "Category": "Belt",
+  "InventoryWidth": 2,
+  "InventoryHeight": 1,
+  "RequiredLevel": 4,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "UniqueWeight": 12,
+  "BaseGoldValue": 700,
+  "Unique": true,
+  "UniqueEffect": "gravethrift",
+  "ArmorStyle": null,
+  "BaseStats": {
+   "MaxHealth": 20,
+   "Strength": 6
+  },
+  "UniqueLines": [
+   "Kills restore one charge to each of your flasks",
+   "Your flasks hold at most 1 charge"
+  ],
+  "SpriteColor": "7A6A48",
+  "Description": "A gravedigger's belt with a single loop for a single bottle. He was never short of work."
+ },
+ {
+  "Id": "paleshepherd",
+  "Name": "Pale Shepherd",
+  "Category": "Staff",
+  "InventoryWidth": 2,
+  "InventoryHeight": 4,
+  "RequiredLevel": 10,
+  "RequiredIntelligence": 12,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "UniqueWeight": 8,
+  "BaseGoldValue": 1200,
+  "Unique": true,
+  "UniqueEffect": "paleshepherd",
+  "TwoHanded": true,
+  "BaseStats": {
+   "SummonLimit": 2,
+   "SummonDamage": 60,
+   "SummonHealth": 40,
+   "SpellDamage": -50,
+   "CastSpeed": 5,
+   "MinPhysicalDamage": 3,
+   "MaxPhysicalDamage": 6,
+   "BaseAttackSpeed": 1.1,
+   "WeaponRange": 1.6
+  },
+  "UniqueLines": [
+   "+2 to your maximum Summons",
+   "Summons deal 60% more damage and have 40% more life",
+   "50% less Spell Damage"
+  ],
+  "SpriteColor": "D8D0C0",
+  "Description": "A crook of bleached bone. Its bearer does not fight; the flock does."
+ }
+]

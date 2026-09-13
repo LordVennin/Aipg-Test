@@ -54,6 +54,10 @@ public struct ComputedStats
     /// contributing nothing (the UI paints them red). Null when constructed bare
     /// (tests/defaults), so consumers must null-check.</summary>
     public HashSet<Guid> InactiveItems;
+    /// <summary>Unique rules in force from ACTIVE worn uniques (ItemBase.UniqueEffect ids).
+    /// Null when constructed bare; query through Has().</summary>
+    public HashSet<string> UniqueEffects;
+    public bool Has(string uniqueEffect) => UniqueEffects != null && UniqueEffects.Contains(uniqueEffect);
 
     /// <summary>Base personal light radius in screen pixels (dark-zone torchglow).</summary>
     public const float BaseLightRadius = 235f;
@@ -224,10 +228,12 @@ public static class StatCalculator
         ItemInstance offHand = null;
         bool hasShield = false;
         float shieldArmor = 0f;
+        var uniqueEffects = new HashSet<string>();
         foreach (var (slot, item) in character.Equipment)
         {
             if (item == null || inactive.Contains(item.InstanceId)) continue;
             total.AddAll(item.TotalStats(data));
+            if (item.GetBase(data) is { Unique: true, UniqueEffect: { Length: > 0 } ue }) uniqueEffects.Add(ue);
             if (slot == EquipSlot.MainHand) weapon = item;
             if (slot == EquipSlot.OffHand) offHand = item;
             if (item.GetBase(data)?.Category == ItemCategory.Shield)
@@ -320,6 +326,7 @@ public static class StatCalculator
             SummonDamageIncrease = total.Get(StatType.SummonDamage),
             SummonHealthIncrease = total.Get(StatType.SummonHealth),
             SummonLimitBonus = (int)total.Get(StatType.SummonLimit),
+            UniqueEffects = uniqueEffects,
             LightRadiusIncrease = total.Get(StatType.LightRadius),
             InactiveItems = inactive,
         };

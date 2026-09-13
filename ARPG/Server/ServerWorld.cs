@@ -616,6 +616,10 @@ public partial class ServerWorld
     public void UsePotion(int playerId, byte kind)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
+        // Grave Thrift: a flask holds one charge, however full it was filled.
+        if (p.Stats.Has("gravethrift"))
+            foreach (var it in p.Character.Equipment.Values)
+                if (it?.GetBase(Data)?.Category == ItemCategory.Flask && it.FlaskCharges > 1) it.FlaskCharges = 1;
         if (kind == 0)
         {
             if (Time < p.PotionHealUntil) return; // already drinking
@@ -633,6 +637,11 @@ public partial class ServerWorld
         else
         {
             if (Time < p.PotionManaUntil) return;
+            if (p.Stats.Has("hollowcrown"))
+            {
+                _events.MessageFor(p, "The Hollow Crown will not let you drink that.");
+                return;
+            }
             var (flask, fb) = EquippedFlask(p, health: false);
             if (flask == null)
             {
@@ -869,6 +878,7 @@ public partial class ServerWorld
         UpdateWindups();
         TickRainVolleys();
         TickTremors();
+        TickStormBursts();
         TickFirePatches();
         TickSummons(dt);
         TickEnemies(dt);
@@ -2470,6 +2480,59 @@ public partial class ServerWorld
         _events.SkillUsed(p, skillId, effectPoint, phase, stats.Radius);
     }
 
+    // ------------------------------------------------------------------ uniques
+
+    public const int ThrallLimit = 4;
+    public const float ThrallSeconds = 15f;
+
+    /// <summary>Gravewake: raise a melee thrall where an enemy fell. Thralls are
+    /// summons with no skill behind them — they reserve no mana, never respawn, and
+    /// crumble after ThrallSeconds; the oldest makes room past ThrallLimit.</summary>
+    public ServerSummon RaiseThrall(ServerPlayer p, Vector2 pos, float height, int level)
+    {
+        var mine = Summons.Values.Where(s => s.OwnerId == p.Id && s.SkillId == "thrall_warrior").OrderBy(s => s.ExpiresAt).ToList();
+        while (mine.Count >= ThrallLimit)
+        {
+            var oldest = mine[0]; mine.RemoveAt(0);
+            Summons.Remove(oldest.Id);
+            _events.SummonDespawned(oldest);
+        }
+        float hp = (30f + 6f * level) * (1f + p.Stats.SummonHealthIncrease / 100f);
+        float dmg = (4f + 1.5f * level) * (1f + p.Stats.SummonDamageIncrease / 100f);
+        var s = new ServerSummon
+        {
+            Id = _nextSummonId++, OwnerId = p.Id, SkillId = "thrall_warrior",
+            Position = pos, Height = height, Health = hp, MaxHealth = hp, Damage = dmg,
+            Melee = true, Reach = 1.1f, SwingTime = 1.0f, ExpiresAt = Time + ThrallSeconds,
+        };
+        Summons[s.Id] = s;
+        _events.SummonSpawned(s);
+        _events.WorldEffect("darkburst", pos, 0.7f, 0.5f, height);
+        return s;
+    }
+
+    private readonly List<(float at, Vector2 pos, float height, int ownerId)> _stormBursts = new();
+
+    /// <summary>Stormheart: the lightning bursts where the dash ends.</summary>
+    private void TickStormBursts()
+    {
+        for (int i = _stormBursts.Count - 1; i >= 0; i--)
+        {
+            var (at, pos, height, ownerId) = _stormBursts[i];
+            if (Time < at) continue;
+            _stormBursts.RemoveAt(i);
+            _events.WorldEffect("burst", pos, 1.6f, 0.4f, height);
+            foreach (var e in Enemies.Values.ToList())
+            {
+                if (e.Dead || MathF.Abs(e.Height - height) > 0.75f) continue;
+                if (Vector2.Distance(e.Position, pos) > 1.6f + e.Def.Radius) continue;
+                var comps = RollComponentList(30f, 60f, DamageKind.Lightning, null);
+                var (dmg, kind) = MitigateForEnemy(e, comps);
+                HitEnemy(e, dmg, ownerId, "stormheart", kind, e.Position - pos);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ breakables
 
     /// <summary>Shatter every urn/barrel whose body touches the circle.</summary>
@@ -2504,6 +2567,18 @@ public partial class ServerWorld
         p.NextDodgeAt = Time + p.Stats.DodgeCooldown;
         p.InvulnerableUntil = Time + p.Stats.DodgeInvulnerability;
         p.DodgeUntil = Time + p.Stats.DodgeDuration;
+        if (p.Stats.Has("stormheart"))
+        {
+            // The bolt strikes where the roll ends; the roll itself recovers slower.
+            p.NextDodgeAt += 1f;
+            var landing = p.Position + dir * p.Stats.DodgeDistance;
+            for (float d = p.Stats.DodgeDistance; d > 0f; d -= 0.3f)
+            {
+                landing = p.Position + dir * d;
+                if (!Map.CircleHitsWall(landing, ServerPlayer.Radius)) break;
+            }
+            _stormBursts.Add((Time + p.Stats.DodgeDuration, landing, Map.GroundHeightAt(landing), p.Id));
+        }
         _events.PlayerDodged(p, dir, p.Stats.DodgeDistance, p.Stats.DodgeDuration);
         // The body barrels through whatever breakables stand along the dash line
         // (the client predicts the dash itself, so the sweep is checked here at once,
@@ -2715,7 +2790,7 @@ public partial class ServerWorld
         SeparateSummons(dt);
         foreach (var s in Summons.Values.ToList())
         {
-            if (!Players.TryGetValue(s.OwnerId, out var owner))
+            if (!Players.TryGetValue(s.OwnerId, out var owner) || (s.ExpiresAt > 0f && Time >= s.ExpiresAt))
             {
                 Summons.Remove(s.Id);
                 _events.SummonDespawned(s);
@@ -3025,9 +3100,12 @@ public partial class ServerWorld
 
         // Chill: buildup proportional to the hit's share of the enemy's max life. At the
         // cap, every further chilling hit can freeze outright (blue tint, no actions).
-        if (stats.ChillChance > 0 && _rng.NextDouble() < stats.ChillChance)
+        // The Long Winter: every hit chills, three times as fast.
+        bool winterHit = Players.TryGetValue(e.LastHitByPlayer, out var winterP) && winterP.Stats.Has("longwinter");
+        if (winterHit || (stats.ChillChance > 0 && _rng.NextDouble() < stats.ChillChance))
         {
-            float gain = 100f * (dealtTotal / MathF.Max(1f, e.MaxHealth)) * 2.5f * stats.ChillMagnitude;
+            float gain = 100f * (dealtTotal / MathF.Max(1f, e.MaxHealth)) * 2.5f *
+                         (winterHit ? 3f * MathF.Max(1f, stats.ChillMagnitude) : stats.ChillMagnitude);
             e.ChillMagnitude = MathF.Min(ChillMaxMagnitude, e.ChillMagnitude + gain);
             if (e.ChillMagnitude >= ChillMaxMagnitude - 0.01f &&
                 _rng.NextDouble() < FreezeChanceAtCap)
@@ -3463,6 +3541,15 @@ public partial class ServerWorld
         e.LastHitByPlayer = byPlayer;
         e.LastHitSkillId = skillId;
         e.LastDamagedAt = Time;
+        // Cinderwrap: a melee blow scorches the ground under the target (throttled).
+        if (emitEvents && byPlayer >= 0 && skillId != null && Players.TryGetValue(byPlayer, out var cinder) &&
+            cinder.Stats.Has("cinderwrap") && Time >= cinder.CinderNextAt &&
+            Data.Skills.TryGetValue(skillId, out var cinderSkill) &&
+            cinderSkill.Archetype is SkillArchetype.MeleeStrike or SkillArchetype.MeleeSingle or SkillArchetype.MeleeArea)
+        {
+            cinder.CinderNextAt = Time + 0.6f;
+            SpawnFirePatch(e.Position, e.Height, MathF.Max(3f, damage * 0.25f), byPlayer, skillId);
+        }
         // Thorny: a MELEE blow that lands on it cuts the swinger back for a share of
         // the damage — direct hits only (ailment ticks never reflect).
         if (emitEvents && byPlayer >= 0 && e.Affixes.HasFlag(EliteAffix.Thorny) && skillId != null &&
@@ -3544,8 +3631,26 @@ public partial class ServerWorld
         // an item + both scroll types per roll, so its double roll is the reward burst.
         // Item level comes from e.Level — the SCALED level when a spawner overrides
         // the def — so a level-11 "zombie" drops level-11 loot, not level-1 loot.
+        if (Players.TryGetValue(e.LastHitByPlayer, out var slayer))
+        {
+            // Gravewake: a melee kill raises the dead as a thrall for a while.
+            if (slayer.Stats.Has("gravewake") && e.LastHitSkillId != null &&
+                Data.Skills.TryGetValue(e.LastHitSkillId, out var killSkill) &&
+                killSkill.Archetype is SkillArchetype.MeleeStrike or SkillArchetype.MeleeSingle or SkillArchetype.MeleeArea)
+                RaiseThrall(slayer, e.Position, e.Height, e.Level);
+            // Grave Thrift: every kill puts a charge back in each flask (they hold one).
+            if (slayer.Stats.Has("gravethrift"))
+            {
+                bool refilled = false;
+                foreach (var it in slayer.Character.Equipment.Values)
+                    if (it?.GetBase(Data)?.Category == ItemCategory.Flask && it.FlaskCharges < 1) { it.FlaskCharges = 1; refilled = true; }
+                if (refilled) _events.CharacterChanged(slayer);
+            }
+        }
+
         // Minions roll once like plain monsters; a RARE rolls three times and always
-        // leaves one rare-quality piece of equipment behind.
+        // leaves one rare-quality piece of equipment behind (one time in eight, a UNIQUE
+        // instead); a boss drops a unique one time in three.
         bool rareKill = EliteAffixInfo.IsRare(e.Affixes);
         int lootRolls = e.Affixes == EliteAffix.None || e.Affixes == EliteAffix.Minion ? 1 : rareKill ? 3 : 2;
         for (int roll = 0; roll < lootRolls; roll++)
@@ -3554,8 +3659,14 @@ public partial class ServerWorld
         if (rareKill)
         {
             var rareTable = Data.GetLootTable(e.Def.LootTableId);
-            var prize = rareTable != null ? Loot.GenerateEquipment(rareTable, e.Level, ItemRarity.Rare) : null;
+            var prize = _rng.NextDouble() < 0.125 ? Loot.GenerateUnique(e.Level)
+                : rareTable != null ? Loot.GenerateEquipment(rareTable, e.Level, ItemRarity.Rare) : null;
             if (prize != null) SpawnDrop(prize, e.Position, e.Height);
+        }
+        if (e.Affixes.HasFlag(EliteAffix.Boss) && _rng.NextDouble() < 0.34)
+        {
+            var bossUnique = Loot.GenerateUnique(e.Level);
+            if (bossUnique != null) SpawnDrop(bossUnique, e.Position, e.Height);
         }
 
         // Gold drop, scaled by enemy level.
@@ -3672,6 +3783,13 @@ public partial class ServerWorld
             p.EnergyShield -= absorbed;
             p.LastSyncedEnergyShield = p.EnergyShield;
             damage -= absorbed;
+        }
+        // The Hollow Crown: what the shield doesn't stop, the mind pays for first.
+        if (damage > 0f && p.Stats.Has("hollowcrown") && p.Mana > 0f)
+        {
+            float fromMana = MathF.Min(p.Mana, damage);
+            p.Mana -= fromMana;
+            damage -= fromMana;
         }
 
         p.Health -= damage;

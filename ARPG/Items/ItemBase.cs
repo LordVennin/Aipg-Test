@@ -125,6 +125,16 @@ public class ItemBase
 
     public string Description { get; set; }
 
+    /// <summary>A UNIQUE base: never rolled by the rarity table, always dropped as a
+    /// sealed Unique with these fixed BaseStats and one strange rule the server
+    /// enforces by UniqueEffect id (see ServerWorld's unique hooks).</summary>
+    public bool Unique { get; set; }
+    public string UniqueEffect { get; set; }
+    /// <summary>The rule text shown in gold on the tooltip, one line per entry.</summary>
+    public List<string> UniqueLines { get; set; } = new();
+    /// <summary>Relative pick weight among uniques when one drops (level-gated).</summary>
+    public int UniqueWeight { get; set; } = 10;
+
     public bool IsWeapon => Category is ItemCategory.Mace or ItemCategory.Staff or ItemCategory.Bow;
     /// <summary>Items rendered in the character's hands (weapons and shields).</summary>
     public bool IsHandheld => IsWeapon || Category == ItemCategory.Shield;
