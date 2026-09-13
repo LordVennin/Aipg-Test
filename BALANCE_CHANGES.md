@@ -1528,3 +1528,19 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   band and a bright foam line hugging that line on the water side. Works on
   every map with ground materials, generated forests included.
 - Client-side only; no protocol change.
+
+---
+
+# Addendum (batch 68): only buried undead rise
+
+- Rising from the earth is now a PACK property rather than a rule for every
+  enemy: when an all-undead pack (every enemy type is currently `Undead`;
+  never the Gravelord) first spawns it rolls **45%** to lie buried. Buried
+  enemies carry a flag in the spawn packet, stay unseen on clients until a
+  player is within 11.5 tiles, then claw up out of the ground; everything
+  else stands in plain view from the start as before.
+- The Old Road's first grunt pair and the high-ground guard are always
+  buried (the introduction to the dead rising); its middle groups stand.
+  Debug spawns: `spawn_elite` buries its grunt, `spawn_enemy <type>+buried`
+  buries a type.
+- Protocol v45 (buried flag on enemy spawns).

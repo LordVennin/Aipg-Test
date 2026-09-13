@@ -30,6 +30,7 @@
   "XpReward": 6,
   "LootTableId": "default",
   "Color": "C04040",
+  "Undead": true,
   "SpriteStyle": "Zombie",
   "SpriteVariants": 3,
   "AttackWindup": 0.5,
@@ -68,6 +69,7 @@
   "XpReward": 9,
   "LootTableId": "default",
   "Color": "50B050",
+  "Undead": true,
   "SpriteStyle": "Ghoul"
  },
  {
@@ -115,6 +117,7 @@
   "DashMinLevel": 7,
   "LootTableId": "boss",
   "Color": "8050B8",
+  "Undead": true,
   "SpriteStyle": "Zombie",
   "AttackWindup": 0.55,
   "AttackRecovery": 0.35,
@@ -156,6 +159,7 @@
   "XpReward": 11,
   "LootTableId": "default",
   "Color": "B8BCC8",
+  "Undead": true,
   "SpriteStyle": "Skeleton"
  },
  {
@@ -182,6 +186,7 @@
   "DashCooldown": 5,
   "DashMinLevel": 1,
   "Color": "9AB44E",
+  "Undead": true,
   "SpriteStyle": "Ghoul",
   "SpriteScale": 0.85
  },
@@ -210,6 +215,7 @@
   "CastCooldown": 6.5,
   "CastKind": "Dark", "KeepDistance": 3.0,
   "Color": "7E5FA8",
+  "Undead": true,
   "SpriteStyle": "Necro"
  },
  {
@@ -228,6 +234,7 @@
   "Radius": 0.28,
   "XpReward": 2,
   "Color": "7C8F5A",
+  "Undead": true,
   "SpriteStyle": "Zombie",
   "SpriteVariants": 3,
   "SpriteScale": 0.72

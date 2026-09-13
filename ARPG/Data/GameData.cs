@@ -100,6 +100,9 @@ public class EnemyDefinition
     /// <summary>Procedural sprite style: "Zombie", "Ghoul", "Skeleton", "Necro", or empty
     /// for a plain token.</summary>
     public string SpriteStyle { get; set; } = "";
+    /// <summary>Undead: packs of these may spawn BURIED, lying unseen under the earth
+    /// until a player comes near, then clawing up out of the ground.</summary>
+    public bool Undead { get; set; }
     /// <summary>Visual size multiplier on the sprite (0.75 = a runt, 1 = normal).</summary>
     public float SpriteScale { get; set; } = 1f;
 }
