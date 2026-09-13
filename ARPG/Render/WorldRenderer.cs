@@ -405,6 +405,25 @@ public class WorldRenderer
         return Color.White;
     }
 
+    /// <summary>Rim a raised tile's top along the edges that DROP to lower ground: the
+    /// two front (south-facing) edges bright, the back edges faint. Edges shared with a
+    /// neighbour at the same height get nothing, so plateaus never read as a grid.</summary>
+    private static void DrawTopRim(SpriteBatch batch, GameMap map, int x, int y, int myTop, Vector2 topCenter, float fade)
+    {
+        int TopOf(int nx, int ny) => nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height
+            ? myTop : Math.Max(map.BridgeLevel(nx, ny), map.GroundLevel(nx, ny) + map.WallHeight(nx, ny));
+        var top = topCenter + new Vector2(0, -16);
+        var right = topCenter + new Vector2(32, 0);
+        var bottom = topCenter + new Vector2(0, 16);
+        var left = topCenter + new Vector2(-32, 0);
+        var bright = new Color(255, 250, 232) * (0.55f * fade);
+        var faint = new Color(255, 250, 232) * (0.22f * fade);
+        if (TopOf(x + 1, y) < myTop) DrawSeg(batch, right, bottom, bright, 1.5f);   // lower-right edge
+        if (TopOf(x, y + 1) < myTop) DrawSeg(batch, bottom, left, bright, 1.5f);    // lower-left edge
+        if (TopOf(x, y - 1) < myTop) DrawSeg(batch, top, right, faint, 1f);         // upper-right edge
+        if (TopOf(x - 1, y) < myTop) DrawSeg(batch, left, top, faint, 1f);          // upper-left edge
+    }
+
     /// <summary>A thin stretched line between two screen points (swing streaks, sparks).</summary>
     private static void DrawSeg(SpriteBatch b, Vector2 a, Vector2 c, Color col, float thick)
     {
@@ -511,7 +530,6 @@ public class WorldRenderer
         // Textured ground hides the step up onto a raised block: rim every raised top
         // with a light edge so walls south and north of the player read at a glance.
         bool rimEdges = _materials.Count > 0 && !brick;
-        var rimColor = new Color(255, 250, 232);
         var floorA = Theme != null ? _floorA : new Color(58, 66, 58);
         var floorB = Theme != null ? _floorB : new Color(52, 60, 54);
         for (int y = 0; y < map.Height; y++)
@@ -801,8 +819,7 @@ public class WorldRenderer
                         {
                             batch.Draw(trTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx), trTint);
                             if (rimEdges)
-                                batch.Draw(TextureGen.DiamondOutline, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx),
-                                    rimColor * (0.42f * trTint.A / 255f));
+                                DrawTopRim(batch, map, x, y, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - trPx), trTint.A / 255f);
                         }));
                     }
                     continue;
@@ -847,8 +864,7 @@ public class WorldRenderer
                     {
                         batch.Draw(wtTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), topTint);
                         if (rimEdges)
-                            batch.Draw(TextureGen.DiamondOutline, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
-                                rimColor * (0.42f * topTint.A / 255f));
+                            DrawTopRim(batch, map, x, y, top, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), topTint.A / 255f);
                     }));
                     continue;
                 }
@@ -970,8 +986,7 @@ public class WorldRenderer
                         batch.Draw(etTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint);
                         if (rimEdges)
-                            batch.Draw(TextureGen.DiamondOutline, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
-                                rimColor * (0.42f * etTint.A / 255f));
+                            DrawTopRim(batch, map, x, y, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), etTint.A / 255f);
                         if (!etOrganic) return;
                         // Grass blades on elevated tops too — same detail as the floor.
                         for (int spk = 0; spk < 3; spk++)
