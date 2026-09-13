@@ -1424,3 +1424,22 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   broken urn spills a few coins 40% of the time. Barrels are defined and
   spawnable (`spawn_breakable barrel`) but placed nowhere yet.
 - Protocol v44: the enemy spawn packet carries the rare's name.
+
+---
+
+# Addendum (batch 63): weather that meets the ground
+
+- **Rain splashes.** Each drop that reaches a surface bursts into a crown of
+  three droplets that jump up and fall back, over a flat ring that widens and
+  fades (0.34s). Drops that land on water spread two ripple rings instead
+  (0.6s). The old four-pixel splash was too faint to notice.
+- **Snow settles.** Flakes that land lie where they fell for 6 seconds (2-3 px
+  flecks in three whites), melting away over the last 1.8s, so a dusting
+  builds up and thins as it falls; flakes over water vanish. Up to 900 ground
+  marks at once (oldest melt first); the falling flake count rises to 320.
+- **Under your feet.** Every ground mark is queued into the world's depth
+  sort a hair above the floor, so characters and props draw over settled snow
+  and splashes burst at their feet instead of on top of their sprites; only
+  what's still in the air draws over the scene. Shelter rules are unchanged
+  (nothing lands under bridge decks or canopies).
+- Client-side only; no protocol change.
