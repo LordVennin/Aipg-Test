@@ -72,7 +72,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 43; // v43: hit direction on damage events (directional blood)
+    public const int ProtocolVersion = 44; // v44: rare monsters carry a name in the spawn packet
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

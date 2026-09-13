@@ -324,6 +324,11 @@ public partial class ServerWorld
                 Height = Map.GroundHeightAt(Map.ChestSpots[i]),
                 Opened = _openedChests.Contains(i + 1),
             });
+        // Clay urns along the walls: something to smash on the way to the door. They
+        // hold nothing in the sanctum (it would be a free gold tap) and stand again
+        // on every return.
+        foreach (var spot in Map.UrnSpots)
+            SpawnBreakable(StructureKind.Urn, spot);
     }
 
     /// <summary>A run map: generation-placed packs along the corridor and on the
@@ -352,18 +357,13 @@ public partial class ServerWorld
                 4 => new[] { ("bone_knight", 2), ("grunt", 1) },
                 _ => new[] { ("grave_caller", 1), ("crypt_leaper", 1), ("grunt", 1) },
             };
-            var affix = packRng.Next(5) switch
-            {
-                0 => EliteAffix.Brutish,
-                1 => EliteAffix.Swift,
-                2 => EliteAffix.Warded,
-                _ => EliteAffix.None,
-            };
+            var affix = EliteAffixInfo.RollPackLeader(packRng, out string leaderName);
             Packs.Add(new PackSpawner
             {
                 Position = spot,
                 Entries = entries,
                 LeaderAffixes = affix,
+                LeaderName = leaderName,
                 EnemyLevel = level,
                 NoRespawn = true,
             });
@@ -843,6 +843,7 @@ public partial class ServerWorld
         if (Time < p.IgnoreStateUntil) return;
         pos.X = Math.Clamp(pos.X, 0, Map.Width);
         pos.Y = Math.Clamp(pos.Y, 0, Map.Height);
+        if (Time < p.DodgeUntil && Structures.Count > 0) BreakBreakablesNear(pos, 0.55f, p);
         // Sanity: accept the client's position/height only if a surface actually exists
         // there near the claimed height — the SERVER's sampled value becomes canonical.
         if (Time < p.FrozenUntil)
@@ -1061,18 +1062,24 @@ public partial class ServerWorld
                     (float)(_rng.NextDouble() * 2 - 1) * pack.ScatterRadius);
                 var pos = pack.Position + offset;
                 if (Map.CircleHitsWall(pos, 0.4f)) pos = pack.Position;
-                var affixes = leaderPlaced ? EliteAffix.None : pack.LeaderAffixes;
+                // A RARE leader's pack mates spawn as its minions (tougher, unnamed).
+                bool rareLeader = EliteAffixInfo.IsRare(pack.LeaderAffixes);
+                var affixes = leaderPlaced ? (rareLeader ? EliteAffix.Minion : EliteAffix.None) : pack.LeaderAffixes;
+                var member = SpawnEnemy(typeId, pos, affixes, pi, pack.EnemyLevel,
+                    leaderPlaced ? null : pack.LeaderName);
                 leaderPlaced = true;
-                var member = SpawnEnemy(typeId, pos, affixes, pi, pack.EnemyLevel);
                 pack.AliveIds.Add(member.Id);
             }
         pack.Spawned = true;
     }
 
     public ServerEnemy SpawnEnemy(string typeId, Vector2 pos, EliteAffix affixes = EliteAffix.None,
-        int packId = -1, int level = 0)
+        int packId = -1, int level = 0, string eliteName = null)
     {
         var def = Data.Enemies.GetValueOrDefault(typeId) ?? Data.Enemies.Values.First();
+        // A rare spawned without a name (debug, tests) still gets one.
+        if (EliteAffixInfo.IsRare(affixes) && string.IsNullOrEmpty(eliteName))
+            eliteName = EliteAffixInfo.RareName(_rng, affixes);
         var e = new ServerEnemy
         {
             Id = _nextEnemyId++,
@@ -1080,6 +1087,7 @@ public partial class ServerWorld
             Position = pos,
             MaxHealth = def.MaxHealth,
             Affixes = affixes,
+            EliteName = EliteAffixInfo.IsRare(affixes) ? eliteName : "",
             PackId = packId,
             Level = level > 0 ? level : def.Level,
         };
@@ -1111,6 +1119,12 @@ public partial class ServerWorld
             e.MaxHealth *= 1.8f;
             e.XpScale *= 2.5f;
         }
+        if (affixes.HasFlag(EliteAffix.Vampiric)) { e.MaxHealth *= 1.4f; e.XpScale *= 2.5f; }
+        if (affixes.HasFlag(EliteAffix.Thorny)) { e.MaxHealth *= 1.5f; e.XpScale *= 2.5f; }
+        if (affixes.HasFlag(EliteAffix.Regenerating)) { e.MaxHealth *= 1.4f; e.XpScale *= 2.5f; }
+        if (affixes.HasFlag(EliteAffix.Minion)) { e.MaxHealth *= 1.5f; e.XpScale *= 1.5f; }
+        // A rare is more than the sum of its affixes: a little extra life and much more XP.
+        if (EliteAffixInfo.IsRare(affixes)) { e.MaxHealth *= 1.25f; e.XpScale *= 1.5f; }
         // Party scaling: +15% health per player beyond the first, so a full session
         // never turns the same content trivial.
         e.MaxHealth *= 1f + Stats.EnemyLevelScaling.HealthPerExtraPlayer *
@@ -1157,6 +1171,16 @@ public partial class ServerWorld
         foreach (var e in Enemies.Values.ToList())
         {
             if (e.Dead) { Enemies.Remove(e.Id); continue; }
+
+            // Regenerating: left alone for two seconds, it knits 3% of its life back
+            // per second (health syncs ride the regular enemy snapshots).
+            if (e.Affixes.HasFlag(EliteAffix.Regenerating) && e.Health < e.MaxHealth &&
+                Time - e.LastDamagedAt >= 2f)
+            {
+                e.Health = MathF.Min(e.MaxHealth, e.Health + e.MaxHealth * 0.03f * dt);
+                e.RegenAccum += dt;
+                if (e.RegenAccum >= 0.5f) { e.RegenAccum = 0f; _events.EnemyHealthChanged(e); }
+            }
 
             // Damage-over-time ailments (ignite/poison/bleed). Per-frame ticks apply
             // silently and batch into one damage event / health update every half second.
@@ -1266,7 +1290,7 @@ public partial class ServerWorld
                     e.DashHitIds.Add(victim.Id);
                     // A body-charge, not a swung Attack — never deflectable.
                     DamagePlayerTyped(victim, new List<(DamageKind, float)>
-                        { (DamageKind.Blunt, e.Def.DashDamage * e.DamageScale) }, attackHit: false);
+                        { (DamageKind.Blunt, e.Def.DashDamage * e.DamageScale) }, attackHit: false, attacker: e);
                     var aside = (victim.Position - e.Position).NormalizedOrZero();
                     if (aside == Vector2.Zero) aside = new Vector2(-e.DashDir.Y, e.DashDir.X);
                     float kh2 = victim.Height;
@@ -1291,7 +1315,7 @@ public partial class ServerWorld
                     if (Vector2.Distance(victim.Position, e.Position) > e.Def.SlamRadius) continue;
                     // A ground slam is an AoE, not a direct Attack — never deflectable.
                     DamagePlayerTyped(victim, new List<(DamageKind, float)>
-                        { (DamageKind.Blunt, e.Def.SlamDamage * e.DamageScale) }, attackHit: false);
+                        { (DamageKind.Blunt, e.Def.SlamDamage * e.DamageScale) }, attackHit: false, attacker: e);
                     var away = (victim.Position - e.Position).NormalizedOrZero();
                     float kh = victim.Height;
                     victim.Position = Map.MoveWithCollision(victim.Position, away * 2.0f, ServerPlayer.Radius, ref kh);
@@ -1333,7 +1357,7 @@ public partial class ServerWorld
                     if (Vector2.Distance(victim.Position, e.CastTarget) > e.Def.CastRadius) continue;
                     // A ground spell, never a deflectable Attack.
                     DamagePlayerTyped(victim, new List<(DamageKind, float)>
-                        { (e.Def.CastKind, e.Def.CastDamage * e.DamageScale) }, attackHit: false);
+                        { (e.Def.CastKind, e.Def.CastDamage * e.DamageScale) }, attackHit: false, attacker: e);
                 }
                 // Summons standing in the circle burn too (DamageSummon can remove
                 // from the dictionary, so snapshot first). Pets are bystanders.
@@ -1645,7 +1669,7 @@ public partial class ServerWorld
             if (d < bestDist) { bestDist = d; hitSummon = s; hitPlayer = null; }
         }
         if (hitSummon != null) DamageSummon(hitSummon, RollEnemyDamage(e).Sum(c => c.amount));
-        else if (hitPlayer != null) DamagePlayerTyped(hitPlayer, RollEnemyDamage(e));
+        else if (hitPlayer != null) DamagePlayerTyped(hitPlayer, RollEnemyDamage(e), attacker: e);
         // else: whiff — the dodge worked.
     }
 
@@ -1927,6 +1951,18 @@ public partial class ServerWorld
 
             if (pr.FromPlayer)
             {
+                // Urns and barrels along the flight line shatter; a plain shot stops
+                // in the wreckage, a piercing one carries on.
+                bool stoppedByBreakable = false;
+                foreach (var st in Structures.Values.ToList())
+                {
+                    if (!StructureKinds.IsBreakable(st.Kind) || st.Destroyed) continue;
+                    if (MathF.Abs(st.Height - pr.Height) > 0.75f) continue;
+                    if (SegmentDistance(prevPos, pr.Position, st.Position) > st.Radius + 0.2f) continue;
+                    DamageStructure(st, st.MaxHealth + 1f);
+                    if (!pr.Pierce) { stoppedByBreakable = true; break; }
+                }
+                if (stoppedByBreakable) { RemoveProjectile(pr, pr.Position); continue; }
                 foreach (var e in Enemies.Values)
                 {
                     if (e.Dead || MathF.Abs(e.Height - pr.Height) > 0.75f) continue;
@@ -2411,8 +2447,39 @@ public partial class ServerWorld
             }
         }
 
+        // Any blow smashes the breakables it lands among: the impact circle, plus —
+        // for swings — the arc in front of the caster.
+        BreakBreakablesNear(effectPoint, MathF.Max(stats.Radius, 0.8f), p);
+        if (def.Archetype is SkillArchetype.MeleeStrike or SkillArchetype.MeleeSingle or SkillArchetype.MeleeArea)
+        {
+            var swingDir = (target - p.Position).NormalizedOrZero();
+            if (swingDir == Vector2.Zero) swingDir = p.Facing;
+            BreakBreakablesNear(p.Position + swingDir * 0.8f, MathF.Max(stats.Range, 1.0f), p);
+        }
         _events.SkillUsed(p, skillId, effectPoint, phase, stats.Radius);
     }
+
+    // ------------------------------------------------------------------ breakables
+
+    /// <summary>Shatter every urn/barrel whose body touches the circle.</summary>
+    public int BreakBreakablesNear(Vector2 center, float radius, ServerPlayer by = null)
+    {
+        int broken = 0;
+        foreach (var st in Structures.Values.ToList())
+        {
+            if (!StructureKinds.IsBreakable(st.Kind) || st.Destroyed) continue;
+            if (MathF.Abs(st.Height - Map.GroundHeightAt(center)) > 0.75f) continue;
+            if (Vector2.Distance(st.Position, center) > radius + st.Radius) continue;
+            DamageStructure(st, st.MaxHealth + 1f);
+            broken++;
+        }
+        return broken;
+    }
+
+    /// <summary>Place a breakable prop (hub dressing, debug spawns, future zone
+    /// scatter). Breakables never join the structure collision tiles.</summary>
+    public ServerStructure SpawnBreakable(StructureKind kind, Vector2 pos) =>
+        AddStructure(kind, pos, hp: 1f, ownerId: -1, radius: 0.3f);
 
     /// <summary>Server-authoritative dodge: validates the cooldown and applies i-frames.
     /// Movement itself is client-predicted (like normal movement) for responsiveness.</summary>
@@ -2425,7 +2492,18 @@ public partial class ServerWorld
         if (dir == Vector2.Zero) dir = p.Facing;
         p.NextDodgeAt = Time + p.Stats.DodgeCooldown;
         p.InvulnerableUntil = Time + p.Stats.DodgeInvulnerability;
+        p.DodgeUntil = Time + p.Stats.DodgeDuration;
         _events.PlayerDodged(p, dir, p.Stats.DodgeDistance, p.Stats.DodgeDuration);
+        // The body barrels through whatever breakables stand along the dash line
+        // (the client predicts the dash itself, so the sweep is checked here at once,
+        // and again from each position update while the dash lasts).
+        if (Structures.Count > 0)
+            for (float d = 0f; d <= p.Stats.DodgeDistance; d += 0.3f)
+            {
+                var at = p.Position + dir * d;
+                if (Map.CircleHitsWall(at, ServerPlayer.Radius)) break;
+                BreakBreakablesNear(at, 0.5f, p);
+            }
     }
 
     // ------------------------------------------------------------------ summons
@@ -3373,6 +3451,17 @@ public partial class ServerWorld
         e.Health -= damage;
         e.LastHitByPlayer = byPlayer;
         e.LastHitSkillId = skillId;
+        e.LastDamagedAt = Time;
+        // Thorny: a MELEE blow that lands on it cuts the swinger back for a share of
+        // the damage — direct hits only (ailment ticks never reflect).
+        if (emitEvents && byPlayer >= 0 && e.Affixes.HasFlag(EliteAffix.Thorny) && skillId != null &&
+            Data.Skills.TryGetValue(skillId, out var thornSkill) &&
+            thornSkill.Archetype is SkillArchetype.MeleeStrike or SkillArchetype.MeleeSingle or SkillArchetype.MeleeArea &&
+            Players.TryGetValue(byPlayer, out var swinger) && swinger.Alive)
+        {
+            DamagePlayerTyped(swinger, new List<(DamageKind, float)>
+                { (DamageKind.Thrust, MathF.Max(1f, damage * 0.15f)) }, attackHit: false);
+        }
         if (e.Health <= 0)
         {
             e.Health = 0;
@@ -3444,10 +3533,19 @@ public partial class ServerWorld
         // an item + both scroll types per roll, so its double roll is the reward burst.
         // Item level comes from e.Level — the SCALED level when a spawner overrides
         // the def — so a level-11 "zombie" drops level-11 loot, not level-1 loot.
-        int lootRolls = e.Affixes == EliteAffix.None ? 1 : 2;
+        // Minions roll once like plain monsters; a RARE rolls three times and always
+        // leaves one rare-quality piece of equipment behind.
+        bool rareKill = EliteAffixInfo.IsRare(e.Affixes);
+        int lootRolls = e.Affixes == EliteAffix.None || e.Affixes == EliteAffix.Minion ? 1 : rareKill ? 3 : 2;
         for (int roll = 0; roll < lootRolls; roll++)
             foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Level))
                 SpawnDrop(item, e.Position, e.Height);
+        if (rareKill)
+        {
+            var rareTable = Data.GetLootTable(e.Def.LootTableId);
+            var prize = rareTable != null ? Loot.GenerateEquipment(rareTable, e.Level, ItemRarity.Rare) : null;
+            if (prize != null) SpawnDrop(prize, e.Position, e.Height);
+        }
 
         // Gold drop, scaled by enemy level.
         var table = Data.GetLootTable(e.Def.LootTableId);
@@ -3528,7 +3626,7 @@ public partial class ServerWorld
     /// melee swings and attack projectiles) — the only damage Deflection may run
     /// against. Spells, DoTs, ground effects and slams pass attackHit: false.</summary>
     private void DamagePlayerTyped(ServerPlayer p, List<(DamageKind kind, float amount)> components,
-        bool attackHit = true)
+        bool attackHit = true, ServerEnemy attacker = null)
     {
         if (!p.Alive) return;
         if (Time < p.InvulnerableUntil) return; // dodge i-frames (server-authoritative)
@@ -3568,6 +3666,12 @@ public partial class ServerWorld
         p.Health -= damage;
         p.LastSyncedHealth = p.Health;
         _events.DamageDealt(true, p.Id, totalHit, kind, p.Position);
+        // Vampiric: the blow feeds the biter.
+        if (attacker != null && !attacker.Dead && attacker.Affixes.HasFlag(EliteAffix.Vampiric))
+        {
+            attacker.Health = MathF.Min(attacker.MaxHealth, attacker.Health + totalHit * 0.3f);
+            _events.EnemyHealthChanged(attacker);
+        }
         if (p.Health <= 0)
         {
             p.Health = 0;

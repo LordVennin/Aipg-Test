@@ -101,6 +101,8 @@ public class GameMap
     /// <summary>The stash container's spot (hub only; zero elsewhere). Storage is keyed
     /// by container id so future rooms can hold more than one.</summary>
     public Vector2 StashSpot { get; private set; }
+    /// <summary>Breakable clay urns (hub dressing along the walls).</summary>
+    public List<Vector2> UrnSpots { get; } = new();
     public const string HubStashId = "hub_stash";
 
     /// <summary>Hub only: the door into the DEFENSE loop, across the room from the
@@ -583,6 +585,16 @@ public class GameMap
         ChestSpots.Add(new Vector2(2.6f, Height - 3.5f));
         ChestSpots.Add(new Vector2(6.5f, 2.4f));
         ChestSpots.Add(new Vector2(6.5f, Height - 2.4f));
+        // Urns cluster in twos and threes against the walls, clear of every NPC,
+        // chest, door and the fountain's walking line.
+        UrnSpots.Add(new Vector2(9.0f, 2.4f));
+        UrnSpots.Add(new Vector2(9.8f, 2.7f));
+        UrnSpots.Add(new Vector2(16.6f, 2.5f));
+        UrnSpots.Add(new Vector2(17.3f, 2.9f));
+        UrnSpots.Add(new Vector2(16.4f, Height - 2.5f));
+        UrnSpots.Add(new Vector2(9.2f, Height - 2.5f));
+        UrnSpots.Add(new Vector2(Width - 2.8f, 4.6f));
+        UrnSpots.Add(new Vector2(Width - 2.8f, Height - 4.6f));
     }
 
     // ------------------------------------------------------------------ tutorial (authored)

@@ -434,6 +434,7 @@ public class GameServer : IServerEvents
         w.Put(e.Health);
         w.Put(e.MaxHealth);
         w.Put((byte)e.Affixes);
+        w.Put(e.EliteName ?? "");
         return w;
     }
 

@@ -634,9 +634,15 @@ south plateau. Its slam is TELEGRAPHED: a pulsing red MMO-style decal marks the
 full slam circle for 0.9s, then damage resolves against wherever everyone stands
 at the end — walk out of the red and it misses (stuns/freezes cancel the slam
 outright). It drops a guaranteed reward burst (rare-biased loot plus both
-scroll types, twice) from its own loot table. Elite affixes (Brutish/Swift/
-Warded) scale life/damage/speed/resists, multiply XP and loot rolls, tint the
-sprite and prefix the name.
+scroll types, twice) from its own loot table. Pack leaders roll an elite TIER:
+about half are plain, a third are **magic** (one affix, blue name and ring) and
+the rest **rare** — two or three affixes, a generated name ("Gorrak the
+Barbed", gold name and ring), tougher *minions* for pack mates, three loot
+rolls and a guaranteed rare-quality item. Affixes: Brutish, Swift, Warded,
+Vampiric (heals 30% of the damage it deals), Thorny (melee hits cut the
+attacker for 15%) and Regenerating (3% life a second after 2s unhurt). Each
+scales life and XP, tints the sprite, and the hover panel lists every affix
+with what it does.
 
 ### Overlook combat & hover targeting
 
@@ -903,17 +909,19 @@ computed stats. All commands execute server-side like any other request.
 
 Dev conveniences for automated/headless sessions: `--sp` starts straight into
 single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
-`ARPG_DEVUI=debug[,skills][,inventory][,drops][,loot][,shop][,shopgrid][,tree][,summons][,knight]`
+`ARPG_DEVUI=debug[,skills][,inventory][,drops][,loot][,elite[:rare|magic|affix+affix]][,shop][,shopgrid][,tree][,summons][,knight]`
 opens panels at startup (`drops` scatters one of every scroll shortly after
 joining, for loot-UI work; `loot` rings the player with one drop of every item
-category in mixed rarities plus a gold pile, for ground-loot visuals; `shop` opens the merchant shop without needing
+category in mixed rarities plus a gold pile, for ground-loot visuals; `elite`
+spawns a magic/rare grunt ahead once out of the hub (debug commands
+`spawn_elite`, `spawn_breakable [urn|barrel]` do the same by hand); `shop` opens the merchant shop without needing
 keyboard input; `summons` learns the summon skills and raises a pack; `knight`
 spawns a Barrow Knight beside the player for attack-animation work).
 
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (732 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (746 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

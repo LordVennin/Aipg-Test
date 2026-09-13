@@ -143,6 +143,9 @@ public static class HeadlessNetTest
             .DefaultIfEmpty(0f).Average();
         Check(bloodBits >= 5 && bloodEast > 0.6f,
               $"a melee hit throws 5-12 blood drops along the swing ({bloodBits} pieces, mean {bloodEast:+0.00;-0.00} tiles past the attacker)");
+        Check(enemyOnB != null && enemyOnB.FlashUntilMs > 0 &&
+              clientB.World.Effects.Any(fx => fx.Kind == "hitspark"),
+              "the struck body flashes and throws sparks on every client");
 
         // A strike aimed far BEHIND max range must not hit (impact point clamps to range).
         float hpBefore2 = serverEnemy.Health;
@@ -3961,6 +3964,35 @@ public static class HeadlessNetTest
               "the hub holds the merchant, trainer, gambler AND researcher");
         Check(campA.World.Npcs.Count == 4, "all four hub NPCs replicate to clients");
 
+        // Urns line the sanctum walls: eight clay pots, breakable by a swing or a dodge,
+        // never blocking a path, holding nothing in the hub.
+        {
+            var hubMap = campServer.World.Map;
+            int urnsOnServer = campServer.World.Structures.Values.Count(st => st.Kind == World.StructureKind.Urn);
+            Check(urnsOnServer == hubMap.UrnSpots.Count && urnsOnServer >= 6 &&
+                  campA.World.Structures.Values.Count(st => st.Kind == 5) == urnsOnServer,
+                  $"the sanctum stands {urnsOnServer} urns along its walls, replicated to clients");
+            var urnA = campServer.World.Structures.Values.First(st => st.Kind == World.StructureKind.Urn);
+            var dropsBeforeUrn = campServer.World.Drops.Count;
+            CPump(0.5f); // past the join's ignore-state window so the position lands
+            campA.World.Me.Position = urnA.Position + new Vector2(0f, 1.0f);
+            CPump(0.4f);
+            campA.RequestUseSkill("basic_strike", urnA.Position); // the starter kit's swing
+            CPump(0.7f);
+            Check(!campServer.World.Structures.ContainsKey(urnA.Id) && !campA.World.Structures.ContainsKey(urnA.Id) &&
+                  campServer.World.Drops.Count == dropsBeforeUrn,
+                  "a swing shatters a hub urn (and it holds nothing in the sanctum)");
+            var urnB = campServer.World.Structures.Values.First(st => st.Kind == World.StructureKind.Urn);
+            campA.World.Me.Position = urnB.Position + new Vector2(0f, 1.2f);
+            CPump(0.3f);
+            campA.RequestDodge(new Vector2(0f, -1f)); // roll straight into it
+            CPump(0.4f);
+            Check(!campServer.World.Structures.ContainsKey(urnB.Id),
+                  "dodging into an urn smashes it");
+            campA.World.Me.Position = hubMap.PlayerSpawn;
+            CPump(0.3f);
+        }
+
         // Stash quality-of-life: crafting scrolls apply straight FROM the stash, and
         // items drop to the ground from the stash or straight off the body.
         {
@@ -4505,8 +4537,9 @@ public static class HeadlessNetTest
         CPump(4.0f);
         Check(campServer.World.MapIndex == 0 && campServer.World.Map.Kind == World.MapKind.Hub,
               "the Sanctum reclaims the party after the loss");
-        Check(campServer.World.Structures.Count == 0 && campA.World.Structures.Count == 0,
-              "structures clear on the way home");
+        Check(campServer.World.Structures.Values.All(st => st.Kind == World.StructureKind.Urn) &&
+              campA.World.Structures.Values.All(st => st.Kind == 5),
+              "defense structures clear on the way home (only the sanctum's urns stand)");
 
         Console.WriteLine("\n-- Batch 48: contracts, the researcher, mercenaries --");
         // Curio drops exist in the loot stream (boss table: 35% contract, 8% blueprint).
@@ -5630,6 +5663,100 @@ public static class HeadlessNetTest
               $"drop_sample scatters one of every loot kind ({sampleCats} categories, {sampleDrops.Count} drops, {sampleRare} rare)");
         Check(sampleOnA == sampleDrops.Count,
               $"the sample ring replicates to the client ({sampleOnA}/{sampleDrops.Count} seen)");
+
+        Console.WriteLine("\n-- Magic and rare monsters --");
+        {
+            // The pack-leader roll: about half plain, a third magic (one affix), the rest
+            // named rares with two or three distinct affixes.
+            var tierRng = new Random(4242);
+            int plain = 0, magic = 0, rareN = 0, named = 0, badRare = 0;
+            for (int i = 0; i < 3000; i++)
+            {
+                var a = Server.EliteAffixInfo.RollPackLeader(tierRng, out var nm);
+                if (a == Server.EliteAffix.None) plain++;
+                else if (Server.EliteAffixInfo.IsMagic(a)) magic++;
+                else if (Server.EliteAffixInfo.IsRare(a))
+                {
+                    rareN++;
+                    if (!string.IsNullOrEmpty(nm) && nm.Contains(" the ")) named++;
+                    int n = Server.EliteAffixInfo.AffixCount(a);
+                    if (n < 2 || n > 3) badRare++;
+                }
+            }
+            Check(plain > 1350 && plain < 1650 && magic > 800 && magic < 1120 && rareN > 400 && rareN < 680 &&
+                  named == rareN && badRare == 0,
+                  $"pack leaders roll plain/magic/rare at ~50/32/18 ({plain}/{magic}/{rareN}), every rare named with 2-3 affixes");
+            Check(Server.EliteAffixInfo.IsMagic(Server.EliteAffix.Swift) &&
+                  !Server.EliteAffixInfo.IsRare(Server.EliteAffix.Boss | Server.EliteAffix.Brutish) &&
+                  !Server.EliteAffixInfo.IsMagic(Server.EliteAffix.Minion) &&
+                  Server.EliteAffixInfo.Describe(Server.EliteAffix.Thorny).Length > 10,
+                  "tier rules: one affix = magic, two+ = rare, bosses and minions are neither");
+
+            // A rare spawned on the server carries its name and scaling to the clients.
+            var rareSpot = SafeNear(meAOnServer.Position + new Vector2(3f, 0f));
+            var rareGrunt = server.World.SpawnEnemy("grunt", rareSpot, Server.EliteAffix.Thorny | Server.EliteAffix.Regenerating);
+            Pump(0.4f);
+            var gruntDef62 = data.Enemies["grunt"];
+            Check(!string.IsNullOrEmpty(rareGrunt.EliteName) && rareGrunt.EliteName.EndsWith("the Barbed") &&
+                  rareGrunt.MaxHealth > gruntDef62.MaxHealth * 2.2f,
+                  $"a Thorny+Regenerating grunt spawns as a named rare ({rareGrunt.EliteName}, {rareGrunt.MaxHealth:0} life)");
+            Check(clientA.World.Enemies.TryGetValue(rareGrunt.Id, out var rareOnA) && rareOnA.IsRare &&
+                  rareOnA.DisplayName == rareGrunt.EliteName && !rareOnA.IsMagic,
+                  "the rare's name and tier replicate (hover panel shows the name in gold)");
+
+            // Thorny: a mace strike on it cuts the swinger back (the suite left a bow in
+            // A's hands earlier — take a mace back for the swing).
+            clientA.SendDebugCommand("give_mace", "equip");
+            clientA.SendDebugCommand("heal");
+            Pump(0.4f);
+            clientA.World.Me.Position = rareGrunt.Position + new Vector2(-1.0f, 0);
+            Pump(0.3f);
+            float hpBeforeThorns = meAOnServer.Health;
+            float gruntHpBefore = rareGrunt.Health;
+            clientA.RequestUseSkill("mace_strike", rareGrunt.Position);
+            Pump(0.7f);
+            Check(rareGrunt.Health < gruntHpBefore && meAOnServer.Health < hpBeforeThorns - 0.5f,
+                  $"Thorny cuts the attacker back ({hpBeforeThorns:0} -> {meAOnServer.Health:0} life after striking it)");
+            // Regenerating: left alone for two seconds it knits life back.
+            float hurtHp = rareGrunt.Health;
+            Pump(3.0f);
+            Check(rareGrunt.Health > hurtHp + 1f,
+                  $"Regenerating regrows life when unhurt ({hurtHp:0} -> {rareGrunt.Health:0})");
+            // A rare's death leaves a rare-quality piece behind on top of its rolls.
+            var rareDropsBefore = server.World.Drops.Keys.ToHashSet();
+            server.World.SpawnEnemy("grunt", rareSpot, Server.EliteAffix.Brutish | Server.EliteAffix.Swift);
+            clientA.SendDebugCommand("kill_nearby");
+            Pump(0.5f);
+            Check(server.World.Drops.Where(kv => !rareDropsBefore.Contains(kv.Key))
+                      .Any(kv => kv.Value.Item != null && kv.Value.Item.Rarity == Items.ItemRarity.Rare),
+                  "killing a rare always drops a rare-quality item");
+            // Loot that appears after joining falls and bounces before its label shows.
+            var landA = Render.WorldRenderer.DropLanding(0f, false);
+            var landMid = Render.WorldRenderer.DropLanding(0.30f, false);
+            var landEnd = Render.WorldRenderer.DropLanding(Net.ClientDrop.LandDuration, false);
+            Check(landA.Lift > 20f && MathF.Abs(landA.Spin) > 2f && landMid.Lift < 0.5f && landEnd.Lift == 0f && landEnd.Spin == 0f &&
+                  clientA.World.Drops.Values.Where(d => !rareDropsBefore.Contains(d.DropId)).All(d => d.Animated),
+                  "fresh drops fall from chest height, bounce and tumble into their lie");
+        }
+
+        Console.WriteLine("\n-- Breakables --");
+        {
+            var barrelsBefore = server.World.Structures.Count;
+            clientA.SendDebugCommand("spawn_breakable", "barrel");
+            Pump(0.4f);
+            var barrel = server.World.Structures.Values.FirstOrDefault(st => st.Kind == World.StructureKind.Barrel);
+            Check(barrel != null && server.World.Structures.Count == barrelsBefore + 1 &&
+                  clientA.World.Structures.Values.Any(st => st.Kind == 6),
+                  "a barrel can be set down (defined, breakable, not placed in any zone yet)");
+            // An arrow-less swing: walk up and smash it.
+            clientA.World.Me.Position = barrel.Position + new Vector2(-1.0f, 0);
+            Pump(0.3f);
+            clientA.RequestUseSkill("mace_strike", barrel.Position);
+            Pump(0.7f);
+            Check(!server.World.Structures.ContainsKey(barrel.Id) && !clientA.World.Structures.ContainsKey(barrel.Id) &&
+                  clientA.World.BloodDrops.Count + clientA.World.BloodStains.Count > 0,
+                  "a mace swing shatters the barrel and the shards land on the floor");
+        }
 
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();

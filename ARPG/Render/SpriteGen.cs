@@ -594,6 +594,8 @@ public static class SpriteGen
                     2 => DrawCrossbowTurret(true),
                     3 => DrawWagon(),
                     4 => DrawWorkbench(),
+                    5 => DrawUrn(),
+                    6 => DrawBarrel(),
                     _ => DrawSpikedBarrier(),
                 },
             };
@@ -763,6 +765,54 @@ public static class SpriteGen
             for (int k = 0; k < 4; k++)
                 Set(x - k / 2, y - 2 - k, k >= 2 ? woodDark : wood);
         }
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>A squat clay urn: bulging belly, narrow neck, a band of darker glaze.</summary>
+    private static Texture2D DrawUrn()
+    {
+        const int w = 12, h = 14;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        var clay = new Color(180, 124, 82);
+        var clayDark = new Color(140, 90, 58);
+        var clayLight = new Color(206, 154, 108);
+        var glaze = new Color(96, 62, 46);
+        // Body: widths per row from the neck down to the foot.
+        int[] half = { 2, 2, 3, 4, 5, 5, 5, 5, 5, 4, 4, 3, 3, 2 };
+        for (int y = 0; y < h; y++)
+            for (int x = 6 - half[y]; x < 6 + half[y]; x++)
+                Set(x, y, x < 6 - half[y] + 2 ? clayLight : x >= 6 + half[y] - 2 ? clayDark : clay);
+        for (int x = 3; x < 9; x++) Set(x, 0, glaze);              // rim
+        for (int x = 2; x < 10; x++) { Set(x, 6, glaze); }          // glaze band
+        Set(3, 6, clayLight); Set(8, 6, clayDark);
+        for (int x = 4; x < 8; x++) Set(x, 13, glaze);              // foot shadow
+        Set(4, 3, clayLight); Set(4, 4, clayLight);                 // highlight streak
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>A wooden barrel: staves, two iron hoops, a lighter lid.</summary>
+    private static Texture2D DrawBarrel()
+    {
+        const int w = 14, h = 16;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        var wood = new Color(122, 86, 52);
+        var woodDark = new Color(92, 64, 40);
+        var woodLight = new Color(150, 110, 70);
+        var iron = new Color(84, 82, 90);
+        int[] half = { 5, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 6, 5, 5 };
+        for (int y = 0; y < h; y++)
+            for (int x = 7 - half[y]; x < 7 + half[y]; x++)
+            {
+                bool stave = ((x + 1) % 3) == 0;
+                Set(x, y, x < 7 - half[y] + 2 ? woodLight : x >= 7 + half[y] - 2 ? woodDark : stave ? woodDark : wood);
+            }
+        for (int x = 2; x < 12; x++) Set(x, 0, woodLight);                    // lid
+        for (int y = 0; y < h; y++) { }
+        for (int x = 7 - half[3]; x < 7 + half[3]; x++) { Set(x, 3, iron); Set(x, 11, iron); } // hoops
+        Set(2, 3, new Color(120, 118, 128)); Set(2, 11, new Color(120, 118, 128));
+        for (int x = 3; x < 11; x++) Set(x, 15, woodDark);                    // base
         return BakeStrip(px, w, h);
     }
 
@@ -2092,19 +2142,20 @@ public static class SpriteGen
     /// <summary>Solid-red silhouette of an enemy frame, cached per type+frame — the
     /// renderer draws it at small offsets beneath the sprite as a hover OUTLINE
     /// (tinting the whole sprite red made elites unreadable).</summary>
-    public static Texture2D GetEnemySilhouette(EnemyDefinition def, int frame, int variant = 0)
+    public static Texture2D GetEnemySilhouette(EnemyDefinition def, int frame, int variant = 0, bool white = false)
     {
         var frames = GetEnemyFrames(def, variant);
         if (frames == null || frames.Length == 0) return null;
         frame = Math.Abs(frame) % frames.Length;
-        string key = $"sil:{def.Id}:{frame}#{variant}";
+        string key = $"sil:{def.Id}:{frame}#{variant}{(white ? "w" : "")}";
         if (_cache.TryGetValue(key, out var cached)) return cached[0];
         var src = frames[frame];
         var data = new Color[src.Width * src.Height];
         src.GetData(data);
-        var red = new Color(255, 66, 52);
+        // Red for the hover outline; plain white for the hit flash.
+        var fill = white ? Color.White : new Color(255, 66, 52);
         for (int i = 0; i < data.Length; i++)
-            data[i] = data[i].A != 0 ? red : Color.Transparent;
+            data[i] = data[i].A != 0 ? fill : Color.Transparent;
         var tex = new Texture2D(_device, src.Width, src.Height);
         tex.SetData(data);
         _cache[key] = new[] { tex };

@@ -501,6 +501,7 @@ public class GameClient
                     NetTargetHeight = joinHeight,
                 };
                 World.RecomputeMyStats(_data);
+                World.MapLoadedAtMs = Environment.TickCount64;
                 Status = ClientStatus.InGame;
                 JoinedGame?.Invoke();
                 break;
@@ -856,6 +857,7 @@ public class GameClient
                 e.Health = r.GetFloat();
                 e.MaxHealth = r.GetFloat();
                 e.EliteFlags = r.GetByte();
+                e.EliteName = r.GetString();
                 e.Def = _data.Enemies.GetValueOrDefault(e.TypeId);
                 World.Enemies[e.Id] = e;
                 break;
@@ -935,7 +937,19 @@ public class GameClient
             {
                 int stId = r.GetInt();
                 if (World.Structures.Remove(stId, out var gone))
-                    World.AddEffect(gone.Position, 0.8f, 0.4f, "debris", gone.Height);
+                {
+                    if (gone.Kind is 5 or 6)
+                    {
+                        // A shattered urn or barrel: shards thrown every way that stay
+                        // on the floor (the blood-drop system in clay or wood colours).
+                        int shardRgb = gone.Kind == 5 ? 0xB47C52 : 0x7A5634;
+                        World.SpawnBlood(gone.Position, gone.Height, default, shardRgb, heavy: true);
+                        World.SpawnBlood(gone.Position, gone.Height, default, gone.Kind == 5 ? 0x8C5A3A : 0x5C4028, heavy: false);
+                        World.AddEffect(gone.Position, 0.5f, 0.35f, "dodgedust", gone.Height, dir: new Vector2(1, 0));
+                        Audio.AudioManager.PlayWorld(gone.Position, "hit");
+                    }
+                    else World.AddEffect(gone.Position, 0.8f, 0.4f, "debris", gone.Height);
+                }
                 break;
             }
             case PacketType.NpcRemove:
@@ -1030,6 +1044,10 @@ public class GameClient
                 bool isGold = r.GetBool();
                 if (isGold) drop.GoldAmount = r.GetInt();
                 else drop.Item = Json.Load<ItemInstance>(r.GetString());
+                drop.SpawnedAtMs = Environment.TickCount64;
+                // Loot that was already on the floor when we arrived just lies there;
+                // anything dropped after that falls and bounces into place.
+                drop.Animated = Environment.TickCount64 - World.MapLoadedAtMs > 1500;
                 World.Drops[drop.DropId] = drop;
                 break;
             }
@@ -1203,7 +1221,16 @@ public class GameClient
                 if (fn.TargetIsPlayer && World.Players.TryGetValue(targetId, out var tp))
                 { fn.Position = tp.Position; fn.Height = tp.Height; }
                 else if (!fn.TargetIsPlayer && World.Enemies.TryGetValue(targetId, out var te))
-                { fn.Position = te.Position; fn.Height = te.Height; }
+                {
+                    fn.Position = te.Position; fn.Height = te.Height;
+                    if (!fn.Blocked && fn.Amount > 0.5f)
+                    {
+                        // The struck body flashes white for a few frames and sparks fly
+                        // off along the blow: the hit reads even before the number does.
+                        te.FlashUntilMs = Environment.TickCount64 + 90;
+                        World.AddEffect(te.Position, 0.4f, 0.2f, "hitspark", te.Height, dir: hitDir);
+                    }
+                }
                 World.FloatingNumbers.Add(fn);
 
                 // Physical hits on BLEEDING enemies spray their blood (acid ichor for

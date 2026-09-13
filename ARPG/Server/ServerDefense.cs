@@ -85,6 +85,7 @@ public partial class ServerWorld
         _buildTiles.Clear();
         foreach (var s in Structures.Values)
         {
+            if (StructureKinds.IsBreakable(s.Kind)) continue; // urns never block a path
             int cx = (int)MathF.Floor(s.Position.X), cy = (int)MathF.Floor(s.Position.Y);
             bool built = s.Kind is StructureKind.CrossbowTurret or StructureKind.SpikedBarrier
                 or StructureKind.FlameTurret;
@@ -555,8 +556,16 @@ public partial class ServerWorld
         {
             s.Health = 0;
             Structures.Remove(s.Id);
-            RebuildStructTiles(); // the breach opens: routing and collision update
             _events.StructureRemoved(s);
+            if (StructureKinds.IsBreakable(s.Kind))
+            {
+                // Shattered dressing: the client throws the shards. Outside the hub a
+                // broken urn sometimes spills a few coins.
+                if (Map.Kind != MapKind.Hub && _rng.NextDouble() < 0.4)
+                    SpawnGoldDrop(3 + _rng.Next(8) + Loop * 2, s.Position, s.Height);
+                return;
+            }
+            RebuildStructTiles(); // the breach opens: routing and collision update
             _events.WorldEffect("burst", s.Position, 0.9f, 0.4f, s.Height);
             if (s.Kind == StructureKind.Wagon) DefenseLost();
         }

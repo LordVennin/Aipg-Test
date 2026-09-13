@@ -10,6 +10,17 @@ public enum StructureKind : byte
     Wagon = 3,
     /// <summary>Build-phase interaction point beside the wagon. Not buildable, indestructible.</summary>
     Workbench = 4,
+    /// <summary>Breakable dressing: a clay urn that shatters under any blow or a dodge.</summary>
+    Urn = 5,
+    /// <summary>Breakable dressing: a wooden barrel (defined, not yet placed anywhere).</summary>
+    Barrel = 6,
+}
+
+public static class StructureKinds
+{
+    /// <summary>Breakables: never block movement or routing, die to any hit, and go
+    /// down to a dodge roll as well as a swing.</summary>
+    public static bool IsBreakable(StructureKind k) => k is StructureKind.Urn or StructureKind.Barrel;
 }
 
 /// <summary>
