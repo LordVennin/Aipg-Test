@@ -2221,7 +2221,7 @@ public class WorldRenderer
                 // Level up: a golden ring racing out from the feet, a column of light
                 // fading upward, and sparks rising and drifting apart. Deterministic.
                 int seedL = (int)(fx.Position.X * 311) ^ (int)(fx.Position.Y * 587);
-                AddLight(screen + new Vector2(0, -20), 150f + 120f * t, new Color(255, 225, 140) * (0.9f * (1f - t)));
+                AddLight(screen + new Vector2(0, -20), 110f + 90f * t, new Color(255, 225, 140) * (0.4f * (1f - t)));
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.02f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
                     float r = 8f + 62f * MathF.Sqrt(t);
