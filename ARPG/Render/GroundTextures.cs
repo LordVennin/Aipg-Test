@@ -176,53 +176,28 @@ public static class GroundTiles
         return tex;
     }
 
-    /// <summary>Shore parameters: the land laps a short way onto the water tile along a
-    /// gently wobbling line (the material blend's deep, wild feather read as debris).</summary>
-    private const float ShoreBase = 0.30f, ShoreWobble = 0.12f, ShoreFreq = 0.09f;
-
-    /// <summary>Land lapping onto a water tile across `edge`: the neighbour's material
-    /// cut along the shore line (see GetShoreFoam for the matching water side).</summary>
-    public static Texture2D GetShoreLand(GroundMaterial m, int variant, int edge)
+    /// <summary>The bank of a water tile along `edge` (same numbering as GetFeathered),
+    /// cut straight along the diamond so a pond keeps a clean tile-shaped outline.
+    /// The water surface sits BELOW the ground, so the two far edges (0 upper-left,
+    /// 2 upper-right) show a short earth face dropping to the water with a pale
+    /// shallow band at its foot; the two near edges (1, 3) are the land overhanging:
+    /// a dark shadow line, then the same shallow band. Drawn over the water fill
+    /// after every land tile, so the feathered ground can't nibble the outline.</summary>
+    public static Texture2D GetShoreBank(int edge)
     {
         if (_device == null) return null;
-        variant = ((variant % VariantCount) + VariantCount) % VariantCount;
-        string key = m.CacheKey + "#" + variant + "s" + edge;
-        if (_cache.TryGetValue(key, out var tex)) return tex;
-        var px = Bake(m, variant);
-        int seed = StyleSeed(m.Style) * 31 + variant * 7 + edge * 131;
-        for (int y = 0; y < H; y++)
-            for (int x = 0; x < W; x++)
-            {
-                int i = y * W + x;
-                if (px[i].A == 0) continue;
-                float sx = x + 0.5f - W / 2f, sy = y + 0.5f - H / 2f;
-                float u = (sx / (W / 2f) + sy / (H / 2f) + 1f) / 2f;
-                float v = (sy / (H / 2f) + 1f - sx / (W / 2f)) / 2f;
-                float t = edge switch { 0 => u, 1 => 1f - u, 2 => v, _ => 1f - v };
-                float wobble = GroundField.ValueNoise(seed, x, y, ShoreFreq);
-                if (t > ShoreBase + ShoreWobble * (wobble - 0.5f) * 2f) px[i] = Color.Transparent;
-            }
-        tex = new Texture2D(_device, W, H);
-        tex.SetData(px);
-        _cache[key] = tex;
-        return tex;
-    }
-
-    /// <summary>The shoreline for a water tile whose neighbour across `edge` is land of
-    /// material `m`: the same ragged boundary the feathered land tile uses, with a
-    /// band of pale shallow water beyond it and a bright foam line hugging it. Drawn
-    /// over the water tile after the feathered land, so the shore wanders instead of
-    /// tracing the diamond.</summary>
-    public static Texture2D GetShoreFoam(GroundMaterial m, int variant, int edge)
-    {
-        if (_device == null) return null;
-        variant = ((variant % VariantCount) + VariantCount) % VariantCount;
-        string key = m.CacheKey + "#" + variant + "f" + edge;
+        string key = "shorebank" + edge;
         if (_cache.TryGetValue(key, out var tex)) return tex;
         var px = new Color[W * H];
-        int seed = StyleSeed(m.Style) * 31 + variant * 7 + edge * 131;
-        var shallow = new Color(120, 176, 205);
-        var foam = new Color(226, 240, 250);
+        bool far = edge == 0 || edge == 2;
+        var earth = new Color(74, 56, 36);
+        var earthDark = new Color(56, 42, 28);
+        var lip = new Color(96, 82, 48);
+        var shadow = new Color(8, 18, 30);
+        var foam = new Color(214, 234, 246);
+        var shallow = new Color(126, 178, 206);
+        // `t` runs 0 at the edge to 1 at the opposite edge; one unit ≈ 28.6 px across.
+        const float px1 = 1f / 28.6f;
         for (int y = 0; y < H; y++)
             for (int x = 0; x < W; x++)
             {
@@ -231,12 +206,25 @@ public static class GroundTiles
                 float u = (sx / (W / 2f) + sy / (H / 2f) + 1f) / 2f;
                 float v = (sy / (H / 2f) + 1f - sx / (W / 2f)) / 2f;
                 float t = edge switch { 0 => u, 1 => 1f - u, 2 => v, _ => 1f - v };
-                float wobble = GroundField.ValueNoise(seed, x, y, ShoreFreq);
-                float threshold = ShoreBase + ShoreWobble * (wobble - 0.5f) * 2f;
-                float past = t - threshold; // > 0: on the water side of the shore line
-                if (past <= 0f || past > 0.16f) continue;
-                if (past <= 0.05f) px[y * W + x] = foam * (0.75f - past * 6f);
-                else px[y * W + x] = shallow * (0.22f * (1f - (past - 0.05f) / 0.11f));
+                Color c;
+                if (far)
+                {
+                    // Bank face: lip row, earth, a darker bottom row, then foam + shallows.
+                    if (t < px1 * 1f) c = lip;
+                    else if (t < px1 * 3.5f) c = earth;
+                    else if (t < px1 * 4.5f) c = earthDark;
+                    else if (t < px1 * 5.5f) c = foam * 0.55f;
+                    else if (t < px1 * 9f) c = shallow * (0.30f * (1f - (t - px1 * 5.5f) / (px1 * 3.5f)));
+                    else continue;
+                }
+                else
+                {
+                    if (t < px1 * 1.2f) c = shadow * 0.55f;
+                    else if (t < px1 * 2.2f) c = foam * 0.5f;
+                    else if (t < px1 * 6f) c = shallow * (0.28f * (1f - (t - px1 * 2.2f) / (px1 * 3.8f)));
+                    else continue;
+                }
+                px[y * W + x] = c;
             }
         tex = new Texture2D(_device, W, H);
         tex.SetData(px);
