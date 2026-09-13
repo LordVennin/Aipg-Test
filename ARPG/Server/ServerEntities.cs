@@ -294,6 +294,9 @@ public class ServerEnemy
     public EliteAffix Affixes;
     /// <summary>A RARE's own name ("Gorrak the Barbed"); empty for everything else.</summary>
     public string EliteName = "";
+    /// <summary>Spawned buried: clients keep it unseen until a player nears, then play
+    /// the rise from the earth. Cosmetic — the server simulates it like any other.</summary>
+    public bool Buried;
     /// <summary>Server time of the last damage taken (Regenerating waits 2s after it).</summary>
     public float LastDamagedAt = -100f;
     /// <summary>Regenerating: seconds since the last health sync while regrowing.</summary>
@@ -455,6 +458,9 @@ public class PackSpawner
     public EliteAffix LeaderAffixes;
     /// <summary>A rare leader's name (empty otherwise); its pack mates spawn as Minions.</summary>
     public string LeaderName = "";
+    /// <summary>Rolled once when the pack first spawns: an all-undead pack may lie
+    /// buried (see ServerWorld.BuriedPackChance). Null = not rolled yet.</summary>
+    public bool? Buried;
     /// <summary>0 = each def's native level; otherwise every member spawns at this level.</summary>
     public int EnemyLevel;
     public float ScatterRadius = 1.4f;

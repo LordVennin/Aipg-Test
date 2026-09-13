@@ -67,7 +67,9 @@ public partial class ServerWorld
             ("grunt", 56.5f, rc), ("shambler", 58.5f, rc + 1f), // the high ground is held too
         })
             if (Data.Enemies.ContainsKey(kind))
-                SpawnEnemy(kind, new Vector2(x, y), level: 1);
+                // The first pair and the high-ground guard lie buried — the road's
+                // introduction to the dead rising; the middle groups stand in plain view.
+                SpawnEnemy(kind, new Vector2(x, y), level: 1, buried: x < 20f || x > 50f);
 
         // The gate boss: a Gravelord, already weathered — the tutorial wants a real
         // boss fight, not a wall (its bar reads part-worn on purpose).

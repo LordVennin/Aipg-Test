@@ -1051,9 +1051,19 @@ public partial class ServerWorld
 
     /// <summary>Spawn one pack's full roster scattered around its anchor (first member
     /// carries the leader affixes).</summary>
+    /// <summary>Share of all-undead packs that spawn buried under the earth.</summary>
+    public const float BuriedPackChance = 0.45f;
+
+    private bool AllUndead(PackSpawner pack) =>
+        pack.Entries.All(en => Data.Enemies.TryGetValue(en.typeId, out var d) && d.Undead && !string.IsNullOrEmpty(d.SpriteStyle)) &&
+        !pack.Entries.Any(en => en.typeId == "gravelord");
+
     private void SpawnPackMembers(PackSpawner pack, int pi)
     {
         bool leaderPlaced = false;
+        // The dead don't always stand about: an all-undead pack may lie buried and
+        // claw its way up when someone walks over its ground (bosses never do).
+        pack.Buried ??= AllUndead(pack) && _rng.NextDouble() < BuriedPackChance;
         foreach (var (typeId, count) in pack.Entries)
             for (int i = 0; i < count; i++)
             {
@@ -1066,7 +1076,7 @@ public partial class ServerWorld
                 bool rareLeader = EliteAffixInfo.IsRare(pack.LeaderAffixes);
                 var affixes = leaderPlaced ? (rareLeader ? EliteAffix.Minion : EliteAffix.None) : pack.LeaderAffixes;
                 var member = SpawnEnemy(typeId, pos, affixes, pi, pack.EnemyLevel,
-                    leaderPlaced ? null : pack.LeaderName);
+                    leaderPlaced ? null : pack.LeaderName, buried: pack.Buried == true);
                 leaderPlaced = true;
                 pack.AliveIds.Add(member.Id);
             }
@@ -1074,7 +1084,7 @@ public partial class ServerWorld
     }
 
     public ServerEnemy SpawnEnemy(string typeId, Vector2 pos, EliteAffix affixes = EliteAffix.None,
-        int packId = -1, int level = 0, string eliteName = null)
+        int packId = -1, int level = 0, string eliteName = null, bool buried = false)
     {
         var def = Data.Enemies.GetValueOrDefault(typeId) ?? Data.Enemies.Values.First();
         // A rare spawned without a name (debug, tests) still gets one.
@@ -1088,6 +1098,7 @@ public partial class ServerWorld
             MaxHealth = def.MaxHealth,
             Affixes = affixes,
             EliteName = EliteAffixInfo.IsRare(affixes) ? eliteName : "",
+            Buried = buried && def.Undead && !affixes.HasFlag(EliteAffix.Boss),
             PackId = packId,
             Level = level > 0 ? level : def.Level,
         };

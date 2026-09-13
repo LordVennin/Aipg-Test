@@ -72,7 +72,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 44; // v44: rare monsters carry a name in the spawn packet
+    public const int ProtocolVersion = 45; // v45: buried flag on enemy spawns (rise from the earth)
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

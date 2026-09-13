@@ -4231,6 +4231,8 @@ public static class HeadlessNetTest
         CPump(0.4f);
         campB.RequestDoorReady();
         CPump(0.8f);
+        Check(campServer.World.Enemies.Values.Any(e => e.Buried) && campServer.World.Enemies.Values.Any(e => !e.Buried && !e.Affixes.HasFlag(Server.EliteAffix.Boss)),
+              $"forest packs roll buried or standing ({campServer.World.Enemies.Values.Count(e => e.Buried)} buried of {campServer.World.Enemies.Count})");
         Check(campServer.World.MapIndex == 1 && campServer.World.Map.Kind == World.MapKind.Forest,
               "everyone ready: the run begins on forest map 1");
         Check(campServer.World.Loop == 1 && campServer.World.CampaignEnemyLevel == 1,
@@ -5804,14 +5806,20 @@ public static class HeadlessNetTest
             var farSpot = SafeNear(meAOnServer.Position + new Vector2(14f, 0f));
             if (Vector2.Distance(farSpot, meAOnServer.Position) < 12.5f)
                 farSpot = SafeNear(meAOnServer.Position + new Vector2(0f, 14f));
-            var lurker = server.World.SpawnEnemy("grunt", farSpot);
+            var lurker = server.World.SpawnEnemy("grunt", farSpot, buried: true);
+            var stander = server.World.SpawnEnemy("grunt", SafeNear(farSpot + new Vector2(0f, 1.5f)));
             Pump(0.4f);
-            bool hiddenAtFirst = clientA.World.Enemies.TryGetValue(lurker.Id, out var lurkOnA) && lurkOnA.RevealedAtMs == 0;
+            bool hiddenAtFirst = clientA.World.Enemies.TryGetValue(lurker.Id, out var lurkOnA) && lurkOnA.RevealedAtMs == 0 &&
+                                 lurkOnA.Buried && clientA.World.Enemies.TryGetValue(stander.Id, out var standOnA) &&
+                                 !standOnA.Buried && standOnA.RevealedAtMs > 0 && !standOnA.Rose;
             clientA.World.Me.Position = lurker.Position + new Vector2(-9f, 0f);
             Pump(0.4f);
             Check(hiddenAtFirst && lurkOnA != null && lurkOnA.RevealedAtMs > 0 && lurkOnA.Rose &&
                   (clientA.World.Effects.Any(fx => fx.Kind == "dirtburst") || clientA.World.BloodDrops.Count + clientA.World.BloodStains.Count > 0),
-                  $"idle enemies lie unseen until a player nears ({Vector2.Distance(farSpot, meAOnServer.Position):0.0} tiles), then rise from the earth");
+                  $"a BURIED enemy lies unseen until a player nears ({Vector2.Distance(farSpot, meAOnServer.Position):0.0} tiles) then rises; an unburied one stands in view");
+            Check(data.Enemies.Values.All(d => d.Undead) && server.World.Enemies.Values.Any(e => e.Buried) &&
+                  !server.World.SpawnEnemy("gravelord", farSpot, Server.EliteAffix.Boss, buried: true).Buried,
+                  "every current enemy is undead; bosses never spawn buried");
             clientA.World.Me.Position = meAOnServer.Position;
             Pump(0.3f);
         }

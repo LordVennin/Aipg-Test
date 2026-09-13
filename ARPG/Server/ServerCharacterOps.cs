@@ -547,7 +547,8 @@ public partial class ServerWorld
                     ? Data.Enemies.Keys.OrderBy(_ => Guid.NewGuid()).FirstOrDefault()
                     : arg;
                 if (type != null)
-                    SpawnEnemy(type, p.Position + new System.Numerics.Vector2(2, 0));
+                    SpawnEnemy(type, p.Position + new System.Numerics.Vector2(2, 0),
+                        buried: arg?.EndsWith("+buried") == true);
                 break;
             }
             case "give_mace":
@@ -705,7 +706,7 @@ public partial class ServerWorld
                     foreach (var tok in arg.Split('+'))
                         if (Enum.TryParse<EliteAffix>(tok, true, out var one)) affixes |= one;
                 }
-                SpawnEnemy("grunt", p.Position + new System.Numerics.Vector2(2f, 0f), affixes);
+                SpawnEnemy("grunt", p.Position + new System.Numerics.Vector2(2f, 0f), affixes, buried: true);
                 break;
             }
             case "drop_sample":

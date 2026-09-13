@@ -115,6 +115,8 @@ public class ClientEnemy
     public long RevealedAtMs;
     /// <summary>True when the reveal plays the rise-from-the-ground entrance.</summary>
     public bool Rose;
+    /// <summary>Spawned buried (server flag): unseen until a player nears, then rises.</summary>
+    public bool Buried;
     public const float RiseSeconds = 0.9f;
 
     // Telegraphed melee swing animation (EnemyAttack events): 1 = winding up,
