@@ -268,6 +268,18 @@ public static class ItemTooltip
                 lines.Add(new Line($"{def.DescribeRoll(roll.Value)}  [{(affixType == AffixType.Prefix ? "P" : "S")}] {def.Name}", modColor));
         }
 
+        // --- unique rule + flavour ---
+        if (itemBase.Unique)
+        {
+            lines.Add(new Line("", gray, Separator: true));
+            var uniqueGold = new Color(255, 206, 120);
+            foreach (var rule in itemBase.UniqueLines)
+                foreach (var ruleLine in WrapText(rule, 44))
+                    lines.Add(new Line(ruleLine, uniqueGold));
+            foreach (var descLine in WrapText(itemBase.Description ?? "", 44))
+                lines.Add(new Line(descLine, new Color(170, 160, 150)));
+        }
+
         // --- meta ---
         lines.Add(new Line("", gray, Separator: true));
         if (itemBase.Category == ItemCategory.SkillScroll && itemBase.ScrollId != null &&

@@ -56,6 +56,12 @@ public class LootGenerator
             {
                 BaseItemId = "flamethrower_blueprint", ItemLevel = itemLevel, Rarity = ItemRarity.Normal,
             });
+        // Uniques: rarer still from an ordinary kill (rares and bosses roll their own).
+        if (_rng.NextDouble() < table.UniqueDropChance)
+        {
+            var unique = GenerateUnique(itemLevel);
+            if (unique != null) drops.Add(unique);
+        }
         // Pets: the rarest ordinary find — a coinflip between the known companions.
         if (_rng.NextDouble() < table.PetDropChance)
         {
@@ -63,6 +69,30 @@ public class LootGenerator
             if (pet != null) drops.Add(pet);
         }
         return drops;
+    }
+
+    /// <summary>A UNIQUE item: one of the level-gated unique bases picked by weight (or
+    /// a named one), sealed — its fixed BaseStats and its rule are the whole item.</summary>
+    public ItemInstance GenerateUnique(int itemLevel, string forceId = null)
+    {
+        var pool = _data.Items.Values.Where(b => b.Unique && (forceId != null ? b.Id == forceId : b.RequiredLevel <= itemLevel + 2)).ToList();
+        if (pool.Count == 0) pool = _data.Items.Values.Where(b => b.Unique).OrderBy(b => b.RequiredLevel).Take(1).ToList();
+        if (pool.Count == 0) return null;
+        int total = pool.Sum(b => Math.Max(1, b.UniqueWeight));
+        int roll = _rng.Next(total);
+        ItemBase pick = pool[^1];
+        foreach (var b in pool) { roll -= Math.Max(1, b.UniqueWeight); if (roll < 0) { pick = b; break; } }
+        return new ItemInstance
+        {
+            BaseItemId = pick.Id,
+            ItemLevel = Math.Max(1, itemLevel),
+            Rarity = ItemRarity.Unique,
+            BaseModifierLimit = 0,
+            MaxPrefixes = 0,
+            MaxSuffixes = 0,
+            Locked = true,
+            FlaskCharges = pick.FlaskChargesMax,
+        };
     }
 
     /// <summary>
@@ -133,6 +163,7 @@ public class LootGenerator
 
     public ItemInstance GenerateEquipment(LootTable table, int itemLevel, ItemRarity? forcedRarity = null)
     {
+        // Unique bases and pets never come out of the ordinary roll.
         var itemBase = PickEquipmentBase(table, itemLevel);
         if (itemBase == null) return null;
         var rarity = forcedRarity ?? RollRarity(table);

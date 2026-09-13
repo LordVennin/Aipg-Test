@@ -5824,6 +5824,119 @@ public static class HeadlessNetTest
             Pump(0.3f);
         }
 
+        Console.WriteLine("\n-- Uniques --");
+        {
+            var uniques = data.Items.Values.Where(b => b.Unique).ToList();
+            Check(uniques.Count >= 7 && uniques.All(b => !string.IsNullOrEmpty(b.UniqueEffect) && b.UniqueLines.Count > 0 && b.DropWeight == 0) &&
+                  uniques.Select(b => b.Category).Distinct().Count() >= 6,
+                  $"{uniques.Count} uniques across {uniques.Select(b => b.Category).Distinct().Count()} slots, each with a rule and no ordinary drop weight");
+            var uLoot = new Items.LootGenerator(data, new Random(7));
+            var gw = uLoot.GenerateUnique(20, "gravewake");
+            var any = uLoot.GenerateUnique(50);
+            Check(gw != null && gw.Rarity == Items.ItemRarity.Unique && gw.Locked && gw.BaseItemId == "gravewake" &&
+                  gw.MaxPrefixes == 0 && any != null && any.GetBase(data).Unique &&
+                  Enumerable.Range(0, 200).Select(_ => uLoot.GenerateUnique(50).BaseItemId).Distinct().Count() >= 5,
+                  "uniques generate sealed with no affix slots, weighted across the level-gated pool");
+
+            // The probe character must MEET the uniques' level and attribute requirements
+            // (an unmet unique sits inactive and contributes nothing, like any gear).
+            meAOnServer.Character.Level = Math.Max(meAOnServer.Character.Level, 20);
+            meAOnServer.Character.BaseStrength = Math.Max(meAOnServer.Character.BaseStrength, 30);
+            meAOnServer.Character.BaseIntelligence = Math.Max(meAOnServer.Character.BaseIntelligence, 30);
+            meAOnServer.RecomputeStats(data);
+
+            // Gravewake: a melee kill raises a thrall that reserves nothing and expires.
+            clientA.SendDebugCommand("give_unique", "gravewake+equip");
+            clientA.SendDebugCommand("heal");
+            Pump(0.5f);
+            Check(meAOnServer.Stats.Has("gravewake") && clientA.World.MyStats.Has("gravewake"),
+                  "a worn unique's rule reaches the computed stats on both sides");
+            var thrallVictim = server.World.SpawnEnemy("grunt", SafeNear(meAOnServer.Position + new Vector2(1.2f, 0f)));
+            thrallVictim.Health = 1f;
+            clientA.World.Me.Position = thrallVictim.Position + new Vector2(-1.0f, 0f);
+            Pump(0.3f);
+            clientA.RequestUseSkill("mace_strike", thrallVictim.Position);
+            Pump(0.8f);
+            var thrall = server.World.Summons.Values.FirstOrDefault(su => su.OwnerId == meAOnServer.Id && su.SkillId == "thrall_warrior");
+            Check(thrallVictim.Dead && thrall != null && thrall.ExpiresAt > server.World.Time && thrall.ManaReserved == 0f &&
+                  clientA.World.Summons.Values.Any(su => su.SkillId == "thrall_warrior"),
+                  "Gravewake: the enemy a melee blow kills rises as a 15s thrall that reserves no mana");
+            // Retire the thrall now, or it kills the later probes' grunts before the swing lands.
+            foreach (var th in server.World.Summons.Values.Where(su => su.SkillId == "thrall_warrior")) th.ExpiresAt = server.World.Time;
+            Pump(0.3f);
+
+            // The Hollow Crown: damage comes off mana first (a Thorny grunt's reflect).
+            clientA.SendDebugCommand("give_unique", "strip");   // ...which also takes the Gravewake mace away
+            clientA.SendDebugCommand("give_mace", "equip");     // so swing a plain one for the rest
+            clientA.SendDebugCommand("give_unique", "hollowcrown+equip");
+            clientA.SendDebugCommand("heal");
+            Pump(0.5f);
+            var thornGrunt = server.World.SpawnEnemy("grunt", SafeNear(meAOnServer.Position + new Vector2(1.2f, 0f)), Server.EliteAffix.Thorny);
+            clientA.World.Me.Position = thornGrunt.Position + new Vector2(-1.0f, 0f);
+            Pump(0.3f);
+            meAOnServer.EnergyShield = 0f; // the crown's own shield would soak a small cut first
+            float crownManaBefore = meAOnServer.Mana, hpBeforeCrown = meAOnServer.Health;
+            clientA.RequestUseSkill("mace_strike", thornGrunt.Position);
+            Pump(0.7f);
+            Check(meAOnServer.Mana < crownManaBefore - 0.5f && meAOnServer.Health >= hpBeforeCrown - 0.01f,
+                  $"The Hollow Crown: the reflected cut came off mana ({crownManaBefore:0} -> {meAOnServer.Mana:0}), life untouched ({hpBeforeCrown:0} -> {meAOnServer.Health:0})");
+            clientA.SendDebugCommand("kill_nearby");
+            Pump(0.4f);
+
+            // Stormheart: the roll ends in a lightning burst.
+            clientA.SendDebugCommand("give_unique", "strip");
+            clientA.SendDebugCommand("give_unique", "stormheart+equip");
+            Pump(0.4f);
+            var stormSpot = SafeNear(meAOnServer.Position + new Vector2(3.0f, 0f));
+            var stormGrunt = server.World.SpawnEnemy("grunt", stormSpot);
+            clientA.World.Me.Position = stormSpot + new Vector2(-3.0f, 0f);
+            Pump(0.3f);
+            float stormHp = stormGrunt.Health;
+            clientA.RequestDodge(new Vector2(1f, 0f));
+            Pump(0.9f);
+            Check(stormGrunt.Health < stormHp - 5f,
+                  $"Stormheart: the dodge's landing burst struck the grunt ({stormHp:0} -> {stormGrunt.Health:0})");
+            clientA.SendDebugCommand("kill_nearby"); Pump(0.3f);
+
+            // Cinderwrap: a melee hit scorches the ground.
+            clientA.SendDebugCommand("give_unique", "strip");
+            clientA.SendDebugCommand("give_unique", "cinderwrap+equip");
+            Pump(0.4f);
+            for (int i = 0; i < 12 && server.World.ActiveFirePatches > 0; i++) Pump(0.4f); // let older scorch marks burn out
+            var cinderGrunt = server.World.SpawnEnemy("grunt", SafeNear(meAOnServer.Position + new Vector2(1.2f, 0f)));
+            clientA.World.Me.Position = cinderGrunt.Position + new Vector2(-1.0f, 0f);
+            Pump(0.3f);
+            clientA.RequestUseSkill("mace_strike", cinderGrunt.Position);
+            Pump(0.7f);
+            Check(server.World.ActiveFirePatches > 0, $"Cinderwrap: the melee hit left burning ground under the enemy ({server.World.ActiveFirePatches} patch)");
+            clientA.SendDebugCommand("kill_nearby"); Pump(0.3f);
+
+            // Grave Thrift: an empty flask gets a charge back on a kill.
+            clientA.SendDebugCommand("give_unique", "strip");
+            clientA.SendDebugCommand("give_unique", "gravethrift+equip");
+            Pump(0.4f);
+            var wornFlasks = meAOnServer.Character.Equipment.Values.Where(it => it?.GetBase(data)?.Category == Items.ItemCategory.Flask).ToList();
+            foreach (var f in wornFlasks) f.FlaskCharges = 0;
+            server.World.SpawnEnemy("grunt", SafeNear(meAOnServer.Position + new Vector2(1.5f, 0f)));
+            Pump(0.2f);
+            clientA.SendDebugCommand("kill_nearby");
+            Pump(0.4f);
+            Check(wornFlasks.Count > 0 && wornFlasks.All(f => f.FlaskCharges == 1),
+                  $"Grave Thrift: the kill restored one charge to {wornFlasks.Count} worn flask(s)");
+
+            // Pale Shepherd: its numbers land in the stats.
+            clientA.SendDebugCommand("give_unique", "strip");
+            clientA.SendDebugCommand("give_unique", "paleshepherd+equip");
+            Pump(0.4f);
+            Check(meAOnServer.Stats.SummonLimitBonus >= 2 && meAOnServer.Stats.SummonDamageIncrease >= 60f && meAOnServer.Stats.SpellDamageIncrease <= -50f,
+                  "Pale Shepherd: +2 summons, 60% more summon damage, 50% less spell damage");
+            clientA.SendDebugCommand("give_unique", "strip");
+            clientA.SendDebugCommand("give_mace", "equip");
+            Pump(0.4f);
+            Check(!meAOnServer.Stats.Has("paleshepherd") && !meAOnServer.Stats.Has("gravewake"),
+                  $"stripping the uniques clears every rule (left: {string.Join(",", meAOnServer.Stats.UniqueEffects ?? new HashSet<string>())}; worn: {string.Join(",", meAOnServer.Character.Equipment.Values.Where(it => it != null).Select(it => it.BaseItemId))})");
+        }
+
         Console.WriteLine("\n-- Breakables --");
         {
             var barrelsBefore = server.World.Structures.Count;

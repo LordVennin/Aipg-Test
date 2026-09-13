@@ -679,6 +679,34 @@ public partial class ServerWorld
                 }
                 break;
             }
+            case "give_unique":
+            {
+                // "<id>" into the bag, "<id>+equip" straight onto the body, "strip" removes
+                // every worn unique (tests hand them back after each probe).
+                if (arg == "strip")
+                {
+                    foreach (var slot in c.Equipment.Keys.ToList())
+                        if (c.Equipment[slot]?.GetBase(Data)?.Unique == true) c.Equipment.Remove(slot);
+                    p.RecomputeStats(Data);
+                    changed = true;
+                    break;
+                }
+                bool equipIt = arg?.EndsWith("+equip") == true;
+                string uid = equipIt ? arg[..^6] : arg;
+                var unique = Loot.GenerateUnique(Math.Max(1, c.Level), uid);
+                if (unique == null) break;
+                if (equipIt)
+                {
+                    var ub = unique.GetBase(Data);
+                    var slot = ItemBase.CompatibleSlots(ub.Category).First();
+                    c.Equipment[slot] = unique;
+                    if (ub.TwoHanded) c.Equipment.Remove(EquipSlot.OffHand);
+                    p.RecomputeStats(Data);
+                    changed = true;
+                }
+                else changed = GiveItem(p, unique);
+                break;
+            }
             case "spawn_breakable":
             {
                 // "urn" (default) or "barrel", set down two tiles ahead of the character.

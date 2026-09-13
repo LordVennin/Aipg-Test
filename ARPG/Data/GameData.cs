@@ -202,6 +202,9 @@ public class LootTable
     public float ScrollDropChance { get; set; } = 0.08f;
     /// <summary>Independent chance (0..1) that an Enchanting Scroll drops.</summary>
     public float EnchantScrollDropChance { get; set; } = 0.12f;
+    /// <summary>Independent chance (0..1) that a UNIQUE drops (rare and boss kills add
+    /// their own, much larger, chances on top).</summary>
+    public float UniqueDropChance { get; set; } = 0.004f;
     /// <summary>Independent chance (0..1) that a Mercenary Contract drops (the defense
     /// mode's secondary currency — rare on purpose).</summary>
     public float MercContractDropChance { get; set; } = 0.012f;
