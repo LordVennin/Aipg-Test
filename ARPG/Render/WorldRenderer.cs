@@ -2878,13 +2878,23 @@ public class WorldRenderer
             }
         }
 
+        // Weather: advance the particles, then lay every GROUND mark (rain splashes,
+        // water ripples, settled snow) into the depth sort a hair above the floor so
+        // characters walk over them; what's still in the air draws after the pass.
+        if (world.Me != null)
+        {
+            _weather.Update(map, world.Me.Position, ActiveWeather);
+            _weather.QueueGround(camera, (pos, land, draw) =>
+                _sorted.Add((pos.X + pos.Y + land * 1.0f + 0.014f + UnderDeckBias(pos, land), draw)));
+        }
+
         foreach (var (_, draw) in _sorted.OrderBy(e => e.depth))
             draw(sb);
 
-        // Weather falls over the whole scene (still inside the world pass, so zone
+        // Weather still falling covers the whole scene (inside the world pass, so zone
         // lighting dims it) — world-space particles, so shelter is real per tile.
         if (world.Me != null)
-            _weather.Draw(sb, camera, map, world.Me.Position, ActiveWeather);
+            _weather.DrawAir(sb, camera, map);
 
         // --- drop name labels (screen space, on top) ---
         // Labels stack in WORLD-anchored cluster columns: drops are grouped by world

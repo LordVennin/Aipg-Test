@@ -3872,6 +3872,21 @@ public static class HeadlessNetTest
             Check(wetMap.Weather == "rain" && dressMap.Weather == "" &&
                   data.ZoneThemes.All(t => string.IsNullOrEmpty(t.Weather)),
                   "weather is a per-map attribute: theme default flows in, nothing forces it");
+            // Weather meets the ground: rain drops become splashes where they land,
+            // snow settles and lies there for a few seconds before melting (both are
+            // ground marks the world pass sorts under the characters).
+            var weather = new Render.WeatherRenderer();
+            var mid = new Vector2(wetMap.Width / 2f, wetMap.Height / 2f);
+            for (int i = 0; i < 60; i++) weather.Update(wetMap, mid, "rain", 1f / 30f);
+            int splashes = weather.GroundMarkCount;
+            for (int i = 0; i < 240; i++) weather.Update(wetMap, mid, "snow", 1f / 30f);
+            int settledAt8s = weather.GroundMarkCount;
+            for (int i = 0; i < 30; i++) weather.Update(wetMap, mid, "snow", 1f / 30f);
+            int settledAt9s = weather.GroundMarkCount;
+            weather.Update(wetMap, mid, "off");
+            Check(splashes >= 20 && settledAt8s >= 120 && settledAt9s >= 120 &&
+                  Render.WeatherRenderer.SnowSettleSeconds >= 4f && weather.GroundMarkCount == 0,
+                  $"rain bursts into splashes ({splashes} after 2s) and snow lies on the ground for {Render.WeatherRenderer.SnowSettleSeconds:0}s ({settledAt8s} flakes settled at 8s, {settledAt9s} at 9s)");
             // Reachability guarantee across several seeds: stairs never lead into (or
             // hide) pockets you can't actually walk to. And no ORPHAN stairs — a ramp
             // embedded in flat ground whose ascent side climbs to nothing.
