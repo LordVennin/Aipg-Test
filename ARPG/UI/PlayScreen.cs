@@ -76,6 +76,7 @@ public class PlayScreen : IScreen
     /// <summary>ARPG_DEVUI=elite[:magic|rare|affix+affix]: spawn an elite grunt ahead once
     /// we're out of the hub (GUI automation).</summary>
     private string _devSpawnElite;
+    private float _devEliteAt = -1f;
     /// <summary>ARPG_DEVUI=gold: grant 1000 gold shortly after joining (GUI automation).</summary>
     private bool _devGiveGold;
     private bool _devGiveSupplies;
@@ -396,7 +397,7 @@ public class PlayScreen : IScreen
             _devDropScrolls = false;
             _client.SendDebugCommand("drop_scrolls");
         }
-        if (_devGrantXp > 0 && _clientTime > 2.5f)
+        if (_devGrantXp > 0 && _clientTime > 12f)
         {
             _devGrantXp--;
             _client.SendDebugCommand("char_xp");
@@ -464,11 +465,17 @@ public class PlayScreen : IScreen
             _devSpawnKnights = false;
             _client.SendDebugCommand("spawn_enemy", "bone_knight");
         }
-        if (_devSpawnElite != null && _clientTime > 2f && _client.World.Map?.Kind != World.MapKind.Hub)
+        if (_devSpawnElite != null && _client.World.Map != null && _client.World.Map.Kind != World.MapKind.Hub)
         {
-            var eliteArg = _devSpawnElite;
-            _devSpawnElite = null;
-            _client.SendDebugCommand("spawn_elite", eliteArg);
+            // A few seconds after stepping out of the hub (past the intro cutscene), so
+            // the entrance plays in view for captures.
+            if (_devEliteAt < 0f) _devEliteAt = _clientTime + 8f;
+            else if (_clientTime >= _devEliteAt)
+            {
+                var eliteArg = _devSpawnElite;
+                _devSpawnElite = null;
+                _client.SendDebugCommand("spawn_elite", eliteArg);
+            }
         }
         if (_devReaper && _clientTime > _devReaperNextAt)
         {

@@ -861,6 +861,12 @@ public class GameClient
                 e.Def = _data.Enemies.GetValueOrDefault(e.TypeId);
                 if (e.IsBoss) World.BossIds.Add(e.Id);
                 World.Enemies[e.Id] = e;
+                // Something that spawns within reach of a player rises at once — decided
+                // here, while it's still idle (the server may already be chasing by the
+                // time its first snapshot lands in the same batch).
+                foreach (var pl in World.Players.Values)
+                    if (pl.Alive && Vector2.DistanceSquared(pl.Position, e.Position) <= ClientWorld.RevealRange * ClientWorld.RevealRange)
+                    { World.RevealEnemy(e, allowRise: true); break; }
                 break;
             }
             case PacketType.EnemyStates:
