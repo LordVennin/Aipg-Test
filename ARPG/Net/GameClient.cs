@@ -1228,6 +1228,7 @@ public class GameClient
                         // The struck body flashes white for a few frames and sparks fly
                         // off along the blow: the hit reads even before the number does.
                         te.FlashUntilMs = Environment.TickCount64 + 90;
+                        World.HitSparksSeen++;
                         World.AddEffect(te.Position, 0.4f, 0.2f, "hitspark", te.Height, dir: hitDir);
                     }
                 }

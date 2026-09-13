@@ -477,6 +477,8 @@ public class ClientWorld
     public readonly List<string> CutscenesSeen = new();
     /// <summary>Diagnostic counter: dodge events received (used by the headless net test).</summary>
     public int DodgeEventsSeen;
+    /// <summary>Count of hit-spark bursts spawned (tests; the effect itself is short-lived).</summary>
+    public int HitSparksSeen;
     /// <summary>Diagnostic counter: blocked-hit events received (used by the headless net test).</summary>
     public int BlockedEventsSeen;
 

@@ -143,9 +143,8 @@ public static class HeadlessNetTest
             .DefaultIfEmpty(0f).Average();
         Check(bloodBits >= 5 && bloodEast > 0.6f,
               $"a melee hit throws 5-12 blood drops along the swing ({bloodBits} pieces, mean {bloodEast:+0.00;-0.00} tiles past the attacker)");
-        Check(enemyOnB != null && enemyOnB.FlashUntilMs > 0 &&
-              clientB.World.Effects.Any(fx => fx.Kind == "hitspark"),
-              "the struck body flashes and throws sparks on every client");
+        Check(enemyOnB != null && enemyOnB.FlashUntilMs > 0 && clientB.World.HitSparksSeen > 0,
+              $"the struck body flashes and throws sparks on every client ({clientB.World.HitSparksSeen} spark bursts on B)");
 
         // A strike aimed far BEHIND max range must not hit (impact point clamps to range).
         float hpBefore2 = serverEnemy.Health;
@@ -5734,9 +5733,11 @@ public static class HeadlessNetTest
             var landA = Render.WorldRenderer.DropLanding(0f, false);
             var landMid = Render.WorldRenderer.DropLanding(0.30f, false);
             var landEnd = Render.WorldRenderer.DropLanding(Net.ClientDrop.LandDuration, false);
+            var freshDrops = server.World.Drops.Keys.Where(k => !rareDropsBefore.Contains(k))
+                .Select(k => clientA.World.Drops.GetValueOrDefault(k)).Where(d => d != null).ToList();
             Check(landA.Lift > 20f && MathF.Abs(landA.Spin) > 2f && landMid.Lift < 0.5f && landEnd.Lift == 0f && landEnd.Spin == 0f &&
-                  clientA.World.Drops.Values.Where(d => !rareDropsBefore.Contains(d.DropId)).All(d => d.Animated),
-                  "fresh drops fall from chest height, bounce and tumble into their lie");
+                  freshDrops.Count > 0 && freshDrops.All(d => d.Animated),
+                  $"fresh drops fall from chest height, bounce and tumble into their lie ({freshDrops.Count(d => d.Animated)}/{freshDrops.Count} animated, map loaded {(Environment.TickCount64 - clientA.World.MapLoadedAtMs) / 1000f:0.0}s ago)");
         }
 
         Console.WriteLine("\n-- Breakables --");
