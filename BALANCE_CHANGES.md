@@ -1506,3 +1506,25 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   35% -> **26%**, Arcane Staff 50% -> **38%**. Cast speed and the staffs'
   small physical hit are unchanged; spell balance passes can now lean on
   skill numbers and affixes instead of the base item.
+
+---
+
+# Addendum (batch 67): enemies rise from the earth, level-ups land, shores wander
+
+- **Lying in wait.** On open maps an idle enemy is not drawn until a player
+  comes within 11.5 tiles (wider than any aggro range, so nothing that is
+  already hunting can be hidden). When one is revealed it climbs out of the
+  ground over 0.9s — clipped from the head down as it breaks the surface —
+  with a burst of turned soil and clods that stay on the floor; skeletons
+  rattle sideways as they assemble; the grave caller blooms up out of a dark
+  burst. Bosses, camp-defense waves, hub visitors and anything already
+  moving or taking hits show instantly. Purely client-side: the server's
+  simulation, aggro and tests are unchanged.
+- **Level up.** A golden ring races out from the feet, a column of light
+  fades upward and sparks rise, while "LEVEL N" and a reminder about the
+  passive point drop in at the top of the screen for 2.6s.
+- **Shorelines.** Water tiles no longer stair-step: the neighbouring land
+  laps over each shore edge along a noise-wobbled line, with a pale shallow
+  band and a bright foam line hugging that line on the water side. Works on
+  every map with ground materials, generated forests included.
+- Client-side only; no protocol change.

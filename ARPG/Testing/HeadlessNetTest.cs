@@ -137,9 +137,12 @@ public static class HeadlessNetTest
         // The blow's direction rides the damage event: the grunt's blood leaves its body
         // the way the mace went (A struck from the WEST, so it flies and lands EAST of
         // A — measured from the attacker, since the slam also knocks the grunt back).
-        int bloodBits = clientB.World.BloodDrops.Count + clientB.World.BloodStains.Count;
-        float bloodEast = clientB.World.BloodDrops.Select(d => d.Position.X - meAOnServer.Position.X)
-            .Concat(clientB.World.BloodStains.Select(st => st.Position.X - meAOnServer.Position.X))
+        // Only the grunt's own blood colour counts: enemies revealing nearby throw
+        // soil clods through the same pixel system.
+        int gruntBlood = Convert.ToInt32(data.Enemies["grunt"].Blood, 16);
+        int bloodBits = clientB.World.BloodDrops.Count(d => d.Rgb == gruntBlood) + clientB.World.BloodStains.Count(st => st.Rgb == gruntBlood);
+        float bloodEast = clientB.World.BloodDrops.Where(d => d.Rgb == gruntBlood).Select(d => d.Position.X - meAOnServer.Position.X)
+            .Concat(clientB.World.BloodStains.Where(st => st.Rgb == gruntBlood).Select(st => st.Position.X - meAOnServer.Position.X))
             .DefaultIfEmpty(0f).Average();
         Check(bloodBits >= 5 && bloodEast > 0.6f,
               $"a melee hit throws 5-12 blood drops along the swing ({bloodBits} pieces, mean {bloodEast:+0.00;-0.00} tiles past the attacker)");
@@ -4024,6 +4027,14 @@ public static class HeadlessNetTest
                   "dodging into an urn smashes it");
             campA.World.Me.Position = hubMap.PlayerSpawn;
             CPump(0.3f);
+            // Level up: the moment the character's level rises the client stamps the
+            // banner time and plays the burst at the feet.
+            int lvBefore = campA.World.MyCharacter.Level;
+            for (int i = 0; i < 6 && campA.World.MyCharacter.Level == lvBefore; i++) { campA.SendDebugCommand("char_xp"); CPump(0.3f); }
+            Check(campA.World.MyCharacter.Level > lvBefore && campA.World.LevelUpAtMs > 0 &&
+                  campA.World.LevelUpLevel == campA.World.MyCharacter.Level &&
+                  campA.World.Effects.Any(fx => fx.Kind == "levelup"),
+                  $"levelling up ({lvBefore} -> {campA.World.MyCharacter.Level}) fires the banner and the golden burst");
         }
 
         // Stash quality-of-life: crafting scrolls apply straight FROM the stash, and
@@ -5784,6 +5795,25 @@ public static class HeadlessNetTest
                   MathF.Abs(Render.WorldRenderer.CorpseDecayT(46.5f, false) - 0.5f) < 0.01f &&
                   Render.WorldRenderer.CorpseDecayT(60f, false) == 1f && Render.WorldRenderer.CorpseDecayT(600f, true) == 0f,
                   "corpses take one of two authored poses per id, lie mirrored/tilted, decay after 45s (bosses never)");
+        }
+
+        Console.WriteLine("\n-- Lying in wait --");
+        {
+            // An idle enemy far from every player stays unseen on the client; step
+            // within reveal range and it rises out of the ground (with a dirt burst).
+            var farSpot = SafeNear(meAOnServer.Position + new Vector2(14f, 0f));
+            if (Vector2.Distance(farSpot, meAOnServer.Position) < 12.5f)
+                farSpot = SafeNear(meAOnServer.Position + new Vector2(0f, 14f));
+            var lurker = server.World.SpawnEnemy("grunt", farSpot);
+            Pump(0.4f);
+            bool hiddenAtFirst = clientA.World.Enemies.TryGetValue(lurker.Id, out var lurkOnA) && lurkOnA.RevealedAtMs == 0;
+            clientA.World.Me.Position = lurker.Position + new Vector2(-9f, 0f);
+            Pump(0.4f);
+            Check(hiddenAtFirst && lurkOnA != null && lurkOnA.RevealedAtMs > 0 && lurkOnA.Rose &&
+                  (clientA.World.Effects.Any(fx => fx.Kind == "dirtburst") || clientA.World.BloodDrops.Count + clientA.World.BloodStains.Count > 0),
+                  $"idle enemies lie unseen until a player nears ({Vector2.Distance(farSpot, meAOnServer.Position):0.0} tiles), then rise from the earth");
+            clientA.World.Me.Position = meAOnServer.Position;
+            Pump(0.3f);
         }
 
         Console.WriteLine("\n-- Breakables --");
