@@ -240,6 +240,7 @@ public class SkillMenuUI
         string statLine2 = $"Range {stats.Range:0.0}" +
                            (stats.Radius > 0 ? $"   Radius {stats.Radius:0.0}" : "") +
                            (selDef.Archetype == SkillArchetype.Projectile ? $"   Projectiles {stats.ProjectileCount}" : "") +
+                           (selDef.Volleys > 0 ? $"   Volleys {selDef.Volleys + Math.Max(0, stats.ProjectileCount - 1)}" : "") +
                            (stats.ManaCost > 0 ? $"   Mana {stats.ManaCost:0}" : "") +
                            $"   Crit {stats.CritChance:0}%" +
                            (stats.IgniteChance > 0 ? $"   Ignite {stats.IgniteChance:P0}" : "") +

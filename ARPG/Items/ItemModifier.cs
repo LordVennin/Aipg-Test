@@ -44,7 +44,7 @@ public class ItemModifier
 
     public string DescribeRoll(float value)
     {
-        string amount = IsPercent ? $"{value:0}%" : $"{value:0}";
+        string amount = IsPercent ? $"{value:0}%" : $"{value:0.#}";
         string statName = StatAffected switch
         {
             StatType.MaxHealth => "Maximum Health",

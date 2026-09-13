@@ -26,7 +26,7 @@ public partial class ServerWorld
         _events.CharacterChanged(p);
     }
 
-    private bool TryMoveItem(ServerPlayer p, ItemLocation src, ItemLocation dst, out string error)
+    public bool TryMoveItem(ServerPlayer p, ItemLocation src, ItemLocation dst, out string error)
     {
         error = null;
         var c = p.Character;
@@ -67,11 +67,19 @@ public partial class ServerWorld
                     int oldX = placed.X, oldY = placed.Y;
                     inv.Items.Remove(placed);
                     inv.Items.Remove(blocking);
-                    if (inv.CanPlaceAt(Data, item, dst.X, dst.Y) && inv.CanPlaceAt(Data, blocking.Item, oldX, oldY))
+                    if (inv.CanPlaceAt(Data, item, dst.X, dst.Y))
                     {
-                        inv.Items.Add(new PlacedItem { Item = item, X = dst.X, Y = dst.Y });
-                        inv.Items.Add(new PlacedItem { Item = blocking.Item, X = oldX, Y = oldY });
-                        return true;
+                        // The moved item goes down first: the blocker must then fit the
+                        // vacated spot WITH the moved item in place (a drop that only
+                        // clipped a corner used to leave the two overlapping).
+                        var movedPlacement = new PlacedItem { Item = item, X = dst.X, Y = dst.Y };
+                        inv.Items.Add(movedPlacement);
+                        if (inv.CanPlaceAt(Data, blocking.Item, oldX, oldY))
+                        {
+                            inv.Items.Add(new PlacedItem { Item = blocking.Item, X = oldX, Y = oldY });
+                            return true;
+                        }
+                        inv.Items.Remove(movedPlacement);
                     }
                     inv.Items.Add(placed);
                     inv.Items.Add(blocking);
@@ -565,7 +573,7 @@ public partial class ServerWorld
                 };
                 // Prefer bases the character can actually EQUIP (level + attributes) —
                 // a debug convenience that hands out unwearable gear helps nobody.
-                var pool = Data.Items.Values.Where(b => b.Category == category).ToList();
+                var pool = Data.Items.Values.Where(b => b.Category == category && !b.Unique).ToList(); // uniques come from give_unique
                 var wearable = pool.Where(b =>
                     b.RequiredLevel <= p.Character.Level &&
                     b.RequiredStrength <= p.Stats.Strength + 0.01f &&
@@ -735,6 +743,19 @@ public partial class ServerWorld
                         if (Enum.TryParse<EliteAffix>(tok, true, out var one)) affixes |= one;
                 }
                 SpawnEnemy("grunt", p.Position + new System.Numerics.Vector2(2f, 0f), affixes, buried: true);
+                break;
+            }
+            case "drop_uniques":
+            {
+                // One of every unique in a ring around the character (testing).
+                var uniqueBases = Data.Items.Values.Where(b => b.Unique).OrderBy(b => b.RequiredLevel).ToList();
+                for (int i = 0; i < uniqueBases.Count; i++)
+                {
+                    var u = Loot.GenerateUnique(Math.Max(1, c.Level), uniqueBases[i].Id);
+                    if (u == null) continue;
+                    float ang = i * (MathF.PI * 2f / Math.Max(1, uniqueBases.Count));
+                    SpawnDrop(u, p.Position + new System.Numerics.Vector2(MathF.Cos(ang), MathF.Sin(ang)) * 2.2f);
+                }
                 break;
             }
             case "drop_sample":

@@ -122,7 +122,7 @@ public partial class ServerWorld
         int players = Math.Max(1, Players.Count);
         // The run's stipend: supplies exist only inside the arena.
         foreach (var pl in Players.Values) pl.Supplies = DefenseBalance.SupplyStart;
-        float wagonHp = DefenseBalance.WagonHealth *
+        float wagonHp = DefenseBalance.WagonHealthAt(CampaignEnemyLevel) *
                         (1f + DefenseBalance.WagonHealthPerExtraPlayer * (players - 1));
         AddStructure(StructureKind.Wagon, Map.WagonSpot, wagonHp, ownerId: -1, radius: 0.85f);
         AddStructure(StructureKind.Workbench, Map.WorkbenchSpot, 1f, ownerId: -1, radius: 0.5f);

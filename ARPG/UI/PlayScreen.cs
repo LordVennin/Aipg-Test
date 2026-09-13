@@ -663,6 +663,8 @@ public class PlayScreen : IScreen
 
         bool mouseFree = !input.MouseCapturedByUI && !_drag.Active;
 
+        me.ChargeT = ChargeFraction;
+
         // --- movement (WASD in screen space, converted to isometric world space) ---
         if (me.Alive)
         {

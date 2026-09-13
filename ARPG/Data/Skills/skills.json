@@ -285,8 +285,9 @@
    "Area",
    "Physical",
    "Bow",
-   "Rain"
+   "Projectile"
   ],
+  "Volleys": 2,
   "Archetype": "AreaBurst",
   "DamageKind": "Thrust",
   "UsesWeaponDamage": true,

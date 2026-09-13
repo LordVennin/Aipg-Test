@@ -176,6 +176,38 @@ public static class GroundTiles
         return tex;
     }
 
+    /// <summary>Shore parameters: the land laps a short way onto the water tile along a
+    /// gently wobbling line (the material blend's deep, wild feather read as debris).</summary>
+    private const float ShoreBase = 0.30f, ShoreWobble = 0.12f, ShoreFreq = 0.09f;
+
+    /// <summary>Land lapping onto a water tile across `edge`: the neighbour's material
+    /// cut along the shore line (see GetShoreFoam for the matching water side).</summary>
+    public static Texture2D GetShoreLand(GroundMaterial m, int variant, int edge)
+    {
+        if (_device == null) return null;
+        variant = ((variant % VariantCount) + VariantCount) % VariantCount;
+        string key = m.CacheKey + "#" + variant + "s" + edge;
+        if (_cache.TryGetValue(key, out var tex)) return tex;
+        var px = Bake(m, variant);
+        int seed = StyleSeed(m.Style) * 31 + variant * 7 + edge * 131;
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                int i = y * W + x;
+                if (px[i].A == 0) continue;
+                float sx = x + 0.5f - W / 2f, sy = y + 0.5f - H / 2f;
+                float u = (sx / (W / 2f) + sy / (H / 2f) + 1f) / 2f;
+                float v = (sy / (H / 2f) + 1f - sx / (W / 2f)) / 2f;
+                float t = edge switch { 0 => u, 1 => 1f - u, 2 => v, _ => 1f - v };
+                float wobble = GroundField.ValueNoise(seed, x, y, ShoreFreq);
+                if (t > ShoreBase + ShoreWobble * (wobble - 0.5f) * 2f) px[i] = Color.Transparent;
+            }
+        tex = new Texture2D(_device, W, H);
+        tex.SetData(px);
+        _cache[key] = tex;
+        return tex;
+    }
+
     /// <summary>The shoreline for a water tile whose neighbour across `edge` is land of
     /// material `m`: the same ragged boundary the feathered land tile uses, with a
     /// band of pale shallow water beyond it and a bright foam line hugging it. Drawn
@@ -199,12 +231,12 @@ public static class GroundTiles
                 float u = (sx / (W / 2f) + sy / (H / 2f) + 1f) / 2f;
                 float v = (sy / (H / 2f) + 1f - sx / (W / 2f)) / 2f;
                 float t = edge switch { 0 => u, 1 => 1f - u, 2 => v, _ => 1f - v };
-                float wobble = GroundField.ValueNoise(seed, x, y, 0.11f);
-                float threshold = 0.44f + 0.36f * (wobble - 0.5f);
-                float past = t - threshold; // > 0: on the water side of the ragged shore
-                if (past <= 0f || past > 0.24f) continue;
-                if (past <= 0.07f) px[y * W + x] = foam * (0.85f - past * 4f);
-                else px[y * W + x] = shallow * (0.34f * (1f - (past - 0.07f) / 0.17f));
+                float wobble = GroundField.ValueNoise(seed, x, y, ShoreFreq);
+                float threshold = ShoreBase + ShoreWobble * (wobble - 0.5f) * 2f;
+                float past = t - threshold; // > 0: on the water side of the shore line
+                if (past <= 0f || past > 0.16f) continue;
+                if (past <= 0.05f) px[y * W + x] = foam * (0.75f - past * 6f);
+                else px[y * W + x] = shallow * (0.22f * (1f - (past - 0.05f) / 0.11f));
             }
         tex = new Texture2D(_device, W, H);
         tex.SetData(px);

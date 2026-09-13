@@ -15,6 +15,9 @@ public class WorldRenderer
     private readonly GameData _data;
     private readonly Core.GameSettings _settings;
     private readonly List<(float depth, Action<SpriteBatch> draw)> _sorted = new();
+    /// <summary>Ground telegraphs (slam / cast / dash warnings) drawn AFTER the depth
+    /// sort as translucent decals, so raised ground and walls can never cut them.</summary>
+    private readonly List<(float depth, Action<SpriteBatch> draw)> _overlayDecals = new();
 
     /// <summary>Screen rectangles of drop name labels this frame, for click-to-pick-up.</summary>
     public readonly List<(Rectangle rect, Guid dropId)> DropLabelRects = new();
@@ -505,6 +508,10 @@ public class WorldRenderer
         // so the ground reads as continuous terrain instead of a board.
         bool organic = Theme?.OrganicFloor == true;
         bool brick = Theme?.StoneBrick == true;
+        // Textured ground hides the step up onto a raised block: rim every raised top
+        // with a light edge so walls south and north of the player read at a glance.
+        bool rimEdges = _materials.Count > 0 && !brick;
+        var rimColor = new Color(255, 250, 232);
         var floorA = Theme != null ? _floorA : new Color(58, 66, 58);
         var floorB = Theme != null ? _floorB : new Color(52, 60, 54);
         for (int y = 0; y < map.Height; y++)
@@ -538,7 +545,7 @@ public class WorldRenderer
                             var landMat = MaterialAt(map, nx, ny);
                             int sv = (int)((wn >> (3 + e * 4)) % GroundTiles.VariantCount);
                             float gb = MathF.Min(1f, 0.80f + 0.2f * GroundNoise(map.Seed, nx, ny));
-                            var land = GroundTiles.GetFeathered(landMat, sv, e);
+                            var land = GroundTiles.GetShoreLand(landMat, sv, e);
                             if (land != null) sb.Draw(land, at, new Color(gb, gb, gb));
                             var shoreFoam = GroundTiles.GetShoreFoam(landMat, sv, e);
                             if (shoreFoam != null) sb.Draw(shoreFoam, at, Color.White);
@@ -636,6 +643,7 @@ public class WorldRenderer
         // --- depth-sorted world objects: elevated terrain, bridges and entities share ---
         // --- ONE painter's list so tall geometry occludes what stands behind/under it ---
         _sorted.Clear();
+        _overlayDecals.Clear();
 
         // Entities/effects UNDERNEATH a bridge deck sort a full unit lower, so every
         // tile of the deck above draws over them (heads no longer poke through the
@@ -726,7 +734,24 @@ public class WorldRenderer
                         var dest = new Rectangle((int)center.X - tw / 2, (int)center.Y - th + 10, tw, th);
                         float tdepth = x + y + 1 + ground * 1.0f + 0.02f; // occupant of the trunk tile
                         float tfade = OccluderFade(tdepth, dest);
-                        _sorted.Add((tdepth, batch => batch.Draw(tex, dest, Color.White * tfade)));
+                        // Wind (and, faintly, rain) sways the canopy while the trunk stands:
+                        // the top of the sprite slides side to side on its own phase.
+                        float swayAmp = ActiveWeather == "wind" ? 3.5f : ActiveWeather == "rain" ? 1f : 0f;
+                        int canopyH = (int)(tex.Height * 0.62f);
+                        float swayPhase = x * 0.9f + y * 0.4f;
+                        _sorted.Add((tdepth, batch =>
+                        {
+                            if (swayAmp <= 0f) { batch.Draw(tex, dest, Color.White * tfade); return; }
+                            float clockS = Environment.TickCount64 * 0.001f;
+                            int sway = (int)MathF.Round(MathF.Sin(clockS * 2.1f + swayPhase) * swayAmp +
+                                                        MathF.Sin(clockS * 5.3f + swayPhase * 1.7f) * swayAmp * 0.3f);
+                            var canopySrc = new Rectangle(0, 0, tex.Width, canopyH);
+                            var canopyDst = new Rectangle(dest.X + sway, dest.Y, dest.Width, canopyH * 2);
+                            var trunkSrc = new Rectangle(0, canopyH, tex.Width, tex.Height - canopyH);
+                            var trunkDst = new Rectangle(dest.X, dest.Y + canopyH * 2, dest.Width, (tex.Height - canopyH) * 2);
+                            batch.Draw(tex, trunkDst, trunkSrc, Color.White * tfade);
+                            batch.Draw(tex, canopyDst, canopySrc, Color.White * tfade);
+                        }));
                     }
                     if (ground > 0)
                     {
@@ -773,8 +798,12 @@ public class WorldRenderer
                                 new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx, 64, 32));
                         }
                         _sorted.Add((trTopDepth, batch =>
-                            batch.Draw(trTex,
-                                new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx), trTint)));
+                        {
+                            batch.Draw(trTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx), trTint);
+                            if (rimEdges)
+                                batch.Draw(TextureGen.DiamondOutline, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx),
+                                    rimColor * (0.42f * trTint.A / 255f));
+                        }));
                     }
                     continue;
                 }
@@ -815,9 +844,12 @@ public class WorldRenderer
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
                     }
                     _sorted.Add((topDepth, batch =>
-                        batch.Draw(wtTex,
-                            new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
-                            topTint)));
+                    {
+                        batch.Draw(wtTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), topTint);
+                        if (rimEdges)
+                            batch.Draw(TextureGen.DiamondOutline, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
+                                rimColor * (0.42f * topTint.A / 255f));
+                    }));
                     continue;
                 }
 
@@ -937,6 +969,9 @@ public class WorldRenderer
                     {
                         batch.Draw(etTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint);
+                        if (rimEdges)
+                            batch.Draw(TextureGen.DiamondOutline, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
+                                rimColor * (0.42f * etTint.A / 255f));
                         if (!etOrganic) return;
                         // Grass blades on elevated tops too — same detail as the floor.
                         for (int spk = 0; spk < 3; spk++)
@@ -2060,6 +2095,25 @@ public class WorldRenderer
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)screen.X - 15, (int)screen.Y - 7, 30, 14),
                         new Color(0, 0, 0, 90)); // shadow
+                    if (p.ChargeT > 0f)
+                    {
+                        // Gathering power: a glow swelling at the feet and motes drawn in
+                        // from all sides, tightening and brightening as the charge fills.
+                        float ct = p.ChargeT;
+                        int glowW = (int)(36 + 30 * ct), glowH = glowW / 2;
+                        batch.Draw(TextureGen.RadialLight, new Rectangle((int)screen.X - glowW / 2, (int)screen.Y - glowH / 2 - 2, glowW, glowH),
+                            new Color(255, 214, 130) * (0.25f + 0.45f * ct));
+                        long cclock = Environment.TickCount64;
+                        for (int k = 0; k < 10; k++)
+                        {
+                            float ph = ((cclock * 0.0011f) + k * 0.1f) % 1f;
+                            float ang = k * 0.628f + cclock * 0.0007f;
+                            float rad = (34f - 26f * ph) * (1f + 0.3f * (1f - ct));
+                            var mote = new Vector2(screen.X + MathF.Cos(ang) * rad, screen.Y - 14 + MathF.Sin(ang) * rad * 0.5f - ph * 10f);
+                            batch.Draw(TextureGen.Pixel, new Rectangle((int)mote.X, (int)mote.Y, 2, 2),
+                                (k % 3 == 0 ? Color.White : new Color(255, 224, 140)) * (0.35f + 0.65f * ph) * (0.4f + 0.6f * ct));
+                        }
+                    }
                     batch.Draw(bodyTex,
                         new Rectangle((int)screen.X - bw / 2, (int)screen.Y - bh + 5, bw, bh), null,
                         bodyTint, 0f, Vector2.Zero,
@@ -2873,7 +2927,7 @@ public class WorldRenderer
                 // an inner fill sweeping outward as the impact nears, and a pulsing rim.
                 float rPx = fx.Radius * 2f * IsoCamera.HalfTileW;
                 long clockW = Environment.TickCount64;
-                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                _overlayDecals.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
                     float pulse = 0.75f + 0.25f * MathF.Sin(clockW * 0.02f);
                     // Full-radius danger zone.
@@ -2905,7 +2959,7 @@ public class WorldRenderer
                 // grave-purple so "spell incoming" reads apart from "boss slam".
                 float rPx = fx.Radius * 2f * IsoCamera.HalfTileW;
                 long clockN = Environment.TickCount64;
-                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                _overlayDecals.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
                     float pulse = 0.75f + 0.25f * MathF.Sin(clockN * 0.02f);
                     batch.Draw(TextureGen.Circle32,
@@ -2958,7 +3012,7 @@ public class WorldRenderer
                 var pB = fx.Points[1];
                 long clockD = Environment.TickCount64;
                 float fillT = t; // 0 -> 1 across the wind-up
-                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f, batch =>
+                _overlayDecals.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f, batch =>
                 {
                     float pulse = 0.7f + 0.3f * MathF.Sin(clockD * 0.02f);
                     int segs = Math.Max(6, (int)(System.Numerics.Vector2.Distance(pA, pB) * 4));
@@ -3078,6 +3132,8 @@ public class WorldRenderer
         }
 
         foreach (var (_, draw) in _sorted.OrderBy(e => e.depth))
+            draw(sb);
+        foreach (var (_, draw) in _overlayDecals)
             draw(sb);
 
         // Weather still falling covers the whole scene (inside the world pass, so zone

@@ -135,6 +135,9 @@ public class SkillDefinition
     /// <summary>Hold-to-charge: the client charges up to 1s before releasing; charge
     /// scales damage, knockback and lunge distance.</summary>
     public bool Chargeable { get; set; }
+    /// <summary>Sky volleys (Arrow Rain): how many times the marked circle is rained on
+    /// per cast (0 = not a sky volley). Extra projectiles from gear add volleys.</summary>
+    public int Volleys { get; set; }
 
     /// <summary>Seconds between the cast and the hit landing (slam wind-up). The server
     /// queues the strike; the client delays the impact visuals to match. 0 = instant.</summary>

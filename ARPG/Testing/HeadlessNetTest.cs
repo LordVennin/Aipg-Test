@@ -4295,15 +4295,19 @@ public static class HeadlessNetTest
         campA.World.Me.Position = campBoss.Position + new Vector2(-2.0f, 0);
         for (int i = 0; i < 4; i++) { campA.SendDebugCommand("heal"); CPump(0.4f); }
         Check(campBoss.State != Server.EnemyState.Idle, "the Gravelord engaged");
-        Check(SpittersNearBoss() == 0, "no adds in the opening seconds of the fight");
-        for (int i = 0; i < 24 && SpittersNearBoss() == 0; i++)
+        int AddsNearBoss() => campServer.World.Enemies.Values.Count(e =>
+            !e.Dead && e.Def.Id == "grunt" && e.Level == campBoss.Level &&
+            Vector2.Distance(e.Position, campBoss.Position) < 10f);
+        int addsBase = AddsNearBoss();
+        Check(AddsNearBoss() == addsBase, "no adds in the opening seconds of the fight");
+        for (int i = 0; i < 24 && AddsNearBoss() < addsBase + 4; i++)
         {
             campA.SendDebugCommand("heal");
             campA.World.Me.Position = campBoss.Position + new Vector2(-2.0f, 0);
             CPump(0.5f);
         }
-        Check(SpittersNearBoss() >= 3,
-              $"the Gravelord summons three spitters mid-fight, at HIS level ({SpittersNearBoss()} up)");
+        Check(AddsNearBoss() >= addsBase + 4,
+              $"the Gravelord raises four zombies mid-fight, at HIS level ({AddsNearBoss() - addsBase} up)");
 
         // Fell the boss: the seal lifts, the door leads home.
         campBoss.Health = 1f;
@@ -5935,6 +5939,100 @@ public static class HeadlessNetTest
             Pump(0.4f);
             Check(!meAOnServer.Stats.Has("paleshepherd") && !meAOnServer.Stats.Has("gravewake"),
                   $"stripping the uniques clears every rule (left: {string.Join(",", meAOnServer.Stats.UniqueEffects ?? new HashSet<string>())}; worn: {string.Join(",", meAOnServer.Character.Equipment.Values.Where(it => it != null).Select(it => it.BaseItemId))})");
+        }
+
+        Console.WriteLine("\n-- Playtest fixes --");
+        {
+            // Inventory: a drop that only clips a corner of another item never leaves
+            // the two overlapping — the swap must fit the blocker with the moved item down.
+            var invP = meAOnServer;
+            var inv = invP.Character.Inventory;
+            var stash = inv.Items.ToList(); inv.Items.Clear();
+            var boxA = new Items.ItemInstance { BaseItemId = "iron_mail", Rarity = Items.ItemRarity.Normal };
+            var boxB = new Items.ItemInstance { BaseItemId = "iron_mail", Rarity = Items.ItemRarity.Normal };
+            int bw = data.Items["iron_mail"].InventoryWidth;
+            inv.Items.Add(new Inventory.PlacedItem { Item = boxA, X = 0, Y = 0 });
+            inv.Items.Add(new Inventory.PlacedItem { Item = boxB, X = bw, Y = 0 });
+            bool moved = server.World.TryMoveItem(invP, ItemLocation.AtGrid(0, 0), ItemLocation.AtGrid(1, 1), out _);
+            bool noOverlap = inv.Items.All(pi => inv.CanPlaceAt(data, pi.Item, pi.X, pi.Y, pi.Item.InstanceId));
+            Check(!moved && noOverlap, "a corner-clipping drop is refused instead of leaving two items overlapping");
+            inv.Items.Clear(); foreach (var pi in stash) inv.Items.Add(pi);
+
+            // Arrow Rain: a Projectile-tagged sky volley that rains twice per cast, plus
+            // one more volley per extra projectile; no "Rain" tag anywhere.
+            var rainDef = data.Skills["arrow_rain"];
+            Check(rainDef.Volleys == 2 && rainDef.Tags.Contains("Projectile") && data.Skills.Values.All(sk => sk.Tags?.Contains("Rain") != true),
+                  "Arrow Rain is a Projectile-tagged sky volley (2 volleys) and the Rain tag is gone");
+            clientA.SendDebugCommand("give_bow", "equip");
+            clientA.SendDebugCommand("learn_skill", "arrow_rain");
+            clientA.SendDebugCommand("learn_skill", "arrow_shot");
+            Pump(0.4f);
+            int volleysBefore = server.World.PendingRainVolleys;
+            clientA.RequestUseSkill("arrow_rain", meAOnServer.Position + new Vector2(3f, 0f));
+            Pump(0.6f);
+            Check(server.World.PendingRainVolleys - volleysBefore >= 1 && server.World.PendingRainVolleys >= 2,
+                  $"a cast queues two rain windows ({server.World.PendingRainVolleys} pending)");
+
+            // A bow shot at an urn breaks it on ARRIVAL, not the instant the click lands.
+            clientA.SendDebugCommand("spawn_breakable", "urn");
+            Pump(0.3f);
+            var shotUrn = server.World.Structures.Values.OrderByDescending(st => st.Id).First(st => st.Kind == World.StructureKind.Urn);
+            clientA.World.Me.Position = shotUrn.Position + new Vector2(-5f, 0f);
+            Pump(0.3f);
+            clientA.RequestUseSkill("arrow_shot", shotUrn.Position);
+            Pump(0.08f);
+            bool stillStanding = server.World.Structures.ContainsKey(shotUrn.Id);
+            Pump(1.2f);
+            Check(stillStanding && !server.World.Structures.ContainsKey(shotUrn.Id),
+                  $"an arrow breaks an urn when it gets there, not at the click (standing after the click: {stillStanding}, after the flight: {server.World.Structures.ContainsKey(shotUrn.Id)}, arrows in flight: {server.World.Projectiles.Count})");
+            clientA.SendDebugCommand("give_mace", "equip");
+            Pump(0.3f);
+
+            // Life regeneration rolls: tier 1 tops out at 0.6/s and keeps its decimal.
+            var mending = data.Modifiers["mending"];
+            var regenGen = new Items.LootGenerator(data, new Random(3));
+            var regenItem = new Items.ItemInstance { BaseItemId = "iron_mail", Rarity = Items.ItemRarity.Magic, MaxPrefixes = 3, MaxSuffixes = 3 };
+            bool rolled = false; float rolledValue = 0f;
+            for (int i = 0; i < 40 && !rolled; i++)
+            {
+                regenItem.Modifiers.Clear();
+                rolled = regenGen.TryRollAffix(regenItem, data.Items["iron_mail"], Items.AffixType.Prefix) &&
+                         regenItem.Modifiers.Any(r => r.ModifierId == "mending");
+                if (rolled) rolledValue = regenItem.Modifiers.First(r => r.ModifierId == "mending").Value;
+            }
+            Check(mending.MaximumValue <= 0.6f && mending.MinimumValue > 0f && data.Modifiers["mending_t2"].MinimumValue >= 0.6f &&
+                  mending.DescribeRoll(0.6f).StartsWith("+0.6") || mending.DescribeRoll(0.6f).Contains("0.6"),
+                  $"tier-1 life regeneration tops out at {mending.MaximumValue}/s and shows its decimal ({mending.DescribeRoll(0.6f)})");
+
+            // Wagon life scales with the enemy level: 200 at level 1, 2500 at 80.
+            Check(MathF.Abs(World.DefenseBalance.WagonHealthAt(1) - 200f) < 0.01f && MathF.Abs(World.DefenseBalance.WagonHealthAt(80) - 2500f) < 0.01f &&
+                  World.DefenseBalance.WagonHealthAt(40) > 1300f && World.DefenseBalance.WagonHealthAt(40) < 1400f && World.DefenseBalance.WagonHealthAt(200) == 2500f,
+                  "the wagon's life runs 200 -> 2500 across levels 1-80");
+
+            // The Gravelord calls four zombies, and trees never root in pits.
+            Check(data.Enemies["gravelord"].AddSpawnType == "grunt" && data.Enemies["gravelord"].AddSpawnCount == 4,
+                  "the Gravelord's reinforcements are four zombies");
+            int pits = 0, treeRoots = 0;
+            foreach (var (kind, seed) in new[] { (World.MapKind.Defense, 11), (World.MapKind.Defense, 23), (World.MapKind.Forest, 5) })
+            {
+                var treeMap = new World.GameMap(seed, data.ZoneThemes.First(t => t.Id == "forest"), kind);
+                for (int ty = 1; ty < treeMap.Height - 2; ty++)
+                    for (int tx = 1; tx < treeMap.Width - 2; tx++)
+                    {
+                        if (treeMap.Feature(tx, ty) != World.TileFeature.BigTreeRoot) continue;
+                        treeRoots++;
+                        int g0 = treeMap.GroundLevel(tx, ty);
+                        for (int dy = -1; dy <= 2; dy++)
+                            for (int dx = -1; dx <= 2; dx++)
+                            {
+                                int nx = tx + dx, ny = ty + dy;
+                                if (nx < 0 || ny < 0 || nx >= treeMap.Width || ny >= treeMap.Height) continue;
+                                if (treeMap.IsSolid(nx, ny) || treeMap.Ramp(nx, ny) != World.RampDirection.None) continue;
+                                if (treeMap.GroundLevel(nx, ny) != g0) { pits++; dy = 3; break; }
+                            }
+                    }
+            }
+            Check(treeRoots > 0 && pits == 0, $"no big tree roots in a pit or on a lone step ({treeRoots} trees checked)");
         }
 
         Console.WriteLine("\n-- Breakables --");

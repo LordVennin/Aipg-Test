@@ -77,7 +77,7 @@ public partial class ServerWorld
         {
             // A BOSS, affix and all: the big body, the boss bar, half stun/freeze.
             var boss = SpawnEnemy("gravelord", Map.BossSpot, EliteAffix.Boss, level: 1);
-            boss.MaxHealth *= 0.45f;
+            boss.MaxHealth *= 0.3f;
             boss.Health = boss.MaxHealth;
             _bossEnemyId = boss.Id;
             _events.EnemyHealthChanged(boss);

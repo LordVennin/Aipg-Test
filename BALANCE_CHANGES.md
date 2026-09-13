@@ -1575,3 +1575,46 @@ item's flavour under it.
 - **Pale Shepherd** (staff, lvl 10): +2 to maximum summons, summons deal 60%
   more damage and have 40% more life, 50% less Spell Damage.
 - Dev: `give_unique <id>[+equip]`, `give_unique strip`. No protocol change.
+
+---
+
+# Addendum (batch 70): playtest fixes
+
+- **HUD badges** (passive points / skill level-ups) stay pinned to the top-left
+  corner instead of sliding under the hovered-enemy panel.
+- **Charging** a chargeable skill now shows it: a glow swelling at the feet and
+  motes drawn in from all sides, tightening and brightening as the charge fills.
+- **Tutorial boss**: the Gravelord's life is 30% of base (was 45%); its
+  reinforcements are **four zombies** instead of three spitters. When it falls
+  the remaining adds fall with it and every player is untouchable for 5s, so
+  the victory scene can't get you killed.
+- **Telegraphs** (slam / cast / dash warnings) draw as translucent decals after
+  the depth sort, so raised ground can no longer cut a quarter off the circle.
+- **Passive tree**: a node draws only when its whole bubble sits inside the
+  panel; the view starts below the points line.
+- **Arrow Rain**: the `Rain` tag is gone; the skill is a Projectile-tagged sky
+  volley with `Volleys: 2` — every cast rains on the mark twice (0.6s apart),
+  and each extra projectile from gear adds another volley. The skill menu shows
+  the volley count.
+- **Shorelines**: the land lap is narrower and gentler (30% of the tile with a
+  ±12% wobble), the foam thinner — the previous deep, wild feather read as
+  debris.
+- **Raised ground reads again**: every raised top (walls, terraces, elevated
+  tiles) wears a light rim outline on textured maps, so a step south or north
+  of the character is visible.
+- **Wagon** life: 200 at enemy level 1 scaling linearly to 2500 at level 80 (was
+  a flat 900), still +25% per extra player.
+- **Wind** sways tree canopies (rain faintly); trunks stay put.
+- **Inventory swap**: a drop that only clips a corner of another item no longer
+  leaves the two overlapping — the blocker must fit the vacated spot with the
+  moved item already down, or the drop is refused.
+- **Life regeneration prefixes**: tier 1 rolls 0.3-0.6/s (was 1-2), tiers rise
+  from there (0.6-1.2, 1.2-2, 2-3, 3-4, 4-5.5, 5.5-7, 7-8.5, 8.5-10, 10-12).
+  Small ranges keep one decimal; tooltips show it.
+- **Bow clicks on urns**: projectile skills no longer smash breakables at the
+  aim point — the arrow has to get there.
+- **Shards and blood** that would land off the map or inside a wall vanish
+  instead of staining the void.
+- **Trees** root only where the whole 2x2 footprint AND the ring around it sit
+  at one ground level — never in a pit or on a lone step (forest and defense).
+- Debug: **Drop All Uniques** button (`drop_uniques`).
