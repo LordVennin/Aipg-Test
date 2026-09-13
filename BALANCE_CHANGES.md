@@ -1495,3 +1495,14 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   now wear the floor's textured material a shade brighter, instead of a
   flat tinted diamond.
 - Client-side only; no protocol change.
+
+---
+
+# Addendum (batch 66): staff spell-damage implicits trimmed
+
+- The free "% increased Spell Damage" every staff carries was a large flat
+  head start that made spells hard to tune against attacks. Oak Staff 20% ->
+  **15%**; the higher tiers keep the same three-quarters ratio: Mystic Staff
+  35% -> **26%**, Arcane Staff 50% -> **38%**. Cast speed and the staffs'
+  small physical hit are unchanged; spell balance passes can now lean on
+  skill numbers and affixes instead of the base item.
