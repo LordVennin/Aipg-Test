@@ -142,9 +142,13 @@ public class SkillTreeUI
             points > 0 ? new Color(160, 240, 160) : new Color(160, 156, 145));
 
         // Panned content clips coarsely to the panel so nodes never paint over other UI.
-        var view = new Rectangle(_panelRect.X + 6, _panelRect.Y + 30,
-            _panelRect.Width - 12, _panelRect.Height - 58);
-        bool InView(Vector2 v) => view.Contains((int)v.X, (int)v.Y);
+        var view = new Rectangle(_panelRect.X + 6, _panelRect.Y + 58,
+            _panelRect.Width - 12, _panelRect.Height - 86);
+        // A node draws only when its WHOLE bubble (and label) sits inside the view:
+        // panning slides bubbles in and out at the edge instead of over the frame.
+        bool InView(Vector2 v) =>
+            v.X - NodeRadius - 8 >= view.Left && v.X + NodeRadius + 8 <= view.Right &&
+            v.Y - NodeRadius - 8 >= view.Top && v.Y + NodeRadius + 22 <= view.Bottom;
 
         // Connections underneath the nodes: brighter when both ends are allocated.
         foreach (var pair in tree.Connections)

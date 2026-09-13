@@ -28,6 +28,9 @@ public class ClientPlayer
     public float ManaReserved;
     public bool Alive = true;
     public bool IsLocal;
+    /// <summary>0..1 while the local player holds a chargeable skill (drives the
+    /// gathering-power glow; remote players show none).</summary>
+    public float ChargeT;
     /// <summary>Snap to the next replicated position instead of lerping (set on map
     /// transitions, where interpolating across the whole map reads as a streak).</summary>
     public bool SnapNext;
@@ -426,8 +429,14 @@ public class ClientWorld
             d.Vz -= gravity * dt;
             d.Z += d.Vz * dt;
             if (d.Z > 0f) continue;
-            // Landed: it stays where it fell, as a slightly wider stain than the drop.
+            // Landed: it stays where it fell, as a slightly wider stain than the drop —
+            // unless it fell off the map or into a wall, in which case it's gone.
             BloodDrops.RemoveAt(i);
+            if (Map != null)
+            {
+                int tx = (int)MathF.Floor(d.Position.X), ty = (int)MathF.Floor(d.Position.Y);
+                if (tx < 0 || ty < 0 || tx >= Map.Width || ty >= Map.Height || Map.IsSolid(tx, ty)) continue;
+            }
             if (BloodStains.Count >= MaxBloodStains) BloodStains.RemoveAt(0);
             BloodStains.Add(new BloodStain
             {

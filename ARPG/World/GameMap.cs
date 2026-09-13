@@ -222,6 +222,23 @@ public class GameMap
         return false;
     }
 
+    /// <summary>True when every open tile in the ring around a 2x2 tree footprint sits
+    /// at the footprint's ground level — a tree never roots in a one-tile pit or on a
+    /// lone step (walls in the ring are fine; the canopy overhangs them).</summary>
+    private bool LevelRingAround(int x, int y, byte g0)
+    {
+        for (int dy = -1; dy <= 2; dy++)
+            for (int dx = -1; dx <= 2; dx++)
+            {
+                if (dx >= 0 && dx <= 1 && dy >= 0 && dy <= 1) continue;
+                int nx = x + dx, ny = y + dy;
+                if (!InBounds(nx, ny)) return false;
+                if (_wall[Idx(nx, ny)] != 0) continue;
+                if (_ground[Idx(nx, ny)] != g0 && _ramp[Idx(nx, ny)] == 0) return false;
+            }
+        return true;
+    }
+
     /// <summary>The surface weather LANDS on in a tile column: the bridge deck when one
     /// spans it, else the wall top, else the ground.</summary>
     public float WeatherLandHeight(int x, int y) =>
@@ -1487,7 +1504,7 @@ public class GameMap
                             _ramp[Idx(x + dx, y + dy)] == 0 && _water[Idx(x + dx, y + dy)] == 0 &&
                             _bridge[Idx(x + dx, y + dy)] == 0 &&
                             _feature[Idx(x + dx, y + dy)] == 0;
-            if (!clear) continue;
+            if (!clear || !LevelRingAround(x, y, g0)) continue;
             // Only the TRUNK blocks: one solid two-level tile at the root; the rest of
             // the footprint stays walkable (markers keep trees from overlapping) and
             // the canopy simply overhangs it.
@@ -1649,13 +1666,14 @@ public class GameMap
             // Keep the authored demo region and the spawn area clear of big trees.
             if (x >= 4 && x <= 19 && y >= 4 && y <= 32) continue;
             if (Vector2.Distance(new Vector2(x + 1f, y + 1f), PlayerSpawn) < 5f) continue;
+            byte g0 = _ground[Idx(x, y)];
             bool clear = true;
             for (int dy = 0; dy < 2 && clear; dy++)
                 for (int dx = 0; dx < 2 && clear; dx++)
-                    clear = _wall[Idx(x + dx, y + dy)] == 0 && _ground[Idx(x + dx, y + dy)] == 0 &&
+                    clear = _wall[Idx(x + dx, y + dy)] == 0 && _ground[Idx(x + dx, y + dy)] == g0 &&
                             _ramp[Idx(x + dx, y + dy)] == 0 && _bridge[Idx(x + dx, y + dy)] == 0 &&
                             _feature[Idx(x + dx, y + dy)] == 0;
-            if (!clear) continue;
+            if (!clear || !LevelRingAround(x, y, g0)) continue;
             // Only the TRUNK blocks (see GenerateForestTrees) — footprint markers just
             // keep trees apart and decorations out from under the canopy.
             for (int dy = 0; dy < 2; dy++)

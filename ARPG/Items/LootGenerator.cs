@@ -71,6 +71,11 @@ public class LootGenerator
         return drops;
     }
 
+    /// <summary>Rolls are whole numbers, except on ranges too small for that (tier-1
+    /// life regeneration tops out at 0.6/s) which keep one decimal.</summary>
+    private static float RoundRoll(ItemModifier def, float value) =>
+        def.MaximumValue < 3f ? MathF.Round(value, 1) : MathF.Round(value);
+
     /// <summary>A UNIQUE item: one of the level-gated unique bases picked by weight (or
     /// a named one), sealed — its fixed BaseStats and its rule are the whole item.</summary>
     public ItemInstance GenerateUnique(int itemLevel, string forceId = null)
@@ -124,7 +129,7 @@ public class LootGenerator
                 tierOne.RemoveAll(m => m.ModifierGroup == pick.ModifierGroup);
                 float value = pick.MinimumValue +
                               (float)_rng.NextDouble() * (pick.MaximumValue - pick.MinimumValue);
-                item.Modifiers.Add(new ItemModifierRoll { ModifierId = pick.Id, Value = MathF.Round(value) });
+                item.Modifiers.Add(new ItemModifierRoll { ModifierId = pick.Id, Value = RoundRoll(pick, value) });
             }
         }
         return item;
@@ -246,7 +251,7 @@ public class LootGenerator
         if (pick == null) return false;
 
         float value = pick.MinimumValue + (float)_rng.NextDouble() * (pick.MaximumValue - pick.MinimumValue);
-        item.Modifiers.Add(new ItemModifierRoll { ModifierId = pick.Id, Value = MathF.Round(value) });
+        item.Modifiers.Add(new ItemModifierRoll { ModifierId = pick.Id, Value = RoundRoll(pick, value) });
         return true;
     }
 
@@ -295,7 +300,7 @@ public class LootGenerator
         int ilvl = Math.Max(1, itemLevel);
         // Pets never come from the equipment pool — they have their own rare roll.
         var candidates = _data.Items.Values.Where(b =>
-            b.IsEquippable && b.Category != ItemCategory.Pet && b.RequiredLevel <= ilvl).ToList();
+            b.IsEquippable && b.Category != ItemCategory.Pet && !b.Unique && b.RequiredLevel <= ilvl).ToList();
         var current = candidates.Where(b => b.RequiredLevel >= ilvl - BaseLevelWindow).ToList();
         if (current.Count > 0) candidates = current;
         return WeightedPick(candidates, b =>

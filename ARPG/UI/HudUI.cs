@@ -87,7 +87,7 @@ public class HudUI
             var (pendingPoints, levelable) = PendingAlerts(character);
             var badgeFont = FontManager.Get(13);
             var keyFont = FontManager.GetBold(13);
-            int by = 10 + TopInset;
+            int by = 10; // fixed to the screen corner, whatever the hover panel does
             float pulse = 0.6f + 0.4f * MathF.Sin(clientTime * 4f);
             void Badge(string key, string text, Color accent)
             {
@@ -579,6 +579,7 @@ public class DebugUI
             ("Give Enchant Scrolls", "give_enchant", ""),
             ("Drop All Scrolls", "drop_scrolls", ""),
             ("Drop Pets", "drop_pets", ""),
+            ("Drop All Uniques", "drop_uniques", ""),
             ("Skip To Final Wave", "wave_skip", ""),
             ("Grant Skill XP", "skill_xp", ""),
             ("Grant Character XP", "char_xp", ""),

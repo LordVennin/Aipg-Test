@@ -2405,18 +2405,23 @@ public partial class ServerWorld
             case SkillArchetype.AreaBurst:
             {
                 effectPoint = ClampToRange(p.Position, target, stats.Range);
-                if (def.Tags?.Contains("Rain") == true)
+                if (def.Volleys > 0)
                 {
-                    // Sky volleys (Arrow Rain) don't burst — they open a RAIN WINDOW:
+                    // Sky volleys (Arrow Rain) don't burst — they open RAIN WINDOWS:
                     // every arrow is its own hitbox at its own landing spot and
-                    // moment (see RainVolley / TickRainVolleys).
-                    _rainVolleys.Add(new RainVolley
-                    {
-                        Position = effectPoint, Radius = stats.Radius,
-                        OwnerId = playerId, SkillId = skillId,
-                        Stats = stats, ChargeMult = chargeMult,
-                        StartedAt = Time,
-                    });
+                    // moment (see RainVolley / TickRainVolleys). The skill's Volleys
+                    // plus every extra projectile from gear each rain on the mark
+                    // again, spaced out; the first is announced by the cast itself.
+                    int volleys = def.Volleys + Math.Max(0, stats.ProjectileCount - 1);
+                    for (int v = 0; v < volleys; v++)
+                        _rainVolleys.Add(new RainVolley
+                        {
+                            Position = effectPoint, Radius = stats.Radius,
+                            OwnerId = playerId, SkillId = skillId,
+                            Stats = stats, ChargeMult = chargeMult,
+                            StartedAt = Time + v * RainVolleySpacing,
+                            Announced = v == 0,
+                        });
                 }
                 else
                 {
@@ -2470,7 +2475,10 @@ public partial class ServerWorld
 
         // Any blow smashes the breakables it lands among: the impact circle, plus —
         // for swings — the arc in front of the caster.
-        BreakBreakablesNear(effectPoint, MathF.Max(stats.Radius, 0.8f), p);
+        // Projectiles break what they FLY INTO (TickProjectiles); chains and summons
+        // break nothing. Everything else smashes at its impact point.
+        if (def.Archetype is not (SkillArchetype.Projectile or SkillArchetype.ChainLightning or SkillArchetype.Summon))
+            BreakBreakablesNear(effectPoint, MathF.Max(stats.Radius, 0.8f), p);
         if (def.Archetype is SkillArchetype.MeleeStrike or SkillArchetype.MeleeSingle or SkillArchetype.MeleeArea)
         {
             var swingDir = (target - p.Position).NormalizedOrZero();
@@ -3276,15 +3284,24 @@ public partial class ServerWorld
         public float ChargeMult;
         public float StartedAt;
         public readonly bool[] Landed = new bool[SkillMath.RainArrowCount];
+        /// <summary>The clients have been shown this volley's landing window.</summary>
+        public bool Announced;
     }
 
     private readonly List<RainVolley> _rainVolleys = new();
+    public const float RainVolleySpacing = 0.6f;
+    public int PendingRainVolleys => _rainVolleys.Count;
 
     private void TickRainVolleys()
     {
         for (int i = _rainVolleys.Count - 1; i >= 0; i--)
         {
             var rv = _rainVolleys[i];
+            if (!rv.Announced && Time >= rv.StartedAt)
+            {
+                rv.Announced = true;
+                _events.WorldEffect("arrowrain", rv.Position, rv.Radius, 1.5f, Map.GroundHeightAt(rv.Position));
+            }
             bool allLanded = true;
             for (int a = 0; a < SkillMath.RainArrowCount; a++)
             {
@@ -3606,6 +3623,11 @@ public partial class ServerWorld
             // Tutorial gate boss down: the victory scene plays and the gate unlocks.
             if (Map.Kind == MapKind.Tutorial && e.Id == _bossEnemyId)
             {
+                // The master's fall takes its thralls with it, and nobody is touched
+                // while the victory scene plays.
+                foreach (var other in Enemies.Values.ToList())
+                    if (!other.Dead && other.Id != e.Id) DamageEnemy(other, other.Health + 1f, -1, null);
+                foreach (var pl in Players.Values) pl.InvulnerableUntil = MathF.Max(pl.InvulnerableUntil, Time + 5f);
                 _events.CutscenePlayed("tut_victory");
                 _events.ZoneStateChanged(this); // the ruins gate opens
                 foreach (var pl in Players.Values)

@@ -42,7 +42,16 @@ public static class DefenseBalance
     /// <summary>Enemy levels added per wave index on top of the zone's enemy level.</summary>
     public const int WaveLevelStep = 1;
 
-    public const float WagonHealth = 900f;
+    /// <summary>The wagon's life at enemy level 1; it scales linearly to WagonHealthAtCap
+    /// by level 80 (see WagonHealthAt).</summary>
+    public const float WagonHealth = 200f;
+    public const float WagonHealthAtCap = 2500f;
+    public const int WagonHealthCapLevel = 80;
+    public static float WagonHealthAt(int enemyLevel)
+    {
+        float t = Math.Clamp((enemyLevel - 1) / (float)(WagonHealthCapLevel - 1), 0f, 1f);
+        return WagonHealth + (WagonHealthAtCap - WagonHealth) * t;
+    }
     /// <summary>Extra wagon health per player beyond the first (more attackers incoming).</summary>
     public const float WagonHealthPerExtraPlayer = 0.25f;
 
