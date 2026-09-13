@@ -2795,6 +2795,401 @@ public static class SpriteGen
         return BakeStrip(px, w, h);
     }
 
+    // ------------------------------------------------------------------ death poses
+
+    private const int DW = 40, DH = 20;
+
+    /// <summary>A small variable-size pixel sheet for the lying bodies (the standing
+    /// Canvas is portrait; a corpse is landscape). Same outline pass at bake time.</summary>
+    private sealed class Sheet
+    {
+        public readonly int W, H;
+        public readonly Color[] Px;
+        public Sheet(int w, int h) { W = w; H = h; Px = new Color[w * h]; }
+        public void Set(int x, int y, Color c) { if (x >= 0 && x < W && y >= 0 && y < H) Px[y * W + x] = c; }
+        public void Rect(int x0, int y0, int w, int h, Color c)
+        { for (int y = y0; y < y0 + h; y++) for (int x = x0; x < x0 + w; x++) Set(x, y, c); }
+        /// <summary>A 1px-thick line between two points (bones, staffs, folds).</summary>
+        public void Line(int x0, int y0, int x1, int y1, Color c)
+        {
+            int dx = Math.Abs(x1 - x0), dy = -Math.Abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx + dy;
+            while (true)
+            {
+                Set(x0, y0, c);
+                if (x0 == x1 && y0 == y1) break;
+                int e2 = 2 * err;
+                if (e2 >= dy) { err += dy; x0 += sx; }
+                if (e2 <= dx) { err += dx; y0 += sy; }
+            }
+        }
+        public bool Filled(int x, int y) => x >= 0 && x < W && y >= 0 && y < H && Px[y * W + x].A != 0;
+        public Texture2D Bake() => BakeStrip(Px, W, H);
+    }
+
+    /// <summary>
+    /// An AUTHORED lying body for a fallen enemy — drawn in the same palette as its
+    /// standing sprite but as a real downed pose (sprawled on its back, or crumpled
+    /// face-down), with a single clean outline. Head lies to the RIGHT; the renderer
+    /// mirrors and tilts per corpse. Cached per definition, variant and pose.
+    /// </summary>
+    public static Texture2D GetEnemyDeathPose(EnemyDefinition def, int variant, int pose)
+    {
+        if (def == null || _device == null) return null;
+        pose &= 1;
+        string key = $"downed:{def.Id}#{variant}p{pose}";
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+        var tint = WorldRenderer.ParseColor(def.Color, new Color(180, 60, 60));
+        var tex = def.SpriteStyle switch
+        {
+            "Zombie" => DrawZombieDowned(tint, def.Id, variant, pose),
+            "Ghoul" => DrawGhoulDowned(tint, def.Id, pose),
+            "Skeleton" => DrawSkeletonDowned(tint, def.Id, pose),
+            "Necro" => DrawNecroDowned(tint, pose),
+            _ => GetEnemyCorpseSprite(def, variant),
+        };
+        if (tex == null) return null;
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    /// <summary>What a corpse decays into after a while: a skull, a few bones and
+    /// scraps of whatever it wore, in the enemy's colours. Cached per definition.</summary>
+    public static Texture2D GetEnemyRemnant(EnemyDefinition def)
+    {
+        if (def == null || _device == null) return null;
+        string key = $"remnant:{def.Id}";
+        if (_cache.TryGetValue(key, out var cached)) return cached[0];
+        var tint = WorldRenderer.ParseColor(def.Color, new Color(180, 60, 60));
+        var s = new Sheet(DW, DH);
+        var rng = new Random((def.Id + "remnant").GetHashCode() & int.MaxValue);
+        var bone = new Color(214, 206, 178);
+        var boneDark = Shade(bone, 0.7f);
+        bool skeleton = def.SpriteStyle == "Skeleton";
+        bool ghoul = def.SpriteStyle == "Ghoul";
+        var scrap = def.SpriteStyle == "Necro" ? Shade(tint, 0.6f) : Shade(tint, 0.8f);
+        // Skull (a squat animal skull for ghouls), lying a little off centre.
+        int sx = 22 + rng.Next(6), sy = 8 + rng.Next(3);
+        if (ghoul)
+        {
+            s.Rect(sx, sy, 8, 4, bone); s.Rect(sx + 5, sy + 3, 4, 2, bone);
+            s.Set(sx + 2, sy + 1, boneDark); s.Set(sx + 6, sy + 4, boneDark);
+        }
+        else
+        {
+            s.Rect(sx, sy, 6, 6, bone); s.Rect(sx + 1, sy + 6, 4, 1, boneDark);
+            s.Set(sx + 1, sy + 2, new Color(30, 26, 34)); s.Set(sx + 4, sy + 2, new Color(30, 26, 34));
+            s.Rect(sx + 2, sy + 4, 2, 1, boneDark);
+        }
+        // Three or four long bones.
+        for (int i = 0; i < (skeleton ? 5 : 3); i++)
+        {
+            int x0 = 3 + rng.Next(30), y0 = 5 + rng.Next(10);
+            int x1 = x0 + rng.Next(5, 10) * (rng.Next(2) == 0 ? 1 : -1), y1 = y0 + rng.Next(-2, 3);
+            s.Line(x0, y0, x1, y1, bone);
+            s.Set(x0, y0, boneDark); s.Set(x1, y1, boneDark);
+        }
+        // Rib arcs.
+        int rx = 8 + rng.Next(8), ry = 9 + rng.Next(3);
+        for (int i = 0; i < 3; i++) s.Line(rx + i * 3, ry - 2, rx + i * 3 + 1, ry + 2, i == 1 ? boneDark : bone);
+        // Scraps of cloth or hide (skeletons keep a steel scrap too).
+        for (int i = 0; i < 4; i++)
+        {
+            int x = 2 + rng.Next(34), y = 4 + rng.Next(12);
+            s.Rect(x, y, 2 + rng.Next(3), 1 + rng.Next(2), scrap);
+        }
+        if (skeleton) s.Rect(6 + rng.Next(6), 12 + rng.Next(3), 4, 2, new Color(96, 98, 110));
+        var tex = s.Bake();
+        _cache[key] = new[] { tex };
+        return tex;
+    }
+
+    private static void ZombiePalette(Color clothTint, out Color skin, out Color skinLight, out Color skinDark,
+        out Color bone, out Color boneDark, out Color wound, out Color woundDark, out Color cloth, out Color clothDark, out Color wrap)
+    {
+        skin = new Color(122, 150, 96);
+        skinLight = new Color(150, 178, 120);
+        skinDark = Shade(skin, 0.62f);
+        bone = new Color(214, 206, 178);
+        boneDark = Shade(bone, 0.7f);
+        wound = new Color(110, 42, 48);
+        woundDark = Shade(wound, 0.6f);
+        cloth = Shade(clothTint, 0.85f);
+        clothDark = Shade(clothTint, 0.55f);
+        wrap = new Color(96, 90, 70);
+    }
+
+    /// <summary>Zombie downed: pose 0 sprawled on its back (one arm flung up, one leg
+    /// drawn up), pose 1 face-down and crumpled (arm reaching past the head). The
+    /// eyes are out — no ember glow on a dead thing. Variants keep their marks (the
+    /// reacher's bandaged brow and bone forearm, the bloated one's belly and stump).</summary>
+    private static Texture2D DrawZombieDowned(Color clothTint, string seedKey, int variant, int pose)
+    {
+        var s = new Sheet(DW, DH);
+        var rng = new Random((seedKey.GetHashCode() + variant * 7919 + pose * 131) & int.MaxValue);
+        ZombiePalette(clothTint, out var skin, out var skinLight, out var skinDark, out var bone, out var boneDark,
+            out var wound, out var woundDark, out var cloth, out var clothDark, out var wrap);
+        var socket = Shade(skin, 0.4f);
+        if (pose == 0)
+        {
+            // Legs off to the left: one straight, one drawn up at the knee.
+            s.Rect(3, 13, 10, 3, variant == 2 ? wrap : skinDark);
+            s.Rect(1, 13, 2, 3, Shade(wrap, 0.5f));                         // dragging foot
+            s.Set(7, 14, wound);
+            s.Rect(7, 9, 6, 3, wrap);                                        // thigh
+            s.Rect(4, 6, 4, 4, Shade(wrap, 0.75f));                          // shin up
+            s.Rect(3, 4, 3, 2, Shade(skin, 0.45f));                          // foot
+            // Torso on its back.
+            s.Rect(12, 8, 12, 8, cloth);
+            s.Rect(12, 15, 12, 1, clothDark);
+            s.Rect(12, 12, 12, 1, wrap);                                     // rope belt
+            if (variant == 2)
+            {
+                s.Rect(14, 9, 8, 4, skinLight);                              // burst belly
+                s.Rect(16, 10, 4, 1, wound); s.Set(20, 11, woundDark);
+            }
+            else
+            {
+                s.Rect(15, 9, 4, 3, woundDark);                              // open chest
+                s.Rect(15, 9, 4, 1, bone); s.Rect(15, 11, 4, 1, bone);
+            }
+            for (int i = 0; i < 3; i++) s.Set(12 + rng.Next(12), 15, Color.Transparent); // ragged hem
+            // Arm flung up past the shoulder, hand open.
+            s.Rect(19, 3, 3, 6, variant == 2 ? wound : skin);
+            if (variant == 2) { s.Rect(19, 3, 3, 6, Color.Transparent); s.Rect(20, 7, 3, 2, wound); s.Set(22, 8, bone); } // torn off
+            else { s.Rect(17, 1, 4, 2, skinDark); s.Set(16, 2, skinDark); }
+            // Other arm out along the ground, bare bone.
+            s.Rect(13, 16, 6, 2, variant == 1 ? bone : skin);
+            s.Set(12, 17, variant == 1 ? boneDark : skinDark);
+            s.Rect(10, 16, 3, 1, bone); s.Set(9, 15, boneDark); s.Set(9, 17, boneDark); // claw
+            // Head lolled to the right, face up.
+            s.Rect(24, 6, 7, 7, skin);
+            s.Rect(24, 6, 7, 1, skinDark);
+            s.Rect(29, 7, 2, 4, bone); s.Set(29, 7, boneDark);                // exposed skull side
+            if (variant == 1) { s.Rect(24, 7, 7, 2, wrap); s.Set(27, 8, Shade(wrap, 0.7f)); }
+            s.Set(26, 9, socket); s.Set(28, 9, socket);                      // eyes out
+            s.Rect(26, 11, 4, 1, woundDark);                                 // slack mouth
+            s.Set(31, 10, skinDark);                                         // cheek flap
+            s.Set(27, 12, wound);
+        }
+        else
+        {
+            // Legs trailing left, one bent.
+            s.Rect(2, 12, 10, 3, wrap);
+            s.Rect(1, 12, 1, 3, Shade(wrap, 0.5f));
+            s.Rect(5, 8, 7, 3, skinDark);
+            s.Rect(3, 7, 2, 3, Shade(skin, 0.45f));
+            s.Set(8, 9, wound);
+            // Back of the torso, humped.
+            s.Rect(11, 9, 12, 7, cloth);
+            s.Rect(13, 8, 8, 1, clothDark);                                  // hunch hump
+            s.Rect(11, 15, 12, 1, clothDark);
+            s.Rect(11, 12, 12, 1, wrap);
+            s.Rect(14, 10, 3, 2, woundDark); s.Set(15, 10, bone);            // a tear over the ribs
+            for (int i = 0; i < 3; i++) s.Set(11 + rng.Next(12), 15, Color.Transparent);
+            // Arm reaching past the head; the other tucked under.
+            s.Rect(27, 12, 9, 2, variant == 2 ? wound : bone);
+            if (variant == 2) s.Rect(30, 12, 6, 2, Color.Transparent); else { s.Set(36, 11, boneDark); s.Set(36, 14, boneDark); s.Set(37, 13, bone); }
+            s.Rect(9, 15, 4, 2, skin); s.Set(9, 16, skinDark);
+            // Head face-down: scalp, skull side, no face.
+            s.Rect(23, 10, 6, 5, skin);
+            s.Rect(23, 10, 6, 1, skinDark);
+            s.Rect(27, 11, 2, 3, bone); s.Set(27, 11, boneDark);
+            if (variant == 1) s.Rect(23, 11, 6, 1, wrap);
+            s.Set(24, 13, skinDark); s.Rect(24, 14, 4, 1, woundDark);
+            s.Set(22, 12, wound);
+        }
+        // Mottled rot over flesh and cloth.
+        for (int i = 0; i < 7; i++)
+        {
+            int x = 3 + rng.Next(30), y = 4 + rng.Next(13);
+            if (!s.Filled(x, y)) continue;
+            s.Set(x, y, rng.Next(3) switch { 0 => wound, 1 => new Color(70, 96, 54), _ => skinLight });
+        }
+        return s.Bake();
+    }
+
+    /// <summary>Skeleton knight downed: pose 0 a collapsed heap (breastplate, skull in
+    /// its helm, ribs and long bones shaken loose, a tabard scrap); pose 1 fallen
+    /// straight on its back, still articulated. The sockets are dark.</summary>
+    private static Texture2D DrawSkeletonDowned(Color clothTint, string seedKey, int pose)
+    {
+        var s = new Sheet(DW, DH);
+        var rng = new Random((seedKey.GetHashCode() + pose * 977) & int.MaxValue);
+        var bone = new Color(224, 218, 198);
+        var boneDark = Shade(bone, 0.68f);
+        var steel = new Color(150, 154, 166);
+        var steelLight = new Color(190, 194, 205);
+        var steelDark = Shade(steel, 0.6f);
+        var cloth = Shade(clothTint, 0.9f);
+        var clothDark = Shade(clothTint, 0.55f);
+        var socket = new Color(30, 26, 34);
+        void Skull(int x, int y)
+        {
+            s.Rect(x, y, 7, 7, bone);
+            s.Rect(x, y, 7, 2, steel); s.Rect(x, y, 1, 5, steel);            // helm brow + cheek guard
+            s.Set(x + 3, y, steelLight);
+            s.Set(x + 2, y + 3, socket); s.Set(x + 5, y + 3, socket);
+            s.Rect(x + 2, y + 5, 4, 1, boneDark);                            // teeth line
+            s.Rect(x + 1, y + 7, 5, 1, boneDark);                            // jaw
+            s.Rect(x + 6, y - 2, 2, 3, clothDark); s.Set(x + 7, y - 3, cloth); // plume trailing
+        }
+        if (pose == 0)
+        {
+            // Long bones first (they lie under the heap).
+            s.Line(2, 14, 11, 15, bone); s.Set(2, 14, boneDark); s.Set(11, 15, boneDark);
+            s.Line(24, 16, 34, 15, bone); s.Set(24, 16, boneDark); s.Set(34, 15, boneDark);
+            s.Line(29, 4, 36, 6, bone); s.Set(36, 6, boneDark);
+            s.Line(4, 8, 10, 6, bone); s.Set(4, 8, boneDark);
+            // Ribs and a scrap of tabard.
+            for (int i = 0; i < 4; i++) s.Line(7 + i * 3, 9, 8 + i * 3, 13, i % 2 == 0 ? bone : boneDark);
+            s.Rect(12, 13, 9, 3, cloth); s.Set(13 + rng.Next(7), 15, Color.Transparent); s.Set(12, 14, clothDark);
+            // Breastplate lying dented.
+            s.Rect(14, 7, 10, 6, steel);
+            s.Rect(14, 7, 10, 1, steelLight);
+            s.Rect(22, 7, 2, 6, steelDark);
+            s.Set(16 + rng.Next(5), 9 + rng.Next(3), steelDark);
+            s.Rect(14, 12, 10, 1, clothDark);                                // belt
+            // Pauldron scrap and a greave.
+            s.Rect(5, 10, 3, 2, steelDark);
+            s.Rect(26, 10, 3, 2, steelDark); s.Set(29, 11, steel);
+            Skull(27, 3);
+        }
+        else
+        {
+            // Legs stretched left with greave caps.
+            s.Rect(2, 9, 13, 2, bone); s.Rect(12, 9, 3, 2, steelDark); s.Set(6, 10, boneDark);
+            s.Rect(3, 13, 12, 2, bone); s.Rect(12, 13, 3, 2, steelDark); s.Set(8, 13, boneDark);
+            s.Rect(1, 9, 1, 2, boneDark); s.Rect(2, 13, 1, 2, boneDark);       // feet
+            // Spine and ribs under the plate.
+            s.Line(15, 11, 27, 11, boneDark);
+            for (int i = 0; i < 3; i++) s.Line(17 + i * 3, 8, 17 + i * 3, 14, bone);
+            s.Rect(15, 8, 10, 5, steel);
+            s.Rect(15, 8, 10, 1, steelLight);
+            s.Rect(23, 8, 2, 5, steelDark);
+            s.Set(17 + rng.Next(5), 9 + rng.Next(3), steelDark);
+            s.Rect(15, 13, 10, 1, clothDark);
+            s.Rect(16, 14, 7, 3, cloth); s.Set(17 + rng.Next(5), 16, Color.Transparent);
+            // Arms: one along the body, one flung wide.
+            s.Rect(16, 17, 8, 1, bone); s.Set(24, 17, boneDark);
+            s.Line(25, 6, 33, 3, bone); s.Set(33, 3, boneDark); s.Set(34, 2, bone);
+            s.Rect(13, 6, 3, 2, steelDark);                                  // pauldron
+            Skull(27, 8);
+        }
+        return s.Bake();
+    }
+
+    /// <summary>Ghoul downed: pose 0 on its side with the legs stiff, pose 1 crumpled
+    /// with the head twisted up and the jaw hanging. The eye is dull.</summary>
+    private static Texture2D DrawGhoulDowned(Color bodyTint, string seedKey, int pose)
+    {
+        var s = new Sheet(DW, DH);
+        var rng = new Random((seedKey + "gd" + pose).GetHashCode() & int.MaxValue);
+        var body = bodyTint;
+        var bodyDark = Shade(bodyTint, 0.62f);
+        var belly = Shade(bodyTint, 1.32f);
+        var leg = Shade(bodyTint, 0.82f);
+        var maw = new Color(70, 25, 35);
+        var teeth = new Color(230, 225, 200);
+        var dullEye = Shade(bodyTint, 0.45f);
+        var spine = Shade(bodyTint, 1.15f);
+        if (pose == 0)
+        {
+            // Humped body on its side, belly toward the camera, ribs showing through.
+            s.Rect(8, 8, 19, 8, body);
+            s.Rect(10, 7, 14, 1, body);
+            s.Rect(8, 14, 19, 2, bodyDark);
+            s.Rect(11, 11, 12, 3, belly);
+            for (int rx = 12; rx <= 22; rx += 3) s.Rect(rx, 9, 1, 2, bodyDark);   // ribs
+            foreach (int sx in new[] { 11, 14, 17, 20, 23 }) { s.Set(sx, 6, spine); s.Set(sx, 5, Shade(bodyTint, 0.5f)); }
+            // Legs: two stiff out to the left with claws, two folded under.
+            s.Rect(2, 9, 7, 2, leg); s.Rect(1, 8, 2, 1, bodyDark); s.Set(0, 9, bodyDark);
+            s.Rect(3, 13, 6, 2, leg); s.Rect(2, 15, 2, 1, bodyDark); s.Set(1, 14, bodyDark);
+            s.Rect(11, 16, 4, 2, leg); s.Rect(18, 16, 4, 2, leg);
+            s.Set(10, 17, bodyDark); s.Set(22, 17, bodyDark);
+            // Head, jaw hanging.
+            s.Rect(26, 8, 8, 6, body);
+            s.Rect(26, 13, 7, 1, bodyDark);
+            s.Set(30, 10, dullEye);
+            s.Rect(29, 12, 6, 3, maw); s.Set(29, 12, teeth); s.Set(33, 12, teeth); s.Set(31, 14, teeth);
+        }
+        else
+        {
+            s.Rect(9, 9, 18, 8, body);
+            s.Rect(9, 15, 18, 2, bodyDark);
+            s.Rect(12, 12, 11, 2, belly);
+            for (int rx = 13; rx <= 23; rx += 3) s.Rect(rx, 10, 1, 2, bodyDark);
+            foreach (int sx in new[] { 12, 15, 18, 21, 24 }) { s.Set(sx, 8, spine); s.Set(sx, 7, Shade(bodyTint, 0.5f)); }
+            // Legs splayed both ways, claws out.
+            s.Rect(3, 9, 7, 2, leg); s.Set(2, 8, bodyDark); s.Set(2, 10, bodyDark);
+            s.Rect(4, 13, 6, 2, leg); s.Set(3, 15, bodyDark);
+            s.Rect(26, 14, 6, 2, leg); s.Set(32, 13, bodyDark); s.Set(32, 16, bodyDark);
+            s.Rect(24, 17, 5, 2, leg); s.Set(29, 18, bodyDark);
+            // Head twisted up, mouth open to the sky.
+            s.Rect(25, 3, 7, 7, body);
+            s.Rect(25, 3, 7, 1, bodyDark);
+            s.Set(28, 5, dullEye);
+            s.Rect(29, 2, 4, 3, maw); s.Set(29, 2, teeth); s.Set(32, 4, teeth);
+        }
+        for (int i = 0; i < 6; i++)
+        {
+            int x = 8 + rng.Next(20), y = 8 + rng.Next(8);
+            if (s.Filled(x, y)) s.Set(x, y, bodyDark);
+        }
+        return s.Bake();
+    }
+
+    /// <summary>Necromancer downed: pose 0 a robe heap with the hood fallen aside and
+    /// the staff dropped beside it, pose 1 flattened flat with a sleeve out and the
+    /// staff snapped, its skull rolled loose. No eye-light, no chant glow.</summary>
+    private static Texture2D DrawNecroDowned(Color robe, int pose)
+    {
+        var s = new Sheet(DW, DH);
+        var robeDark = Shade(robe, 0.62f);
+        var hood = Shade(robe, 0.5f);
+        var wood = new Color(96, 76, 52);
+        var bone = new Color(226, 222, 206);
+        var hollow = new Color(16, 12, 20);
+        if (pose == 0)
+        {
+            // Staff first, under the heap.
+            s.Line(4, 6, 26, 4, wood); s.Set(14, 5, Shade(wood, 0.7f));
+            s.Rect(1, 3, 3, 3, bone); s.Set(2, 4, hollow);                    // staff skull
+            // The robe mound with a few folds.
+            for (int y = 8; y <= 17; y++)
+            {
+                int half = 6 + (y - 8) * 5 / 9;
+                s.Rect(19 - half, y, half * 2, 1, robe);
+                s.Set(19 - half, y, robeDark); s.Set(18 + half, y, robeDark);
+            }
+            s.Line(12, 10, 16, 16, robeDark); s.Line(20, 9, 24, 15, robeDark);
+            for (int x = 8; x <= 30; x += 3) s.Set(x, 17, Color.Transparent); // ragged hem
+            // Hood fallen aside, empty.
+            s.Rect(28, 6, 8, 7, hood);
+            s.Rect(29, 5, 6, 1, hood);
+            s.Rect(30, 8, 4, 3, hollow);
+            s.Set(27, 9, hood);
+        }
+        else
+        {
+            for (int y = 10; y <= 17; y++)
+            {
+                int half = 9 + (y - 10) * 4 / 7;
+                s.Rect(18 - half, y, half * 2, 1, robe);
+                s.Set(18 - half, y, robeDark); s.Set(17 + half, y, robeDark);
+            }
+            s.Line(10, 12, 14, 17, robeDark); s.Line(21, 11, 24, 17, robeDark);
+            for (int x = 6; x <= 30; x += 4) s.Set(x, 17, Color.Transparent);
+            s.Rect(2, 12, 7, 2, robe); s.Set(2, 12, robeDark);                // sleeve out
+            s.Rect(1, 13, 2, 1, bone);                                        // a bony hand
+            // Hood collapsed at the top of the heap.
+            s.Rect(25, 8, 8, 5, hood); s.Rect(27, 9, 4, 2, hollow);
+            // Snapped staff, skull rolled away.
+            s.Line(9, 6, 17, 5, wood); s.Line(22, 3, 28, 4, wood);
+            s.Rect(34, 14, 3, 3, bone); s.Set(35, 15, hollow);
+        }
+        return s.Bake();
+    }
+
     private static Texture2D BakeStrip(Color[] px, int w, int h)
     {
         // Outline pass identical in spirit to Canvas.Bake.

@@ -412,6 +412,26 @@ public class WorldRenderer
             new Vector2(len, thick), SpriteEffects.None, 0f);
     }
 
+    /// <summary>How a fallen enemy lies, fixed per corpse id: which authored pose (0
+    /// sprawled on its back, 1 crumpled face-down), whether it's mirrored (head to
+    /// the left), and a small tilt so a cleared pack isn't a row of copies.</summary>
+    public static (int Pose, bool Flip, float Tilt) CorpseLie(int corpseId)
+    {
+        uint h = (uint)corpseId * 2654435761u;
+        h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
+        int pose = (int)(h & 1);
+        bool flip = ((h >> 1) & 1) == 1;
+        float tilt = (((h >> 2) & 0xFF) / 255f * 2f - 1f) * 0.16f;
+        return (pose, flip, tilt);
+    }
+
+    /// <summary>Corpse decay: 0 while the body lies whole, rising to 1 over three
+    /// seconds from 45s after death as it crossfades into its remnant (bones and
+    /// scraps). Bosses never decay — the trophy stays.</summary>
+    public const float CorpseWholeSeconds = 45f;
+    public static float CorpseDecayT(float ageSeconds, bool boss) =>
+        boss ? 0f : Math.Clamp((ageSeconds - CorpseWholeSeconds) / 3f, 0f, 1f);
+
     /// <summary>How far above the floor (screen px) and how spun a freshly dropped
     /// item is: it falls from chest height, bounces twice and tumbles into its lie.</summary>
     public static (float Lift, float Spin) DropLanding(float age, bool mirrored)
@@ -763,6 +783,15 @@ public class WorldRenderer
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
                     var wtTex = brick ? TextureGen.DiamondBrick
                         : organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
+                    if (!brick && _materials.Count > 0)
+                    {
+                        // Raised blocks wear the same textured ground as the floor, lifted
+                        // a shade so the step still reads.
+                        wtTex = GroundTiles.Get(MaterialAt(map, x, y), (int)(TileHash(map.Seed ^ 0x77746F70, x, y) % GroundTiles.VariantCount));
+                        float wb = MathF.Min(1f, 0.96f + 0.18f * GroundNoise(map.Seed, x, y));
+                        topTint = new Color(wb, wb, wb) * OccluderFade(topDepth,
+                            new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
+                    }
                     _sorted.Add((topDepth, batch =>
                         batch.Draw(wtTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx),
@@ -1145,7 +1174,6 @@ public class WorldRenderer
             _sorted.Add((cpos.X + cpos.Y + corpse.Height * 1.0f + 0.03f + UnderDeckBias(cpos, corpse.Height), batch =>
             {
                 var tex = cframes[0];
-                float sMul = (cdef?.SpriteScale ?? 1f) * 2f;
                 if (bleeds)
                 {
                     // Not a neat puddle — a scatter of blood pixels around the body,
@@ -1164,23 +1192,37 @@ public class WorldRenderer
                     }
                 }
                 // Ease-out topple to one side (side picked by id so packs don't stack
-                // identically), then the body SETTLES into a proper dead-heap sprite —
-                // slumped flesh, a bone pile, a crumpled robe — not a tipped walk frame.
+                // identically), then the body SETTLES into an AUTHORED downed pose in
+                // its own palette — sprawled or crumpled, mirrored and tilted per
+                // corpse — and, much later, crossfades into bones and scraps.
                 float ease = 1f - (1f - fallT) * (1f - fallT);
-                var heap = SpriteGen.GetEnemyCorpseSprite(cdef, cVariant);
-                if (fallT >= 1f && heap != null)
+                var lie = CorpseLie(cid);
+                var pose = SpriteGen.GetEnemyDeathPose(cdef, cVariant, lie.Pose);
+                float bodyScale = (corpse.Boss ? 3f : 2f) * (cdef?.SpriteScale ?? 1f);
+                if (fallT >= 1f && pose != null)
                 {
-                    var fx2 = cid % 2 == 0 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
-                    batch.Draw(heap, new Vector2(cScreen.X - heap.Width * sMul / 2f,
-                        cScreen.Y + 4 - heap.Height * sMul), null, new Color(205, 196, 200),
-                        0f, Vector2.Zero, sMul, fx2, 0f);
+                    float ageS = (animClock - corpse.SpawnedAtMs) / 1000f;
+                    float decay = CorpseDecayT(ageS, corpse.Boss);
+                    var fx2 = lie.Flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+                    var origin = new Vector2(pose.Width / 2f, pose.Height - 2f);
+                    var feet = new Vector2(cScreen.X, cScreen.Y + 4);
+                    if (decay < 1f)
+                        batch.Draw(pose, feet, null, new Color(236, 230, 232) * (1f - decay), lie.Tilt,
+                            origin, bodyScale, fx2, 0f);
+                    if (decay > 0f)
+                    {
+                        var remnant = SpriteGen.GetEnemyRemnant(cdef);
+                        if (remnant != null)
+                            batch.Draw(remnant, feet, null, new Color(226, 220, 214) * decay, lie.Tilt,
+                                new Vector2(remnant.Width / 2f, remnant.Height - 2f), bodyScale, fx2, 0f);
+                    }
                 }
                 else
                 {
-                    float ang = (cid % 2 == 0 ? 1f : -1f) * (MathF.PI / 2f) * ease;
-                    var bodyTint = Color.Lerp(Color.White, new Color(120, 112, 116), 0.35f + 0.35f * fallT);
+                    float ang = (lie.Flip ? -1f : 1f) * (MathF.PI / 2f) * ease;
+                    var bodyTint = Color.Lerp(Color.White, new Color(200, 192, 196), 0.5f * fallT);
                     batch.Draw(tex, new Vector2(cScreen.X, cScreen.Y + 4), null, bodyTint,
-                        ang, new Vector2(tex.Width / 2f, tex.Height), sMul, SpriteEffects.None, 0f);
+                        ang, new Vector2(tex.Width / 2f, tex.Height), bodyScale, SpriteEffects.None, 0f);
                 }
             }));
         }

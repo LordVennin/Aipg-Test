@@ -5774,6 +5774,18 @@ public static class HeadlessNetTest
                   $"fresh drops fall from chest height, bounce and tumble into their lie ({freshDrops.Count(d => d.Animated)}/{freshDrops.Count} animated, map loaded {(Environment.TickCount64 - clientA.World.MapLoadedAtMs) / 1000f:0.0}s ago)");
         }
 
+        // Corpses: an authored pose per body, mirrored and tilted per corpse, whole for
+        // 45s and then crossfading into bones; bosses keep their trophy.
+        {
+            var lies = Enumerable.Range(1, 16).Select(Render.WorldRenderer.CorpseLie).ToList();
+            Check(lies.Any(l => l.Pose == 0) && lies.Any(l => l.Pose == 1) && lies.Any(l => l.Flip) && lies.Any(l => !l.Flip) &&
+                  lies.All(l => MathF.Abs(l.Tilt) <= 0.16f) && Render.WorldRenderer.CorpseLie(7) == Render.WorldRenderer.CorpseLie(7) &&
+                  Render.WorldRenderer.CorpseDecayT(10f, false) == 0f &&
+                  MathF.Abs(Render.WorldRenderer.CorpseDecayT(46.5f, false) - 0.5f) < 0.01f &&
+                  Render.WorldRenderer.CorpseDecayT(60f, false) == 1f && Render.WorldRenderer.CorpseDecayT(600f, true) == 0f,
+                  "corpses take one of two authored poses per id, lie mirrored/tilted, decay after 45s (bosses never)");
+        }
+
         Console.WriteLine("\n-- Breakables --");
         {
             var barrelsBefore = server.World.Structures.Count;

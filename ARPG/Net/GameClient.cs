@@ -859,6 +859,7 @@ public class GameClient
                 e.EliteFlags = r.GetByte();
                 e.EliteName = r.GetString();
                 e.Def = _data.Enemies.GetValueOrDefault(e.TypeId);
+                if (e.IsBoss) World.BossIds.Add(e.Id);
                 World.Enemies[e.Id] = e;
                 break;
             }
@@ -906,6 +907,7 @@ public class GameClient
                 c.Position = r.GetVec2();
                 c.Height = r.GetFloat();
                 c.SpawnedAtMs = Environment.TickCount64;
+                c.Boss = World.BossIds.Contains(c.SourceId);
                 World.Corpses[c.Id] = c;
                 break;
             }

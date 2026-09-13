@@ -1468,3 +1468,30 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
 - The old checkerboard floor remains only for a theme with no materials
   listed; the forest's per-tile speckles are replaced by the textures.
 - Client-side only; no protocol change.
+
+---
+
+# Addendum (batch 65): authored death poses, and the raised blocks get their texture
+
+- **Downed bodies are drawn, not squashed.** The old corpse was the walk frame
+  rotated and flattened, which collapsed its outline into black bars. Every
+  sprite style now has two authored lying poses in its own palette, outlined
+  once: zombies sprawled on their back (arm flung up, a leg drawn up) or
+  crumpled face-down (arm reaching past the head), keeping the reacher's
+  bandage and bone forearm and the bloated one's belly and stump; skeleton
+  knights as a collapsed heap (breastplate, helmed skull, ribs, loose long
+  bones, a tabard scrap) or fallen straight and still articulated; ghouls on
+  their side with stiff legs or crumpled with the head twisted skyward; the
+  grave caller as a robe heap with the hood fallen empty and the staff
+  dropped, or flattened with the staff snapped and its skull rolled away.
+  Eyes are out on all of them.
+- **Each corpse lies its own way**: pose, mirror and a small tilt fixed by its
+  id. A single mild desaturation replaces the old double dimming. Boss
+  corpses draw at boss size.
+- **Decay.** 45 seconds after death a body crossfades over three seconds into
+  a remnant — a skull, a few long bones, rib arcs and scraps of what it wore
+  — which stays until the map's corpse cap retires it. Bosses never decay.
+- **Raised blocks** (the one-level "wall" ground in the forest and Old Road)
+  now wear the floor's textured material a shade brighter, instead of a
+  flat tinted diamond.
+- Client-side only; no protocol change.
