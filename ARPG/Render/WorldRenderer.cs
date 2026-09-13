@@ -524,13 +524,35 @@ public class WorldRenderer
                     float depthN = GroundNoise(map.Seed ^ 0x0BADCAFE, x, y);
                     var waterShade = LerpColor(new Color(24, 52, 92), new Color(38, 78, 122), depthN);
                     sb.Draw(TextureGen.DiamondFlat, new Vector2((int)screen.X - 32, (int)screen.Y - 16), waterShade);
-                    // Shore foam: a light lip on edges that touch land.
                     bool Shore(int nx, int ny) => !map.IsWater(nx, ny) && !map.IsSolid(nx, ny);
-                    var foam = new Color(150, 190, 210);
-                    if (Shore(x, y - 1)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 2, (int)screen.Y - 15, 6, 1), foam);
-                    if (Shore(x, y + 1)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 4, (int)screen.Y + 13, 6, 1), foam);
-                    if (Shore(x - 1, y)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 30, (int)screen.Y - 1, 5, 1), foam);
-                    if (Shore(x + 1, y)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X + 25, (int)screen.Y - 1, 5, 1), foam);
+                    if (_materials.Count > 0)
+                    {
+                        // Ragged shoreline: the neighbouring land laps over this edge along
+                        // a noise-wobbled line, then a pale shallow band and a foam line
+                        // hug that line on the water side — no more diamond stair-steps.
+                        var at = new Vector2((int)screen.X - 32, (int)screen.Y - 16);
+                        for (int e = 0; e < 4; e++)
+                        {
+                            int nx = e == 0 ? x - 1 : e == 1 ? x + 1 : x, ny = e == 2 ? y - 1 : e == 3 ? y + 1 : y;
+                            if (!Shore(nx, ny)) continue;
+                            var landMat = MaterialAt(map, nx, ny);
+                            int sv = (int)((wn >> (3 + e * 4)) % GroundTiles.VariantCount);
+                            float gb = MathF.Min(1f, 0.80f + 0.2f * GroundNoise(map.Seed, nx, ny));
+                            var land = GroundTiles.GetFeathered(landMat, sv, e);
+                            if (land != null) sb.Draw(land, at, new Color(gb, gb, gb));
+                            var shoreFoam = GroundTiles.GetShoreFoam(landMat, sv, e);
+                            if (shoreFoam != null) sb.Draw(shoreFoam, at, Color.White);
+                        }
+                    }
+                    else
+                    {
+                        // Shore foam: a light lip on edges that touch land.
+                        var foam = new Color(150, 190, 210);
+                        if (Shore(x, y - 1)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 2, (int)screen.Y - 15, 6, 1), foam);
+                        if (Shore(x, y + 1)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 4, (int)screen.Y + 13, 6, 1), foam);
+                        if (Shore(x - 1, y)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 30, (int)screen.Y - 1, 5, 1), foam);
+                        if (Shore(x + 1, y)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X + 25, (int)screen.Y - 1, 5, 1), foam);
+                    }
                     // Two glints per tile, sliding slowly so the surface reads as liquid.
                     int t = Environment.TickCount;
                     for (int g = 0; g < 2; g++)
@@ -1233,6 +1255,7 @@ public class WorldRenderer
             var screen = camera.WorldToScreen(pos, e.Height);
             var def = e.Def;
             var color = ParseColor(def?.Color, new Color(190, 60, 60));
+            if (e.RevealedAtMs == 0) continue; // lying in wait: unseen until a player is near
             float size = (def?.Radius ?? 0.4f) * 90f;
             int variant = SpriteGen.VariantFor(def, e.Id);
             var frames = SpriteGen.GetEnemyFrames(def, variant);
@@ -1268,6 +1291,11 @@ public class WorldRenderer
                     animOff = strikeDir * (7f * animScale * (1f - swingT));        // lurch, then settle
                 }
             }
+            // Entrance: a revealed enemy that was lying in wait climbs out of the ground
+            // over RiseSeconds — the sprite is clipped from the top down so the head
+            // breaks the surface first (skeletons rattle sideways as they assemble).
+            float riseT = e.Rose ? Math.Clamp((animClock - e.RevealedAtMs) / (ClientEnemy.RiseSeconds * 1000f), 0f, 1f) : 1f;
+            bool rising = riseT < 1f;
             _sorted.Add((pos.X + pos.Y + e.Height * 1.0f + 0.1f + UnderDeckBias(pos, e.Height), batch =>
             {
                 int barY;
@@ -1282,6 +1310,15 @@ public class WorldRenderer
                     int w = (int)(tex.Width * scale * sMul), h = (int)(tex.Height * scale * sMul);
                     var spriteRect = new Rectangle((int)(screen.X + animOff.X) - w / 2,
                         (int)(screen.Y + animOff.Y) - h + 6, w, h);
+                    Rectangle? srcRect = null;
+                    if (rising)
+                    {
+                        float up = riseT * riseT * (3f - 2f * riseT); // ease: slow break, quick stand
+                        int visH = Math.Max(2, (int)(h * up));
+                        int rattle = def?.SpriteStyle == "Skeleton" ? (int)(MathF.Sin(animClock * 0.06f) * 2f * (1f - riseT)) : 0;
+                        srcRect = new Rectangle(0, 0, tex.Width, Math.Max(1, (int)(tex.Height * up)));
+                        spriteRect = new Rectangle(spriteRect.X + rattle, spriteRect.Bottom - visH, w, visH);
+                    }
                     EnemyHitRects.Add((spriteRect, e.Id));
                     if (e.IsRare || e.IsMagic)
                     {
@@ -1301,7 +1338,7 @@ public class WorldRenderer
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size / 4), (int)size, (int)(size / 2)),
                         new Color(0, 0, 0, 90)); // shadow
-                    if (e.Id == HoveredEnemyId)
+                    if (e.Id == HoveredEnemyId && !rising)
                     {
                         // Red OUTLINE: the sprite's silhouette at 4 offsets underneath,
                         // then the untinted sprite on top — only the rim shows red.
@@ -1324,10 +1361,10 @@ public class WorldRenderer
                         bodyTint = MultiplyTint(bodyTint, new Color(190, 215, 255)); // light chill frost
                     if (windupT > 0.55f) // the last stretch of a wind-up flashes as the final tell
                         bodyTint = LerpColor(bodyTint, new Color(255, 236, 200), (windupT - 0.55f) * 0.9f);
-                    batch.Draw(tex, spriteRect, null,
+                    batch.Draw(tex, spriteRect, srcRect,
                         bodyTint, 0f, Vector2.Zero,
                         e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
-                    if (animClock < e.FlashUntilMs)
+                    if (animClock < e.FlashUntilMs && !rising)
                     {
                         // Hit flash: the body's silhouette in white over the sprite for a
                         // few frames — the blow registers before the number floats up.
@@ -1427,7 +1464,7 @@ public class WorldRenderer
                         new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size), (int)size, (int)size), e.Id);
                     barY = (int)screen.Y - (int)size - 26;
                 }
-                if (_settings.ShowEnemyHealthBars)
+                if (_settings.ShowEnemyHealthBars && !rising)
                 {
                     float frac = e.MaxHealth > 0 ? Math.Clamp(e.Health / e.MaxHealth, 0f, 1f) : 0;
                     int barW = e.IsElite ? 44 : 32;
@@ -2179,14 +2216,53 @@ public class WorldRenderer
                 }));
             }
 
-            if (fx.Kind == "debris")
+            if (fx.Kind == "levelup")
+            {
+                // Level up: a golden ring racing out from the feet, a column of light
+                // fading upward, and sparks rising and drifting apart. Deterministic.
+                int seedL = (int)(fx.Position.X * 311) ^ (int)(fx.Position.Y * 587);
+                AddLight(screen + new Vector2(0, -20), 150f + 120f * t, new Color(255, 225, 140) * (0.9f * (1f - t)));
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.02f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    float r = 8f + 62f * MathF.Sqrt(t);
+                    var ringCol = new Color(255, 222, 120) * (0.9f * (1f - t));
+                    for (int k = 0; k < 28; k++)
+                    {
+                        float a = k * (MathF.Tau / 28f);
+                        batch.Draw(TextureGen.Pixel,
+                            new Rectangle((int)(screen.X + MathF.Cos(a) * r), (int)(screen.Y + MathF.Sin(a) * r * 0.5f), 2, 2), ringCol);
+                    }
+                }));
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.3f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    float colAlpha = t < 0.15f ? t / 0.15f : 1f - (t - 0.15f) / 0.85f;
+                    int colH = (int)(120 + 60 * t), colW = (int)(44 - 10 * t);
+                    batch.Draw(TextureGen.RadialLight, new Rectangle((int)screen.X - colW / 2, (int)screen.Y - colH + 6, colW, colH),
+                        new Color(255, 236, 170) * (0.55f * colAlpha));
+                    for (int i = 0; i < 14; i++)
+                    {
+                        var rngL = new Random(seedL + i * 71);
+                        float side = ((float)rngL.NextDouble() - 0.5f) * 44f;
+                        float speed = 50f + 60f * (float)rngL.NextDouble();
+                        float delay = 0.25f * (float)rngL.NextDouble();
+                        float st = Math.Clamp((t - delay) / (1f - delay), 0f, 1f);
+                        if (st <= 0f) continue;
+                        var sp = new Vector2(screen.X + side + MathF.Sin(st * 6f + i) * 4f, screen.Y - 6 - speed * st);
+                        var sc = i % 3 == 0 ? Color.White : new Color(255, 226, 130);
+                        batch.Draw(TextureGen.Pixel, new Rectangle((int)sp.X, (int)sp.Y, 2, 2), sc * (1f - st));
+                    }
+                }));
+            }
+
+            if (fx.Kind is "debris" or "dirtburst")
             {
                 // Slam debris: dust puffs and small terrain-colored "rock" pixels popping
                 // up from the impact. Fully deterministic from the effect's position hash
-                // and age — no particle state to track or replicate.
+                // and age — no particle state to track or replicate. A dirtburst (an
+                // enemy clawing up out of the earth) is the same in turned-soil browns.
                 int seed = (int)(fx.Position.X * 733) ^ (int)(fx.Position.Y * 911);
                 float radiusPxD = fx.Radius * IsoCamera.HalfTileW;
-                var dustBase = _floorB;
+                var dustBase = fx.Kind == "dirtburst" ? new Color(96, 74, 50) : _floorB;
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.25f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
                     // Dust: soft flattened circles drifting outward and fading — thrown

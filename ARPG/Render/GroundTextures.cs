@@ -176,6 +176,42 @@ public static class GroundTiles
         return tex;
     }
 
+    /// <summary>The shoreline for a water tile whose neighbour across `edge` is land of
+    /// material `m`: the same ragged boundary the feathered land tile uses, with a
+    /// band of pale shallow water beyond it and a bright foam line hugging it. Drawn
+    /// over the water tile after the feathered land, so the shore wanders instead of
+    /// tracing the diamond.</summary>
+    public static Texture2D GetShoreFoam(GroundMaterial m, int variant, int edge)
+    {
+        if (_device == null) return null;
+        variant = ((variant % VariantCount) + VariantCount) % VariantCount;
+        string key = m.CacheKey + "#" + variant + "f" + edge;
+        if (_cache.TryGetValue(key, out var tex)) return tex;
+        var px = new Color[W * H];
+        int seed = StyleSeed(m.Style) * 31 + variant * 7 + edge * 131;
+        var shallow = new Color(120, 176, 205);
+        var foam = new Color(226, 240, 250);
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                float sx = x + 0.5f - W / 2f, sy = y + 0.5f - H / 2f;
+                if (MathF.Abs(sx) / (W / 2f) + MathF.Abs(sy) / (H / 2f) > 1f) continue;
+                float u = (sx / (W / 2f) + sy / (H / 2f) + 1f) / 2f;
+                float v = (sy / (H / 2f) + 1f - sx / (W / 2f)) / 2f;
+                float t = edge switch { 0 => u, 1 => 1f - u, 2 => v, _ => 1f - v };
+                float wobble = GroundField.ValueNoise(seed, x, y, 0.11f);
+                float threshold = 0.44f + 0.36f * (wobble - 0.5f);
+                float past = t - threshold; // > 0: on the water side of the ragged shore
+                if (past <= 0f || past > 0.24f) continue;
+                if (past <= 0.07f) px[y * W + x] = foam * (0.85f - past * 4f);
+                else px[y * W + x] = shallow * (0.34f * (1f - (past - 0.07f) / 0.17f));
+            }
+        tex = new Texture2D(_device, W, H);
+        tex.SetData(px);
+        _cache[key] = tex;
+        return tex;
+    }
+
     private static int StyleSeed(string style)
     {
         int h = 17;

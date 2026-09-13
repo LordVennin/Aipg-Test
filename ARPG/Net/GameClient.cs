@@ -1068,7 +1068,12 @@ public class GameClient
                 int levelBefore = World.MyCharacter?.Level ?? 0;
                 World.MyCharacter = Json.Load<CharacterData>(r.GetString());
                 if (levelBefore > 0 && World.MyCharacter?.Level > levelBefore)
+                {
                     Audio.AudioManager.PlayUi("levelup");
+                    World.LevelUpAtMs = Environment.TickCount64;
+                    World.LevelUpLevel = World.MyCharacter.Level;
+                    if (World.Me != null) World.AddEffect(World.Me.Position, 1.2f, 1.5f, "levelup", World.Me.Height);
+                }
                 World.RecomputeMyStats(_data);
                 CharacterUpdated?.Invoke();
                 break;
@@ -1225,6 +1230,7 @@ public class GameClient
                 else if (!fn.TargetIsPlayer && World.Enemies.TryGetValue(targetId, out var te))
                 {
                     fn.Position = te.Position; fn.Height = te.Height;
+                    World.RevealEnemy(te, allowRise: false); // a hit gives it away at once
                     if (!fn.Blocked && fn.Amount > 0.5f)
                     {
                         // The struck body flashes white for a few frames and sparks fly

@@ -59,6 +59,8 @@ public class PlayScreen : IScreen
     /// <summary>ARPG_DEVUI=drops: scatter one of every scroll shortly after joining.</summary>
     private bool _devDropScrolls;
     private bool _devDropSample;
+    /// <summary>ARPG_DEVUI=xp: grant character XP a few times shortly after joining (level-up capture).</summary>
+    private int _devGrantXp;
     /// <summary>ARPG_DEVUI=shop: walk-free shop open shortly after joining (GUI automation).</summary>
     private bool _devOpenShop;
     /// <summary>ARPG_DEVUI=summons: learn the skeleton archers and raise a pack (GUI automation).</summary>
@@ -246,6 +248,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("inventory")) _inventory.Open = true;
             if (devUi.Contains("drops")) _devDropScrolls = true;
             if (devUi.Contains("loot")) _devDropSample = true;
+            if (devUi.Contains("xp")) _devGrantXp = 8;
             if (devUi.Contains("shop")) _devOpenShop = true;
             if (devUi.Contains("shopgrid")) _shop.DevAutoGrid = true;
             if (devUi.Contains("tree")) _skillTree.Open = true;
@@ -392,6 +395,11 @@ public class PlayScreen : IScreen
         {
             _devDropScrolls = false;
             _client.SendDebugCommand("drop_scrolls");
+        }
+        if (_devGrantXp > 0 && _clientTime > 2.5f)
+        {
+            _devGrantXp--;
+            _client.SendDebugCommand("char_xp");
         }
         if (_devDropSample && _clientTime > 1.5f)
         {

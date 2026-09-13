@@ -60,6 +60,27 @@ public class HudUI
         var character = _client.World.MyCharacter;
         if (me == null || character == null) return;
 
+        // --- level-up banner: "LEVEL 12" rising in from the upper third and fading ---
+        {
+            float since = (Environment.TickCount64 - _client.World.LevelUpAtMs) / 1000f;
+            if (_client.World.LevelUpAtMs > 0 && since < 2.6f)
+            {
+                float t = since / 2.6f;
+                float alpha = t < 0.12f ? t / 0.12f : t > 0.72f ? (1f - t) / 0.28f : 1f;
+                float rise = 14f * (1f - MathF.Min(1f, since / 0.5f));
+                var big = FontManager.GetBold(34);
+                var small = FontManager.Get(15);
+                string title = $"LEVEL {_client.World.LevelUpLevel}";
+                string sub = "a passive point is yours to spend";
+                var ts = big.MeasureString(title);
+                var ss = small.MeasureString(sub);
+                float cy = screen.Y * 0.26f + rise;
+                sb.DrawString(big, title, new Vector2(screen.X / 2f - ts.X / 2f + 2, cy + 2), new Color(0, 0, 0) * (0.6f * alpha));
+                sb.DrawString(big, title, new Vector2(screen.X / 2f - ts.X / 2f, cy), new Color(255, 222, 130) * alpha);
+                sb.DrawString(small, sub, new Vector2(screen.X / 2f - ss.X / 2f, cy + ts.Y + 2), new Color(232, 226, 210) * alpha);
+            }
+        }
+
         // --- pending-choice badges (top left): unspent passive points, skills that can
         // level — small pills with the key that opens the right panel, pulsing gently ---
         {

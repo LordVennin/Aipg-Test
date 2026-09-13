@@ -110,6 +110,12 @@ public class ClientEnemy
     public string EliteName = "";
     /// <summary>Local time (ms) until which the body flashes white from a fresh hit.</summary>
     public long FlashUntilMs;
+    /// <summary>Local time (ms) this enemy was first shown; 0 = still hidden (it lies
+    /// in wait until a player comes within reveal range). See ClientWorld.RevealRange.</summary>
+    public long RevealedAtMs;
+    /// <summary>True when the reveal plays the rise-from-the-ground entrance.</summary>
+    public bool Rose;
+    public const float RiseSeconds = 0.9f;
 
     // Telegraphed melee swing animation (EnemyAttack events): 1 = winding up,
     // 2 = swing resolved. The renderer animates from the phase timestamp; stale
@@ -483,6 +489,33 @@ public class ClientWorld
     public int HitSparksSeen;
     /// <summary>Ids of every boss seen spawning, so its corpse keeps boss size.</summary>
     public readonly HashSet<int> BossIds = new();
+    /// <summary>Local time (ms) of the last level-up and the level reached (HUD banner).</summary>
+    public long LevelUpAtMs;
+    public int LevelUpLevel;
+    /// <summary>Idle enemies stay unseen until a player is this close, then burst up
+    /// out of the ground in view. Wider than any aggro range, so nothing that's
+    /// already hunting can still be hidden.</summary>
+    public const float RevealRange = 11.5f;
+
+    /// <summary>Show a hidden enemy: an entrance (rising from the earth with a burst
+    /// of dirt, or a dark bloom for casters) when it was lying in wait on an open
+    /// map, or instantly otherwise (bosses, camp defense waves, anything already up
+    /// and moving or taking hits).</summary>
+    public void RevealEnemy(ClientEnemy e, bool allowRise)
+    {
+        if (e.RevealedAtMs != 0) return;
+        e.RevealedAtMs = Environment.TickCount64;
+        bool open = Map != null && Map.Kind is not (World.MapKind.Defense or World.MapKind.Hub);
+        e.Rose = allowRise && open && !e.IsBoss && e.State == (byte)Server.EnemyState.Idle;
+        if (!e.Rose) return;
+        if (e.Def?.SpriteStyle == "Necro")
+            AddEffect(e.Position, 0.8f, 0.7f, "darkburst", e.Height);
+        else
+        {
+            AddEffect(e.Position, 0.7f, 0.55f, "dirtburst", e.Height);
+            SpawnBlood(e.Position, e.Height, default, e.Def?.SpriteStyle == "Skeleton" ? 0xB9AE92 : 0x5A4630, heavy: true);
+        }
+    }
     /// <summary>Diagnostic counter: blocked-hit events received (used by the headless net test).</summary>
     public int BlockedEventsSeen;
 
@@ -512,6 +545,14 @@ public class ClientWorld
         }
         foreach (var e in Enemies.Values)
         {
+            if (e.RevealedAtMs == 0)
+            {
+                bool near = false;
+                foreach (var p in Players.Values)
+                    if (p.Alive && Vector2.DistanceSquared(p.Position, e.Position) <= RevealRange * RevealRange) { near = true; break; }
+                if (near || e.State != (byte)Server.EnemyState.Idle || e.IsBoss) RevealEnemy(e, allowRise: near);
+                if (e.RevealedAtMs == 0) continue;
+            }
             // Screen-space horizontal direction in isometric projection: (dx - dy).
             var delta = e.NetTarget - e.Position;
             float screenDx = delta.X - delta.Y;
