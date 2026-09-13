@@ -149,6 +149,11 @@ public class ZoneTheme
     /// <summary>Organic floor: per-tile shade picked from FloorA..FloorD by a seed hash,
     /// drawn gridless with tiny speckles — continuous terrain instead of a checkerboard.</summary>
     public bool OrganicFloor { get; set; }
+    /// <summary>Ground materials the floor is made of ("grass:3A5632", "dirt", ...):
+    /// baked pixel textures scattered in noise patches and blended at their edges.
+    /// Listed staple-first; later entries draw over earlier ones at boundaries, and
+    /// trails wear the "dirt" entry (or the last one). Empty = the old tinted tiles.</summary>
+    public List<string> GroundMaterials { get; set; } = new();
     public string FloorC { get; set; }
     public string FloorD { get; set; }
     public string CliffFace { get; set; } = "808C80";

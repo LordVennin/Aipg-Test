@@ -16,7 +16,12 @@
     "PropStyle": "graveyard",
     "ClutterDensity": 0.05,
     "WallFeatureChance": 0.3,
-    "AmbientLight": "9AA2B8"
+    "AmbientLight": "9AA2B8",
+    "GroundMaterials": [
+      "deadgrass:3F4A3A",
+      "mud:33362F",
+      "dirt:4E4636"
+    ]
   },
   {
     "Id": "tomb",
@@ -35,7 +40,12 @@
     "PropStyle": "tomb",
     "ClutterDensity": 0.035,
     "WallFeatureChance": 0.4,
-    "AmbientLight": "8A8CA6"
+    "AmbientLight": "8A8CA6",
+    "GroundMaterials": [
+      "dust:3A3844",
+      "flagstone:403E4A",
+      "gravel:46434E"
+    ]
   },
   {
     "Id": "arid",
@@ -53,7 +63,12 @@
     "DeckLip": "4A3E2C",
     "PropStyle": "arid",
     "ClutterDensity": 0.055,
-    "WallFeatureChance": 0.45
+    "WallFeatureChance": 0.45,
+    "GroundMaterials": [
+      "sand:6A5C3E",
+      "cracked:5C4E34",
+      "gravel:5A503A"
+    ]
   },
   {
     "Id": "sanctum",
@@ -98,6 +113,11 @@
     "WallFeatureChance": 0.85,
     "OrganicFloor": true,
     "FloorC": "3C5834",
-    "FloorD": "2C4427"
+    "FloorD": "2C4427",
+    "GroundMaterials": [
+      "grass:3A5632",
+      "litter:3E482C",
+      "dirt:5C4A32"
+    ]
   }
 ]
