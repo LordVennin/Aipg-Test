@@ -279,6 +279,8 @@ public class ClientCorpse
     public float Height;
     /// <summary>Local arrival time (ms) — drives the client-side fall animation.</summary>
     public long SpawnedAtMs;
+    /// <summary>The fallen enemy was a boss: drawn at boss size, never decays.</summary>
+    public bool Boss;
 }
 
 /// <summary>A defense-map structure (wagon, workbench, turrets, barriers) as replicated.</summary>
@@ -479,6 +481,8 @@ public class ClientWorld
     public int DodgeEventsSeen;
     /// <summary>Count of hit-spark bursts spawned (tests; the effect itself is short-lived).</summary>
     public int HitSparksSeen;
+    /// <summary>Ids of every boss seen spawning, so its corpse keeps boss size.</summary>
+    public readonly HashSet<int> BossIds = new();
     /// <summary>Diagnostic counter: blocked-hit events received (used by the headless net test).</summary>
     public int BlockedEventsSeen;
 
