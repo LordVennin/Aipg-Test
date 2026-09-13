@@ -1443,3 +1443,28 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   what's still in the air draws over the scene. Shelter rules are unchanged
   (nothing lands under bridge decks or canopies).
 - Client-side only; no protocol change.
+
+---
+
+# Addendum (batch 64): ground textures
+
+- **Materials instead of tinted diamonds.** Every open-air theme now lists two
+  or three ground materials (`GroundMaterials` in themes.json, "style:RRGGBB"):
+  forest = grass / leaf litter / dirt, graveyard (the Old Road) = dead grass /
+  mud / dirt, tomb = dust / flagstone / gravel, arid = sand / cracked earth /
+  gravel. The sanctum keeps its laid stone.
+- **Baked pixel textures.** Each material bakes four 64x32 variants with its
+  own detail: grass blades and the odd flower, dry straw, pebbles and pits,
+  fallen leaves and twigs, wet mud pools with a glint, moss clumps, sand
+  ripples, crack lines, scattered stones, jittered flagstone slabs with
+  mortar, dusty floor. Fine grain and a broad brightness noise stop repeats
+  from reading.
+- **Patches and blending.** A seeded two-octave noise field assigns each tile
+  a material (staple ~47%, second ~23%, third the rest; trails wear the dirt
+  entry). At every boundary the higher-priority neighbour laps over the edge
+  through a copy of its texture whose alpha is cut along a noise-wobbled line,
+  so grass gives way to dirt along a ragged edge rather than a diamond seam.
+  Raised terraces and elevated tops wear the same textures a shade brighter.
+- The old checkerboard floor remains only for a theme with no materials
+  listed; the forest's per-tile speckles are replaced by the textures.
+- Client-side only; no protocol change.

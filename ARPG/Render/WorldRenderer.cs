@@ -65,6 +65,11 @@ public class WorldRenderer
         _floorB = ParseColor(theme.FloorB, new Color(52, 60, 54));
         _floorC = ParseColor(theme.FloorC ?? theme.FloorA, _floorA);
         _floorD = ParseColor(theme.FloorD ?? theme.FloorB, _floorB);
+        _materials.Clear();
+        if (theme.GroundMaterials != null)
+            foreach (var spec in theme.GroundMaterials) _materials.Add(GroundMaterial.Parse(spec));
+        _pathMaterial = _materials.FindIndex(m => m.Style == "dirt");
+        if (_pathMaterial < 0) _pathMaterial = _materials.Count - 1;
         _cliffFace = ParseColor(theme.CliffFace, new Color(128, 140, 128));
         _elevTop = ParseColor(theme.ElevatedTop, new Color(70, 80, 68));
         _wallFace = ParseColor(theme.WallFace, new Color(140, 133, 173));
@@ -83,6 +88,7 @@ public class WorldRenderer
             AmbientLight = amb.R >= 240 && amb.G >= 240 && amb.B >= 240 ? null : amb;
         }
         GeneratePaths(map);
+        _materialField = GroundField.Build(map, _materials.Count, _pathField, _pathMaterial);
         RebuildProps(map);
         GenerateSunPatches(map);
     }
@@ -226,6 +232,49 @@ public class WorldRenderer
     /// <summary>Per-tile path strength 0..1 (core 1, fading rings outward), noise-scaled
     /// at draw time so trail edges are ragged instead of diamond-staircased.</summary>
     private readonly Dictionary<int, float> _pathField = new();
+
+    /// <summary>The theme's ground materials (see ZoneTheme.GroundMaterials), the per-tile
+    /// material field for the current map, and which entry trails wear.</summary>
+    private readonly List<GroundMaterial> _materials = new();
+    private int[] _materialField = Array.Empty<int>();
+    private int _pathMaterial = -1;
+
+    private GroundMaterial MaterialAt(GameMap map, int x, int y)
+    {
+        if (_materials.Count == 0) return null;
+        int key = y * map.Width + x;
+        int idx = key >= 0 && key < _materialField.Length ? _materialField[key] : 0;
+        return _materials[Math.Clamp(idx, 0, _materials.Count - 1)];
+    }
+
+    /// <summary>Draw one textured floor tile: its own material, then every neighbour of
+    /// a HIGHER-priority material laps over the shared edge through a ragged feathered
+    /// copy of its texture, so grass gives way to dirt along a wandering line rather
+    /// than a diamond seam. The broad noise tint keeps large areas from tiling.</summary>
+    private void DrawMaterialTile(SpriteBatch sb, GameMap map, int x, int y, Vector2 screen, float brightness = 1f)
+    {
+        int key = y * map.Width + x;
+        int mi = key < _materialField.Length ? Math.Clamp(_materialField[key], 0, _materials.Count - 1) : 0;
+        uint n = TileHash(map.Seed ^ 0x4D4154, x, y);
+        int variant = (int)(n % GroundTiles.VariantCount);
+        float gn = GroundNoise(map.Seed, x, y);
+        float b = MathF.Min(1f, (0.84f + 0.22f * gn) * brightness);
+        var tint = new Color(b, b, b);
+        var at = new Vector2((int)screen.X - 32, (int)screen.Y - 16);
+        var tex = GroundTiles.Get(_materials[mi], variant);
+        if (tex != null) sb.Draw(tex, at, tint);
+        for (int e = 0; e < 4; e++)
+        {
+            int nx = e == 0 ? x - 1 : e == 1 ? x + 1 : x, ny = e == 2 ? y - 1 : e == 3 ? y + 1 : y;
+            if (nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height) continue;
+            if (map.IsWater(nx, ny) || map.IsRuins(nx, ny)) continue;
+            int nk = ny * map.Width + nx;
+            int ni = nk < _materialField.Length ? _materialField[nk] : mi;
+            if (ni <= mi) continue;
+            var feather = GroundTiles.GetFeathered(_materials[ni], (int)((n >> (4 + e * 3)) % GroundTiles.VariantCount), e);
+            if (feather != null) sb.Draw(feather, at, tint);
+        }
+    }
 
     private void GeneratePaths(GameMap map)
     {
@@ -496,6 +545,12 @@ public class WorldRenderer
                     sb.Draw(TextureGen.DiamondBrick, new Vector2((int)screen.X - 32, (int)screen.Y - 16), tint);
                     continue;
                 }
+                if (_materials.Count > 0)
+                {
+                    // Textured ground: baked material tiles blended at their boundaries.
+                    DrawMaterialTile(sb, map, x, y, screen);
+                    continue;
+                }
                 if (!organic)
                 {
                     var tint = ((x + y) & 1) == 0 ? floorA : floorB;
@@ -666,8 +721,17 @@ public class WorldRenderer
                         float trTopDepth = x + y + ground * 0.6f;
                         var trTint = trTop * OccluderFade(trTopDepth,
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx, 64, 32));
+                        var trTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
+                        if (_materials.Count > 0)
+                        {
+                            // The terrace top wears the same textured ground, a shade brighter.
+                            trTex = GroundTiles.Get(MaterialAt(map, x, y), (int)(TileHash(map.Seed ^ 0x4D4154, x, y) % GroundTiles.VariantCount));
+                            float tb = MathF.Min(1f, 0.92f + 0.2f * trN);
+                            trTint = new Color(tb, tb, tb) * OccluderFade(trTopDepth,
+                                new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx, 64, 32));
+                        }
                         _sorted.Add((trTopDepth, batch =>
-                            batch.Draw(organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid,
+                            batch.Draw(trTex,
                                 new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx), trTint)));
                     }
                     continue;
@@ -807,10 +871,17 @@ public class WorldRenderer
                     var etTint = top * etFade;
                     var etTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
                     uint etHash = TileHash(map.Seed ^ 0x746F70, x, y);
+                    if (_materials.Count > 0)
+                    {
+                        // Textured ground on the raised top too, a touch brighter than the floor.
+                        etTex = GroundTiles.Get(MaterialAt(map, x, y), (int)(etHash % GroundTiles.VariantCount));
+                        float eb = MathF.Min(1f, 0.92f + 0.2f * GroundNoise(map.Seed, x, y));
+                        etTint = new Color(eb, eb, eb) * etFade;
+                    }
                     var etDark = new Color((int)(top.R * 0.8f), (int)(top.G * 0.8f), (int)(top.B * 0.8f)) * etFade;
                     var etLite = new Color(
                         Math.Min(255, top.R + 22), Math.Min(255, top.G + 30), Math.Min(255, top.B + 16)) * etFade;
-                    bool etOrganic = organic;
+                    bool etOrganic = organic && _materials.Count == 0; // textures carry their own detail
                     _sorted.Add((etDepth, batch =>
                     {
                         batch.Draw(etTex,

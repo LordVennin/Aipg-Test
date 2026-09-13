@@ -3831,6 +3831,25 @@ public static class HeadlessNetTest
                       dressMap.ExitDoor + new Vector2(-1.2f, 0)),
                   "tall grass never blocks the corridor (still walkable end to end)");
 
+            // Textured ground: every open-air theme lists two or three materials, the
+            // field scatters them in patches (all of them present on a forest map),
+            // and trail tiles wear the dirt entry.
+            {
+                var forestMats = data.ZoneThemes.First(t => t.Id == "forest").GroundMaterials
+                    .Select(Render.GroundMaterial.Parse).ToList();
+                var trail = new Dictionary<int, float> { [5 * dressMap.Width + 5] = 1f };
+                int dirtIdx = forestMats.FindIndex(mm => mm.Style == "dirt");
+                var field = Render.GroundField.Build(dressMap, forestMats.Count, trail, dirtIdx);
+                var fieldAgain = Render.GroundField.Build(dressMap, forestMats.Count, trail, dirtIdx);
+                int distinct = field.Distinct().Count();
+                Check(forestMats.Count >= 3 && distinct == forestMats.Count && field.SequenceEqual(fieldAgain) &&
+                      field[5 * dressMap.Width + 5] == dirtIdx && dirtIdx >= 0 &&
+                      Render.GroundMaterial.Parse("moss:385C46").Base.G == 0x5C &&
+                      data.ZoneThemes.Where(t => !t.StoneBrick).All(t => t.GroundMaterials.Count >= 2 &&
+                          t.GroundMaterials.All(spec => Array.IndexOf(Render.GroundMaterial.Styles, spec.Split(':')[0]) >= 0)),
+                      $"ground materials: {forestMats.Count} forest materials all present ({distinct} in the field), trails wear dirt, every open-air theme textured");
+            }
+
             // Weather shelter: rain/snow never reach under bridge decks or tree
             // canopies, and shelter is HEIGHT-aware — the same tile is dry below the
             // deck and wet on top of it.
