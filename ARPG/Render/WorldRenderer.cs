@@ -29,6 +29,19 @@ public class WorldRenderer
     /// highlighted, and the pickup key targets it (walking over if needed).</summary>
     public Guid HoveredDropId = Guid.Empty;
 
+    /// <summary>How a dropped item lies on the ground, fixed per drop id so every client
+    /// (and every frame) agrees: a tilt of up to ±0.45 rad, whether it landed mirrored,
+    /// and a phase for its rarity glow. Guid hashes are stable across processes.</summary>
+    public static (float Tilt, bool Flip, float Phase) DropLie(Guid dropId)
+    {
+        uint h = (uint)dropId.GetHashCode();
+        h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
+        float tilt = ((h & 0xFFFF) / 65535f * 2f - 1f) * 0.45f;
+        bool flip = ((h >> 16) & 1) == 1;
+        float phase = ((h >> 17) & 0xFF) / 255f * MathF.PI * 2f;
+        return (tilt, flip, phase);
+    }
+
     private const int WallHeight = 24;
 
     // ------------------------------------------------------------------ zone theme
@@ -909,6 +922,7 @@ public class WorldRenderer
             var pos = drop.Position;
             var screen = camera.WorldToScreen(pos, drop.Height);
             var item = drop.Item;
+            var lie = DropLie(drop.DropId);
             _sorted.Add((pos.X + pos.Y + drop.Height * 1.0f + 0.05f + UnderDeckBias(pos, drop.Height), batch =>
             {
                 if (drop.IsGold)
@@ -916,28 +930,60 @@ public class WorldRenderer
                     var pile = SpriteGen.GetGoldPile();
                     if (pile != null)
                         batch.Draw(pile, new Rectangle((int)screen.X - pile.Width, (int)screen.Y - pile.Height,
-                            pile.Width * 2, pile.Height * 2), Color.White);
+                            pile.Width * 2, pile.Height * 2), null, Color.White, 0f, Vector2.Zero,
+                            lie.Flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
                     return;
                 }
-                var enchantTex = SpriteGen.GetEnchantScrollSprite(item.GetBase(_data));
+                var itemBase = item.GetBase(_data);
+                var fx = lie.Flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+                // Every dropped item rests in its own small shadow; rare and unique finds
+                // also sit in a faint ring of their rarity colour so they catch the eye.
+                batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 13, (int)screen.Y - 5, 26, 10),
+                    new Color(0, 0, 0, 70));
+                if (item.Rarity >= Items.ItemRarity.Rare)
+                {
+                    var ring = RarityColor(item.Rarity);
+                    float pulse = 0.55f + 0.45f * MathF.Sin(Environment.TickCount64 * 0.004f + lie.Phase);
+                    batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 17, (int)screen.Y - 7, 34, 14),
+                        ring * (0.10f + 0.10f * pulse));
+                }
+                var enchantTex = SpriteGen.GetEnchantScrollSprite(itemBase);
                 if (enchantTex != null)
                 {
-                    batch.Draw(enchantTex, new Rectangle((int)screen.X - 12, (int)screen.Y - 16, 24, 24), Color.White);
+                    batch.Draw(enchantTex, new Vector2(screen.X, screen.Y - 4), null, Color.White, lie.Tilt * 0.6f,
+                        new Vector2(enchantTex.Width / 2f, enchantTex.Height / 2f),
+                        24f / enchantTex.Width, fx, 0f);
                     return;
                 }
-                var skillScrollTex = SpriteGen.GetSkillScrollSprite(item.GetBase(_data));
+                var skillScrollTex = SpriteGen.GetSkillScrollSprite(itemBase);
                 if (skillScrollTex != null)
                 {
-                    batch.Draw(skillScrollTex, new Rectangle((int)screen.X - 10, (int)screen.Y - 24, 21, 29), Color.White);
+                    batch.Draw(skillScrollTex, new Vector2(screen.X, screen.Y - 10), null, Color.White, lie.Tilt * 0.5f,
+                        new Vector2(skillScrollTex.Width / 2f, skillScrollTex.Height / 2f),
+                        29f / skillScrollTex.Height, fx, 0f);
                     return;
                 }
-                var weaponTex = SpriteGen.GetWeaponSprite(item.GetBase(_data));
+                var weaponTex = SpriteGen.GetWeaponSprite(itemBase);
                 if (weaponTex != null)
                 {
-                    // Weapons lie on the ground as their actual sprite (diagonal, as if dropped).
+                    // Weapons lie on the ground as their actual sprite, thrown down at a
+                    // different diagonal each time (mirrored for about half of them).
+                    float angle = (lie.Flip ? MathF.PI / 5f : -MathF.PI / 5f) + lie.Tilt;
                     batch.Draw(weaponTex, new Vector2(screen.X, screen.Y - 4), null, Color.White,
-                        -MathF.PI / 5f, new Vector2(weaponTex.Width / 2f, weaponTex.Height / 2f),
-                        1.6f, SpriteEffects.None, 0f);
+                        angle, new Vector2(weaponTex.Width / 2f, weaponTex.Height / 2f),
+                        1.6f, fx, 0f);
+                    return;
+                }
+                // Armor, jewelry, flasks, quivers, curios and pets fall as the same glyph the
+                // bag shows, lying at a slight tilt so a pile of drops doesn't line up.
+                Texture2D glyph = SpriteGen.GetArmorSprite(itemBase) ?? SpriteGen.GetFlaskSprite(itemBase)
+                    ?? SpriteGen.GetQuiverSprite(itemBase) ?? SpriteGen.GetCurioSprite(itemBase)
+                    ?? (itemBase.Category == Items.ItemCategory.Pet ? SpriteGen.GetPetSprite(itemBase.Id) : null);
+                if (glyph != null)
+                {
+                    float scale = MathF.Min(26f / glyph.Width, 26f / glyph.Height);
+                    batch.Draw(glyph, new Vector2(screen.X, screen.Y - 7), null, Color.White, lie.Tilt,
+                        new Vector2(glyph.Width / 2f, glyph.Height / 2f), scale, fx, 0f);
                     return;
                 }
                 var color = RarityColor(item.Rarity);

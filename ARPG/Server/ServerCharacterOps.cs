@@ -678,6 +678,32 @@ public partial class ServerWorld
                 }
                 break;
             }
+            case "drop_sample":
+            {
+                // One drop of every item category in a ring around the character, rarities
+                // cycling Normal / Magic / Rare (pets are always unique), plus a gold pile:
+                // a quick look at how every kind of loot lies on the ground.
+                int slot = 0;
+                foreach (ItemCategory cat in Enum.GetValues<ItemCategory>())
+                {
+                    var b = Data.Items.Values.Where(x => x.Category == cat)
+                        .OrderBy(_ => _rng.Next()).FirstOrDefault();
+                    if (b == null) continue;
+                    var rarity = (ItemRarity)(slot % 3);
+                    var item = cat == ItemCategory.Pet ? Loot.GeneratePet(b.Id, Math.Max(1, c.Level))
+                        : cat is ItemCategory.EnchantScroll or ItemCategory.SkillScroll or ItemCategory.Curio
+                            ? new ItemInstance { BaseItemId = b.Id, ItemLevel = 1, Rarity = ItemRarity.Normal, BaseModifierLimit = 0, StackCount = 1 }
+                            : Loot.Generate(b, Math.Max(1, c.Level), rarity);
+                    if (item == null) continue;
+                    float ang = slot * (MathF.PI * 2f / 16f);
+                    SpawnDrop(item, p.Position + new System.Numerics.Vector2(MathF.Cos(ang), MathF.Sin(ang)) * (slot % 2 == 0 ? 2.1f : 3.4f));
+                    slot++;
+                }
+                // Outside the auto-pickup radius, or the character pockets it at once.
+                float goldAng = slot * (MathF.PI * 2f / 16f);
+                SpawnGoldDrop(40 + _rng.Next(60), p.Position + new System.Numerics.Vector2(MathF.Cos(goldAng), MathF.Sin(goldAng)) * 2.1f);
+                break;
+            }
             case "skill_xp":
             {
                 foreach (var skill in c.Skills)

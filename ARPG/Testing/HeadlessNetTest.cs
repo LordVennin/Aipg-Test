@@ -5612,6 +5612,25 @@ public static class HeadlessNetTest
         Check(kept && MathF.Abs(clipA.X) < 0.01f && MathF.Abs(clipB.X - 50f) < 0.01f && dropped,
               "passive tree connections clip to the panel edge while panning");
 
+        // Ground drops: every item category lands as a real sprite lying its own way.
+        var lieA = Render.WorldRenderer.DropLie(Guid.Parse("11111111-2222-3333-4444-555555555555"));
+        var lieAgain = Render.WorldRenderer.DropLie(Guid.Parse("11111111-2222-3333-4444-555555555555"));
+        int distinctLies = Enumerable.Range(0, 24).Select(_ => Render.WorldRenderer.DropLie(Guid.NewGuid()))
+            .Select(l => (MathF.Round(l.Tilt, 2), l.Flip)).Distinct().Count();
+        Check(lieA == lieAgain && MathF.Abs(lieA.Tilt) <= 0.45f && distinctLies >= 8,
+              $"drops lie at a fixed per-drop tilt/mirror ({distinctLies}/24 distinct lies)");
+        var sampleKeysBefore = server.World.Drops.Keys.ToHashSet();
+        clientA.SendDebugCommand("drop_sample");
+        Pump(0.8f);
+        var sampleDrops = server.World.Drops.Where(kv => !sampleKeysBefore.Contains(kv.Key)).Select(kv => kv.Value).ToList();
+        int sampleCats = sampleDrops.Where(d => d.Item != null).Select(d => d.Item.GetBase(data).Category).Distinct().Count();
+        int sampleRare = sampleDrops.Count(d => d.Item != null && d.Item.Rarity == Items.ItemRarity.Rare);
+        int sampleOnA = sampleDrops.Count(d => clientA.World.Drops.ContainsKey(d.DropId));
+        Check(sampleCats >= 12 && sampleDrops.Any(d => d.IsGold) && sampleRare > 0,
+              $"drop_sample scatters one of every loot kind ({sampleCats} categories, {sampleDrops.Count} drops, {sampleRare} rare)");
+        Check(sampleOnA == sampleDrops.Count,
+              $"the sample ring replicates to the client ({sampleOnA}/{sampleDrops.Count} seen)");
+
         Console.WriteLine("\n-- Disconnect resilience --");
         clientB.Disconnect();
         Pump(1.0f);

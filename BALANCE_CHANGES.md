@@ -1364,3 +1364,23 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   "N passive points to spend" with the tree key, and "<skill> can level up"
   (or "N skills can level up") with the skill-menu key, whenever there is
   something waiting. They disappear once spent.
+
+---
+
+# Addendum (batch 61): loot that looks like loot on the ground
+
+- **Every item category has a ground sprite**: armor, jewelry, flasks, quivers,
+  curios and pets used to drop as a flat rarity-coloured diamond; they now lie
+  on the ground as the same glyph the bag shows (a hood, a ring, a bottle, the
+  critter itself), scaled to ~26px.
+- **No two drops lie the same way**: each drop gets a tilt of up to ±0.45 rad
+  and a coin-flip mirror fixed by its id, so every client and every frame
+  agree and a pile of loot reads as a scatter instead of a row. Weapons keep
+  their thrown-down diagonal but now land on either diagonal, at their own
+  angle; gold piles mirror too.
+- **Grounding**: a soft shadow under every item, and a faint pulsing ring in
+  the rarity colour under Rare and Unique finds.
+- Dev: `drop_sample` debug command / `loot` startup token rings the player
+  with one of every item category (rarities cycling Normal/Magic/Rare, pets
+  unique) plus a gold pile.
+- Client-side only; no protocol change.
