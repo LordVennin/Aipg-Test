@@ -106,6 +106,10 @@ public class ClientEnemy
     /// <summary>Elite affix bitmask (Server.EliteAffix) from the spawn packet — drives
     /// tinting, bar size and the hover display name.</summary>
     public byte EliteFlags;
+    /// <summary>A rare's own name from the spawn packet ("Gorrak the Barbed").</summary>
+    public string EliteName = "";
+    /// <summary>Local time (ms) until which the body flashes white from a fresh hit.</summary>
+    public long FlashUntilMs;
 
     // Telegraphed melee swing animation (EnemyAttack events): 1 = winding up,
     // 2 = swing resolved. The renderer animates from the phase timestamp; stale
@@ -120,17 +124,23 @@ public class ClientEnemy
         get
         {
             string baseName = Def?.Name ?? TypeId;
-            if (EliteFlags == 0 || (EliteFlags & 8) != 0) return baseName; // bosses use their own name
+            if (EliteFlags == 0 || IsBoss || IsMinion) return baseName; // bosses use their own name
+            if (IsRare && !string.IsNullOrEmpty(EliteName)) return EliteName;
             string prefix = "";
-            if ((EliteFlags & 1) != 0) prefix += "Brutish ";
-            if ((EliteFlags & 2) != 0) prefix += "Swift ";
-            if ((EliteFlags & 4) != 0) prefix += "Warded ";
+            foreach (var a in Server.EliteAffixInfo.Rollable)
+                if ((Affixes & a) != 0) prefix += Server.EliteAffixInfo.Name(a) + " ";
             return prefix + baseName;
         }
     }
 
-    public bool IsElite => EliteFlags != 0;
+    public Server.EliteAffix Affixes => (Server.EliteAffix)EliteFlags;
+    public bool IsElite => EliteFlags != 0 && !IsMinion;
     public bool IsBoss => (EliteFlags & 8) != 0;
+    /// <summary>Two or more affixes: a named rare (gold).</summary>
+    public bool IsRare => Server.EliteAffixInfo.IsRare(Affixes);
+    /// <summary>Exactly one affix: a magic monster (blue).</summary>
+    public bool IsMagic => Server.EliteAffixInfo.IsMagic(Affixes);
+    public bool IsMinion => Server.EliteAffixInfo.IsMinion(Affixes);
 }
 
 public class ClientProjectile
@@ -229,8 +239,17 @@ public class ClientDrop
     /// <summary>Dropped item, or null for a gold pile.</summary>
     public ItemInstance Item;
     public int GoldAmount;
+    /// <summary>Local arrival time (ms): fresh drops fall and bounce before settling.</summary>
+    public long SpawnedAtMs;
+    /// <summary>False for drops that were already lying there when the map loaded.</summary>
+    public bool Animated;
 
     public bool IsGold => Item == null;
+    /// <summary>Seconds since the drop appeared here.</summary>
+    public float Age => (Environment.TickCount64 - SpawnedAtMs) / 1000f;
+    /// <summary>The landing tumble lasts this long; labels wait for it.</summary>
+    public const float LandDuration = 0.72f;
+    public bool Landing => Animated && Age < LandDuration;
 }
 
 /// <summary>A floating combat number spawned from a server DamageEvent.</summary>
@@ -429,8 +448,13 @@ public class ClientWorld
 
     /// <summary>Wipe every replicated world object for a map transition (players stay —
     /// they travel together; their positions snap on the next state packet).</summary>
+    /// <summary>Local time (ms) the current map's entities started arriving; drops
+    /// that arrive within the first moments were already lying there and don't bounce.</summary>
+    public long MapLoadedAtMs;
+
     public void ClearForMapChange()
     {
+        MapLoadedAtMs = Environment.TickCount64;
         BloodDrops.Clear();
         BloodStains.Clear();
         Enemies.Clear();
@@ -453,6 +477,8 @@ public class ClientWorld
     public readonly List<string> CutscenesSeen = new();
     /// <summary>Diagnostic counter: dodge events received (used by the headless net test).</summary>
     public int DodgeEventsSeen;
+    /// <summary>Count of hit-spark bursts spawned (tests; the effect itself is short-lived).</summary>
+    public int HitSparksSeen;
     /// <summary>Diagnostic counter: blocked-hit events received (used by the headless net test).</summary>
     public int BlockedEventsSeen;
 

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Numerics;
 using ARPG.Data;
 using ARPG.Items;
@@ -60,6 +61,8 @@ public class ServerPlayer
     // Dodge: cooldown and invulnerability are server-authoritative.
     public float NextDodgeAt;
     public float InvulnerableUntil;
+    /// <summary>While the dash lasts, the body smashes breakables it passes through.</summary>
+    public float DodgeUntil;
     /// <summary>Client position updates are ignored until this time (set on map
     /// transitions, while the client's in-flight states still carry old-map coords).</summary>
     public float IgnoreStateUntil;
@@ -143,10 +146,108 @@ public class ServerPlayer
 public enum EliteAffix : byte
 {
     None = 0,
-    Brutish = 1,  // much more life and damage
-    Swift = 2,    // faster movement and attacks
-    Warded = 4,   // elemental resistance shell + extra life
-    Boss = 8,     // miniboss: slam attack, stun resistance, guaranteed loot
+    Brutish = 1,       // much more life and damage
+    Swift = 2,         // faster movement and attacks
+    Warded = 4,        // elemental resistance shell + extra life
+    Boss = 8,          // miniboss: slam attack, stun resistance, guaranteed loot
+    Vampiric = 16,     // heals from the damage it deals
+    Thorny = 32,       // melee blows against it cut the attacker back
+    Regenerating = 64, // knits itself back together when left alone
+    Minion = 128,      // a RARE leader's follower: tougher, no affix of its own
+}
+
+/// <summary>
+/// Elite TIERS, Diablo-style: a MAGIC monster carries exactly one affix (blue), a
+/// RARE one two or three plus a name of its own (gold) and a pack of tougher minions.
+/// Shared by server (rolling, scaling) and client (names, colours, the hover panel's
+/// affix descriptions) so both agree on what a bitmask means.
+/// </summary>
+public static class EliteAffixInfo
+{
+    public const EliteAffix RollableMask = EliteAffix.Brutish | EliteAffix.Swift | EliteAffix.Warded |
+                                           EliteAffix.Vampiric | EliteAffix.Thorny | EliteAffix.Regenerating;
+    public static readonly EliteAffix[] Rollable =
+    {
+        EliteAffix.Brutish, EliteAffix.Swift, EliteAffix.Warded,
+        EliteAffix.Vampiric, EliteAffix.Thorny, EliteAffix.Regenerating,
+    };
+
+    /// <summary>Number of rollable (non-boss, non-minion) affixes in the mask.</summary>
+    public static int AffixCount(EliteAffix a) => System.Numerics.BitOperations.PopCount((uint)(a & RollableMask));
+    public static bool IsBoss(EliteAffix a) => (a & EliteAffix.Boss) != 0;
+    public static bool IsMinion(EliteAffix a) => (a & EliteAffix.Minion) != 0;
+    /// <summary>Two or more affixes: a named RARE.</summary>
+    public static bool IsRare(EliteAffix a) => !IsBoss(a) && AffixCount(a) >= 2;
+    /// <summary>Exactly one affix: a MAGIC monster.</summary>
+    public static bool IsMagic(EliteAffix a) => !IsBoss(a) && AffixCount(a) == 1;
+
+    public static string Name(EliteAffix a) => a switch
+    {
+        EliteAffix.Brutish => "Brutish",
+        EliteAffix.Swift => "Swift",
+        EliteAffix.Warded => "Warded",
+        EliteAffix.Vampiric => "Vampiric",
+        EliteAffix.Thorny => "Thorny",
+        EliteAffix.Regenerating => "Regenerating",
+        EliteAffix.Boss => "Boss",
+        EliteAffix.Minion => "Minion",
+        _ => "",
+    };
+
+    /// <summary>What the affix does, for the hover panel.</summary>
+    public static string Describe(EliteAffix a) => a switch
+    {
+        EliteAffix.Brutish => "2.5x life, 1.5x damage",
+        EliteAffix.Swift => "moves 35% faster, attacks 30% sooner",
+        EliteAffix.Warded => "+40% to all resistances",
+        EliteAffix.Vampiric => "heals 30% of the damage it deals",
+        EliteAffix.Thorny => "melee hits cut the attacker for 15%",
+        EliteAffix.Regenerating => "regrows 3% life a second when unhurt for 2s",
+        EliteAffix.Boss => "slams, shrugs off stuns, always drops loot",
+        EliteAffix.Minion => "a rare's follower: +50% life",
+        _ => "",
+    };
+
+    /// <summary>The epithet a rare earns from its FIRST affix ("Gorrak the Barbed").</summary>
+    public static string Epithet(EliteAffix a) => a switch
+    {
+        EliteAffix.Brutish => "the Brute",
+        EliteAffix.Swift => "the Fleet",
+        EliteAffix.Warded => "the Shielded",
+        EliteAffix.Vampiric => "the Thirsting",
+        EliteAffix.Thorny => "the Barbed",
+        EliteAffix.Regenerating => "the Unending",
+        _ => "the Cursed",
+    };
+
+    private static readonly string[] NameHeads =
+        { "Gor", "Mal", "Vex", "Thar", "Ulg", "Kra", "Zul", "Bram", "Hex", "Mor", "Skar", "Dru" };
+    private static readonly string[] NameTails =
+        { "rak", "goth", "mir", "vash", "dun", "zek", "gul", "thar", "mok", "ath" };
+
+    /// <summary>A rare's name: two syllables plus the epithet of its first affix.</summary>
+    public static string RareName(Random rng, EliteAffix affixes)
+    {
+        var first = EliteAffix.None;
+        foreach (var a in Rollable) if ((affixes & a) != 0) { first = a; break; }
+        return NameHeads[rng.Next(NameHeads.Length)] + NameTails[rng.Next(NameTails.Length)] + " " + Epithet(first);
+    }
+
+    /// <summary>The pack-leader roll: 50% plain, 32% magic (one affix), 18% rare (two or
+    /// three distinct affixes and a name). Returns None with an empty name for plain.</summary>
+    public static EliteAffix RollPackLeader(Random rng, out string name)
+    {
+        name = "";
+        int roll = rng.Next(100);
+        if (roll < 50) return EliteAffix.None;
+        if (roll < 82) return Rollable[rng.Next(Rollable.Length)];
+        int count = rng.Next(100) < 35 ? 3 : 2;
+        var pool = Rollable.OrderBy(_ => rng.Next()).Take(count);
+        var affixes = EliteAffix.None;
+        foreach (var a in pool) affixes |= a;
+        name = RareName(rng, affixes);
+        return affixes;
+    }
 }
 
 public class ServerEnemy
@@ -191,6 +292,12 @@ public class ServerEnemy
 
     // Elite/pack state. Multipliers default to 1 so normal enemies are unaffected.
     public EliteAffix Affixes;
+    /// <summary>A RARE's own name ("Gorrak the Barbed"); empty for everything else.</summary>
+    public string EliteName = "";
+    /// <summary>Server time of the last damage taken (Regenerating waits 2s after it).</summary>
+    public float LastDamagedAt = -100f;
+    /// <summary>Regenerating: seconds since the last health sync while regrowing.</summary>
+    public float RegenAccum;
     public int PackId = -1;           // index into ServerWorld.Packs, -1 = unaffiliated
     public float DamageScale = 1f;
     public float SpeedScale = 1f;
@@ -346,6 +453,8 @@ public class PackSpawner
     public (string typeId, int count)[] Entries;
     /// <summary>Affixes applied to the FIRST spawned member (the leader). None = no elite.</summary>
     public EliteAffix LeaderAffixes;
+    /// <summary>A rare leader's name (empty otherwise); its pack mates spawn as Minions.</summary>
+    public string LeaderName = "";
     /// <summary>0 = each def's native level; otherwise every member spawns at this level.</summary>
     public int EnemyLevel;
     public float ScatterRadius = 1.4f;

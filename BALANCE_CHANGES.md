@@ -1384,3 +1384,43 @@ skip the pass entirely; Options -> Gameplay can toggle it. Suite: 510 checks.
   with one of every item category (rarities cycling Normal/Magic/Rare, pets
   unique) plus a gold pile.
 - Client-side only; no protocol change.
+
+---
+
+# Addendum (batch 62): rare monsters, loot that bounces, swings that cut, urns that break
+
+- **Elite tiers.** Every pack leader rolls a tier: 50% plain, 32% **magic**
+  (one affix, blue), 18% **rare** (two or three distinct affixes, a generated
+  name such as "Skarmir the Thirsting", gold). A rare's pack mates spawn as
+  **minions** (+50% life, 1.5x XP, faint lavender tint, no affix of their own).
+  Rares get +25% life on top of their affixes and 1.5x XP, roll the loot table
+  three times and always leave one rare-quality piece of equipment behind.
+  Minions roll once like plain monsters.
+- **Three new affixes** join Brutish / Swift / Warded: **Vampiric** (1.4x life;
+  heals 30% of the damage it deals), **Thorny** (1.5x life; a melee blow that
+  lands on it cuts the swinger for 15% of the damage, min 1, never deflected)
+  and **Regenerating** (1.4x life; 3% of max life a second after 2s unhurt).
+  Each grants 2.5x XP like the originals. Rares spawned without a name
+  (debug) are named on the spot.
+- **Hover panel** colours the name by tier (gold rare with its type in
+  brackets, blue magic, lavender minion, violet boss) and lists each affix
+  with what it does. Rare and magic monsters stand in a pulsing ring of their
+  tier colour.
+- **Loot lands.** A drop that appears after you've arrived falls from chest
+  height, bounces twice, tumbles into its resting tilt and only then shows its
+  label (0.72s). Loot already on the floor when a map loads just lies there.
+- **Rings and amulets on the floor** shrink to 12 / 15 px (belts and gloves 20,
+  the rest 24) — they were nearly head-sized.
+- **Swings read.** A mace or staff sweep leaves three fading ghosts of the
+  weapon behind it and a bright streak along the path of its head; the
+  overhead slam ghosts its chop. Every damaging hit on an enemy flashes its
+  silhouette white for ~90ms and throws six short sparks along the blow.
+- **Breakables.** Urn and Barrel structure kinds (1 life, never block paths
+  or routing). Any skill impact circle, the arc in front of a melee swing, a
+  player projectile along its flight line (piercing shots carry on, plain
+  ones stop) or a **dodge roll** through them shatters them into clay or wood
+  shards that stay on the floor. The sanctum stands eight urns along its
+  walls, restocked on every return; they hold nothing there. Outside the hub a
+  broken urn spills a few coins 40% of the time. Barrels are defined and
+  spawnable (`spawn_breakable barrel`) but placed nowhere yet.
+- Protocol v44: the enemy spawn packet carries the rare's name.

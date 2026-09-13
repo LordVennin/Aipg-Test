@@ -678,6 +678,36 @@ public partial class ServerWorld
                 }
                 break;
             }
+            case "spawn_breakable":
+            {
+                // "urn" (default) or "barrel", set down two tiles ahead of the character.
+                var kind = arg == "barrel" ? StructureKind.Barrel : StructureKind.Urn;
+                var at = p.Position + (p.Facing == System.Numerics.Vector2.Zero ? new System.Numerics.Vector2(1, 0) : p.Facing) * 2f;
+                if (Map.CircleHitsWall(at, 0.3f)) at = p.Position;
+                SpawnBreakable(kind, at);
+                break;
+            }
+            case "spawn_elite":
+            {
+                // "magic" (one random affix), "rare" (two or three + a name), or an affix
+                // list like "vampiric+thorny" — a grunt two tiles ahead, for testing.
+                if (Map.Kind == MapKind.Hub) break;
+                EliteAffix affixes;
+                if (arg is null or "magic") affixes = EliteAffixInfo.Rollable[_rng.Next(EliteAffixInfo.Rollable.Length)];
+                else if (arg == "rare")
+                {
+                    affixes = EliteAffix.None;
+                    foreach (var a in EliteAffixInfo.Rollable.OrderBy(_ => _rng.Next()).Take(2)) affixes |= a;
+                }
+                else
+                {
+                    affixes = EliteAffix.None;
+                    foreach (var tok in arg.Split('+'))
+                        if (Enum.TryParse<EliteAffix>(tok, true, out var one)) affixes |= one;
+                }
+                SpawnEnemy("grunt", p.Position + new System.Numerics.Vector2(2f, 0f), affixes);
+                break;
+            }
             case "drop_sample":
             {
                 // One drop of every item category in a ring around the character, rarities

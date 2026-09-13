@@ -71,6 +71,9 @@ public class PlayScreen : IScreen
     private float _devReaperNextAt;
     /// <summary>ARPG_DEVUI=learn:&lt;skill&gt;: learn a skill free and hotbar it (GUI automation).</summary>
     private string _devLearnSkill;
+    /// <summary>ARPG_DEVUI=elite[:magic|rare|affix+affix]: spawn an elite grunt ahead once
+    /// we're out of the hub (GUI automation).</summary>
+    private string _devSpawnElite;
     /// <summary>ARPG_DEVUI=gold: grant 1000 gold shortly after joining (GUI automation).</summary>
     private bool _devGiveGold;
     private bool _devGiveSupplies;
@@ -263,6 +266,8 @@ public class PlayScreen : IScreen
             // learn:<skill id>[+<skill id>...] — learn free, onto the hotbar (captures).
             var learnToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("learn:"));
             if (learnToken != null) _devLearnSkill = learnToken.Split(':')[1];
+            var eliteToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("elite"));
+            if (eliteToken != null) _devSpawnElite = eliteToken.Contains(':') ? eliteToken.Split(':')[1] : "rare";
             var weatherToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("weather:"));
             if (weatherToken != null)
                 _renderer.WeatherOverride = weatherToken.Split(':')[1]; // local test override
@@ -450,6 +455,12 @@ public class PlayScreen : IScreen
         {
             _devSpawnKnights = false;
             _client.SendDebugCommand("spawn_enemy", "bone_knight");
+        }
+        if (_devSpawnElite != null && _clientTime > 2f && _client.World.Map?.Kind != World.MapKind.Hub)
+        {
+            var eliteArg = _devSpawnElite;
+            _devSpawnElite = null;
+            _client.SendDebugCommand("spawn_elite", eliteArg);
         }
         if (_devReaper && _clientTime > _devReaperNextAt)
         {
@@ -1137,12 +1148,27 @@ public class PlayScreen : IScreen
             !_client.World.Enemies.TryGetValue(_renderer.HoveredEnemyId, out var e))
             return;
 
+        // Tier colours: boss violet, RARE gold, MAGIC blue, a rare's minion pale
+        // lavender, everything else parchment.
         var nameColor = e.IsBoss ? new Color(216, 150, 255)
-            : e.IsElite ? new Color(255, 210, 110)
+            : e.IsRare ? new Color(255, 210, 110)
+            : e.IsMagic ? new Color(130, 170, 255)
+            : e.IsMinion ? new Color(200, 190, 230)
             : new Color(230, 226, 214);
         var font = FontManager.GetBold(20);
         string name = e.DisplayName;
+        if (e.IsRare) name += "  (" + (e.Def?.Name ?? e.TypeId) + ")";
         var nameSize = font.MeasureString(name);
+
+        // Affix lines: the names in the tier colour, then what each one does.
+        var affixFont = FontManager.Get(12);
+        var affixLines = new List<string>();
+        var affixes = e.Affixes;
+        foreach (var a in Server.EliteAffixInfo.Rollable)
+            if ((affixes & a) != 0)
+                affixLines.Add(Server.EliteAffixInfo.Name(a) + ": " + Server.EliteAffixInfo.Describe(a));
+        if (e.IsMinion) affixLines.Add("Minion: " + Server.EliteAffixInfo.Describe(Server.EliteAffix.Minion));
+        float affixW = affixLines.Count == 0 ? 0f : affixLines.Max(l => affixFont.MeasureString(l).X);
 
         const int barW = 340, barH = 16;
         int cx = screen.X / 2;
@@ -1152,8 +1178,8 @@ public class PlayScreen : IScreen
         // stun / chill buildup strips underneath have something to show).
         bool showStun = e.StunPercent > 0, showChill = e.ChillPercent > 0;
         int stripRows = (showStun ? 1 : 0) + (showChill ? 1 : 0);
-        int panelW = (int)MathF.Max(barW + 24, nameSize.X + 40);
-        var panel = new Rectangle(cx - panelW / 2, 6, panelW, 52 + stripRows * 7);
+        int panelW = (int)MathF.Max(MathF.Max(barW + 24, nameSize.X + 40), affixW + 40);
+        var panel = new Rectangle(cx - panelW / 2, 6, panelW, 52 + stripRows * 7 + affixLines.Count * 15);
         _hud.TopInset = panel.Bottom + 2;
         sb.Draw(TextureGen.Pixel, panel, new Color(12, 12, 16, 205));
         sb.Draw(TextureGen.Pixel, new Rectangle(panel.X, panel.Y, panel.Width, 1), new Color(90, 85, 110));
@@ -1185,6 +1211,19 @@ public class PlayScreen : IScreen
             sb.Draw(TextureGen.Pixel, new Rectangle(barX, stripY, barW, 4), new Color(18, 24, 32));
             sb.Draw(TextureGen.Pixel, new Rectangle(barX, stripY, barW * e.ChillPercent / 100, 4),
                 new Color(120, 190, 250));
+            stripY += 7;
+        }
+        int affixY = barY + barH + 4 + stripRows * 7;
+        foreach (var line in affixLines)
+        {
+            int colon = line.IndexOf(':');
+            string head = line[..(colon + 1)], tail = line[(colon + 1)..];
+            var headSize = affixFont.MeasureString(head);
+            float lineW = headSize.X + affixFont.MeasureString(tail).X;
+            float lx = cx - lineW / 2;
+            sb.DrawString(affixFont, head, new Vector2(lx, affixY), nameColor);
+            sb.DrawString(affixFont, tail, new Vector2(lx + headSize.X, affixY), new Color(205, 200, 190));
+            affixY += 15;
         }
     }
 

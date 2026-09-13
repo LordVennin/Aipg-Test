@@ -346,7 +346,36 @@ public class WorldRenderer
         if ((e.EliteFlags & 1) != 0) return new Color(255, 158, 148);
         if ((e.EliteFlags & 2) != 0) return new Color(255, 238, 150);
         if ((e.EliteFlags & 4) != 0) return new Color(160, 195, 255);
+        if ((e.EliteFlags & 16) != 0) return new Color(255, 170, 200); // vampiric: rose
+        if ((e.EliteFlags & 32) != 0) return new Color(190, 240, 160); // thorny: briar green
+        if ((e.EliteFlags & 64) != 0) return new Color(170, 255, 225); // regenerating: mint
+        if (e.IsMinion) return new Color(225, 218, 240);               // a rare's minion: faint lavender
         return Color.White;
+    }
+
+    /// <summary>A thin stretched line between two screen points (swing streaks, sparks).</summary>
+    private static void DrawSeg(SpriteBatch b, Vector2 a, Vector2 c, Color col, float thick)
+    {
+        var d = c - a;
+        float len = d.Length();
+        if (len < 0.5f) return;
+        b.Draw(TextureGen.Pixel, a, null, col, MathF.Atan2(d.Y, d.X), new Vector2(0f, 0.5f),
+            new Vector2(len, thick), SpriteEffects.None, 0f);
+    }
+
+    /// <summary>How far above the floor (screen px) and how spun a freshly dropped
+    /// item is: it falls from chest height, bounces twice and tumbles into its lie.</summary>
+    public static (float Lift, float Spin) DropLanding(float age, bool mirrored)
+    {
+        const float land = ClientDrop.LandDuration;
+        if (age < 0f || age >= land) return (0f, 0f);
+        float lift;
+        if (age < 0.30f) { float u = age / 0.30f; lift = 0.95f * (1f - u * u); }
+        else if (age < 0.54f) { float u = (age - 0.30f) / 0.24f; lift = 0.32f * 4f * u * (1f - u); }
+        else { float u = (age - 0.54f) / (land - 0.54f); lift = 0.10f * 4f * u * (1f - u); }
+        float settle = MathF.Min(1f, age / 0.54f);
+        float spin = (mirrored ? 1f : -1f) * 2.6f * (1f - settle) * (1f - settle);
+        return (lift * 26f, spin);
     }
 
     public WorldRenderer(GameData data, Core.GameSettings settings)
@@ -925,12 +954,15 @@ public class WorldRenderer
             var lie = DropLie(drop.DropId);
             _sorted.Add((pos.X + pos.Y + drop.Height * 1.0f + 0.05f + UnderDeckBias(pos, drop.Height), batch =>
             {
+                // Fresh drops fall in from chest height and bounce; the shadow stays put.
+                var (lift, spin) = drop.Landing ? DropLanding(drop.Age, lie.Flip) : (0f, 0f);
+                var at = new Vector2(screen.X, screen.Y - lift);
                 if (drop.IsGold)
                 {
                     var pile = SpriteGen.GetGoldPile();
                     if (pile != null)
-                        batch.Draw(pile, new Rectangle((int)screen.X - pile.Width, (int)screen.Y - pile.Height,
-                            pile.Width * 2, pile.Height * 2), null, Color.White, 0f, Vector2.Zero,
+                        batch.Draw(pile, new Vector2(at.X, at.Y - pile.Height), null, Color.White, spin * 0.3f,
+                            new Vector2(pile.Width / 2f, 0f), 2f,
                             lie.Flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
                     return;
                 }
@@ -950,7 +982,7 @@ public class WorldRenderer
                 var enchantTex = SpriteGen.GetEnchantScrollSprite(itemBase);
                 if (enchantTex != null)
                 {
-                    batch.Draw(enchantTex, new Vector2(screen.X, screen.Y - 4), null, Color.White, lie.Tilt * 0.6f,
+                    batch.Draw(enchantTex, new Vector2(at.X, at.Y - 4), null, Color.White, lie.Tilt * 0.6f + spin,
                         new Vector2(enchantTex.Width / 2f, enchantTex.Height / 2f),
                         24f / enchantTex.Width, fx, 0f);
                     return;
@@ -958,7 +990,7 @@ public class WorldRenderer
                 var skillScrollTex = SpriteGen.GetSkillScrollSprite(itemBase);
                 if (skillScrollTex != null)
                 {
-                    batch.Draw(skillScrollTex, new Vector2(screen.X, screen.Y - 10), null, Color.White, lie.Tilt * 0.5f,
+                    batch.Draw(skillScrollTex, new Vector2(at.X, at.Y - 10), null, Color.White, lie.Tilt * 0.5f + spin,
                         new Vector2(skillScrollTex.Width / 2f, skillScrollTex.Height / 2f),
                         29f / skillScrollTex.Height, fx, 0f);
                     return;
@@ -968,8 +1000,8 @@ public class WorldRenderer
                 {
                     // Weapons lie on the ground as their actual sprite, thrown down at a
                     // different diagonal each time (mirrored for about half of them).
-                    float angle = (lie.Flip ? MathF.PI / 5f : -MathF.PI / 5f) + lie.Tilt;
-                    batch.Draw(weaponTex, new Vector2(screen.X, screen.Y - 4), null, Color.White,
+                    float angle = (lie.Flip ? MathF.PI / 5f : -MathF.PI / 5f) + lie.Tilt + spin;
+                    batch.Draw(weaponTex, new Vector2(at.X, at.Y - 4), null, Color.White,
                         angle, new Vector2(weaponTex.Width / 2f, weaponTex.Height / 2f),
                         1.6f, fx, 0f);
                     return;
@@ -981,8 +1013,17 @@ public class WorldRenderer
                     ?? (itemBase.Category == Items.ItemCategory.Pet ? SpriteGen.GetPetSprite(itemBase.Id) : null);
                 if (glyph != null)
                 {
-                    float scale = MathF.Min(26f / glyph.Width, 26f / glyph.Height);
-                    batch.Draw(glyph, new Vector2(screen.X, screen.Y - 7), null, Color.White, lie.Tilt,
+                    // Jewelry is small in the hand and smaller still on the floor: a ring
+                    // is a dozen pixels, an amulet a little more; everything else ~24.
+                    float target = itemBase.Category switch
+                    {
+                        Items.ItemCategory.Ring => 12f,
+                        Items.ItemCategory.Amulet => 15f,
+                        Items.ItemCategory.Belt or Items.ItemCategory.Gloves => 20f,
+                        _ => 24f,
+                    };
+                    float scale = MathF.Min(target / glyph.Width, target / glyph.Height);
+                    batch.Draw(glyph, new Vector2(at.X, at.Y - target * 0.3f), null, Color.White, lie.Tilt + spin,
                         new Vector2(glyph.Width / 2f, glyph.Height / 2f), scale, fx, 0f);
                     return;
                 }
@@ -1129,6 +1170,21 @@ public class WorldRenderer
                     var spriteRect = new Rectangle((int)(screen.X + animOff.X) - w / 2,
                         (int)(screen.Y + animOff.Y) - h + 6, w, h);
                     EnemyHitRects.Add((spriteRect, e.Id));
+                    if (e.IsRare || e.IsMagic)
+                    {
+                        // Tier ring at the feet: gold for a named rare, blue for a magic
+                        // monster, breathing slowly so it reads across a crowded fight.
+                        float ringPulse = 0.5f + 0.5f * MathF.Sin(animClock * 0.004f + e.Id);
+                        var ringCol = e.IsRare ? new Color(255, 200, 90) : new Color(120, 165, 255);
+                        float rs = size * (1.35f + 0.1f * ringPulse);
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(screen.X - rs / 2), (int)(screen.Y - rs / 4), (int)rs, (int)(rs / 2)),
+                            ringCol * (0.16f + 0.10f * ringPulse));
+                        float ri = rs * 0.72f;
+                        batch.Draw(TextureGen.Circle32,
+                            new Rectangle((int)(screen.X - ri / 2), (int)(screen.Y - ri / 4), (int)ri, (int)(ri / 2)),
+                            ringCol * (0.14f + 0.08f * ringPulse));
+                    }
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)(screen.X - size / 2), (int)(screen.Y - size / 4), (int)size, (int)(size / 2)),
                         new Color(0, 0, 0, 90)); // shadow
@@ -1158,6 +1214,15 @@ public class WorldRenderer
                     batch.Draw(tex, spriteRect, null,
                         bodyTint, 0f, Vector2.Zero,
                         e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
+                    if (animClock < e.FlashUntilMs)
+                    {
+                        // Hit flash: the body's silhouette in white over the sprite for a
+                        // few frames — the blow registers before the number floats up.
+                        var flashSil = SpriteGen.GetEnemySilhouette(def, frame, variant, white: true);
+                        if (flashSil != null)
+                            batch.Draw(flashSil, spriteRect, null, Color.White * 0.8f, 0f, Vector2.Zero,
+                                e.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0f);
+                    }
                     DrawAilmentAuras(batch, e.DebuffFlags, spriteRect, e.Id);
 
                     // Sword-style enemies (Barrow Knight) carry a visible blade: rested
@@ -1723,6 +1788,19 @@ public class WorldRenderer
                         float baseAng = -2.2f + 3.1f * chop;
                         float ang2 = swingIso.X >= 0 ? baseAng : MathF.PI - baseAng;
                         var hand2 = screen + new Vector2(swingIso.X >= 0 ? 8f : -8f, -18f + 16f * chop);
+                        // The chop leaves ghosts of the weapon behind it as it comes down.
+                        for (int k = 3; k >= 1; k--)
+                        {
+                            float sPrev = st - k * 0.06f;
+                            if (sPrev < 0f || chop < 0.15f) continue;
+                            float chopPrev = sPrev * sPrev;
+                            float bPrev = -2.2f + 3.1f * chopPrev;
+                            float aPrev = swingIso.X >= 0 ? bPrev : MathF.PI - bPrev;
+                            var hPrev = screen + new Vector2(swingIso.X >= 0 ? 8f : -8f, -18f + 16f * chopPrev);
+                            batch.Draw(weaponTex, hPrev, null, new Color(240, 236, 220) * (0.30f - 0.07f * k), aPrev,
+                                new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f),
+                                2f + 0.3f * chopPrev, SpriteEffects.None, 0f);
+                        }
                         batch.Draw(weaponTex, hand2, null, Color.White, ang2,
                             new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f),
                             2f + 0.3f * chop, SpriteEffects.None, 0f);
@@ -1735,11 +1813,37 @@ public class WorldRenderer
                     // The sweep mirrors with the aim: rightward swings arc clockwise,
                     // leftward swings counter-clockwise, so the follow-through always
                     // trails the swipe instead of playing backwards.
-                    float sweep = swingIso.X >= 0 ? -1.25f + 2.5f * st : 1.25f - 2.5f * st;
+                    float SweepAt(float sT) => swingIso.X >= 0 ? -1.25f + 2.5f * sT : 1.25f - 2.5f * sT;
+                    Vector2 HandAt(float a) => screen + new Vector2(MathF.Cos(a), MathF.Sin(a) * 0.6f) * 20f + new Vector2(0, -12);
+                    float sweep = SweepAt(st);
                     float ang = aimAng + sweep;
-                    var hand = screen + new Vector2(MathF.Cos(ang), MathF.Sin(ang) * 0.6f) * 20f + new Vector2(0, -12);
+                    var hand = HandAt(ang);
+                    var swingOrigin = new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f);
+                    // Motion trail: ghosts of the weapon where it was a few frames ago,
+                    // fading out behind the swing, and a bright streak along the path
+                    // the head/blade tip just cut through the air.
+                    for (int k = 3; k >= 1; k--)
+                    {
+                        float sPrev = st - k * 0.07f;
+                        if (sPrev < 0f) continue;
+                        float aPrev = aimAng + SweepAt(sPrev);
+                        batch.Draw(weaponTex, HandAt(aPrev), null, new Color(240, 236, 220) * (0.30f - 0.07f * k), aPrev,
+                            swingOrigin, 2f, SpriteEffects.None, 0f);
+                    }
+                    float tipLen = (weaponTex.Width * 0.85f) * 2f;
+                    Vector2 TipAt(float sT)
+                    {
+                        float a = aimAng + SweepAt(sT);
+                        return HandAt(a) + new Vector2(MathF.Cos(a), MathF.Sin(a)) * tipLen;
+                    }
+                    for (int k = 6; k >= 1; k--)
+                    {
+                        float s0 = st - k * 0.045f, s1 = st - (k - 1) * 0.045f;
+                        if (s0 < 0f) continue;
+                        DrawSeg(batch, TipAt(s0), TipAt(s1), new Color(255, 250, 225) * (0.62f - 0.08f * k), 3f);
+                    }
                     batch.Draw(weaponTex, hand, null, Color.White, ang,
-                        new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
+                        swingOrigin, 2f, SpriteEffects.None, 0f);
                     if (goreMask != null)
                         batch.Draw(goreMask, hand, null, goreTint, ang,
                             new Vector2(weaponTex.Width * 0.15f, weaponTex.Height / 2f), 2f, SpriteEffects.None, 0f);
@@ -1931,6 +2035,35 @@ public class WorldRenderer
                 case "hit":
                     AddLight(screen, 70f, new Color(255, 220, 180) * flashFade);
                     break;
+                case "hitspark":
+                    AddLight(screen, 55f, new Color(255, 235, 200) * flashFade * 0.7f);
+                    break;
+            }
+
+            if (fx.Kind == "hitspark")
+            {
+                // Impact sparks: a handful of short bright streaks thrown from the struck
+                // body along the blow, spreading and fading within a fifth of a second.
+                var sIso = new Vector2(fx.Dir.X - fx.Dir.Y, (fx.Dir.X + fx.Dir.Y) * 0.5f);
+                if (sIso.LengthSquared() > 0.001f) sIso.Normalize(); else sIso = new Vector2(1, 0);
+                int seedS = (int)(fx.Position.X * 577) ^ (int)(fx.Position.Y * 719);
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.32f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    var origin = new Vector2(screen.X, screen.Y - 14);
+                    for (int i = 0; i < 6; i++)
+                    {
+                        var rngS = new Random(seedS + i * 31);
+                        float spread = ((float)rngS.NextDouble() - 0.5f) * 1.6f;
+                        var dir = new Vector2(
+                            sIso.X * MathF.Cos(spread) - sIso.Y * MathF.Sin(spread),
+                            sIso.X * MathF.Sin(spread) + sIso.Y * MathF.Cos(spread));
+                        float speed = 26f + 30f * (float)rngS.NextDouble();
+                        var head = origin + dir * (4f + speed * t) + new Vector2(0, 10f * t * t);
+                        var tail = head - dir * (5f + 4f * (float)rngS.NextDouble()) * (1f - t * 0.5f);
+                        var col = i % 2 == 0 ? new Color(255, 248, 210) : new Color(255, 214, 140);
+                        DrawSeg(batch, tail, head, col * (1f - t), 2f);
+                    }
+                }));
             }
 
             if (fx.Kind == "debris")
@@ -2761,6 +2894,7 @@ public class WorldRenderer
         // reshuffles while the camera moves.
         var labelFont = FontManager.Get(13);
         var dropList = world.Drops.Values
+            .Where(d => !d.Landing) // the label appears once the item has bounced to rest
             .OrderBy(d => d.Position.X + d.Position.Y).ThenBy(d => d.DropId).ToList();
         // Greedy world-space clustering: a drop joins the first cluster whose anchor
         // is within ~1.6 tiles (label widths overlap comfortably inside that).
