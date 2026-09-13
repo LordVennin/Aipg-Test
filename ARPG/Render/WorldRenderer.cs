@@ -405,23 +405,72 @@ public class WorldRenderer
         return Color.White;
     }
 
-    /// <summary>Rim a raised tile's top along the edges that DROP to lower ground: the
-    /// two front (south-facing) edges bright, the back edges faint. Edges shared with a
-    /// neighbour at the same height get nothing, so plateaus never read as a grid.</summary>
+    /// <summary>A water tile: flat surface shaded deep-to-shallow by how much land
+    /// surrounds it, a clean tile-aligned bank on every edge that touches land (see
+    /// GroundTiles.GetShoreBank), and two slow-drifting glints.</summary>
+    private void DrawWaterTile(SpriteBatch sb, GameMap map, int x, int y, Vector2 at)
+    {
+        uint wn = TileHash(map.Seed, x, y);
+        bool Shore(int nx, int ny) => !map.IsWater(nx, ny) && !map.IsSolid(nx, ny);
+        int landAround = 0;
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+                if ((dx != 0 || dy != 0) && Shore(x + dx, y + dy)) landAround++;
+        // Shallows near the bank, deep water in the middle; a whisper of noise so a
+        // big pond isn't one flat sheet, but never per-tile blotches.
+        float shallowness = landAround / 8f;
+        float depthN = shallowness * 0.85f + 0.15f * GroundNoise(map.Seed ^ 0x0BADCAFE, x, y);
+        var waterShade = LerpColor(new Color(22, 48, 88), new Color(40, 82, 126), depthN);
+        sb.Draw(TextureGen.DiamondFlat, at, waterShade);
+        for (int e = 0; e < 4; e++)
+        {
+            int nx = e == 0 ? x - 1 : e == 1 ? x + 1 : x, ny = e == 2 ? y - 1 : e == 3 ? y + 1 : y;
+            if (!Shore(nx, ny)) continue;
+            var bank = GroundTiles.GetShoreBank(e);
+            if (bank != null) sb.Draw(bank, at, Color.White);
+        }
+        // Two glints per tile, sliding slowly so the surface reads as liquid.
+        int t = Environment.TickCount;
+        for (int g = 0; g < 2; g++)
+        {
+            int phase = (int)((wn >> (g * 7)) & 1023);
+            float drift = ((t / 90 + phase) % 40) / 40f;
+            int gx = (int)(10 + ((wn >> (g * 11)) % 36) + drift * 8) % 54;
+            int gy = (int)(7 + ((wn >> (g * 5)) % 18));
+            sb.Draw(TextureGen.Pixel, new Rectangle((int)at.X + gx, (int)at.Y + gy, 2, 1),
+                new Color(120, 170, 205));
+        }
+    }
+
+    /// <summary>Outline a raised tile's top along every edge that DROPS to lower
+    /// ground: a dark crease just outside the edge (on the lower ground, or the top of
+    /// the cliff face) and a light line along the top's rim. Edges shared with a
+    /// neighbour at the same height get nothing, so plateaus never read as a grid, but
+    /// a step you could fall off — north or south of you — always draws a line.</summary>
     private static void DrawTopRim(SpriteBatch batch, GameMap map, int x, int y, int myTop, Vector2 topCenter, float fade)
     {
-        int TopOf(int nx, int ny) => nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height
-            ? myTop : Math.Max(map.BridgeLevel(nx, ny), map.GroundLevel(nx, ny) + map.WallHeight(nx, ny));
+        int TopOf(int nx, int ny)
+        {
+            if (nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height) return myTop;
+            int g = map.GroundLevel(nx, ny);
+            if (map.Ramp(nx, ny) != RampDirection.None) return g + 1; // a ramp climbs to the next level
+            return Math.Max(map.BridgeLevel(nx, ny), g + map.WallHeight(nx, ny));
+        }
         var top = topCenter + new Vector2(0, -16);
         var right = topCenter + new Vector2(32, 0);
         var bottom = topCenter + new Vector2(0, 16);
         var left = topCenter + new Vector2(-32, 0);
-        var bright = new Color(255, 250, 232) * (0.55f * fade);
-        var faint = new Color(255, 250, 232) * (0.22f * fade);
-        if (TopOf(x + 1, y) < myTop) DrawSeg(batch, right, bottom, bright, 1.5f);   // lower-right edge
-        if (TopOf(x, y + 1) < myTop) DrawSeg(batch, bottom, left, bright, 1.5f);    // lower-left edge
-        if (TopOf(x, y - 1) < myTop) DrawSeg(batch, top, right, faint, 1f);         // upper-right edge
-        if (TopOf(x - 1, y) < myTop) DrawSeg(batch, left, top, faint, 1f);          // upper-left edge
+        var lite = new Color(255, 250, 232) * (0.62f * fade);
+        var dark = new Color(6, 8, 6) * (0.6f * fade);
+        void Edge(Vector2 a, Vector2 b, Vector2 outward, float thick)
+        {
+            DrawSeg(batch, a + outward, b + outward, dark, 1f);
+            DrawSeg(batch, a, b, lite, thick);
+        }
+        if (TopOf(x + 1, y) < myTop) Edge(right, bottom, new Vector2(0, 1), 2f);     // lower-right edge
+        if (TopOf(x, y + 1) < myTop) Edge(bottom, left, new Vector2(0, 1), 2f);      // lower-left edge
+        if (TopOf(x, y - 1) < myTop) Edge(top, right, new Vector2(0, -1), 1.5f);     // upper-right edge
+        if (TopOf(x - 1, y) < myTop) Edge(left, top, new Vector2(0, -1), 1.5f);      // upper-left edge
     }
 
     /// <summary>A thin stretched line between two screen points (swing streaks, sparks).</summary>
@@ -527,9 +576,6 @@ public class WorldRenderer
         // so the ground reads as continuous terrain instead of a board.
         bool organic = Theme?.OrganicFloor == true;
         bool brick = Theme?.StoneBrick == true;
-        // Textured ground hides the step up onto a raised block: rim every raised top
-        // with a light edge so walls south and north of the player read at a glance.
-        bool rimEdges = _materials.Count > 0 && !brick;
         var floorA = Theme != null ? _floorA : new Color(58, 66, 58);
         var floorB = Theme != null ? _floorB : new Color(52, 60, 54);
         for (int y = 0; y < map.Height; y++)
@@ -542,55 +588,7 @@ public class WorldRenderer
                 var screen = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f));
                 if (screen.X < -80 || screen.X > camera.ScreenWidth + 80 ||
                     screen.Y < -80 || screen.Y > camera.ScreenHeight + 80) continue;
-                if (map.IsWater(x, y))
-                {
-                    // Water: deep-to-shallow blue by noise, with slow drifting glints.
-                    uint wn = TileHash(map.Seed, x, y);
-                    float depthN = GroundNoise(map.Seed ^ 0x0BADCAFE, x, y);
-                    var waterShade = LerpColor(new Color(24, 52, 92), new Color(38, 78, 122), depthN);
-                    sb.Draw(TextureGen.DiamondFlat, new Vector2((int)screen.X - 32, (int)screen.Y - 16), waterShade);
-                    bool Shore(int nx, int ny) => !map.IsWater(nx, ny) && !map.IsSolid(nx, ny);
-                    if (_materials.Count > 0)
-                    {
-                        // Ragged shoreline: the neighbouring land laps over this edge along
-                        // a noise-wobbled line, then a pale shallow band and a foam line
-                        // hug that line on the water side — no more diamond stair-steps.
-                        var at = new Vector2((int)screen.X - 32, (int)screen.Y - 16);
-                        for (int e = 0; e < 4; e++)
-                        {
-                            int nx = e == 0 ? x - 1 : e == 1 ? x + 1 : x, ny = e == 2 ? y - 1 : e == 3 ? y + 1 : y;
-                            if (!Shore(nx, ny)) continue;
-                            var landMat = MaterialAt(map, nx, ny);
-                            int sv = (int)((wn >> (3 + e * 4)) % GroundTiles.VariantCount);
-                            float gb = MathF.Min(1f, 0.80f + 0.2f * GroundNoise(map.Seed, nx, ny));
-                            var land = GroundTiles.GetShoreLand(landMat, sv, e);
-                            if (land != null) sb.Draw(land, at, new Color(gb, gb, gb));
-                            var shoreFoam = GroundTiles.GetShoreFoam(landMat, sv, e);
-                            if (shoreFoam != null) sb.Draw(shoreFoam, at, Color.White);
-                        }
-                    }
-                    else
-                    {
-                        // Shore foam: a light lip on edges that touch land.
-                        var foam = new Color(150, 190, 210);
-                        if (Shore(x, y - 1)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 2, (int)screen.Y - 15, 6, 1), foam);
-                        if (Shore(x, y + 1)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 4, (int)screen.Y + 13, 6, 1), foam);
-                        if (Shore(x - 1, y)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 30, (int)screen.Y - 1, 5, 1), foam);
-                        if (Shore(x + 1, y)) sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X + 25, (int)screen.Y - 1, 5, 1), foam);
-                    }
-                    // Two glints per tile, sliding slowly so the surface reads as liquid.
-                    int t = Environment.TickCount;
-                    for (int g = 0; g < 2; g++)
-                    {
-                        int phase = (int)((wn >> (g * 7)) & 1023);
-                        float drift = ((t / 90 + phase) % 40) / 40f;
-                        int gx = (int)(8 + ((wn >> (g * 11)) % 40) + drift * 8) % 56;
-                        int gy = (int)(4 + ((wn >> (g * 5)) % 22));
-                        sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + gx, (int)screen.Y - 16 + gy, 2, 1),
-                            new Color(120, 170, 205));
-                    }
-                    continue;
-                }
+                if (map.IsWater(x, y)) continue; // water draws after the land, below
                 if (map.IsRuins(x, y))
                 {
                     // Ground-level ruins paving: the same worn flagstone as the tops,
@@ -655,6 +653,20 @@ public class WorldRenderer
                     else
                         sb.Draw(TextureGen.Pixel, new Rectangle((int)screen.X - 32 + sx1, (int)screen.Y - 16 + sy1, 2, 1), dark);
                 }
+            }
+        }
+
+        // --- water pass: after every land tile, so the feathered ground never nibbles ---
+        // --- the outline and a pond keeps a clean, tile-shaped edge on all four sides ---
+        for (int y = 0; y < map.Height; y++)
+        {
+            for (int x = 0; x < map.Width; x++)
+            {
+                if (!map.IsWater(x, y) || map.GroundLevel(x, y) > 0) continue;
+                var screen = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f));
+                if (screen.X < -80 || screen.X > camera.ScreenWidth + 80 ||
+                    screen.Y < -80 || screen.Y > camera.ScreenHeight + 80) continue;
+                DrawWaterTile(sb, map, x, y, new Vector2((int)screen.X - 32, (int)screen.Y - 16));
             }
         }
 
@@ -818,8 +830,7 @@ public class WorldRenderer
                         _sorted.Add((trTopDepth, batch =>
                         {
                             batch.Draw(trTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx), trTint);
-                            if (rimEdges)
-                                DrawTopRim(batch, map, x, y, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - trPx), trTint.A / 255f);
+                            DrawTopRim(batch, map, x, y, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - trPx), trTint.A / 255f);
                         }));
                     }
                     continue;
@@ -863,8 +874,7 @@ public class WorldRenderer
                     _sorted.Add((topDepth, batch =>
                     {
                         batch.Draw(wtTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), topTint);
-                        if (rimEdges)
-                            DrawTopRim(batch, map, x, y, top, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), topTint.A / 255f);
+                        DrawTopRim(batch, map, x, y, top, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), topTint.A / 255f);
                     }));
                     continue;
                 }
@@ -985,8 +995,7 @@ public class WorldRenderer
                     {
                         batch.Draw(etTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint);
-                        if (rimEdges)
-                            DrawTopRim(batch, map, x, y, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), etTint.A / 255f);
+                        DrawTopRim(batch, map, x, y, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), etTint.A / 255f);
                         if (!etOrganic) return;
                         // Grass blades on elevated tops too — same detail as the floor.
                         for (int spk = 0; spk < 3; spk++)

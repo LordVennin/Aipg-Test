@@ -1618,3 +1618,18 @@ item's flavour under it.
 - **Trees** root only where the whole 2x2 footprint AND the ring around it sit
   at one ground level — never in a pit or on a lone step (forest and defense).
 - Debug: **Drop All Uniques** button (`drop_uniques`).
+
+## Batch 71 addendum: step lines everywhere, tile-shaped water
+
+- **Every drop draws a line**, on every map and theme: a raised top gets a dark
+  crease just outside and a light line along its rim on each edge that steps
+  down to lower ground — south-facing edges heavier, north-facing lighter but
+  never faint — so lower ground north of you and higher ground south of you
+  can't blend into the textures. Edges shared with same-height neighbours stay
+  clean, so plateaus never gridline. A ramp counts as reaching the next level.
+- **Water** keeps a clean tile-shaped outline again: the ragged noise shore is
+  gone, water draws after all land, and each edge that touches land wears a
+  bank — a short earth face on the two far edges (the surface sits below the
+  ground), a dark overhang line on the near edges, foam and pale shallows at
+  the foot of both. Tiles are shaded by how much land surrounds them (shallow
+  at the bank, deep in the middle) instead of per-tile blotches.
