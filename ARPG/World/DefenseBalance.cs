@@ -104,6 +104,11 @@ public static class DefenseBalance
     /// <summary>Turrets are DIRECTIONAL: they only engage targets inside this cone
     /// around their placed facing (rotate at placement to aim it).</summary>
     public const float TurretConeDegrees = 130f;
+    /// <summary>The flamethrower sprays a NARROW column instead: a tight cone in front
+    /// of the nozzle (its "flamecone" effect draws the same spread).</summary>
+    public const float FlameConeDegrees = 60f;
+    public static float ConeDegrees(StructureKind kind) =>
+        kind == StructureKind.FlameTurret ? FlameConeDegrees : TurretConeDegrees;
 
     /// <summary>Workbench repairs: supplies per 100 missing structure hit points —
     /// cheap on purpose (upkeep, not a second purchase).</summary>
@@ -121,12 +126,13 @@ public static class DefenseBalance
         _ => new System.Numerics.Vector2(0, 1),
     };
 
-    public static bool InCone(System.Numerics.Vector2 from, byte rotation, System.Numerics.Vector2 target)
+    public static bool InCone(System.Numerics.Vector2 from, byte rotation, System.Numerics.Vector2 target,
+        float degrees = TurretConeDegrees)
     {
         var to = target - from;
         float len = to.Length();
         if (len < 0.001f) return true;
-        float cosHalf = MathF.Cos(TurretConeDegrees * 0.5f * MathF.PI / 180f);
+        float cosHalf = MathF.Cos(degrees * 0.5f * MathF.PI / 180f);
         return System.Numerics.Vector2.Dot(to / len, Facing(rotation)) >= cosHalf;
     }
     /// <summary>Builds must happen within this range of the player doing the building.</summary>

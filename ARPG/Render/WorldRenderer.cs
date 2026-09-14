@@ -493,6 +493,65 @@ public class WorldRenderer
         if (TopOf(x - 1, y) < myTop) Edge(left, top, new Vector2(0, -1), 2f);        // upper-left edge
     }
 
+    /// <summary>Radial fissures from a slam's centre out toward its TRUE radius (ax/ay:
+    /// the screen half-axes of the hit circle, reach: 0..1 how far they've split so
+    /// far). Deterministic per seed, so a crack is the same shape every frame. Cracks of
+    /// uneven length that reach the rim read the area without drawing a circle.</summary>
+    private static void DrawFissures(SpriteBatch batch, Vector2 center, float ax, float ay, int seed, int count, float reach, float fade)
+    {
+        var dark = new Color(22, 16, 10) * (0.95f * fade);
+        var lit = new Color(225, 205, 160) * (0.6f * fade);
+        for (int c = 0; c < count; c++)
+        {
+            var rng = new Random(seed + c * 131);
+            float ang = c / (float)count * MathF.Tau + (float)rng.NextDouble() * (MathF.Tau / count) * 0.8f;
+            float len = (0.62f + 0.38f * (float)rng.NextDouble()) * reach;
+            const int segs = 5;
+            var step = new Vector2(MathF.Cos(ang) * ax, MathF.Sin(ang) * ay) * (len / segs);
+            var pos = center;
+            for (int s2 = 0; s2 < segs; s2++)
+            {
+                var next = pos + step;
+                next.X += ((float)rng.NextDouble() - 0.5f) * 7f;
+                next.Y += ((float)rng.NextDouble() - 0.5f) * 3.5f;
+                float thick = s2 < 2 ? 3f : s2 < 4 ? 2.5f : 2f;
+                DrawSeg(batch, pos + new Vector2(0, -1), next + new Vector2(0, -1), lit, 1f);
+                DrawSeg(batch, pos, next, dark, thick);
+                if (s2 == 2 && (rng.Next(3) == 0))
+                {
+                    // A side split, half as long, off one flank.
+                    float side = rng.Next(2) == 0 ? 0.6f : -0.6f;
+                    var branch = next + new Vector2(MathF.Cos(ang + side) * ax, MathF.Sin(ang + side) * ay) * (len / segs) * 1.2f;
+                    DrawSeg(batch, next, branch, dark, 1.5f);
+                }
+                pos = next;
+            }
+        }
+    }
+
+    /// <summary>A ring of DUST PUFFS thrown out by an impact: irregular clumps at
+    /// (roughly) the hit radius times `spread`, lifting a little as they travel — the
+    /// shockwave's edge, without a drawn circle.</summary>
+    private static void DrawDustRing(SpriteBatch batch, Vector2 center, float ax, float ay, int seed, float spread, float fade, Color dust)
+    {
+        const int puffs = 18;
+        for (int i = 0; i < puffs; i++)
+        {
+            var rng = new Random(seed + i * 71);
+            float ang = i / (float)puffs * MathF.Tau + ((float)rng.NextDouble() - 0.5f) * 0.32f;
+            float rf = (0.80f + 0.24f * (float)rng.NextDouble()) * spread;
+            int size = (int)(5 + 6 * (float)rng.NextDouble() + 7 * spread);
+            float lift = 3f + 5f * spread;
+            var p = new Vector2(center.X + MathF.Cos(ang) * ax * rf, center.Y + MathF.Sin(ang) * ay * rf - lift);
+            float a = fade * (0.55f + 0.35f * (float)rng.NextDouble());
+            batch.Draw(TextureGen.Blob32,
+                new Rectangle((int)(p.X - size / 2f), (int)(p.Y - size * 0.35f), size, (int)(size * 0.7f)), dust * a);
+            batch.Draw(TextureGen.Blob32,
+                new Rectangle((int)(p.X - size / 3f), (int)(p.Y - size * 0.4f), (int)(size * 0.66f), (int)(size * 0.5f)),
+                new Color(Math.Min(255, dust.R + 30), Math.Min(255, dust.G + 26), Math.Min(255, dust.B + 20)) * (a * 0.6f));
+        }
+    }
+
     /// <summary>A thin stretched line between two screen points (swing streaks, sparks).</summary>
     private static void DrawSeg(SpriteBatch b, Vector2 a, Vector2 c, Color col, float thick)
     {
@@ -1879,12 +1938,13 @@ public class WorldRenderer
             if (preview.Kind is 0 or 2)
                 DrawTurretCone(camera, preview.Pos, bpHeight, preview.Rotation,
                     preview.Kind == 0 ? DefenseBalance.CrossbowRange : DefenseBalance.FlameRange,
-                    preview.Valid ? new Color(140, 230, 140) : new Color(230, 100, 90));
+                    preview.Valid ? new Color(140, 230, 140) : new Color(230, 100, 90),
+                    DefenseBalance.ConeDegrees((StructureKind)preview.Kind));
             foreach (var st in world.Structures.Values)
                 if (st.Kind is 0 or 2)
                     DrawTurretCone(camera, st.Position, st.Height, st.Rotation,
                         st.Kind == 0 ? DefenseBalance.CrossbowRange : DefenseBalance.FlameRange,
-                        new Color(220, 200, 130));
+                        new Color(220, 200, 130), DefenseBalance.ConeDegrees((StructureKind)st.Kind));
         }
 
         // The stash chest (hub only): the player's object-bound storage.
@@ -2623,21 +2683,33 @@ public class WorldRenderer
 
             if (fx.Kind == "slamring")
             {
-                // A wind-up slam's landing mark: the exact hit circle, tightening onto
-                // its final size as the mace comes down — read the area before it lands.
+                // A wind-up slam's landing mark, no ring: the ground under the coming
+                // blow darkens as if already under its weight, tightening onto the true
+                // hit size, while pebbles inside it hop in place. The dark patch IS the area.
                 float shrink = 1.14f - 0.14f * t;
                 float rax = fx.Radius * 1.414f * IsoCamera.HalfTileW * shrink;
                 float ray = fx.Radius * 1.414f * IsoCamera.HalfTileH * shrink;
-                float pulse = 0.35f + 0.5f * t;
+                float press = 0.12f + 0.24f * t;
+                int seedR = (int)(fx.Position.X * 641) ^ (int)(fx.Position.Y * 877);
+                long clockR = Environment.TickCount64;
+                float hopAmp = 2f + 5f * t;
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    for (int seg2 = 0; seg2 < 36; seg2++)
+                    batch.Draw(TextureGen.Blob32,
+                        new Rectangle((int)(screen.X - rax), (int)(screen.Y - ray), (int)(rax * 2), (int)(ray * 2)),
+                        new Color(8, 6, 4) * press);
+                    batch.Draw(TextureGen.Blob32,
+                        new Rectangle((int)(screen.X - rax * 0.55f), (int)(screen.Y - ray * 0.55f), (int)(rax * 1.1f), (int)(ray * 1.1f)),
+                        new Color(8, 6, 4) * (press * 0.7f));
+                    for (int i = 0; i < 12; i++)
                     {
-                        float a2 = seg2 / 36f * MathF.Tau;
-                        batch.Draw(TextureGen.Pixel, new Rectangle(
-                            (int)(screen.X + MathF.Cos(a2) * rax) - 1,
-                            (int)(screen.Y + MathF.Sin(a2) * ray) - 1, 2, 2),
-                            new Color(240, 200, 120) * pulse);
+                        var rng = new Random(seedR + i * 53);
+                        float ang = (float)(rng.NextDouble() * Math.PI * 2);
+                        float rf = 0.2f + 0.78f * (float)rng.NextDouble();
+                        float hop = MathF.Abs(MathF.Sin((clockR + i * 140) * 0.012f)) * hopAmp;
+                        float bx = screen.X + MathF.Cos(ang) * rax * rf, by = screen.Y + MathF.Sin(ang) * ray * rf;
+                        batch.Draw(TextureGen.Pixel, new Rectangle((int)bx, (int)by, 2, 1), new Color(0, 0, 0) * 0.35f);
+                        batch.Draw(TextureGen.Pixel, new Rectangle((int)bx, (int)(by - hop) - 1, 2, 2), new Color(160, 140, 108));
                     }
                 }));
                 continue;
@@ -2656,24 +2728,17 @@ public class WorldRenderer
                 var dustT = _floorB;
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.12f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    batch.Draw(TextureGen.Circle32,
+                    batch.Draw(TextureGen.Blob32,
                         new Rectangle((int)(screen.X - tax + jx), (int)(screen.Y - tay + jy), (int)(tax * 2), (int)(tay * 2)),
                         new Color(120, 96, 70) * 0.16f);
-                    for (int s3 = 0; s3 < 40; s3++)
+                    // No boundary ring: the cracks themselves run out to the rim (the
+                    // longest reach the true radius), and the shaken-up dust sits near it.
+                    for (int c = 0; c < 9; c++)
                     {
-                        float a2 = s3 * MathF.Tau / 40f;
-                        float glow = 0.3f + 0.15f * MathF.Sin(tclock * 0.01f + s3 * 0.7f);
-                        batch.Draw(TextureGen.Pixel, new Rectangle(
-                            (int)(screen.X + jx + MathF.Cos(a2) * tax) - 1,
-                            (int)(screen.Y + jy + MathF.Sin(a2) * tay) - 1, 2, 2),
-                            new Color(205, 170, 110) * glow);
-                    }
-                    for (int c = 0; c < 7; c++)
-                    {
-                        if (((tclock / 110) + c) % 3 == 0) continue; // cracks flicker shut
+                        if (((tclock / 110) + c) % 4 == 0) continue; // cracks flicker shut
                         var rngC = new Random(seedT + c * 131);
-                        float angC = c / 7f * MathF.Tau + (float)rngC.NextDouble() * 0.7f;
-                        float len = tax * (0.4f + 0.45f * (float)rngC.NextDouble());
+                        float angC = c / 9f * MathF.Tau + (float)rngC.NextDouble() * 0.55f;
+                        float len = tax * (0.62f + 0.38f * (float)rngC.NextDouble());
                         var dirC = new Vector2(MathF.Cos(angC), MathF.Sin(angC) * 0.5f);
                         var posC = new Vector2(screen.X + jx, screen.Y + jy);
                         for (int s2 = 0; s2 < 4; s2++)
@@ -2692,7 +2757,7 @@ public class WorldRenderer
                         var rngD = new Random(seedT + d * 47);
                         float ph = ((tclock + d * 173) % 900) / 900f;
                         float angD = (float)(rngD.NextDouble() * Math.PI * 2);
-                        float rD = 0.25f + 0.65f * (float)rngD.NextDouble();
+                        float rD = 0.55f + 0.45f * (float)rngD.NextDouble();
                         var mp = new Vector2(screen.X + MathF.Cos(angD) * tax * rD,
                                              screen.Y + MathF.Sin(angD) * tay * rD - 12f * ph);
                         batch.Draw(TextureGen.Pixel, new Rectangle((int)mp.X, (int)mp.Y, 2, 2), dustT * (0.55f * (1f - ph)));
@@ -2712,9 +2777,9 @@ public class WorldRenderer
                 float fadeA = 1f - t;
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.15f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    batch.Draw(TextureGen.Circle32,
+                    batch.Draw(TextureGen.Blob32,
                         new Rectangle((int)(screen.X - sax), (int)(screen.Y - say), (int)(sax * 2), (int)(say * 2)),
-                        new Color(240, 200, 120) * (0.3f * MathF.Max(0f, 1f - t * 2f)));
+                        new Color(240, 200, 120) * (0.16f * MathF.Max(0f, 1f - t * 4f)));
                     for (int c = 0; c < 9; c++)
                     {
                         var rngC = new Random(seedA + c * 131);
@@ -2734,14 +2799,49 @@ public class WorldRenderer
                             posC = next;
                         }
                     }
-                    var rim = new Color(255, 226, 130) * (0.95f * fadeA);
-                    var rimDark = new Color(150, 96, 30) * (0.95f * fadeA);
-                    for (int s3 = 0; s3 < 44; s3++)
+                    DrawDustRing(batch, screen, sax, say, seedA, reachA, fadeA * 0.7f, new Color(150, 128, 96));
+                }));
+                continue;
+            }
+
+            if (fx.Kind.StartsWith("flamecone"))
+            {
+                // The flamethrower's column: a stream of repeated flame particles born at
+                // the nozzle and thrown down the turret's facing, spreading into a narrow
+                // cone as they travel — white-hot at the mouth, orange, then dark red
+                // and finally smoke at max range. The rotation rides in the effect name.
+                byte rotF = byte.TryParse(fx.Kind.AsSpan(10), out var rb) ? rb : (byte)2;
+                var facingF = DefenseBalance.Facing(rotF);
+                var perpF = new NumVec2(-facingF.Y, facingF.X);
+                float tanHalf = MathF.Tan(DefenseBalance.FlameConeDegrees * 0.5f * MathF.PI / 180f) * 0.8f;
+                long clockF = Environment.TickCount64;
+                int seedF = (int)(fx.Position.X * 311) ^ (int)(fx.Position.Y * 733);
+                float endFade = MathF.Min(1f, fx.TimeLeft / 0.15f);
+                var midF = camera.WorldToScreen(fx.Position + facingF * (fx.Radius * 0.5f), fx.Height + 0.3f);
+                AddLight(midF, 70f + fx.Radius * 30f, new Color(255, 150, 60) * (0.9f * endFade));
+                var midWorld = fx.Position + facingF * (fx.Radius * 0.5f);
+                _sorted.Add((midWorld.X + midWorld.Y + fx.Height * 1.0f + 0.3f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                {
+                    const int flames = 48;
+                    for (int i = 0; i < flames; i++)
                     {
-                        float a2 = s3 * MathF.Tau / 44f;
-                        batch.Draw(TextureGen.Pixel, new Rectangle(
-                            (int)(screen.X + MathF.Cos(a2) * sax) - 1,
-                            (int)(screen.Y + MathF.Sin(a2) * say) - 1, 2, 2), (s3 & 1) == 0 ? rim : rimDark);
+                        var rng = new Random(seedF + i * 97);
+                        float lat = ((float)rng.NextDouble() - 0.5f) * 2f;
+                        float speed = 0.85f + 0.3f * (float)rng.NextDouble();
+                        float ph = ((clockF * speed + i * 211f) % 640f) / 640f; // 0 nozzle .. 1 max range
+                        float dist = 0.35f + ph * (fx.Radius - 0.35f);
+                        float wobble = MathF.Sin(clockF * 0.02f + i) * 0.07f;
+                        var wp = fx.Position + facingF * dist + perpF * (tanHalf * dist * lat + wobble);
+                        float rise = 0.15f + ph * ph * 0.55f;
+                        var sp = camera.WorldToScreen(wp, fx.Height + rise);
+                        int size = (int)(5 + ph * 15 + 3 * (float)rng.NextDouble());
+                        Color col; float a;
+                        if (ph < 0.22f) { col = new Color(255, 245, 190); a = 0.95f; }
+                        else if (ph < 0.55f) { col = new Color(255, 160, 40); a = 0.9f; }
+                        else if (ph < 0.78f) { col = new Color(215, 75, 18); a = 0.25f + 0.6f * (1f - (ph - 0.55f) / 0.23f); }
+                        else { col = new Color(70, 62, 58); a = 0.45f * (1f - (ph - 0.78f) / 0.22f); }
+                        batch.Draw(TextureGen.Blob32,
+                            new Rectangle((int)(sp.X - size / 2f), (int)(sp.Y - size / 2f), size, size), col * (a * endFade));
                     }
                 }));
                 continue;
@@ -3145,10 +3245,11 @@ public class WorldRenderer
                 "melee" => new Color((byte)255, (byte)255, (byte)255, alpha),
                 _ => new Color((byte)255, (byte)120, (byte)60, alpha),
             };
-            _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
-                batch.Draw(TextureGen.Circle32,
-                    new Rectangle((int)(screen.X - radiusPx), (int)(screen.Y - radiusPx / 2f),
-                        (int)(radiusPx * 2), (int)radiusPx), color)));
+            if (fx.Kind != "slam") // a slam is its fissures and dust, not a filled circle
+                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
+                    batch.Draw(TextureGen.Circle32,
+                        new Rectangle((int)(screen.X - radiusPx), (int)(screen.Y - radiusPx / 2f),
+                            (int)(radiusPx * 2), (int)radiusPx), color)));
 
             if (fx.Kind == "slam")
             {
@@ -3156,23 +3257,21 @@ public class WorldRenderer
                 // true radius (a world circle of radius R spans R*sqrt(2) half-tiles on
                 // screen). It snaps out to full size in the first quarter of the effect
                 // and holds there fading — you can read exactly what was hit.
+                // ...but as the ground BREAKING, not a drawn circle: fissures split
+                // outward to the radius in the first quarter, and a shockwave of dust
+                // clumps rolls out to the rim and thins away.
                 float ringT = Math.Clamp(t / 0.25f, 0f, 1f);
                 float ringEase = 1f - (1f - ringT) * (1f - ringT);
-                float ax = fx.Radius * 1.414f * IsoCamera.HalfTileW * ringEase;
-                float ay = fx.Radius * 1.414f * IsoCamera.HalfTileH * ringEase;
+                float ax = fx.Radius * 1.414f * IsoCamera.HalfTileW;
+                float ay = fx.Radius * 1.414f * IsoCamera.HalfTileH;
                 float ringFade = 1f - t;
-                var rim = new Color(255, 226, 130) * (0.9f * ringFade);
-                var rimDark = new Color(180, 120, 40) * (0.9f * ringFade);
+                int seedS = (int)(fx.Position.X * 641) ^ (int)(fx.Position.Y * 877);
+                float dustSpread = MathF.Min(1f, t / 0.35f);
+                float dustFade = t < 0.35f ? 0.8f : 0.8f * (1f - (t - 0.35f) / 0.65f);
                 _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.21f + UnderDeckBias(fx.Position, fx.Height), batch =>
                 {
-                    for (int s3 = 0; s3 < 44; s3++)
-                    {
-                        float a2 = s3 * MathF.Tau / 44f;
-                        int rx = (int)(screen.X + MathF.Cos(a2) * ax);
-                        int ry = (int)(screen.Y + MathF.Sin(a2) * ay);
-                        batch.Draw(TextureGen.Pixel, new Rectangle(rx, ry, 2, 2),
-                            (s3 & 1) == 0 ? rim : rimDark);
-                    }
+                    DrawFissures(batch, screen, ax, ay, seedS, 8, ringEase, ringFade);
+                    DrawDustRing(batch, screen, ax, ay, seedS, dustSpread, dustFade, new Color(150, 128, 96));
                 }));
             }
         }
@@ -3517,11 +3616,11 @@ public class WorldRenderer
     /// <summary>A turret's fire cone as a ground decal: faint spokes, bright edges and
     /// an arc at max range — placement shows exactly what the turret can hit.</summary>
     private void DrawTurretCone(IsoCamera camera, System.Numerics.Vector2 at, float height,
-        byte rotation, float range, Color color)
+        byte rotation, float range, Color color, float degrees = DefenseBalance.TurretConeDegrees)
     {
         var facing = DefenseBalance.Facing(rotation);
         float baseAngle = MathF.Atan2(facing.Y, facing.X);
-        float half = DefenseBalance.TurretConeDegrees * 0.5f * MathF.PI / 180f;
+        float half = degrees * 0.5f * MathF.PI / 180f;
         const int spokes = 12;
         var origin = camera.WorldToScreen(at, height);
         _sorted.Add((at.X + at.Y + height * 1.0f + 0.05f, batch =>

@@ -395,7 +395,7 @@ public partial class ServerWorld
                 {
                     if (e.Dead || MathF.Abs(e.Height - s.Height) > 0.75f) continue;
                     if (Vector2.Distance(e.Position, s.Position) > DefenseBalance.FlameRange) continue;
-                    if (!DefenseBalance.InCone(s.Position, s.Rotation, e.Position)) continue;
+                    if (!DefenseBalance.InCone(s.Position, s.Rotation, e.Position, DefenseBalance.FlameConeDegrees)) continue;
                     var comps = RollComponentList(DefenseBalance.FlameDamageMin * flameMult,
                         DefenseBalance.FlameDamageMax * flameMult, DamageKind.Fire, null);
                     var (dmg, kind) = MitigateForEnemy(e, comps);
@@ -405,8 +405,10 @@ public partial class ServerWorld
                 if (burned)
                 {
                     s.NextShotAt = Time + DefenseBalance.FlameCooldown;
-                    _events.WorldEffect("firepatch", s.Position, DefenseBalance.FlameRange * 0.8f,
-                        DefenseBalance.FlameCooldown, s.Height);
+                    // A column of fire down the nozzle's facing (the rotation rides in
+                    // the effect name — the packet carries no direction of its own).
+                    _events.WorldEffect($"flamecone:{s.Rotation}", s.Position, DefenseBalance.FlameRange,
+                        DefenseBalance.FlameCooldown + 0.1f, s.Height);
                 }
             }
         }

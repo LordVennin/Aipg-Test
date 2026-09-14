@@ -85,6 +85,8 @@ public class PlayScreen : IScreen
     private bool _devGiveCurios;
     /// <summary>ARPG_DEVUI=rain: bow + Arrow Rain on hotbar slot 1 (GUI automation).</summary>
     private bool _devArrowRain;
+    private bool _devFlameFx;
+    private bool _devGiveMace;
     /// <summary>ARPG_DEVUI=gear[:family]: wear a full armor set shortly after joining
     /// (GUI automation — verifies the worn-armor overlays).</summary>
     private string _devEquipSet;
@@ -264,6 +266,8 @@ public class PlayScreen : IScreen
             else if (devUi.Contains("pet")) _devGivePet = 1;
             if (devUi.Contains("curio")) _devGiveCurios = true;
             if (devUi.Contains("rain")) _devArrowRain = true;
+            if (devUi.Contains("flamefx")) _devFlameFx = true;
+            if (devUi.Contains("mace")) _devGiveMace = true;
             if (devUi.Contains("warp")) _devWarpNext = true;
             if (devUi.Contains("tutorial")) _devWarpTutorial = true;
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
@@ -429,6 +433,19 @@ public class PlayScreen : IScreen
             _devGiveCurios = false;
             _client.SendDebugCommand("give_curio", "merc_contract");
             _client.SendDebugCommand("give_curio", "flamethrower_blueprint");
+        }
+        if (_devGiveMace && _clientTime > 1.5f)
+        {
+            _devGiveMace = false;
+            _client.SendDebugCommand("give_mace", "equip");
+        }
+        if (_devFlameFx && _clientTime > 12f && _client.World.Me != null)
+        {
+            // flamefx: play the flamethrower column (facing east) beside the player,
+            // client-only — a look at the effect without building a turret.
+            _devFlameFx = false;
+            var me0 = _client.World.Me;
+            _client.World.AddEffect(me0.Position + new NumVec2(1.2f, 0f), World.DefenseBalance.FlameRange, 12f, "flamecone:2", me0.Height);
         }
         if (_devArrowRain && _clientTime > 1.5f)
         {

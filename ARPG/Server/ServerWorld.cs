@@ -1066,7 +1066,7 @@ public partial class ServerWorld
 
     private bool AllUndead(PackSpawner pack) =>
         pack.Entries.All(en => Data.Enemies.TryGetValue(en.typeId, out var d) && d.Undead && !string.IsNullOrEmpty(d.SpriteStyle)) &&
-        !pack.Entries.Any(en => en.typeId == "gravelord");
+        !pack.Entries.Any(en => en.typeId is "gravelord" or "barrowlord");
 
     private void SpawnPackMembers(PackSpawner pack, int pi)
     {
