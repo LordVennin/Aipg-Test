@@ -447,7 +447,7 @@ public class WorldRenderer
     /// the cliff face) and a light line along the top's rim. Edges shared with a
     /// neighbour at the same height get nothing, so plateaus never read as a grid, but
     /// a step you could fall off — north or south of you — always draws a line.</summary>
-    private static void DrawTopRim(SpriteBatch batch, GameMap map, int x, int y, int myTop, Vector2 topCenter, float fade)
+    private static void DrawTopRim(SpriteBatch batch, GameMap map, int x, int y, int myTop, Vector2 topCenter, float fade, Color rimBase)
     {
         int TopOf(int nx, int ny)
         {
@@ -460,7 +460,13 @@ public class WorldRenderer
         var right = topCenter + new Vector2(32, 0);
         var bottom = topCenter + new Vector2(0, 16);
         var left = topCenter + new Vector2(-32, 0);
-        var lite = new Color(255, 250, 232) * (0.72f * fade);
+        // The light line is the ground's OWN colour lifted toward white — a pale
+        // green on grass, a pale tan on dirt, lilac on the sanctum's brick — so the
+        // edge reads as a lit rim of that surface instead of a white line drawn on it.
+        var lite = new Color(
+            rimBase.R + (int)((255 - rimBase.R) * 0.45f),
+            rimBase.G + (int)((255 - rimBase.G) * 0.45f),
+            rimBase.B + (int)((255 - rimBase.B) * 0.40f)) * (0.85f * fade);
         var dark = new Color(6, 8, 6) * (0.7f * fade);
         void Edge(Vector2 a, Vector2 b, Vector2 outward, float thick)
         {
@@ -837,10 +843,13 @@ public class WorldRenderer
                         var trTint = trTop * OccluderFade(trTopDepth,
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx, 64, 32));
                         var trTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
+                        var trRim = trTop;
                         if (_materials.Count > 0)
                         {
                             // The terrace top wears the same textured ground, a shade brighter.
-                            trTex = GroundTiles.Get(MaterialAt(map, x, y), (int)(TileHash(map.Seed ^ 0x4D4154, x, y) % GroundTiles.VariantCount));
+                            int trVariant = (int)(TileHash(map.Seed ^ 0x4D4154, x, y) % GroundTiles.VariantCount);
+                            trTex = GroundTiles.Get(MaterialAt(map, x, y), trVariant);
+                            trRim = GroundTiles.AverageColor(MaterialAt(map, x, y), trVariant);
                             float tb = MathF.Min(1f, 0.92f + 0.2f * trN);
                             trTint = new Color(tb, tb, tb) * OccluderFade(trTopDepth,
                                 new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx, 64, 32));
@@ -848,7 +857,7 @@ public class WorldRenderer
                         _sorted.Add((trTopDepth, batch =>
                         {
                             batch.Draw(trTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx), trTint);
-                            DrawTopRim(batch, map, rimX, rimY, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - trPx), trTint.A / 255f);
+                            DrawTopRim(batch, map, rimX, rimY, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - trPx), trTint.A / 255f, trRim);
                         }));
                     }
                     continue;
@@ -880,11 +889,14 @@ public class WorldRenderer
                         new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
                     var wtTex = brick ? TextureGen.DiamondBrick
                         : organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
+                    var wtRim = wallTopColor;
                     if (!brick && _materials.Count > 0)
                     {
                         // Raised blocks wear the same textured ground as the floor, lifted
                         // a shade so the step still reads.
-                        wtTex = GroundTiles.Get(MaterialAt(map, x, y), (int)(TileHash(map.Seed ^ 0x77746F70, x, y) % GroundTiles.VariantCount));
+                        int wtVariant = (int)(TileHash(map.Seed ^ 0x77746F70, x, y) % GroundTiles.VariantCount);
+                        wtTex = GroundTiles.Get(MaterialAt(map, x, y), wtVariant);
+                        wtRim = GroundTiles.AverageColor(MaterialAt(map, x, y), wtVariant);
                         float wb = MathF.Min(1f, 0.96f + 0.18f * GroundNoise(map.Seed, x, y));
                         topTint = new Color(wb, wb, wb) * OccluderFade(topDepth,
                             new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
@@ -892,7 +904,7 @@ public class WorldRenderer
                     _sorted.Add((topDepth, batch =>
                     {
                         batch.Draw(wtTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), topTint);
-                        DrawTopRim(batch, map, rimX, rimY, top, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), topTint.A / 255f);
+                        DrawTopRim(batch, map, rimX, rimY, top, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), topTint.A / 255f, wtRim);
                     }));
                     continue;
                 }
@@ -998,10 +1010,12 @@ public class WorldRenderer
                     var etTint = top * etFade;
                     var etTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
                     uint etHash = TileHash(map.Seed ^ 0x746F70, x, y);
+                    var etRim = top;
                     if (_materials.Count > 0)
                     {
                         // Textured ground on the raised top too, a touch brighter than the floor.
                         etTex = GroundTiles.Get(MaterialAt(map, x, y), (int)(etHash % GroundTiles.VariantCount));
+                        etRim = GroundTiles.AverageColor(MaterialAt(map, x, y), (int)(etHash % GroundTiles.VariantCount));
                         float eb = MathF.Min(1f, 0.92f + 0.2f * GroundNoise(map.Seed, x, y));
                         etTint = new Color(eb, eb, eb) * etFade;
                     }
@@ -1013,7 +1027,7 @@ public class WorldRenderer
                     {
                         batch.Draw(etTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint);
-                        DrawTopRim(batch, map, rimX, rimY, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), etTint.A / 255f);
+                        DrawTopRim(batch, map, rimX, rimY, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), etTint.A / 255f, etRim);
                         if (!etOrganic) return;
                         // Grass blades on elevated tops too — same detail as the floor.
                         for (int spk = 0; spk < 3; spk++)

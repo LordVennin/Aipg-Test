@@ -145,6 +145,29 @@ public static class GroundTiles
         return tex;
     }
 
+    private static readonly Dictionary<string, Color> _average = new();
+
+    /// <summary>The mean colour of a baked tile's opaque pixels — what a rim line
+    /// derives its tint from, so an edge is a pale version of the ground it borders
+    /// rather than one white line everywhere. Cached per material and variant; no
+    /// graphics device needed.</summary>
+    public static Color AverageColor(GroundMaterial m, int variant)
+    {
+        variant = ((variant % VariantCount) + VariantCount) % VariantCount;
+        string key = m.CacheKey + "#" + variant;
+        if (_average.TryGetValue(key, out var avg)) return avg;
+        var px = Bake(m, variant);
+        long r = 0, g = 0, b = 0, n = 0;
+        foreach (var c in px)
+        {
+            if (c.A == 0) continue;
+            r += c.R; g += c.G; b += c.B; n++;
+        }
+        avg = n == 0 ? Color.Gray : new Color((int)(r / n), (int)(g / n), (int)(b / n));
+        _average[key] = avg;
+        return avg;
+    }
+
     /// <summary>The tile with its alpha feathered from one edge: 0 = the (x-1,y) edge
     /// (screen upper-left), 1 = (x+1,y) (lower-right), 2 = (x,y-1) (upper-right),
     /// 3 = (x,y+1) (lower-left). The visible band covers roughly the near half of the

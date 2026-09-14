@@ -1656,3 +1656,7 @@ item's flavour under it.
   doors for the key; a targeted drop still wins.
 - Dev: `ARPG_DEVUI=tutorial` / debug command `warp_tutorial` jump into the Old
   Road.
+- **Rim colour follows the ground**: the light edge line is the bordering
+  surface's own mean colour lifted toward white (pale green on grass, tan on
+  dirt, lilac on sanctum brick) instead of one white line everywhere; the dark
+  crease and ledge shadow stay neutral.
