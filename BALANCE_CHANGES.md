@@ -1681,3 +1681,7 @@ item's flavour under it.
   same body and stats, mossy tint), who raises four melee zombies.
 - Dev: `ARPG_DEVUI=mace` equips a mace; `flamefx` plays the flame column beside
   the player.
+- **Mace skill ids renamed** to match their names: `basic_strike` -> `mace_strike`
+  (Mace Strike, the basic swing, knockback 0.8 unchanged) and `mace_strike` ->
+  `mace_slam` (Mace Slam, the wind-up slam, knockback now 1.6). Saves carry a
+  `SaveFormat`; older saves have their skills and hotbar renamed once on load.
