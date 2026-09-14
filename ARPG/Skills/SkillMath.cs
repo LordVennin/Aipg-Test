@@ -70,9 +70,16 @@ public static class SkillMath
     public const float SkillXpStep = 30f;
     public const float SkillXpBase = 60f;
 
-    public static float XpToNextLevel(int level)
+    public static float XpToNextLevel(int level) => XpToNextLevel(level, SkillXpBase);
+
+    /// <summary>The requirement for a specific skill: its own XpBase when the
+    /// definition sets one (the scaling spells cost more per rank).</summary>
+    public static float XpToNextLevel(int level, SkillDefinition def) =>
+        XpToNextLevel(level, def != null && def.XpBase > 0f ? def.XpBase : SkillXpBase);
+
+    public static float XpToNextLevel(int level, float xpBase)
     {
-        float req = SkillXpBase;
+        float req = xpBase;
         for (int l = 2; l <= level; l++)
             req = req * (1f + SkillXpGrowth) + SkillXpStep;
         return MathF.Round(req);

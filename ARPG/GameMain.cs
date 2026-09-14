@@ -238,6 +238,7 @@ public class GameMain : Game
             // The lightmap renders FIRST (a render-target switch after the world pass
             // would discard the backbuffer), then world -> multiply -> UI on top unlit.
             var lightmap = play.PrepareLightmap(GraphicsDevice, _spriteBatch);
+            play.PrepareUiSurfaces(GraphicsDevice, _spriteBatch);
             GraphicsDevice.Clear(play.BackgroundColor);
             // World renders unscaled (its own camera); menus/HUD render through the UI scale.
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);

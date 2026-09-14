@@ -460,17 +460,31 @@ public class WorldRenderer
         var right = topCenter + new Vector2(32, 0);
         var bottom = topCenter + new Vector2(0, 16);
         var left = topCenter + new Vector2(-32, 0);
-        var lite = new Color(255, 250, 232) * (0.62f * fade);
-        var dark = new Color(6, 8, 6) * (0.6f * fade);
+        var lite = new Color(255, 250, 232) * (0.72f * fade);
+        var dark = new Color(6, 8, 6) * (0.7f * fade);
         void Edge(Vector2 a, Vector2 b, Vector2 outward, float thick)
         {
-            DrawSeg(batch, a + outward, b + outward, dark, 1f);
+            DrawSeg(batch, a + outward, b + outward, dark, 1.5f);
             DrawSeg(batch, a, b, lite, thick);
+        }
+        // Back edges drop AWAY from the camera, so no cliff face ever shows there: the
+        // ledge throws a shadow onto the lower ground beyond the rim instead, which is
+        // what makes "the ground north of me is lower" readable at a glance.
+        var tl = topCenter + new Vector2(-32, -16); // this top's texture corner
+        if (TopOf(x, y - 1) < myTop)
+        {
+            var sh = GroundTiles.GetLedgeShadow(3); // the upper-right neighbour's lower-left band
+            if (sh != null) batch.Draw(sh, tl + new Vector2(32, -16), Color.White * fade);
+        }
+        if (TopOf(x - 1, y) < myTop)
+        {
+            var sh = GroundTiles.GetLedgeShadow(1); // the upper-left neighbour's lower-right band
+            if (sh != null) batch.Draw(sh, tl + new Vector2(-32, -16), Color.White * fade);
         }
         if (TopOf(x + 1, y) < myTop) Edge(right, bottom, new Vector2(0, 1), 2f);     // lower-right edge
         if (TopOf(x, y + 1) < myTop) Edge(bottom, left, new Vector2(0, 1), 2f);      // lower-left edge
-        if (TopOf(x, y - 1) < myTop) Edge(top, right, new Vector2(0, -1), 1.5f);     // upper-right edge
-        if (TopOf(x - 1, y) < myTop) Edge(left, top, new Vector2(0, -1), 1.5f);      // upper-left edge
+        if (TopOf(x, y - 1) < myTop) Edge(top, right, new Vector2(0, -1), 2f);       // upper-right edge
+        if (TopOf(x - 1, y) < myTop) Edge(left, top, new Vector2(0, -1), 2f);        // upper-left edge
     }
 
     /// <summary>A thin stretched line between two screen points (swing streaks, sparks).</summary>
@@ -731,6 +745,10 @@ public class WorldRenderer
                 int bridge = map.BridgeLevel(x, y);
                 bool elevated = ground > 0 || wall > 0 || ramp != RampDirection.None || bridge > 0;
                 if (!elevated) continue;
+                // The draw lambdas below run after these loops finish, and a `for`
+                // variable is ONE variable shared by every iteration — capture copies,
+                // or every deferred neighbour lookup reads the past-the-end x and y.
+                int rimX = x, rimY = y;
 
                 var baseScreen = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f));
                 if (baseScreen.X < -96 || baseScreen.X > camera.ScreenWidth + 96 ||
@@ -830,7 +848,7 @@ public class WorldRenderer
                         _sorted.Add((trTopDepth, batch =>
                         {
                             batch.Draw(trTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - trPx), trTint);
-                            DrawTopRim(batch, map, x, y, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - trPx), trTint.A / 255f);
+                            DrawTopRim(batch, map, rimX, rimY, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - trPx), trTint.A / 255f);
                         }));
                     }
                     continue;
@@ -874,7 +892,7 @@ public class WorldRenderer
                     _sorted.Add((topDepth, batch =>
                     {
                         batch.Draw(wtTex, new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), topTint);
-                        DrawTopRim(batch, map, x, y, top, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), topTint.A / 255f);
+                        DrawTopRim(batch, map, rimX, rimY, top, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), topTint.A / 255f);
                     }));
                     continue;
                 }
@@ -995,7 +1013,7 @@ public class WorldRenderer
                     {
                         batch.Draw(etTex,
                             new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx), etTint);
-                        DrawTopRim(batch, map, x, y, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), etTint.A / 255f);
+                        DrawTopRim(batch, map, rimX, rimY, ground, new Vector2((int)baseScreen.X, (int)baseScreen.Y - topPx), etTint.A / 255f);
                         if (!etOrganic) return;
                         // Grass blades on elevated tops too — same detail as the floor.
                         for (int spk = 0; spk < 3; spk++)

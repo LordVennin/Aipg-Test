@@ -114,6 +114,7 @@
  },
  {
   "Id": "fire_bolt",
+  "XpBase": 95,
   "Name": "Fire Bolt",
   "Description": "Launch a searing bolt of flame toward the cursor with a chance to set enemies ablaze.",
   "Tags": [
@@ -158,6 +159,7 @@
  },
  {
   "Id": "ice_spike",
+  "XpBase": 95,
   "Name": "Ice Spike",
   "Description": "Launch a crystalline shard that pierces the cold into its target \u2014 chilling hits build up toward a deep freeze.",
   "Tags": [
@@ -181,6 +183,7 @@
  },
  {
   "Id": "chain_lightning",
+  "XpBase": 95,
   "Name": "Chain Lightning",
   "Description": "An instant bolt that leaps between nearby enemies. Electrocuted victims seize up under the current for seconds after.",
   "Tags": [

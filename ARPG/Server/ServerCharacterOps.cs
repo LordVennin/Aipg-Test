@@ -549,6 +549,10 @@ public partial class ServerWorld
                 // Dev shortcut through the campaign loop (skips the ready-door dance).
                 if (Campaign) TransitionTo(MapIndex >= 3 ? 0 : MapIndex + 1);
                 break;
+            case "warp_tutorial":
+                // Dev shortcut into the Old Road introduction (captures, playtests).
+                if (Campaign) TransitionTo(TutorialMapIndex);
+                break;
             case "spawn_enemy":
             {
                 string type = string.IsNullOrEmpty(arg)

@@ -232,6 +232,38 @@ public static class GroundTiles
         return tex;
     }
 
+    /// <summary>The shadow a ledge throws onto the LOWER ground beyond one of its
+    /// edges: a band inside a diamond along `edge` (GetFeathered numbering), darkest
+    /// at the edge and fading over LedgeShadowPx. Drawn on the lower neighbour's
+    /// diamond footprint at the ledge's level, so the band lands just past the rim.</summary>
+    public const float LedgeShadowPx = 11f;
+    public static Texture2D GetLedgeShadow(int edge)
+    {
+        if (_device == null) return null;
+        string key = "ledgeshadow" + edge;
+        if (_cache.TryGetValue(key, out var tex)) return tex;
+        var px = new Color[W * H];
+        const float px1 = 1f / 28.6f;
+        var shade = new Color(4, 6, 8);
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                float sx = x + 0.5f - W / 2f, sy = y + 0.5f - H / 2f;
+                if (MathF.Abs(sx) / (W / 2f) + MathF.Abs(sy) / (H / 2f) > 1f) continue;
+                float u = (sx / (W / 2f) + sy / (H / 2f) + 1f) / 2f;
+                float v = (sy / (H / 2f) + 1f - sx / (W / 2f)) / 2f;
+                float t = edge switch { 0 => u, 1 => 1f - u, 2 => v, _ => 1f - v };
+                float d = t / (px1 * LedgeShadowPx);
+                if (d >= 1f) continue;
+                float a = 0.55f * (1f - d) * (1f - d);
+                px[y * W + x] = shade * a;
+            }
+        tex = new Texture2D(_device, W, H);
+        tex.SetData(px);
+        _cache[key] = tex;
+        return tex;
+    }
+
     private static int StyleSeed(string style)
     {
         int h = 17;
