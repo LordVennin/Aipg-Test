@@ -32,6 +32,11 @@ public class SkillMenuUI
     private readonly List<(Rectangle rect, string skillId, int delta)> _summonButtons = new();
     /// <summary>The Level Up button for the selected skill (null when not eligible).</summary>
     private Rectangle? _levelUpRect;
+    // The body (everything under the title) scrolls with the wheel and is clipped to
+    // the panel: many skills, or a long detail block, slide under the frame.
+    private int _scroll;
+    private int _contentHeight;
+    private Rectangle Body => new(_panelRect.X + 2, _panelRect.Y + 40, _panelRect.Width - 4, _panelRect.Height - 44);
 
     public ItemInstance HoveredScrollItem { get; private set; }
     public readonly WindowDrag Window = new();
@@ -64,7 +69,13 @@ public class SkillMenuUI
             return;
         }
         if (Window.HandleBar(input, WindowDrag.BarFor(_panelRect))) return;
-        if (_panelRect.Contains(mouse)) input.MouseCapturedByUI = true;
+        if (_panelRect.Contains(mouse))
+        {
+            input.MouseCapturedByUI = true;
+            _scroll = UiClip.Scroll(_scroll, input.ScrollDelta, _contentHeight, Body.Height);
+        }
+        // Rows scrolled up under the title are hidden — and unclickable.
+        if (!Body.Contains(mouse) && _panelRect.Contains(mouse)) return;
 
         _selectedSkillId ??= character.Skills.FirstOrDefault()?.SkillId;
 
@@ -135,6 +146,20 @@ public class SkillMenuUI
         sb.DrawString(FontManager.GetBold(19), "Skills", new Vector2(x, y), new Color(230, 215, 165));
         y += 34;
 
+        var body = Body;
+        _scroll = UiClip.Scroll(_scroll, 0, _contentHeight, body.Height);
+        UiClip.Begin(sb, body);
+        int contentTop = y;
+        int bottom = DrawContent(sb, input, character, x, y - _scroll);
+        _contentHeight = bottom + _scroll - contentTop + 8;
+        UiClip.End(sb);
+        UiClip.DrawScrollbar(sb, body, _scroll, _contentHeight);
+    }
+
+    /// <summary>The panel body: the skill list, then the selected skill's details.
+    /// Returns the y where the content ends (for the scroll range).</summary>
+    private int DrawContent(SpriteBatch sb, InputManager input, Sim.CharacterData character, int x, int y)
+    {
         // --- learned skill list + learnable skills ---
         _listRows.Clear();
         _summonButtons.Clear(); // cleared HERE, before the list rows add theirs
@@ -191,7 +216,7 @@ public class SkillMenuUI
         _levelUpRect = null;
         var sel = _selectedSkillId != null ? character.GetSkill(_selectedSkillId) : null;
         var selDef = sel?.GetDefinition(_data);
-        if (sel == null || selDef == null) return;
+        if (sel == null || selDef == null) return y;
 
         sb.Draw(TextureGen.Pixel, new Rectangle(x, y, _panelRect.Width - 24, 2), new Color(90, 85, 70));
         y += 10;
@@ -342,10 +367,11 @@ public class SkillMenuUI
             new Vector2(x, y), new Color(130, 124, 112));
 
         // --- hotkey assignment ---
-        // Anchored to the panel BOTTOM, not flowed: skills with long descriptions
-        // used to push this section clean out of the box.
-        int hotY = _panelRect.Bottom - 42;
-        sb.DrawString(font, "Assign to hotbar:", new Vector2(x, hotY - 24), Color.White);
+        // Flows with the content now that the body scrolls (it used to be pinned to
+        // the panel bottom, where a long scroll-slot row could run into it).
+        y += 22;
+        int hotY = y + 24;
+        sb.DrawString(font, "Assign to hotbar:", new Vector2(x, y), Color.White);
         for (int slot = 0; slot < character.Hotbar.Length; slot++)
         {
             var rect = new Rectangle(x + slot * 74, hotY, 66, 30);
@@ -357,6 +383,7 @@ public class SkillMenuUI
             sb.DrawString(font, keyLabel, new Vector2(rect.Center.X - kSize.X / 2, rect.Center.Y - kSize.Y / 2), Color.White);
             _hotbarButtons.Add((rect, slot));
         }
+        return hotY + 34;
     }
 
     private string HotbarKeyLabel(int slot)

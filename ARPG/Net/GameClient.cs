@@ -325,10 +325,10 @@ public class GameClient
 
     /// <summary>Gamble a specific gear base at the gambler NPC (server re-validates
     /// gold, level eligibility and proximity; rarity is fate's roll).</summary>
-    public void RequestGamble(string baseItemId)
+    public void RequestGamble(string offerToken)
     {
         var w = Packets.Make(PacketType.GambleRequest);
-        w.Put(baseItemId);
+        w.Put(offerToken);
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
@@ -1151,11 +1151,8 @@ public class GameClient
                         World.AddEffect(effectPoint, effRadius,
                             MathF.Max(0.2f, def.WindupTime),
                             skillId == "arrow_rain" ? "arrowrainring" : "burstcharge", effectHeight);
-                    // Wind-up SLAMS mark their landing circle on the ground while the
-                    // mace comes down — you can read the exact area before it hits.
-                    if (phase == 1 && isSlam && def.Archetype == Skills.SkillArchetype.MeleeStrike)
-                        World.AddEffect(effectPoint, MathF.Max(0.8f, effRadius),
-                            MathF.Max(0.2f, def.WindupTime), "slamring", effectHeight);
+                    // Wind-up SLAMS no longer mark the ground first: the mark could sit
+                    // away from a moving caster, so the impact alone shows the area.
 
                     if (phase != 1) // impact visuals come with the landing, never the wind-up
                         switch (def.Archetype)

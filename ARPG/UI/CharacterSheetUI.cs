@@ -38,6 +38,11 @@ public class CharacterSheetUI
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
 
     private Point _lastMouse;
+    // The body (everything under the title) scrolls with the wheel and is clipped to
+    // the panel, so a long skill list slides under the frame instead of past it.
+    private int _scroll;
+    private int _contentHeight;
+    private Rectangle Body => new(_panelRect.X + 2, _panelRect.Y + 42, _panelRect.Width - 4, _panelRect.Height - 46);
 
     public void Update(InputManager input, bool mouseBlocked = false)
     {
@@ -51,7 +56,10 @@ public class CharacterSheetUI
         }
         if (Window.HandleBar(input, WindowDrag.BarFor(_panelRect))) return;
         if (_panelRect.Contains(input.MousePosition))
+        {
             input.MouseCapturedByUI = true;
+            _scroll = UiClip.Scroll(_scroll, input.ScrollDelta, _contentHeight, Body.Height);
+        }
     }
 
     public void Draw(SpriteBatch sb)
@@ -75,6 +83,11 @@ public class CharacterSheetUI
 
         sb.DrawString(title, $"Character — {character.Name}  (Level {character.Level})", new Vector2(x, y), header);
         y += 34;
+        var body = Body;
+        _scroll = UiClip.Scroll(_scroll, 0, _contentHeight, body.Height);
+        UiClip.Begin(sb, body);
+        int contentTop = y;
+        y -= _scroll;
 
         // ------------------------------------------------ attributes
         sb.DrawString(FontManager.GetBold(16), "Attributes", new Vector2(x, y), new Color(220, 190, 140));
@@ -198,6 +211,9 @@ public class CharacterSheetUI
             }
             y += 22;
         }
+        _contentHeight = y + _scroll - contentTop + 8;
+        UiClip.End(sb);
+        UiClip.DrawScrollbar(sb, body, _scroll, _contentHeight);
     }
 
     private static void Border(SpriteBatch sb, Rectangle r, Color c)
