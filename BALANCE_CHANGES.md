@@ -1660,3 +1660,24 @@ item's flavour under it.
   surface's own mean colour lifted toward white (pale green on grass, tan on
   dirt, lilac on sanctum brick) instead of one white line everywhere; the dark
   crease and ledge shadow stay neutral.
+
+## Batch 74 addendum: slams that break the ground, a real flame column, two lords
+
+- **Mace Slam / Ground Slam visuals** lose their MMO rings. The wind-up mark is
+  now the ground darkening under the coming blow (tightening onto the true hit
+  size) with pebbles hopping inside it; the impact is radial FISSURES that
+  split out to the radius plus a shockwave of dust clumps rolling to the rim;
+  the tremor and aftershock keep their cracks (now reaching the rim) and dust,
+  with no boundary ring and no filled disc. The area still reads: the longest
+  cracks and the dust edge sit at the real radius.
+- **Knockback**: Ground Slam 1.8 -> 1.5 (its aftershock lands on more of the
+  pack), Mace Slam 2.2 -> 1.6 (no more skating enemies across the map).
+- **Flamethrower turret** sprays a COLUMN: a stream of repeated flame particles
+  from the nozzle down its facing, spreading into a 60-degree cone (was a
+  130-degree cone with a fire-patch disc). Damage uses the same 60-degree cone;
+  the placement preview shows it.
+- **Two lords**: the forest/defense **Gravelord** goes back to raising three
+  spitters; the Old Road's gate is held by **The Barrow Lord** (`barrowlord`,
+  same body and stats, mossy tint), who raises four melee zombies.
+- Dev: `ARPG_DEVUI=mace` equips a mace; `flamefx` plays the flame column beside
+  the player.

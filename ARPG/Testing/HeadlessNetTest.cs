@@ -4304,19 +4304,18 @@ public static class HeadlessNetTest
         campA.World.Me.Position = campBoss.Position + new Vector2(-2.0f, 0);
         for (int i = 0; i < 4; i++) { campA.SendDebugCommand("heal"); CPump(0.4f); }
         Check(campBoss.State != Server.EnemyState.Idle, "the Gravelord engaged");
-        int AddsNearBoss() => campServer.World.Enemies.Values.Count(e =>
-            !e.Dead && e.Def.Id == "grunt" && e.Level == campBoss.Level &&
-            Vector2.Distance(e.Position, campBoss.Position) < 10f);
-        int addsBase = AddsNearBoss();
-        Check(AddsNearBoss() == addsBase, "no adds in the opening seconds of the fight");
-        for (int i = 0; i < 24 && AddsNearBoss() < addsBase + 4; i++)
+        // The forest Gravelord raises SPITTERS (the Old Road's Barrow Lord is the one
+        // with melee zombies) — told apart from corridor spitters by their level.
+        int addsBase = SpittersNearBoss();
+        Check(SpittersNearBoss() == addsBase, "no adds in the opening seconds of the fight");
+        for (int i = 0; i < 24 && SpittersNearBoss() < addsBase + 3; i++)
         {
             campA.SendDebugCommand("heal");
             campA.World.Me.Position = campBoss.Position + new Vector2(-2.0f, 0);
             CPump(0.5f);
         }
-        Check(AddsNearBoss() >= addsBase + 4,
-              $"the Gravelord raises four zombies mid-fight, at HIS level ({AddsNearBoss() - addsBase} up)");
+        Check(SpittersNearBoss() >= addsBase + 3,
+              $"the Gravelord summons three spitters mid-fight, at HIS level ({SpittersNearBoss() - addsBase} up)");
 
         // Fell the boss: the seal lifts, the door leads home.
         campBoss.Health = 1f;
@@ -5028,8 +5027,8 @@ public static class HeadlessNetTest
         Check(campServer.World.Structures.Values.Any(s => s.Kind == World.StructureKind.Wagon) &&
               campServer.World.Npcs.Count == 2,
               "the caravan and its crew stand at camp");
-        Check(campServer.World.Enemies.Values.Any(e => !e.Dead && e.Def.Id == "gravelord"),
-              "the weathered Gravelord holds the gate");
+        Check(campServer.World.Enemies.Values.Any(e => !e.Dead && e.Def.Id == "barrowlord"),
+              "the weathered Barrow Lord holds the gate");
         Check(campServer.World.ExitLocked, "the ruins gate is barred while it stands");
         CPump(1.5f); // the arrival beat fires shortly after the map opens
         Check(campA.World.CutscenesSeen.Contains("tut_intro") &&
@@ -5072,9 +5071,14 @@ public static class HeadlessNetTest
 
         // The boss falls: the caravan celebrates and the gate opens home.
         var tutBoss54 = campServer.World.Enemies.Values
-            .First(e => !e.Dead && e.Def.Id == "gravelord");
+            .First(e => !e.Dead && e.Def.Id == "barrowlord");
         Check(tutBoss54.Affixes.HasFlag(Server.EliteAffix.Boss),
-              "the Old Road's Gravelord is a real boss (affix: big body, boss bar, stun resistance)");
+              "the Old Road's Barrow Lord is a real boss (affix: big body, boss bar, stun resistance)");
+        Check(data.Enemies["barrowlord"].AddSpawnType == "grunt" && data.Enemies["barrowlord"].AddSpawnCount == 4 &&
+              data.Enemies["gravelord"].AddSpawnType == "spitter" && data.Enemies["gravelord"].AddSpawnCount == 3,
+              "the Barrow Lord raises four zombies; the forest Gravelord keeps its three spitters");
+        Check(data.Skills["ground_slam"].Knockback == 1.5f && data.Skills["mace_strike"].Knockback == 1.6f,
+              $"slam knockback eased: Ground Slam {data.Skills["ground_slam"].Knockback}, Mace Slam {data.Skills["mace_strike"].Knockback}");
         campA.World.Me.Position = tutBoss54.Position + new Vector2(-1.5f, 0f);
         campA.World.Me.Height = 1f;
         campB.World.Me.Position = tutBoss54.Position + new Vector2(-1.5f, 0.8f);
@@ -6018,9 +6022,9 @@ public static class HeadlessNetTest
                   World.DefenseBalance.WagonHealthAt(40) > 1300f && World.DefenseBalance.WagonHealthAt(40) < 1400f && World.DefenseBalance.WagonHealthAt(200) == 2500f,
                   "the wagon's life runs 200 -> 2500 across levels 1-80");
 
-            // The Gravelord calls four zombies, and trees never root in pits.
-            Check(data.Enemies["gravelord"].AddSpawnType == "grunt" && data.Enemies["gravelord"].AddSpawnCount == 4,
-                  "the Gravelord's reinforcements are four zombies");
+            // The Old Road's Barrow Lord calls four zombies, and trees never root in pits.
+            Check(data.Enemies["barrowlord"].AddSpawnType == "grunt" && data.Enemies["barrowlord"].AddSpawnCount == 4,
+                  "the Barrow Lord's reinforcements are four zombies");
             int pits = 0, treeRoots = 0;
             foreach (var (kind, seed) in new[] { (World.MapKind.Defense, 11), (World.MapKind.Defense, 23), (World.MapKind.Forest, 5) })
             {

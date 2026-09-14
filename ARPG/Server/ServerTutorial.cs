@@ -71,12 +71,13 @@ public partial class ServerWorld
                 // introduction to the dead rising; the middle groups stand in plain view.
                 SpawnEnemy(kind, new Vector2(x, y), level: 1, buried: x < 20f || x > 50f);
 
-        // The gate boss: a Gravelord, already weathered — the tutorial wants a real
-        // boss fight, not a wall (its bar reads part-worn on purpose).
-        if (Data.Enemies.ContainsKey("gravelord"))
+        // The gate boss: the Barrow Lord — the Gravelord's tutorial cousin, who
+        // raises melee zombies instead of spitters — already weathered: the tutorial
+        // wants a real boss fight, not a wall (its bar reads part-worn on purpose).
+        if (Data.Enemies.ContainsKey("barrowlord"))
         {
             // A BOSS, affix and all: the big body, the boss bar, half stun/freeze.
-            var boss = SpawnEnemy("gravelord", Map.BossSpot, EliteAffix.Boss, level: 1);
+            var boss = SpawnEnemy("barrowlord", Map.BossSpot, EliteAffix.Boss, level: 1);
             boss.MaxHealth *= 0.3f;
             boss.Health = boss.MaxHealth;
             _bossEnemyId = boss.Id;

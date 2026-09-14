@@ -12,6 +12,9 @@ public static class TextureGen
 {
     public static Texture2D Pixel { get; private set; }
     public static Texture2D Circle32 { get; private set; }
+    /// <summary>A filled disc with NO outline — particles that overlap into one mass
+    /// (flame tongues, dust clumps) instead of a scatter of ringed dots.</summary>
+    public static Texture2D Blob32 { get; private set; }
     public static Texture2D Diamond { get; private set; }       // Filled isometric tile (64x32)
     /// <summary>Fully opaque diamond (edge pixels solid, slightly darkened). Elevated
     /// tops use this — the translucent-edged Diamond shows the void behind cliffs as
@@ -44,6 +47,7 @@ public static class TextureGen
         Pixel.SetData(new[] { Color.White });
 
         Circle32 = MakeCircle(device, 32);
+        Blob32 = MakeCircle(device, 32, outline: false);
         Diamond = MakeDiamond(device, TileWidth, TileHeight, filled: true);
         DiamondSolid = MakeDiamond(device, TileWidth, TileHeight, filled: true, opaqueEdge: true);
         DiamondFlat = MakeDiamond(device, TileWidth, TileHeight, filled: true, opaqueEdge: true, flat: true);
@@ -413,7 +417,7 @@ public static class TextureGen
         return tex;
     }
 
-    private static Texture2D MakeCircle(GraphicsDevice device, int diameter)
+    private static Texture2D MakeCircle(GraphicsDevice device, int diameter, bool outline = true)
     {
         var tex = new Texture2D(device, diameter, diameter);
         var data = new Color[diameter * diameter];
@@ -425,7 +429,7 @@ public static class TextureGen
                 float dx = x - cx, dy = y - cy;
                 float dist = MathF.Sqrt(dx * dx + dy * dy);
                 Color c = Color.Transparent;
-                if (dist <= r) c = dist >= r - 1.5f ? new Color(0, 0, 0, 255) : Color.White;
+                if (dist <= r) c = outline && dist >= r - 1.5f ? new Color(0, 0, 0, 255) : Color.White;
                 data[y * diameter + x] = c;
             }
         tex.SetData(data);
