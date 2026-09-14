@@ -35,6 +35,16 @@ public class SkillTreeUI
     private Vector2 _panAtDragStart;
     private const int DragThresholdPx = 6;
 
+    // The tree is rendered to its own SURFACE (a render target the size of the panel's
+    // view) and the panel blits that: the GPU clips at the surface edge, so panning
+    // slides bubbles smoothly in and out instead of popping them at the frame. The
+    // surface is only re-rendered when something it shows changes (pan, hover,
+    // allocation, panel size) — dragging a still tree costs one texture draw a frame.
+    private RenderTarget2D _surface;
+    private (Vector2 Pan, int Alloc, string Hover, Point Size, int Level, int Points) _surfaceKey;
+    private bool _surfaceValid;
+    private string _hoveredId;
+
     public SkillTreeUI(GameData data, GameClient client)
     {
         _data = data;
@@ -119,6 +129,100 @@ public class SkillTreeUI
 
         if (_panelRect.Contains(input.MousePosition))
             input.MouseCapturedByUI = true;
+        _hoveredId = HoveredNode()?.Id;
+    }
+
+    /// <summary>The node under the mouse, if its bubble sits inside the view.</summary>
+    private PassiveNode HoveredNode()
+    {
+        var view = ViewRect();
+        if (!view.Contains(_lastMouse)) return null;
+        foreach (var node in _data.PassiveTree.Nodes)
+            if (Vector2.Distance(NodeScreen(node), _lastMouse.ToVector2()) <= NodeRadius + 3)
+                return node;
+        return null;
+    }
+
+    /// <summary>The panel's tree viewport: everything below the header, above the footer.</summary>
+    private Rectangle ViewRect() => new(_panelRect.X + 6, _panelRect.Y + 58,
+        Math.Max(1, _panelRect.Width - 12), Math.Max(1, _panelRect.Height - 86));
+
+    /// <summary>Render the tree surface if anything it shows changed. Called by
+    /// GameMain BEFORE the backbuffer passes (a render-target switch mid-frame would
+    /// discard what's already drawn) — see PlayScreen.PrepareUiSurfaces.</summary>
+    public void PrepareSurface(GraphicsDevice gd, SpriteBatch sb)
+    {
+        if (!Open) return;
+        var character = _client.World.MyCharacter;
+        if (character == null) return;
+        var view = ViewRect();
+        int alloc = character.AllocatedPassives.Count;
+        foreach (var id in character.AllocatedPassives) alloc = alloc * 31 + id.GetHashCode();
+        int points = PassiveTree.PointsForLevel(character.Level) - character.AllocatedPassives.Count;
+        var key = (_pan, alloc, _hoveredId, new Point(view.Width, view.Height), character.Level, points);
+        if (_surfaceValid && _surface != null && !_surface.IsDisposed && key == _surfaceKey) return;
+        if (_surface == null || _surface.IsDisposed || _surface.Width != view.Width || _surface.Height != view.Height)
+        {
+            _surface?.Dispose();
+            _surface = new RenderTarget2D(gd, view.Width, view.Height, false, SurfaceFormat.Color, DepthFormat.None,
+                0, RenderTargetUsage.PreserveContents);
+        }
+        gd.SetRenderTarget(_surface);
+        gd.Clear(Color.Transparent);
+        sb.Begin(samplerState: SamplerState.PointClamp);
+        DrawTree(sb, character, view.Location.ToVector2());
+        sb.End();
+        gd.SetRenderTarget(null);
+        _surfaceKey = key;
+        _surfaceValid = true;
+    }
+
+    /// <summary>The tree itself — connections then nodes — in surface space (screen
+    /// position minus the view's origin). Nothing here clips: the surface does.</summary>
+    private void DrawTree(SpriteBatch sb, Sim.CharacterData character, Vector2 origin)
+    {
+        var tree = _data.PassiveTree;
+        // Connections underneath the nodes: brighter when both ends are allocated.
+        foreach (var pair in tree.Connections)
+        {
+            if (pair is not { Count: 2 } ||
+                !tree.ById.TryGetValue(pair[0], out var a) ||
+                !tree.ById.TryGetValue(pair[1], out var b)) continue;
+            var pa = NodeScreen(a) - origin;
+            var pb = NodeScreen(b) - origin;
+            bool lit = character.AllocatedPassives.Contains(a.Id) &&
+                       character.AllocatedPassives.Contains(b.Id);
+            bool half = character.AllocatedPassives.Contains(a.Id) ||
+                        character.AllocatedPassives.Contains(b.Id);
+            DrawLine(sb, pa, pb,
+                lit ? new Color(230, 200, 110) : half ? new Color(120, 110, 90) : new Color(64, 62, 70), lit ? 3 : 2);
+        }
+
+        var nameFont = FontManager.Get(12);
+        foreach (var node in tree.Nodes)
+        {
+            var pos = NodeScreen(node) - origin;
+            bool allocated = character.AllocatedPassives.Contains(node.Id);
+            bool allocatable = CanAllocate(character, node);
+            bool hover = node.Id == _hoveredId;
+
+            int r = NodeRadius + (node.Start ? 4 : 0);
+            var fill = allocated ? new Color(232, 196, 96)
+                : allocatable ? new Color(74, 110, 74)
+                : new Color(46, 46, 56);
+            var rim = allocated ? new Color(255, 232, 160)
+                : allocatable ? new Color(140, 220, 140)
+                : new Color(90, 88, 100);
+            if (hover) rim = Color.White;
+
+            sb.Draw(TextureGen.Circle32, new Rectangle((int)pos.X - r - 2, (int)pos.Y - r - 2, (r + 2) * 2, (r + 2) * 2), rim);
+            sb.Draw(TextureGen.Circle32, new Rectangle((int)pos.X - r, (int)pos.Y - r, r * 2, r * 2), fill);
+
+            // Tiny label under each node.
+            var ns = nameFont.MeasureString(node.Name);
+            sb.DrawString(nameFont, node.Name, new Vector2(pos.X - ns.X / 2, pos.Y + r + 4),
+                allocated ? new Color(255, 232, 160) : new Color(180, 176, 165));
+        }
     }
 
     public void Draw(SpriteBatch sb)
@@ -141,62 +245,11 @@ public class SkillTreeUI
             new Vector2(_panelRect.X + 14, _panelRect.Y + 34),
             points > 0 ? new Color(160, 240, 160) : new Color(160, 156, 145));
 
-        // Panned content clips coarsely to the panel so nodes never paint over other UI.
-        var view = new Rectangle(_panelRect.X + 6, _panelRect.Y + 58,
-            _panelRect.Width - 12, _panelRect.Height - 86);
-        // A node draws only when its WHOLE bubble (and label) sits inside the view:
-        // panning slides bubbles in and out at the edge instead of over the frame.
-        bool InView(Vector2 v) =>
-            v.X - NodeRadius - 8 >= view.Left && v.X + NodeRadius + 8 <= view.Right &&
-            v.Y - NodeRadius - 8 >= view.Top && v.Y + NodeRadius + 22 <= view.Bottom;
-
-        // Connections underneath the nodes: brighter when both ends are allocated.
-        foreach (var pair in tree.Connections)
-        {
-            if (pair is not { Count: 2 } ||
-                !tree.ById.TryGetValue(pair[0], out var a) ||
-                !tree.ById.TryGetValue(pair[1], out var b)) continue;
-            var pa = NodeScreen(a);
-            var pb = NodeScreen(b);
-            // Clip the segment to the view: a panned tree's connections must stop at
-            // the panel edge instead of running out over the rest of the screen.
-            if (!ClipSegment(ref pa, ref pb, view)) continue;
-            bool lit = character.AllocatedPassives.Contains(a.Id) &&
-                       character.AllocatedPassives.Contains(b.Id);
-            bool half = character.AllocatedPassives.Contains(a.Id) ||
-                        character.AllocatedPassives.Contains(b.Id);
-            DrawLine(sb, pa, pb,
-                lit ? new Color(230, 200, 110) : half ? new Color(120, 110, 90) : new Color(64, 62, 70), lit ? 3 : 2);
-        }
-
-        PassiveNode hovered = null;
-        foreach (var node in tree.Nodes)
-        {
-            var pos = NodeScreen(node);
-            if (!InView(pos)) continue;
-            bool allocated = character.AllocatedPassives.Contains(node.Id);
-            bool allocatable = CanAllocate(character, node);
-            bool hover = Vector2.Distance(pos, _lastMouse.ToVector2()) <= NodeRadius + 3;
-            if (hover) hovered = node;
-
-            int r = NodeRadius + (node.Start ? 4 : 0);
-            var fill = allocated ? new Color(232, 196, 96)
-                : allocatable ? new Color(74, 110, 74)
-                : new Color(46, 46, 56);
-            var rim = allocated ? new Color(255, 232, 160)
-                : allocatable ? new Color(140, 220, 140)
-                : new Color(90, 88, 100);
-            if (hover) rim = Color.White;
-
-            sb.Draw(TextureGen.Circle32, new Rectangle((int)pos.X - r - 2, (int)pos.Y - r - 2, (r + 2) * 2, (r + 2) * 2), rim);
-            sb.Draw(TextureGen.Circle32, new Rectangle((int)pos.X - r, (int)pos.Y - r, r * 2, r * 2), fill);
-
-            // Tiny label under each node.
-            var nameFont = FontManager.Get(12);
-            var ns = nameFont.MeasureString(node.Name);
-            sb.DrawString(nameFont, node.Name, new Vector2(pos.X - ns.X / 2, pos.Y + r + 4),
-                allocated ? new Color(255, 232, 160) : new Color(180, 176, 165));
-        }
+        // The tree lives on its own surface (PrepareSurface); the panel just blits it.
+        var view = ViewRect();
+        if (_surface != null && !_surface.IsDisposed)
+            sb.Draw(_surface, new Rectangle(view.X, view.Y, _surface.Width, _surface.Height), Color.White);
+        var hovered = HoveredNode();
 
         sb.DrawString(FontManager.Get(13),
             "Click a highlighted node to allocate · drag anywhere to pan the tree.",

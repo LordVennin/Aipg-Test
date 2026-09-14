@@ -1633,3 +1633,26 @@ item's flavour under it.
   ground), a dark overhang line on the near edges, foam and pale shallows at
   the foot of both. Tiles are shaded by how much land surrounds them (shallow
   at the bank, deep in the middle) instead of per-tile blotches.
+
+## Batch 72 addendum: ledges that read, slower spells, tree surface, stone prompts
+
+- **Ledge lines actually draw now.** The per-edge rim from batches 70/71 never
+  rendered: the deferred tile draws captured the `for` loop's x and y, which had
+  run past the map edge by the time they executed, so every neighbour lookup
+  read as out of bounds. Fixed; and on top of the light rim plus dark crease,
+  every back edge (a drop away from the camera, where no cliff face can show)
+  throws a soft shadow onto the lower ground beyond it. Higher ground south of
+  you and lower ground north of you both read at a glance, on every map.
+- **Spell skill XP**: Fire Bolt, Ice Spike and Chain Lightning level on a 95
+  base instead of 60 (`XpBase` per skill; the compounding curve starts from it,
+  so every rank stays dearer). Melee and bow skills keep the 60 curve.
+- **Passive tree** renders to its own surface (a render target the size of the
+  panel's view) and the panel blits it, so panning slides bubbles smoothly under
+  the frame edge instead of popping them once they touch it. The surface only
+  re-renders when pan, hover, allocation or panel size changes.
+- **Assistance stones** no longer talk on approach: within reach a small
+  "F Read the stone" prompt appears, the interact key opens the tip (again
+  closes it), and walking away closes it. Stones take priority over NPCs and
+  doors for the key; a targeted drop still wins.
+- Dev: `ARPG_DEVUI=tutorial` / debug command `warp_tutorial` jump into the Old
+  Road.

@@ -92,6 +92,7 @@ public class PlayScreen : IScreen
     /// X servers don't deliver real mouse motion, so screenshots can't aim).</summary>
     private NumVec2? _devFaceOverride;
     private bool _devWarpNext;
+    private bool _devWarpTutorial;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     /// <summary>The tooltip held open by Alt (and where its mouse anchor was), so the
@@ -264,6 +265,7 @@ public class PlayScreen : IScreen
             if (devUi.Contains("curio")) _devGiveCurios = true;
             if (devUi.Contains("rain")) _devArrowRain = true;
             if (devUi.Contains("warp")) _devWarpNext = true;
+            if (devUi.Contains("tutorial")) _devWarpTutorial = true;
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
             if (gearToken != null)
                 _devEquipSet = gearToken.Contains(':') ? gearToken.Split(':')[1] : "iron";
@@ -497,6 +499,11 @@ public class PlayScreen : IScreen
         {
             _devWarpNext = false;
             _client.SendDebugCommand("warp_next");
+        }
+        if (_devWarpTutorial && _clientTime > 3f)
+        {
+            _devWarpTutorial = false;
+            _client.SendDebugCommand("warp_tutorial");
         }
 
         // The server (when hosting) runs on its OWN thread with a fixed timestep — the
@@ -887,6 +894,10 @@ public class PlayScreen : IScreen
                     else
                         _pickupTargetId = targeted.DropId; // walk over, then grab it
                 }
+                else if (_hud.ToggleHint(me))
+                {
+                    // An assistance stone: the tip only shows once you choose to read it.
+                }
                 else if (workbenchNear && !_build.Open)
                 {
                     // The workbench: build turrets/barriers and call the next wave.
@@ -1268,6 +1279,14 @@ public class PlayScreen : IScreen
     {
         if (!_game.Settings.Lighting || _client.Status != ClientStatus.InGame) return null;
         return _renderer.RenderLightmap(gd, sb);
+    }
+
+    /// <summary>Off-screen UI surfaces (the passive tree's render target) — rendered
+    /// beside the lightmap, BEFORE the backbuffer passes, for the same reason.</summary>
+    public void PrepareUiSurfaces(Microsoft.Xna.Framework.Graphics.GraphicsDevice gd, SpriteBatch sb)
+    {
+        if (_client.Status != ClientStatus.InGame) return;
+        _skillTree.PrepareSurface(gd, sb);
     }
 
     /// <summary>HUD + menus — drawn in UI (virtual) space through the global UI scale matrix.</summary>

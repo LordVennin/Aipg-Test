@@ -208,7 +208,7 @@ public class SkillMenuUI
         y += 3;
 
         // XP bar
-        float xpNeed = SkillMath.XpToNextLevel(sel.Level);
+        float xpNeed = SkillMath.XpToNextLevel(sel.Level, selDef);
         float xpFrac = sel.Level >= SkillMath.MaxSkillLevel ? 1f : Math.Clamp(sel.Experience / xpNeed, 0, 1);
         var xpRect = new Rectangle(x, y, 300, 10);
         sb.Draw(TextureGen.Pixel, xpRect, new Color(30, 30, 36));

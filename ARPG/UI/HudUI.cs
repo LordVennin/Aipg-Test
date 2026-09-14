@@ -49,10 +49,36 @@ public class HudUI
     /// <summary>What the player has waiting for them: passive points not yet spent and
     /// skills whose banked XP covers their next level (leveling is manual). Pure, so
     /// the badges and the tests share it.</summary>
-    public static (int PassivePoints, int LevelableSkills) PendingAlerts(Sim.CharacterData character) =>
+    public static (int PassivePoints, int LevelableSkills) PendingAlerts(Sim.CharacterData character, GameData data) =>
         (Math.Max(0, PassiveTree.PointsForLevel(character.Level) - character.AllocatedPassives.Count),
          character.Skills.Count(sk => sk.Level < SkillMath.MaxSkillLevel &&
-                                      sk.Experience >= SkillMath.XpToNextLevel(sk.Level)));
+                                      sk.Experience >= SkillMath.XpToNextLevel(sk.Level, sk.GetDefinition(data))));
+
+    /// <summary>Which assistance stone's tip is open (-1: none). Opened by the
+    /// interact key beside the stone (ToggleHint); closes when the player walks off.</summary>
+    public int OpenHintIndex = -1;
+    public const float HintReadRange = 2.3f;
+
+    /// <summary>The assistance stone within reading range of `me`, or -1.</summary>
+    public int NearHintIndex(ClientPlayer me)
+    {
+        var map = _client.World.Map;
+        if (map == null || map.Kind != World.MapKind.Tutorial) return -1;
+        for (int i = 0; i < map.TutorialHints.Count; i++)
+            if (System.Numerics.Vector2.Distance(me.Position, map.TutorialHints[i].Pos) <= HintReadRange)
+                return i;
+        return -1;
+    }
+
+    /// <summary>Interact key beside a stone: open its tip, or close it if it's showing.
+    /// True when a stone was in range (the key press was consumed).</summary>
+    public bool ToggleHint(ClientPlayer me)
+    {
+        int near = NearHintIndex(me);
+        if (near < 0) return false;
+        OpenHintIndex = OpenHintIndex == near ? -1 : near;
+        return true;
+    }
 
     public void Draw(SpriteBatch sb, Point screen, InputManager input, IReadOnlyDictionary<string, float> cooldownEnds, float clientTime)
     {
@@ -84,7 +110,7 @@ public class HudUI
         // --- pending-choice badges (top left): unspent passive points, skills that can
         // level — small pills with the key that opens the right panel, pulsing gently ---
         {
-            var (pendingPoints, levelable) = PendingAlerts(character);
+            var (pendingPoints, levelable) = PendingAlerts(character, _data);
             var badgeFont = FontManager.Get(13);
             var keyFont = FontManager.GetBold(13);
             int by = 10; // fixed to the screen corner, whatever the hover panel does
@@ -110,7 +136,7 @@ public class HudUI
             {
                 string which = levelable == 1
                     ? (_data.Skills.GetValueOrDefault(character.Skills.First(sk =>
-                          sk.Level < SkillMath.MaxSkillLevel && sk.Experience >= SkillMath.XpToNextLevel(sk.Level)).SkillId)?.Name
+                          sk.Level < SkillMath.MaxSkillLevel && sk.Experience >= SkillMath.XpToNextLevel(sk.Level, sk.GetDefinition(_data))).SkillId)?.Name
                        ?? "a skill") + " can level up"
                     : $"{levelable} skills can level up";
                 Badge(input.Bindings[InputAction.SkillMenu].Display(), which, new Color(150, 230, 140));
@@ -175,11 +201,29 @@ public class HudUI
             sb.DrawString(subFont, zoneSub, new Vector2(screen.X / 2f - zsSize.X / 2, 46 + TopInset), new Color(170, 162, 140));
         }
 
-        // --- tutorial assistance: standing near a hint stone shows its tip ---
-        if (_client.World.Map?.Kind == World.MapKind.Tutorial)
-            foreach (var (hintPos, hintTitle, hintText) in _client.World.Map.TutorialHints)
+        // --- tutorial assistance: near a hint stone a small READ prompt appears; the
+        // interact key opens the tip (PlayScreen calls ToggleHint), walking off closes it ---
+        int nearHint = NearHintIndex(me);
+        if (nearHint < 0 || nearHint != OpenHintIndex) OpenHintIndex = -1;
+        if (nearHint >= 0 && OpenHintIndex < 0)
+        {
+            var pfFont = FontManager.Get(13);
+            var pkFont = FontManager.GetBold(13);
+            string pk = input.Bindings[InputAction.Interact].Display();
+            string pt = "Read the stone";
+            var pkSize = pkFont.MeasureString(pk);
+            var ptSize = pfFont.MeasureString(pt);
+            int pw = (int)(pkSize.X + ptSize.X + 34);
+            var prompt = new Rectangle(screen.X / 2 - pw / 2, screen.Y - 176 - 30, pw, 26);
+            sb.Draw(TextureGen.Pixel, prompt, new Color(14, 20, 30, 220));
+            sb.Draw(TextureGen.Pixel, new Rectangle(prompt.X, prompt.Y, prompt.Width, 2), new Color(120, 190, 235));
+            sb.Draw(TextureGen.Pixel, new Rectangle(prompt.X + 8, prompt.Y + 5, (int)pkSize.X + 8, 16), new Color(40, 62, 80));
+            sb.DrawString(pkFont, pk, new Vector2(prompt.X + 12, prompt.Y + 5), new Color(200, 230, 250));
+            sb.DrawString(pfFont, pt, new Vector2(prompt.X + 12 + pkSize.X + 14, prompt.Y + 5), new Color(190, 200, 210));
+        }
+        if (OpenHintIndex >= 0)
             {
-                if (System.Numerics.Vector2.Distance(me.Position, hintPos) > 2.3f) continue;
+                var (_, hintTitle, hintText) = _client.World.Map.TutorialHints[OpenHintIndex];
                 var htFont = FontManager.GetBold(15);
                 var hbFont = FontManager.Get(13);
                 // Word-wrap the body to a readable width.
@@ -207,7 +251,6 @@ public class HudUI
                 for (int li = 0; li < lines.Count; li++)
                     sb.DrawString(hbFont, lines[li],
                         new Vector2(panel.X + 14, panel.Y + 32 + li * 18), new Color(216, 220, 226));
-                break; // one stone at a time
             }
 
         // --- health + mana: ORBS (default) or the long horizontal BARS option ---

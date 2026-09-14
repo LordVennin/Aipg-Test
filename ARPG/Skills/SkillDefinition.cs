@@ -138,6 +138,10 @@ public class SkillDefinition
     /// <summary>Sky volleys (Arrow Rain): how many times the marked circle is rained on
     /// per cast (0 = not a sky volley). Extra projectiles from gear add volleys.</summary>
     public int Volleys { get; set; }
+    /// <summary>Skill XP the FIRST level costs (0 = SkillMath.SkillXpBase). The whole
+    /// curve compounds from it, so a higher base slows every later level too — the
+    /// scaling spells sit at 95 against the default 60.</summary>
+    public float XpBase { get; set; }
 
     /// <summary>Seconds between the cast and the hit landing (slam wind-up). The server
     /// queues the strike; the client delays the impact visuals to match. 0 = instant.</summary>

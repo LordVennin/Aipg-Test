@@ -3707,6 +3707,15 @@ public static class HeadlessNetTest
         float s20 = Skills.SkillMath.XpToNextLevel(20);
         Check(s1 == 60f && MathF.Abs(s11 - (s10 * 1.15f + 30f)) < 2f && s20 / s10 > 4f,
               $"skill XP compounds too: L1 {s1:0}, L10 {s10:0}, L20 {s20:0}");
+        // The scaling spells start from a 95 base and stay dearer all the way up;
+        // melee skills keep the 60 curve.
+        float fb1 = Skills.SkillMath.XpToNextLevel(1, data.Skills["fire_bolt"]);
+        float fb9 = Skills.SkillMath.XpToNextLevel(9, data.Skills["fire_bolt"]);
+        float ms9 = Skills.SkillMath.XpToNextLevel(9, data.Skills["mace_strike"]);
+        Check(fb1 == 95f && Skills.SkillMath.XpToNextLevel(1, data.Skills["ice_spike"]) == 95f &&
+              Skills.SkillMath.XpToNextLevel(1, data.Skills["chain_lightning"]) == 95f &&
+              Skills.SkillMath.XpToNextLevel(1, data.Skills["mace_strike"]) == 60f && fb9 > ms9 * 1.15f,
+              $"Fire Bolt, Ice Spike and Chain Lightning level on a 95 base (L9 {fb9:0} vs mace {ms9:0})");
 
         // Shield Bash hits the whole impact cluster, and skill XP now follows DAMAGE
         // (no killing blow needed): bash two beefy grunts at once — both take the hit,
@@ -5681,7 +5690,7 @@ public static class HeadlessNetTest
         alertChar60.Skills.Add(new Sim.LearnedSkill { SkillId = "mace_strike", Level = 2,
             Experience = Skills.SkillMath.XpToNextLevel(2) });
         alertChar60.Skills.Add(new Sim.LearnedSkill { SkillId = "ground_slam", Level = 1, Experience = 0f });
-        var alerts60 = UI.HudUI.PendingAlerts(alertChar60);
+        var alerts60 = UI.HudUI.PendingAlerts(alertChar60, data);
         Check(alerts60.PassivePoints == Skills.PassiveTree.PointsForLevel(4) && alerts60.LevelableSkills == 1,
               $"the HUD knows what's waiting: {alerts60.PassivePoints} passive points, {alerts60.LevelableSkills} skill ready to level");
         // Tree connections clip to the panel: a segment crossing the edge is cut at it,

@@ -3745,13 +3745,13 @@ public partial class ServerWorld
         if (!Players.TryGetValue(playerId, out var p)) return;
         var skill = p.Character.GetSkill(skillId);
         if (skill == null || skill.Level >= SkillMath.MaxSkillLevel) return;
-        float need = SkillMath.XpToNextLevel(skill.Level);
+        var def = skill.GetDefinition(Data);
+        float need = SkillMath.XpToNextLevel(skill.Level, def);
         if (skill.Experience < need) return;
         skill.Experience -= need;
         skill.Level++;
         // A summon skill's reservation price rises with its level — reprice every
         // minion already out (and any awaiting a free respawn), not just future ones.
-        var def = skill.GetDefinition(Data);
         if (def?.Archetype == SkillArchetype.Summon)
         {
             float reservation = SummonManaCost(p, def, skill.Level);
