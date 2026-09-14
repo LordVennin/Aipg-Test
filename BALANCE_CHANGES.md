@@ -1685,3 +1685,21 @@ item's flavour under it.
   (Mace Strike, the basic swing, knockback 0.8 unchanged) and `mace_strike` ->
   `mace_slam` (Mace Slam, the wind-up slam, knockback now 1.6). Saves carry a
   `SaveFormat`; older saves have their skills and hotbar renamed once on load.
+
+## Batch 76 addendum: slower spells, scrolling panels, gambling by kind
+
+- **Spell damage** starts lower and grows slower, since it does not lean on gear
+  the way attacks do: Fire Bolt and Ice Spike 12 +4/level -> 9 +2/level, Chain
+  Lightning 12 +3.5 -> 9 +1.8, Arcane Burst 16 +5 -> 12 +2.5. (Base skill XP for
+  the three scaling spells stays 95.)
+- **Character sheet and Skills menu** scroll with the mouse wheel and clip to the
+  panel (a scissor-clipped body with a slim scrollbar), so long skill lists slide
+  under the frame instead of past it. The skills menu's hotbar row flows with
+  the content rather than sitting pinned to the bottom.
+- **Gambling by kind**: Sable lists kinds of gear — Random Mace, Random Bow,
+  Random Energy Shield Helmet, Random Deflection Body... — never a named base or
+  a tier. Fate picks a base you can wear, preferring ones within 6 levels of
+  yours, rolled at your level or up to 2 below, then the rarity and every mod.
+  Uniques never come up. Price is unchanged (45 + 12/level, jewelry x1.5).
+- **Mace Slam** no longer darkens the ground during its wind-up (the mark could
+  sit away from a moving caster); the impact's fissures and dust show the area.

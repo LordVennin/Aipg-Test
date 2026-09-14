@@ -2681,40 +2681,6 @@ public class WorldRenderer
                 continue;
             }
 
-            if (fx.Kind == "slamring")
-            {
-                // A wind-up slam's landing mark, no ring: the ground under the coming
-                // blow darkens as if already under its weight, tightening onto the true
-                // hit size, while pebbles inside it hop in place. The dark patch IS the area.
-                float shrink = 1.14f - 0.14f * t;
-                float rax = fx.Radius * 1.414f * IsoCamera.HalfTileW * shrink;
-                float ray = fx.Radius * 1.414f * IsoCamera.HalfTileH * shrink;
-                float press = 0.12f + 0.24f * t;
-                int seedR = (int)(fx.Position.X * 641) ^ (int)(fx.Position.Y * 877);
-                long clockR = Environment.TickCount64;
-                float hopAmp = 2f + 5f * t;
-                _sorted.Add((fx.Position.X + fx.Position.Y + fx.Height * 1.0f + 0.2f + UnderDeckBias(fx.Position, fx.Height), batch =>
-                {
-                    batch.Draw(TextureGen.Blob32,
-                        new Rectangle((int)(screen.X - rax), (int)(screen.Y - ray), (int)(rax * 2), (int)(ray * 2)),
-                        new Color(8, 6, 4) * press);
-                    batch.Draw(TextureGen.Blob32,
-                        new Rectangle((int)(screen.X - rax * 0.55f), (int)(screen.Y - ray * 0.55f), (int)(rax * 1.1f), (int)(ray * 1.1f)),
-                        new Color(8, 6, 4) * (press * 0.7f));
-                    for (int i = 0; i < 12; i++)
-                    {
-                        var rng = new Random(seedR + i * 53);
-                        float ang = (float)(rng.NextDouble() * Math.PI * 2);
-                        float rf = 0.2f + 0.78f * (float)rng.NextDouble();
-                        float hop = MathF.Abs(MathF.Sin((clockR + i * 140) * 0.012f)) * hopAmp;
-                        float bx = screen.X + MathF.Cos(ang) * rax * rf, by = screen.Y + MathF.Sin(ang) * ray * rf;
-                        batch.Draw(TextureGen.Pixel, new Rectangle((int)bx, (int)by, 2, 1), new Color(0, 0, 0) * 0.35f);
-                        batch.Draw(TextureGen.Pixel, new Rectangle((int)bx, (int)(by - hop) - 1, 2, 2), new Color(160, 140, 108));
-                    }
-                }));
-                continue;
-            }
-
             if (fx.Kind == "tremor")
             {
                 // Ground Slam's lingering quake: the hit circle keeps shuddering — a

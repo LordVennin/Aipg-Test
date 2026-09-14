@@ -453,18 +453,25 @@ public partial class ServerWorld
     /// <summary>Roll a gambled item: the player picks the exact BASE, fate rolls the
     /// rarity and modifiers. Validated: gambler in reach, base level-eligible, gold,
     /// bag space (checked BEFORE charging — a full bag never eats the fee).</summary>
-    public void Gamble(int playerId, string baseItemId)
+    public void Gamble(int playerId, string offerToken)
     {
         if (!Players.TryGetValue(playerId, out var p)) return;
-        var b = Data.Items.GetValueOrDefault(baseItemId);
-        if (!GambleBalance.Eligible(b, p.Character.Level)) return;
+        var offer = GambleBalance.FindOffer(offerToken);
+        if (offer == null) return;
         var gambler = Npcs.FirstOrDefault(n => n.TypeId == "gambler");
         if (gambler == null || Vector2.Distance(p.Position, gambler.Position) > 3.5f)
         {
             _events.MessageFor(p, "The gambler waits in the sanctum.");
             return;
         }
-        int price = GambleBalance.Price(b, p.Character.Level);
+        int level = p.Character.Level;
+        var candidates = GambleBalance.Candidates(Data, offer, level);
+        if (candidates.Count == 0)
+        {
+            _events.MessageFor(p, "Fate has nothing of that kind for you yet.");
+            return;
+        }
+        int price = GambleBalance.Price(offer, level);
         if (p.Character.Gold < price)
         {
             _events.MessageFor(p, $"A roll on that costs {price} gold — come back richer.");
@@ -475,7 +482,10 @@ public partial class ServerWorld
         var rarity = roll < GambleBalance.WeightNormal ? ItemRarity.Normal
             : roll < GambleBalance.WeightNormal + GambleBalance.WeightMagic ? ItemRarity.Magic
             : ItemRarity.Rare;
-        var item = Loot.Generate(b, p.Character.Level, rarity);
+        // Fate's pick: a base near your level or below, rolled at (about) your level.
+        var b = candidates[_rng.Next(candidates.Count)];
+        int itemLevel = Math.Max(b.RequiredLevel, level - _rng.Next(0, 3));
+        var item = Loot.Generate(b, itemLevel, rarity);
         if (!p.Character.Inventory.TryAdd(Data, item))
         {
             _events.MessageFor(p, "Your bag is full — fate waits for no one, but she does need room.");

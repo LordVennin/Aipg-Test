@@ -10,10 +10,10 @@ using Microsoft.Xna.Framework.Graphics;
 namespace ARPG.UI;
 
 /// <summary>
-/// The gambler's table: a scrollable list of every gear BASE the character could wear
-/// at their level, each with a steep price. You choose the exact base; the rarity and
-/// every modifier on it are fate's roll (GambleBalance — rules shared with the server,
-/// so the list and prices need no stock roundtrip).
+/// The gambler's table: a list of KINDS of gear — a random bow, a random energy-shield
+/// helmet — each with a steep price. Fate picks a base near your level (or below), the
+/// rarity and every modifier (GambleBalance — rules shared with the server, so the
+/// list and prices need no stock roundtrip).
 /// </summary>
 public class GambleUI
 {
@@ -42,10 +42,10 @@ public class GambleUI
 
     public bool Contains(Point p) => Open && _panelRect.Contains(p);
 
-    private List<ItemBase> Bases()
+    private List<GambleOffer> Bases()
     {
         int level = _client.World.MyCharacter?.Level ?? 1;
-        return GambleBalance.EligibleBases(_data, level).ToList();
+        return GambleBalance.Available(_data, level).ToList();
     }
 
     public void Update(InputManager input, bool mouseBlocked = false)
@@ -71,7 +71,7 @@ public class GambleUI
                 int level = _client.World.MyCharacter?.Level ?? 1;
                 int price = GambleBalance.Price(bases[row], level);
                 if ((_client.World.MyCharacter?.Gold ?? 0) >= price)
-                    _client.RequestGamble(bases[row].Id);
+                    _client.RequestGamble(bases[row].Token);
             }
         }
     }
@@ -91,7 +91,7 @@ public class GambleUI
         sb.DrawString(FontManager.GetBold(19), "Sable the Gambler",
             new Vector2(x, _panelRect.Y + 8), new Color(240, 200, 110));
         sb.DrawString(FontManager.Get(13),
-            "pick the base — the rarity and every roll on it are fate's",
+            "pick a kind of gear — the base, the rarity and every roll are fate's",
             new Vector2(x, _panelRect.Y + 34), new Color(175, 165, 150));
         sb.DrawString(FontManager.Get(15), $"Your gold: {character.Gold}",
             new Vector2(x, _panelRect.Y + 56), new Color(240, 200, 90));
@@ -112,10 +112,8 @@ public class GambleUI
             bool afford = character.Gold >= price;
             if (hover)
                 sb.Draw(TextureGen.Pixel, row, new Color(60, 50, 36, 200));
-            sb.DrawString(rowFont, b.Name, new Vector2(row.X + 6, row.Y + 4),
+            sb.DrawString(rowFont, b.Label, new Vector2(row.X + 6, row.Y + 4),
                 afford ? new Color(230, 224, 210) : new Color(130, 124, 112));
-            sb.DrawString(subFont, b.Category.ToString(),
-                new Vector2(row.X + 200, row.Y + 7), new Color(140, 134, 122));
             string priceText = $"{price} g";
             var pSize = rowFont.MeasureString(priceText);
             sb.DrawString(rowFont, priceText,
@@ -125,7 +123,7 @@ public class GambleUI
         if (bases.Count > visible)
             sb.DrawString(subFont, $"scroll · {_scroll + 1}-{Math.Min(bases.Count, _scroll + visible)} of {bases.Count}",
                 new Vector2(_listRect.X, _listRect.Bottom + 4), new Color(140, 132, 120));
-        sb.DrawString(FontManager.Get(12), "click a base to roll it · no refunds",
+        sb.DrawString(FontManager.Get(12), "click a kind to roll it · around your level or below · no refunds",
             new Vector2(x, _panelRect.Bottom - 20), new Color(150, 140, 120));
     }
 

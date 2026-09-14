@@ -3747,7 +3747,8 @@ public static class HeadlessNetTest
         Pump(0.3f);
 
         Console.WriteLine("\n-- Batch 46: gambler, buyback, mouse 4/5, ghost walls --");
-        // The gambler: pick the exact BASE, pay steep gold, fate rolls the rest.
+        // The gambler: pick a KIND of gear, pay steep gold, fate picks the base (near
+        // your level or below), the rarity and every roll.
         var tmpGambler = new Server.ServerNpc
         {
             Id = 99, TypeId = "gambler",
@@ -3755,26 +3756,28 @@ public static class HeadlessNetTest
         };
         server.World.Npcs.Add(tmpGambler);
         srvBasher.Character.Gold = 5000;
-        int gamblePrice = Items.GambleBalance.Price(data.Items["wooden_club"], srvBasher.Character.Level);
+        var maceOffer = Items.GambleBalance.FindOffer("mace");
+        int gamblePrice = Items.GambleBalance.Price(maceOffer, srvBasher.Character.Level);
         int bagCountBefore = srvBasher.Character.Inventory.Items.Count;
-        server.World.Gamble(bId, "wooden_club");
-        Check(srvBasher.Character.Gold == 5000 - gamblePrice &&
-              srvBasher.Character.Inventory.Items.Count == bagCountBefore + 1 &&
-              srvBasher.Character.Inventory.Items[^1].Item.BaseItemId == "wooden_club",
-              $"gambling buys the chosen base for {gamblePrice} gold, rarity unseen");
-        // An ineligible probe must sit ABOVE the character's actual level (B has
-        // leveled a lot this run) — synthesize one to keep the check deterministic.
-        var tooHigh = new Items.ItemBase
-        {
-            Id = "test_gamble_locked", Name = "Locked Test Base",
-            Category = Items.ItemCategory.Mace, RequiredLevel = srvBasher.Character.Level + 10,
-        };
-        data.Items[tooHigh.Id] = tooHigh;
-        server.World.Gamble(bId, tooHigh.Id);
-        data.Items.Remove(tooHigh.Id);
+        server.World.Gamble(bId, "mace");
+        var gambled = srvBasher.Character.Inventory.Items.Count > bagCountBefore
+            ? srvBasher.Character.Inventory.Items[^1].Item : null;
+        var gambledBase = gambled != null ? data.Items[gambled.BaseItemId] : null;
+        Check(srvBasher.Character.Gold == 5000 - gamblePrice && gambledBase != null &&
+              gambledBase.Category == Items.ItemCategory.Mace && !gambledBase.Unique &&
+              gambledBase.RequiredLevel <= srvBasher.Character.Level &&
+              gambled.ItemLevel <= srvBasher.Character.Level && gambled.ItemLevel >= srvBasher.Character.Level - 2,
+              $"gambling a 'random mace' for {gamblePrice} gold hands over a wearable mace ({gambledBase?.Name}, ilvl {gambled?.ItemLevel})");
+        Check(Items.GambleBalance.Offers.All(o => !o.Label.Contains("Tier")) &&
+              Items.GambleBalance.Available(data, 1).Any(o => o.Token == "bow") &&
+              Items.GambleBalance.Available(data, 1).Any(o => o.Token == "body:es") &&
+              Items.GambleBalance.Candidates(data, Items.GambleBalance.FindOffer("body:es"), 1)
+                  .All(b => b.BaseStats.GetValueOrDefault(Stats.StatType.EnergyShield) > 0),
+              "the table lists kinds (random bow, random energy shield body...), never tiers");
+        server.World.Gamble(bId, "helmet:diamond"); // no such kind
         Check(srvBasher.Character.Gold == 5000 - gamblePrice &&
               srvBasher.Character.Inventory.Items.Count == bagCountBefore + 1,
-              "bases above your level cannot be gambled (no charge, no item)");
+              "an unknown kind cannot be gambled (no charge, no item)");
         server.World.Npcs.Remove(tmpGambler);
 
         // Buy-back holds a LEVEL's worth of sales and wipes on level-up.
@@ -5580,7 +5583,7 @@ public static class HeadlessNetTest
             var imp56 = clientB.World.Effects.FirstOrDefault(fx => fx.Kind == "impact");
             if (imp56 != null) { impactSeen56 = true; impactR56 = imp56.Radius; }
         }
-        Check(ringSeen56, "a wind-up slam marks its landing circle while the mace comes down");
+        Check(!ringSeen56, "a wind-up slam no longer marks the ground before it lands (the mark could sit away from a moving caster)");
         Check(impactSeen56 && MathF.Abs(impactR56 - msStats56.Radius) < 0.01f,
               $"the impact draws at the server's effective radius ({impactR56:0.00}, base {data.Skills["mace_slam"].Radius:0.00})");
 
