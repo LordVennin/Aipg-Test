@@ -4,7 +4,7 @@
     "Name": "Warrior",
     "Description": "Close and personal: a club in hand and enemies within reach. Starts with Mace Strike.",
     "StartWeapon": "wooden_club",
-    "StartSkill": "basic_strike",
+    "StartSkill": "mace_strike",
     "StartStrength": 11,
     "StartDexterity": 4,
     "StartIntelligence": 3

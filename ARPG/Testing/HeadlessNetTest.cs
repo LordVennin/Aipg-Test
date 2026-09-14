@@ -78,11 +78,11 @@ public static class HeadlessNetTest
         // New characters know only Mace Strike + Fire Bolt (skills are trainer-bought
         // in the campaign). The arena has no trainer, so learning stays free — pick up
         // Mace Slam here because half the combat checks below swing it.
-        clientA.RequestLearnSkill("mace_strike");
-        clientB.RequestLearnSkill("mace_strike");
+        clientA.RequestLearnSkill("mace_slam");
+        clientB.RequestLearnSkill("mace_slam");
         Pump(0.3f);
-        Check(clientA.World.MyCharacter.GetSkill("mace_strike") != null &&
-              clientB.World.MyCharacter.GetSkill("mace_strike") != null,
+        Check(clientA.World.MyCharacter.GetSkill("mace_slam") != null &&
+              clientB.World.MyCharacter.GetSkill("mace_slam") != null,
               "arena worlds keep free skill learning (no trainer present)");
         Check(clientA.World.MyCharacter.Gold >= 100,
               $"new characters start with 100 gold (has {clientA.World.MyCharacter.Gold})");
@@ -127,7 +127,7 @@ public static class HeadlessNetTest
         Pump(0.3f); // let the position reach the server
 
         float hpBefore = serverEnemy.Health;
-        clientA.RequestUseSkill("mace_strike", serverEnemy.Position);
+        clientA.RequestUseSkill("mace_slam", serverEnemy.Position);
         Pump(0.7f); // covers network latency + the slam's 0.35s wind-up
         Check(serverEnemy.Health < hpBefore, $"mace strike damaged enemy ({hpBefore:0} -> {serverEnemy.Health:0})");
         Check(clientB.World.Enemies.TryGetValue(targetId, out var enemyOnB) &&
@@ -151,7 +151,7 @@ public static class HeadlessNetTest
 
         // A strike aimed far BEHIND max range must not hit (impact point clamps to range).
         float hpBefore2 = serverEnemy.Health;
-        clientA.RequestUseSkill("mace_strike",
+        clientA.RequestUseSkill("mace_slam",
             clientA.World.Me.Position - new Vector2(10f, 0)); // aimed the opposite direction
         Pump(0.7f); // long enough that a wind-up strike WOULD have landed if aimed here
         Check(Math.Abs(serverEnemy.Health - hpBefore2) < 0.01f,
@@ -424,7 +424,7 @@ public static class HeadlessNetTest
                   $"walking over gold picks it up automatically ({goldBefore} -> {clientA.World.MyCharacter.Gold})");
         }
 
-        clientA.RequestLearnSkill("basic_strike");
+        clientA.RequestLearnSkill("mace_strike");
         // Move to the map spawn (guaranteed open ground) so the debug enemy can't land in a wall.
         clientA.World.Me.Position = server.World.Map.PlayerSpawn;
         Pump(0.4f);
@@ -439,7 +439,7 @@ public static class HeadlessNetTest
         clientA.World.Me.Position = SafeNear(kbTarget.Position);
         Pump(0.3f);
         float kbBefore = Vector2.Distance(kbTarget.Position, kbPlayer.Position);
-        clientA.RequestUseSkill("basic_strike", kbTarget.Position);
+        clientA.RequestUseSkill("mace_strike", kbTarget.Position);
         Pump(0.15f);
         float kbAfter = Vector2.Distance(kbTarget.Position, kbPlayer.Position);
         Check(kbTarget.Dead || kbAfter > kbBefore + 0.3f,
@@ -630,7 +630,7 @@ public static class HeadlessNetTest
                   or Stats.StatType.ArcaneResistance or Stats.StatType.Armor)
               .All(m => !m.CompatibleWith(Items.ItemCategory.Mace) && !m.CompatibleWith(Items.ItemCategory.Staff)),
               "defense modifiers (armor, resistances) no longer roll on weapons");
-        Check(data.Skills["basic_strike"].Name == "Mace Strike" && data.Skills["mace_strike"].Name == "Mace Slam",
+        Check(data.Skills["mace_strike"].Name == "Mace Strike" && data.Skills["mace_slam"].Name == "Mace Slam",
               "skills renamed: Mace Strike (swing) and Mace Slam (ground slam)");
 
         // Crit stats flow through the stat system: base 5% / 150% plus weapon suffixes.
@@ -690,7 +690,7 @@ public static class HeadlessNetTest
         fireMace.Modifiers.Add(new Items.ItemModifierRoll { ModifierId = "searing_t5", Value = 12 });
         fireChar.Equipment[Items.EquipSlot.MainHand] = fireMace;
         var fireStats = Stats.StatCalculator.Compute(data, fireChar);
-        var strikeStats = Skills.SkillMath.Compute(data, data.Skills["basic_strike"], 1,
+        var strikeStats = Skills.SkillMath.Compute(data, data.Skills["mace_strike"], 1,
             Array.Empty<Skills.ScrollDefinition>(), fireStats);
         Check(fireStats.AddedFire == 12 && strikeStats.Added != null &&
               strikeStats.Added.Any(c => c.Kind == Skills.DamageKind.Fire && c.Max > 0),
@@ -966,7 +966,7 @@ public static class HeadlessNetTest
         }
 
         Console.WriteLine("\n-- Mana --");
-        Check(data.Skills["fire_bolt"].ManaCost > 0 && data.Skills["basic_strike"].ManaCost == 0,
+        Check(data.Skills["fire_bolt"].ManaCost > 0 && data.Skills["mace_strike"].ManaCost == 0,
               "skills carry mana costs (Basic Strike stays free)");
         var manaPlayer = server.World.Players[bId];
         Check(manaPlayer.Stats.MaxMana > 0 && manaPlayer.Stats.ManaRegeneration > 0,
@@ -1193,7 +1193,7 @@ public static class HeadlessNetTest
               "under-bridge enemy does not aggro the player on the deck above");
         // A melee swing from the deck must not hit through the deck floor.
         srvB.Mana = srvB.Stats.MaxMana;
-        clientB.RequestUseSkill("mace_strike", clientB.World.Me.Position + new Vector2(0.3f, 0));
+        clientB.RequestUseSkill("mace_slam", clientB.World.Me.Position + new Vector2(0.3f, 0));
         Pump(0.5f);
         Check(underEnemy.Health >= 499.9f,
               $"deck player's melee does not hit the enemy underneath (hp {underEnemy.Health:0})");
@@ -1207,10 +1207,10 @@ public static class HeadlessNetTest
         clientB.World.Me.Position = underEnemy.Position + new Vector2(-0.9f, 0);
         Pump(0.4f);
         srvB.Mana = srvB.Stats.MaxMana;
-        srvB.SkillReadyAt.Remove("mace_strike");
+        srvB.SkillReadyAt.Remove("mace_slam");
         srvB.GlobalSkillReadyAt = 0;
         clientB.World.Me.Position = underEnemy.Position + new Vector2(-0.9f, 0); // re-pin
-        clientB.RequestUseSkill("mace_strike", underEnemy.Position);
+        clientB.RequestUseSkill("mace_slam", underEnemy.Position);
         Pump(0.5f);
         Check(underEnemy.Health < 499.9f,
               $"same-surface melee still lands (hp {underEnemy.Health:0})");
@@ -1237,7 +1237,7 @@ public static class HeadlessNetTest
             srvB.Mana = srvB.Stats.MaxMana;
             srvB.SkillReadyAt.Clear();
             srvB.GlobalSkillReadyAt = 0;
-            clientB.RequestUseSkill("mace_strike", plateauEnemy.Position);
+            clientB.RequestUseSkill("mace_slam", plateauEnemy.Position);
             Pump(0.25f);
         }
         Check(plateauEnemy.Dead, "plateau enemy killed by same-surface melee");
@@ -1454,7 +1454,7 @@ public static class HeadlessNetTest
             // outside gold auto-pickup (1.1 + ~0.6 drop scatter), so the loot burst
             // survives long enough to be counted.
             clientB.World.Me.Position = boss.Position + new Vector2(-2.2f, 0);
-            clientB.RequestUseSkill("mace_strike", boss.Position);
+            clientB.RequestUseSkill("mace_slam", boss.Position);
             Pump(0.25f);
         }
         Check(boss.Dead, "Gravelord defeated");
@@ -1485,7 +1485,7 @@ public static class HeadlessNetTest
         srvMulti.Mana = srvMulti.Stats.MaxMana;
         srvMulti.SkillReadyAt.Clear();
         srvMulti.GlobalSkillReadyAt = 0;
-        clientB.RequestUseSkill("basic_strike", pack3[0].Position);
+        clientB.RequestUseSkill("mace_strike", pack3[0].Position);
         Pump(0.4f);
         int struck = pack3.Count(g => g.Health < 499.9f);
         Check(struck >= 2, $"Mace Strike hits every enemy in the arc ({struck} of 3 struck)");
@@ -1497,7 +1497,7 @@ public static class HeadlessNetTest
             srvMulti.Mana = srvMulti.Stats.MaxMana;
             srvMulti.SkillReadyAt.Clear();
             srvMulti.GlobalSkillReadyAt = 0;
-            clientB.RequestUseSkill("mace_strike", pack3[0].Position);
+            clientB.RequestUseSkill("mace_slam", pack3[0].Position);
             Pump(0.6f); // past the slam's 0.35s wind-up, so THIS cast's roll is judged
             slowed = pack3.Any(g => g.SlowedUntil > server.World.Time);
             if (!slowed)
@@ -1508,13 +1508,13 @@ public static class HeadlessNetTest
                     $" alive={srvMulti.Alive} frozen={srvMulti.FrozenUntil - server.World.Time:0.00}" +
                     $" global={srvMulti.GlobalSkillReadyAt - server.World.Time:0.00}" +
                     $" weap={srvMulti.Character.MainHand?.BaseItemId ?? "none"}" +
-                    $" lvl={srvMulti.Character.GetSkill("mace_strike")?.Level.ToString() ?? "unlearned"}" +
+                    $" lvl={srvMulti.Character.GetSkill("mace_slam")?.Level.ToString() ?? "unlearned"}" +
                     $" msgB='{msgB}'");
         }
         Check(slowed, "Mace Slam slows survivors");
-        Check(data.Skills["mace_strike"].Name == "Mace Slam" &&
-              data.Skills["mace_strike"].Tags.Contains("Slam") &&
-              data.Skills["mace_strike"].Tags.Contains("Area"),
+        Check(data.Skills["mace_slam"].Name == "Mace Slam" &&
+              data.Skills["mace_slam"].Tags.Contains("Slam") &&
+              data.Skills["mace_slam"].Tags.Contains("Area"),
               "Heavy Strike renamed to Mace Slam with Slam/Area tags");
 
         // Player-centered swing reach: a plain Mace Strike can't overshoot past
@@ -1534,7 +1534,7 @@ public static class HeadlessNetTest
         srvMulti.Mana = srvMulti.Stats.MaxMana;
         srvMulti.SkillReadyAt.Clear();
         srvMulti.GlobalSkillReadyAt = 0;
-        clientB.RequestUseSkill("basic_strike", clientB.World.Me.Position + new Vector2(2.6f, 0));
+        clientB.RequestUseSkill("mace_strike", clientB.World.Me.Position + new Vector2(2.6f, 0));
         Pump(0.4f);
         Check(farGrunt.Health >= 499.9f,
               $"Mace Strike no longer overshoots its range (far grunt hp {farGrunt.Health:0.0})");
@@ -1644,7 +1644,7 @@ public static class HeadlessNetTest
         pctChar.Equipment[Items.EquipSlot.MainHand] = new Items.ItemInstance
             { BaseItemId = "wooden_club", Rarity = Items.ItemRarity.Normal };
         var pctStats = Stats.StatCalculator.Compute(data, pctChar);
-        var strikeDef = data.Skills["basic_strike"];
+        var strikeDef = data.Skills["mace_strike"];
         var pctEff = Skills.SkillMath.Compute(data, strikeDef, 1,
             Enumerable.Empty<Skills.ScrollDefinition>(), pctStats);
         float physScale = 1f + pctStats.PhysicalDamageIncrease / 100f;
@@ -1673,9 +1673,9 @@ public static class HeadlessNetTest
         srvWind.Mana = srvWind.Stats.MaxMana;
         srvWind.SkillReadyAt.Clear();
         srvWind.GlobalSkillReadyAt = 0;
-        clientB.RequestUseSkill("mace_strike", windTarget.Position);
+        clientB.RequestUseSkill("mace_slam", windTarget.Position);
         Pump(0.15f); // inside the 0.35s wind-up: cast accepted, hit not yet landed
-        Check(data.Skills["mace_strike"].WindupTime > 0.2f && windTarget.Health >= 499.9f,
+        Check(data.Skills["mace_slam"].WindupTime > 0.2f && windTarget.Health >= 499.9f,
               $"Mace Slam winds up before landing (hp {windTarget.Health:0} mid-windup)");
         Pump(0.4f); // wind-up expires -> the queued strike lands
         Check(windTarget.Health < 499.9f,
@@ -1684,7 +1684,7 @@ public static class HeadlessNetTest
         srvWind.Mana = srvWind.Stats.MaxMana;
         srvWind.SkillReadyAt.Clear();
         srvWind.GlobalSkillReadyAt = 0;
-        clientB.RequestUseSkill("basic_strike", windTarget.Position);
+        clientB.RequestUseSkill("mace_strike", windTarget.Position);
         Pump(0.12f);
         Check(clientB.World.Effects.All(fx => fx.Kind != "melee"),
               "plain Mace Strike draws no impact circle (weapon swing only)");
@@ -1832,7 +1832,7 @@ public static class HeadlessNetTest
         srvMove.Mana = srvMove.Stats.MaxMana;
         srvMove.SkillReadyAt.Clear();
         srvMove.GlobalSkillReadyAt = 0;
-        clientB.RequestUseSkill("mace_strike", farTarget.Position);
+        clientB.RequestUseSkill("mace_slam", farTarget.Position);
         Pump(0.1f); // cast accepted, wind-up running
         clientB.World.Me.Position = new Vector2(13.5f, 17.5f); // known-open corridor, far from the target
         clientB.World.Me.Height = 0f;
@@ -1916,13 +1916,13 @@ public static class HeadlessNetTest
               $"Fire Bolt has a base ignite chance ({fireEff.IgniteChance:0.00}) with scaling magnitude");
         Check(data.Skills["chain_lightning"].ElectrocuteChance >= 0.4f,
               "Chain Lightning has a base electrocute chance");
-        var meleeEff = Skills.SkillMath.Compute(data, data.Skills["basic_strike"], 1,
+        var meleeEff = Skills.SkillMath.Compute(data, data.Skills["mace_strike"], 1,
             new[] { data.Scrolls["venom"], data.Scrolls["rending"] }, pctStats);
         Check(MathF.Abs(meleeEff.PoisonChance - 0.35f) < 0.01f && MathF.Abs(meleeEff.BleedChance - 0.35f) < 0.01f,
               "Venom and Rending scrolls add poison/bleed chance to melee skills");
-        var frenzyEff = Skills.SkillMath.Compute(data, data.Skills["basic_strike"], 1,
+        var frenzyEff = Skills.SkillMath.Compute(data, data.Skills["mace_strike"], 1,
             new[] { data.Scrolls["frenzy"] }, pctStats);
-        var plainEff = Skills.SkillMath.Compute(data, data.Skills["basic_strike"], 1,
+        var plainEff = Skills.SkillMath.Compute(data, data.Skills["mace_strike"], 1,
             Enumerable.Empty<Skills.ScrollDefinition>(), pctStats);
         Check(frenzyEff.Cooldown < plainEff.Cooldown - 0.01f,
               $"Frenzy scroll speeds melee attacks ({plainEff.Cooldown:0.00}s -> {frenzyEff.Cooldown:0.00}s)");
@@ -2033,7 +2033,7 @@ public static class HeadlessNetTest
               "ignite burns the target over time");
 
         // ---- poison + bleed via attached melee scrolls
-        var srvStrike = srvAil.Character.GetSkill("basic_strike");
+        var srvStrike = srvAil.Character.GetSkill("mace_strike");
         srvStrike.Scrolls.Add(new Items.ItemInstance { BaseItemId = "scroll_venom" });
         srvStrike.Scrolls.Add(new Items.ItemInstance { BaseItemId = "scroll_rending" });
         clientB.World.Me.Position = chillTarget.Position + new Vector2(-1.0f, 0);
@@ -2042,7 +2042,7 @@ public static class HeadlessNetTest
         for (int i = 0; i < 30 && (chillTarget.PoisonTimeLeft <= 0 || chillTarget.BleedTimeLeft <= 0); i++)
         {
             chillTarget.Position = srvAil.Position + new Vector2(1.0f, 0);
-            CastAt("basic_strike", chillTarget.Position);
+            CastAt("mace_strike", chillTarget.Position);
         }
         Check(chillTarget.PoisonTimeLeft > 0 && chillTarget.PoisonDps > 0,
               $"Venom-scrolled melee poisons ({chillTarget.PoisonDps:0.0} dps)");
@@ -2054,7 +2054,7 @@ public static class HeadlessNetTest
         for (int i = 0; i < 40 && chillTarget.BleedDps <= chillTarget.PoisonDps * 0.99f; i++)
         {
             chillTarget.Position = srvAil.Position + new Vector2(1.0f, 0);
-            CastAt("basic_strike", chillTarget.Position);
+            CastAt("mace_strike", chillTarget.Position);
         }
         Check(chillTarget.BleedDps > chillTarget.PoisonDps * 0.99f,
               $"bleed outscales poison on pure-physical hits ({chillTarget.BleedDps:0.0} vs {chillTarget.PoisonDps:0.0})");
@@ -2063,7 +2063,7 @@ public static class HeadlessNetTest
         for (int i = 0; i < 40 && chillTarget.BleedStacks.Count < 2; i++)
         {
             chillTarget.Position = srvAil.Position + new Vector2(1.0f, 0);
-            CastAt("basic_strike", chillTarget.Position);
+            CastAt("mace_strike", chillTarget.Position);
         }
         Check(chillTarget.BleedStacks.Count == 2,
               "a Rending scroll lets a second bleed instance stack on the same enemy");
@@ -2816,7 +2816,7 @@ public static class HeadlessNetTest
             srvSum.SkillReadyAt.Clear();
             srvSum.GlobalSkillReadyAt = 0;
             clientB.World.Me.Position = scaledBoss.Position + new Vector2(-1.2f, 0);
-            clientB.RequestUseSkill("basic_strike", scaledBoss.Position);
+            clientB.RequestUseSkill("mace_strike", scaledBoss.Position);
             Pump(0.3f);
         }
         Check(scaledBoss.Dead, "scaled Gravelord killed for the loot-level check");
@@ -3030,7 +3030,7 @@ public static class HeadlessNetTest
               clientB.World.Projectiles.Values.Any(pr => pr.Id > 0 && pr.SkillId == "fire_bolt"),
               "the ghost is adopted by the authoritative projectile on confirmation");
         clientB.World.Me.SwingTimeLeft = 0f;
-        clientB.RequestUseSkill("basic_strike", predictAim);
+        clientB.RequestUseSkill("mace_strike", predictAim);
         Check(clientB.World.Me.SwingTimeLeft > 0f,
               "the melee swing animation starts the instant of the click");
         Pump(0.8f);
@@ -3040,7 +3040,7 @@ public static class HeadlessNetTest
         var srvGate = server.World.Players[clientB.World.MyPlayerId];
         clientB.World.Me.SwingTimeLeft = 0f;
         clientB.World.Me.Mana = 0f;
-        clientB.RequestUseSkill("mace_strike", predictAim); // costs 9 mana
+        clientB.RequestUseSkill("mace_slam", predictAim); // costs 9 mana
         Check(clientB.World.Me.SwingTimeLeft <= 0f,
               "no swing animation is predicted when mana is short");
         clientB.RequestUseSkill("fire_bolt", predictAim);
@@ -3252,7 +3252,7 @@ public static class HeadlessNetTest
         Pump(0.2f);
         srvPot.SkillReadyAt.Clear();
         srvPot.GlobalSkillReadyAt = 0;
-        clientB.RequestUseSkill("basic_strike", potGrunt.Position);
+        clientB.RequestUseSkill("mace_strike", potGrunt.Position);
         Pump(0.4f);
         Check(potGrunt.Dead && hpFlaskItem.FlaskCharges == 0 && mpFlaskItem.FlaskCharges == 0,
               "kills do NOT refill flasks (fountain-only economy)");
@@ -3660,8 +3660,8 @@ public static class HeadlessNetTest
         // cooldown; maces contribute a little buildup of their own.
         Check(data.Skills["shield_bash"].Cooldown >= 1.0f &&
               data.Skills["shield_bash"].StunBuildup >= 50f &&
-              data.Skills["basic_strike"].StunBuildup is > 0f and < 15f &&
-              data.Skills["mace_strike"].StunBuildup is > 0f and < 25f,
+              data.Skills["mace_strike"].StunBuildup is > 0f and < 15f &&
+              data.Skills["mace_slam"].StunBuildup is > 0f and < 25f,
               "stun data: bash builds 60 on a 1.1s cooldown; maces add 7/15");
         var stunDummy = server.World.SpawnEnemy("grunt", srvNewE.Position + new Vector2(12f, 4f));
         var bashDef2 = data.Skills["shield_bash"];
@@ -3711,10 +3711,10 @@ public static class HeadlessNetTest
         // melee skills keep the 60 curve.
         float fb1 = Skills.SkillMath.XpToNextLevel(1, data.Skills["fire_bolt"]);
         float fb9 = Skills.SkillMath.XpToNextLevel(9, data.Skills["fire_bolt"]);
-        float ms9 = Skills.SkillMath.XpToNextLevel(9, data.Skills["mace_strike"]);
+        float ms9 = Skills.SkillMath.XpToNextLevel(9, data.Skills["mace_slam"]);
         Check(fb1 == 95f && Skills.SkillMath.XpToNextLevel(1, data.Skills["ice_spike"]) == 95f &&
               Skills.SkillMath.XpToNextLevel(1, data.Skills["chain_lightning"]) == 95f &&
-              Skills.SkillMath.XpToNextLevel(1, data.Skills["mace_strike"]) == 60f && fb9 > ms9 * 1.15f,
+              Skills.SkillMath.XpToNextLevel(1, data.Skills["mace_slam"]) == 60f && fb9 > ms9 * 1.15f,
               $"Fire Bolt, Ice Spike and Chain Lightning level on a 95 base (L9 {fb9:0} vs mace {ms9:0})");
 
         // Shield Bash hits the whole impact cluster, and skill XP now follows DAMAGE
@@ -4022,7 +4022,7 @@ public static class HeadlessNetTest
             CPump(0.5f); // past the join's ignore-state window so the position lands
             campA.World.Me.Position = urnA.Position + new Vector2(0f, 1.0f);
             CPump(0.4f);
-            campA.RequestUseSkill("basic_strike", urnA.Position); // the starter kit's swing
+            campA.RequestUseSkill("mace_strike", urnA.Position); // the starter kit's swing
             CPump(0.7f);
             Check(!campServer.World.Structures.ContainsKey(urnA.Id) && !campA.World.Structures.ContainsKey(urnA.Id) &&
                   campServer.World.Drops.Count == dropsBeforeUrn,
@@ -4080,8 +4080,8 @@ public static class HeadlessNetTest
         var freshChar = campA.World.MyCharacter;
         Check(freshChar.Gold == 100 &&
               freshChar.Skills.Count == 1 &&
-              freshChar.GetSkill("basic_strike") != null &&
-              freshChar.Hotbar[0] == "basic_strike" &&
+              freshChar.GetSkill("mace_strike") != null &&
+              freshChar.Hotbar[0] == "mace_strike" &&
               freshChar.Equipment.GetValueOrDefault(Items.EquipSlot.MainHand)?.BaseItemId == "wooden_club",
               $"fresh characters default to the warrior kit: 100g, club, Mace Strike ({freshChar.Skills.Count} skills, {freshChar.Gold}g)");
         Check(freshChar.ClassId == "warrior" && freshChar.BodyStyle == 0 &&
@@ -4320,7 +4320,7 @@ public static class HeadlessNetTest
         // Fell the boss: the seal lifts, the door leads home.
         campBoss.Health = 1f;
         campA.SendDebugCommand("heal");
-        campA.RequestUseSkill("basic_strike", campBoss.Position);
+        campA.RequestUseSkill("mace_strike", campBoss.Position);
         CPump(0.6f);
         Check(campBoss.Dead, "Gravelord felled");
         Check(!campServer.World.ExitLocked, "the boss's death unseals the exit");
@@ -5077,8 +5077,25 @@ public static class HeadlessNetTest
         Check(data.Enemies["barrowlord"].AddSpawnType == "grunt" && data.Enemies["barrowlord"].AddSpawnCount == 4 &&
               data.Enemies["gravelord"].AddSpawnType == "spitter" && data.Enemies["gravelord"].AddSpawnCount == 3,
               "the Barrow Lord raises four zombies; the forest Gravelord keeps its three spitters");
-        Check(data.Skills["ground_slam"].Knockback == 1.5f && data.Skills["mace_strike"].Knockback == 1.6f,
-              $"slam knockback eased: Ground Slam {data.Skills["ground_slam"].Knockback}, Mace Slam {data.Skills["mace_strike"].Knockback}");
+        // Mace skill ids now match their names, and old saves are renamed on load
+        // (guarded by the save format so a current mace_strike stays Mace Strike).
+        Check(data.Skills["mace_strike"].Name == "Mace Strike" && data.Skills["mace_slam"].Name == "Mace Slam" &&
+              !data.Skills.ContainsKey("basic_strike"),
+              "mace skill ids read like their names: mace_strike = Mace Strike, mace_slam = Mace Slam");
+        var legacySave = new Sim.CharacterData { Name = "Legacy", SaveFormat = 0 };
+        legacySave.Skills.Add(new Sim.LearnedSkill { SkillId = "basic_strike" });
+        legacySave.Skills.Add(new Sim.LearnedSkill { SkillId = "mace_strike", Level = 3 });
+        legacySave.Hotbar[0] = "basic_strike"; legacySave.Hotbar[2] = "mace_strike";
+        legacySave.MigrateLegacySkillIds();
+        var currentSave = new Sim.CharacterData { Name = "Current", SaveFormat = Sim.CharacterData.CurrentSaveFormat };
+        currentSave.Skills.Add(new Sim.LearnedSkill { SkillId = "mace_strike" });
+        currentSave.MigrateLegacySkillIds();
+        Check(legacySave.Skills[0].SkillId == "mace_strike" && legacySave.Skills[1].SkillId == "mace_slam" &&
+              legacySave.Skills[1].Level == 3 && legacySave.Hotbar[0] == "mace_strike" && legacySave.Hotbar[2] == "mace_slam" &&
+              legacySave.SaveFormat == Sim.CharacterData.CurrentSaveFormat && currentSave.Skills[0].SkillId == "mace_strike",
+              "an old save's mace skills and hotbar are renamed once on load; a current save is left alone");
+        Check(data.Skills["ground_slam"].Knockback == 1.5f && data.Skills["mace_slam"].Knockback == 1.6f,
+              $"slam knockback eased: Ground Slam {data.Skills["ground_slam"].Knockback}, Mace Slam {data.Skills["mace_slam"].Knockback}");
         campA.World.Me.Position = tutBoss54.Position + new Vector2(-1.5f, 0f);
         campA.World.Me.Height = 1f;
         campB.World.Me.Position = tutBoss54.Position + new Vector2(-1.5f, 0.8f);
@@ -5271,7 +5288,7 @@ public static class HeadlessNetTest
         // The real swing: player B takes a mace to the foot of the stairs; a grunt
         // holds the summit. The old flat height gate called this a whiff.
         server.World.DebugCommand(bId, "give_mace", "equip");
-        server.World.LearnSkill(bId, "basic_strike");
+        server.World.LearnSkill(bId, "mace_strike");
         clientB.World.Me.Position = lowPos51;
         clientB.World.Me.Height = lowH51;
         srvRain.Position = lowPos51;
@@ -5282,7 +5299,7 @@ public static class HeadlessNetTest
         Pump(0.8f); // settle replication and the global use-time lockout
         srvRain.Position = lowPos51;
         srvRain.Height = lowH51;
-        server.World.UseSkill(bId, "basic_strike", stairFoe51.Position);
+        server.World.UseSkill(bId, "mace_strike", stairFoe51.Position);
         Pump(0.5f);
         Check(stairFoe51.Dead || stairFoe51.Health < stairFoeHp51 - 0.5f,
               $"a mace swing connects up the stairs ({stairFoeHp51:0}->{stairFoe51.Health:0})");
@@ -5541,19 +5558,19 @@ public static class HeadlessNetTest
         // Impact visuals draw the EFFECTIVE area: a leveled Mace Slam's ring comes from
         // the server's computed radius, not the base definition — and the wind-up
         // marks the landing circle before the mace comes down.
-        clientB.RequestLearnSkill("mace_strike");
+        clientB.RequestLearnSkill("mace_slam");
         Pump(0.3f);
-        var msLearned56 = qChar56.GetSkill("mace_strike");
+        var msLearned56 = qChar56.GetSkill("mace_slam");
         msLearned56.Level = 6;
-        var msStats56 = Skills.SkillMath.Compute(data, data.Skills["mace_strike"], 6,
+        var msStats56 = Skills.SkillMath.Compute(data, data.Skills["mace_slam"], 6,
             msLearned56.ScrollDefinitions(data), srv56.Stats);
-        Check(msStats56.Radius > data.Skills["mace_strike"].Radius + 0.1f,
-              $"a level-6 Mace Slam is wider than the base definition ({msStats56.Radius:0.00} vs {data.Skills["mace_strike"].Radius:0.00})");
+        Check(msStats56.Radius > data.Skills["mace_slam"].Radius + 0.1f,
+              $"a level-6 Mace Slam is wider than the base definition ({msStats56.Radius:0.00} vs {data.Skills["mace_slam"].Radius:0.00})");
         srv56.Mana = srv56.Stats.MaxMana;
         srv56.LastSyncedMana = srv56.Mana;
         srv56.SkillReadyAt.Clear();
         srv56.GlobalSkillReadyAt = 0;
-        clientB.RequestUseSkill("mace_strike", srv56.Position + new Vector2(1f, 0));
+        clientB.RequestUseSkill("mace_slam", srv56.Position + new Vector2(1f, 0));
         bool ringSeen56 = false, impactSeen56 = false;
         float impactR56 = 0f;
         for (int i = 0; i < 12; i++)
@@ -5565,7 +5582,7 @@ public static class HeadlessNetTest
         }
         Check(ringSeen56, "a wind-up slam marks its landing circle while the mace comes down");
         Check(impactSeen56 && MathF.Abs(impactR56 - msStats56.Radius) < 0.01f,
-              $"the impact draws at the server's effective radius ({impactR56:0.00}, base {data.Skills["mace_strike"].Radius:0.00})");
+              $"the impact draws at the server's effective radius ({impactR56:0.00}, base {data.Skills["mace_slam"].Radius:0.00})");
 
         // Piercing Shot: one shaft, every body on its line.
         var psDef56 = data.Skills["piercing_shot"];
@@ -5691,7 +5708,7 @@ public static class HeadlessNetTest
 
         // Pending-choice badges: unspent passive points and level-ready skills.
         var alertChar60 = new Sim.CharacterData { Level = 4 };
-        alertChar60.Skills.Add(new Sim.LearnedSkill { SkillId = "mace_strike", Level = 2,
+        alertChar60.Skills.Add(new Sim.LearnedSkill { SkillId = "mace_slam", Level = 2,
             Experience = Skills.SkillMath.XpToNextLevel(2) });
         alertChar60.Skills.Add(new Sim.LearnedSkill { SkillId = "ground_slam", Level = 1, Experience = 0f });
         var alerts60 = UI.HudUI.PendingAlerts(alertChar60, data);
@@ -5776,7 +5793,7 @@ public static class HeadlessNetTest
             Pump(0.3f);
             float hpBeforeThorns = meAOnServer.Health;
             float gruntHpBefore = rareGrunt.Health;
-            clientA.RequestUseSkill("mace_strike", rareGrunt.Position);
+            clientA.RequestUseSkill("mace_slam", rareGrunt.Position);
             Pump(0.7f);
             Check(rareGrunt.Health < gruntHpBefore && meAOnServer.Health < hpBeforeThorns - 0.5f,
                   $"Thorny cuts the attacker back ({hpBeforeThorns:0} -> {meAOnServer.Health:0} life after striking it)");
@@ -5872,7 +5889,7 @@ public static class HeadlessNetTest
             thrallVictim.Health = 1f;
             clientA.World.Me.Position = thrallVictim.Position + new Vector2(-1.0f, 0f);
             Pump(0.3f);
-            clientA.RequestUseSkill("mace_strike", thrallVictim.Position);
+            clientA.RequestUseSkill("mace_slam", thrallVictim.Position);
             Pump(0.8f);
             var thrall = server.World.Summons.Values.FirstOrDefault(su => su.OwnerId == meAOnServer.Id && su.SkillId == "thrall_warrior");
             Check(thrallVictim.Dead && thrall != null && thrall.ExpiresAt > server.World.Time && thrall.ManaReserved == 0f &&
@@ -5893,7 +5910,7 @@ public static class HeadlessNetTest
             Pump(0.3f);
             meAOnServer.EnergyShield = 0f; // the crown's own shield would soak a small cut first
             float crownManaBefore = meAOnServer.Mana, hpBeforeCrown = meAOnServer.Health;
-            clientA.RequestUseSkill("mace_strike", thornGrunt.Position);
+            clientA.RequestUseSkill("mace_slam", thornGrunt.Position);
             Pump(0.7f);
             Check(meAOnServer.Mana < crownManaBefore - 0.5f && meAOnServer.Health >= hpBeforeCrown - 0.01f,
                   $"The Hollow Crown: the reflected cut came off mana ({crownManaBefore:0} -> {meAOnServer.Mana:0}), life untouched ({hpBeforeCrown:0} -> {meAOnServer.Health:0})");
@@ -5923,7 +5940,7 @@ public static class HeadlessNetTest
             var cinderGrunt = server.World.SpawnEnemy("grunt", SafeNear(meAOnServer.Position + new Vector2(1.2f, 0f)));
             clientA.World.Me.Position = cinderGrunt.Position + new Vector2(-1.0f, 0f);
             Pump(0.3f);
-            clientA.RequestUseSkill("mace_strike", cinderGrunt.Position);
+            clientA.RequestUseSkill("mace_slam", cinderGrunt.Position);
             Pump(0.7f);
             Check(server.World.ActiveFirePatches > 0, $"Cinderwrap: the melee hit left burning ground under the enemy ({server.World.ActiveFirePatches} patch)");
             clientA.SendDebugCommand("kill_nearby"); Pump(0.3f);
@@ -6060,7 +6077,7 @@ public static class HeadlessNetTest
             // An arrow-less swing: walk up and smash it.
             clientA.World.Me.Position = barrel.Position + new Vector2(-1.0f, 0);
             Pump(0.3f);
-            clientA.RequestUseSkill("mace_strike", barrel.Position);
+            clientA.RequestUseSkill("mace_slam", barrel.Position);
             Pump(0.7f);
             Check(!server.World.Structures.ContainsKey(barrel.Id) && !clientA.World.Structures.ContainsKey(barrel.Id) &&
                   clientA.World.BloodDrops.Count + clientA.World.BloodStains.Count > 0,

@@ -1,6 +1,6 @@
 [
  {
-  "Id": "basic_strike",
+  "Id": "mace_strike",
   "StunBuildup": 7,
   "Name": "Mace Strike",
   "Description": "A quick mace swing that strikes every enemy caught in the arc, knocking them back.",
@@ -23,7 +23,7 @@
   "UseTime": 0.3
  },
  {
-  "Id": "mace_strike",
+  "Id": "mace_slam",
   "StunBuildup": 15,
   "Name": "Mace Slam",
   "Description": "Slam your mace into the ground, crushing all enemies near the impact \u2014 heavy knockback with a chance to slow survivors.",

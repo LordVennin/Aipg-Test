@@ -24,7 +24,11 @@ public static class SaveManager
         {
             string path = CharacterPath(name);
             if (File.Exists(path))
-                return Json.LoadFile<CharacterData>(path);
+            {
+                var loaded = Json.LoadFile<CharacterData>(path);
+                loaded?.MigrateLegacySkillIds();
+                return loaded;
+            }
         }
         catch (Exception e)
         {
@@ -38,6 +42,7 @@ public static class SaveManager
         if (character == null) return;
         try
         {
+            character.SaveFormat = CharacterData.CurrentSaveFormat;
             Json.SaveFile(CharacterPath(character.Name), character);
             Console.WriteLine($"[Save] Saved character '{character.Name}'.");
         }
@@ -60,6 +65,7 @@ public static class SaveManager
                     try
                     {
                         var c = Json.LoadFile<CharacterData>(path);
+                        c?.MigrateLegacySkillIds();
                         if (c?.Name != null) found.Add((c, File.GetLastWriteTimeUtc(path)));
                     }
                     catch (Exception e)

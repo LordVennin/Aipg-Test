@@ -91,6 +91,29 @@ public class CharacterData
     /// <summary>Hotbar: slot 0 = primary attack (mouse), 1..4 = Skill1..Skill4 keys. Values are skill ids.</summary>
     public string[] Hotbar { get; set; } = new string[5];
 
+    /// <summary>Save layout version. 0/1: the mace skills carried their old ids
+    /// (basic_strike = Mace Strike, mace_strike = Mace Slam); 2: ids match the
+    /// in-game names. Bumped on save; MigrateLegacySkillIds runs on load.</summary>
+    public int SaveFormat { get; set; }
+    public const int CurrentSaveFormat = 2;
+
+    /// <summary>Old saves used ids that read backwards (mace_strike was Mace SLAM).
+    /// Rename every reference once, guarded by the save version so a current save's
+    /// mace_strike (Mace Strike) is never mistaken for the legacy one.</summary>
+    public void MigrateLegacySkillIds()
+    {
+        if (SaveFormat >= 2) return;
+        static string Map(string id) => id switch
+        {
+            "mace_strike" => "mace_slam",
+            "basic_strike" => "mace_strike",
+            _ => id,
+        };
+        foreach (var sk in Skills) sk.SkillId = Map(sk.SkillId);
+        for (int i = 0; i < Hotbar.Length; i++) Hotbar[i] = Hotbar[i] == null ? null : Map(Hotbar[i]);
+        SaveFormat = CurrentSaveFormat;
+    }
+
     /// <summary>Character level the current merchant stock was rolled for. When it no longer
     /// matches Level the shop rerolls (and sold slots reset). Persisted with the save, so
     /// leaving and rejoining never rerolls the shop within a level.</summary>
