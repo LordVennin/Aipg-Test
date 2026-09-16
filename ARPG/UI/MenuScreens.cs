@@ -35,12 +35,21 @@ public class MainMenuScreen : IScreen
         var size = game.UiScreenSize;
         _builtSize = size;
         _panel.Children.Clear();
-        int cx = size.X / 2 - 130, y = size.Y / 2 - 130, w = 260, h = 44, gap = 12;
-        _panel.Children.Add(new Button("Single Player", new Rectangle(cx, y, w, h), game.StartSinglePlayer));
-        _panel.Children.Add(new Button("Host Game", new Rectangle(cx, y + (h + gap), w, h), () => game.SwitchScreen(new HostScreen(game))));
-        _panel.Children.Add(new Button("Join Game", new Rectangle(cx, y + 2 * (h + gap), w, h), () => game.SwitchScreen(new JoinScreen(game))));
-        _panel.Children.Add(new Button("Options", new Rectangle(cx, y + 3 * (h + gap), w, h), () => game.SwitchScreen(new OptionsScreen(game))));
-        _panel.Children.Add(new Button("Quit", new Rectangle(cx, y + 4 * (h + gap), w, h), game.ExitGame));
+        int cx = size.X / 2 - 130, y = size.Y / 2 - 158, w = 260, h = 44, gap = 12;
+        // Two ways in: the STORY (the road, the ruins, the lower levels) and the TEST
+        // GROUNDS (the sanctum hub and every test map, kept for tuning).
+        _panel.Children.Add(new Button("Story", new Rectangle(cx, y, w, h), () =>
+        {
+            game.Settings.StartMode = "story"; game.Settings.Save(); game.StartSinglePlayer();
+        }));
+        _panel.Children.Add(new Button("Test Grounds", new Rectangle(cx, y + (h + gap), w, h), () =>
+        {
+            game.Settings.StartMode = "test"; game.Settings.Save(); game.StartSinglePlayer();
+        }));
+        _panel.Children.Add(new Button("Host Game", new Rectangle(cx, y + 2 * (h + gap), w, h), () => game.SwitchScreen(new HostScreen(game))));
+        _panel.Children.Add(new Button("Join Game", new Rectangle(cx, y + 3 * (h + gap), w, h), () => game.SwitchScreen(new JoinScreen(game))));
+        _panel.Children.Add(new Button("Options", new Rectangle(cx, y + 4 * (h + gap), w, h), () => game.SwitchScreen(new OptionsScreen(game))));
+        _panel.Children.Add(new Button("Quit", new Rectangle(cx, y + 5 * (h + gap), w, h), game.ExitGame));
     }
 
     public void Update(float dt)
@@ -87,6 +96,10 @@ public class HostScreen : IScreen
     private readonly Panel _panel;
     private readonly TextInput _port;
     private readonly Label _error;
+    private readonly Button _mode;
+
+    private string ModeLabel() =>
+        _game.Settings.StartMode == "story" ? "World: Story  (click to change)" : "World: Test Grounds  (click to change)";
 
     public HostScreen(GameMain game)
     {
@@ -94,7 +107,7 @@ public class HostScreen : IScreen
         var size = game.UiScreenSize;
         int cx = size.X / 2 - 170;
         int y = size.Y / 2 - 140;
-        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 384) };
+        _panel = new Panel { Bounds = new Rectangle(cx - 30, y - 60, 400, 420) };
         _panel.Children.Add(new Label("Host Game", cx, y - 40, 26, bold: true));
         _panel.Children.Add(new Label($"Port (default {GameNetConfig.DefaultPort})", cx, y + 8, 15));
         _port = new TextInput(new Rectangle(cx, y + 30, 340, 36), game.Settings.LastPort.ToString()) { NumericOnly = true, MaxLength = 5 };
@@ -110,8 +123,16 @@ public class HostScreen : IScreen
         }
         _error = new Label("", cx, y + 160, 15) { Color = new Color(255, 120, 110) };
         _panel.Children.Add(_error);
-        _panel.Children.Add(new Button("Start Hosting", new Rectangle(cx, y + 192, 340, 42), StartHosting));
-        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 244, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
+        // The hosted world's flavour: story or the test grounds (click to flip).
+        _mode = new Button(ModeLabel(), new Rectangle(cx, y + 184, 340, 36), () =>
+        {
+            game.Settings.StartMode = game.Settings.StartMode == "story" ? "test" : "story";
+            game.Settings.Save();
+            _mode.Text = ModeLabel();
+        });
+        _panel.Children.Add(_mode);
+        _panel.Children.Add(new Button("Start Hosting", new Rectangle(cx, y + 228, 340, 42), StartHosting));
+        _panel.Children.Add(new Button("Back", new Rectangle(cx, y + 280, 340, 36), () => game.SwitchScreen(new MainMenuScreen(game))));
     }
 
     /// <summary>Up to three lines of this machine's IPv4 addresses on live non-loopback

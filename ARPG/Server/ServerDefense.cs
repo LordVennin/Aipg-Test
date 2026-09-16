@@ -563,7 +563,7 @@ public partial class ServerWorld
             {
                 // Shattered dressing: the client throws the shards. Outside the hub a
                 // broken urn sometimes spills a few coins.
-                if (Map.Kind != MapKind.Hub && _rng.NextDouble() < 0.4)
+                if (!Map.IsHub && _rng.NextDouble() < 0.4)
                     SpawnGoldDrop(3 + _rng.Next(8) + Loop * 2, s.Position, s.Height);
                 return;
             }

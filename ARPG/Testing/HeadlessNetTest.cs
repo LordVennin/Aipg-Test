@@ -5134,6 +5134,121 @@ public static class HeadlessNetTest
         CPump(0.3f);
         campServer.Stop();
 
+        // ------------------------------------------------------------------ Batch 77: the story opening
+        Console.WriteLine("\n-- Batch 77: story mode (the road, the ruins hub, the lower levels) --");
+        var storyServer = new GameServer(data, 515151, "forest", campaign: true, story: true);
+        Check(storyServer.Start(0), "story server started");
+        var storyA = new GameClient(data, "StoryA", null);
+        storyA.Connect("127.0.0.1", storyServer.LocalPort, out _);
+        void SPump(float seconds)
+        {
+            const float dt = 1f / 60f;
+            int steps = (int)(seconds / dt);
+            for (int i = 0; i < steps; i++)
+            {
+                storyServer.Update(dt);
+                storyA.Update(dt);
+                Thread.Sleep(2);
+            }
+        }
+        SPump(1.5f);
+        var sw = storyServer.World;
+        Check(storyA.Status == ClientStatus.InGame && sw.Story &&
+              sw.MapIndex == Server.ServerWorld.StoryRoadIndex && sw.Map.Kind == World.MapKind.StoryRoad,
+              "the story opens on the story road, not in the sanctum");
+        Check(sw.Map.Width == 100 && sw.Map.Weather == "rain" &&
+              sw.Map.ExitDoorStyle == World.DoorStyle.RuinArch && sw.Map.EntryDoorStyle == World.DoorStyle.RuinArch,
+              $"the story road is a fifth longer ({sw.Map.Width} wide), rains, and ends in a ruined archway");
+        int roadYc = sw.Map.Height / 2;
+        Check(sw.Map.TutorialHints.Count >= 6 && sw.Map.TutorialHints.All(h =>
+                  MathF.Abs(h.Pos.Y - (roadYc + 0.5f)) >= 2.5f && !sw.Map.IsSolid((int)h.Pos.X, (int)h.Pos.Y)),
+              "the story road's stones stand beside the road on clear ground, never on it");
+        Check(storyA.World.Map.Kind == World.MapKind.StoryRoad && storyA.World.Map.Width == sw.Map.Width &&
+              storyA.World.Map.TutorialHints.Count == sw.Map.TutorialHints.Count,
+              "the client builds the same story road from the seed");
+        var testWorld = new GameServer(data, 616161, "forest", campaign: true).World;
+        Check(testWorld.Map.Kind == World.MapKind.Hub && !testWorld.Story,
+              "the test grounds still open in the sanctum hub");
+        // Arrow Rain: follow-up volleys land on their own spots around the mark.
+        storyA.SendDebugCommand("give_bow", "equip");
+        storyA.SendDebugCommand("learn_skill", "arrow_rain");
+        SPump(0.4f);
+        var rainSrv = sw.Players.Values.First();
+        rainSrv.Mana = rainSrv.Stats.MaxMana;
+        var rainMark = rainSrv.Position + new Vector2(2.5f, 0f);
+        storyA.RequestUseSkill("arrow_rain", rainMark);
+        SPump(0.6f); // the wind-up lands, the volleys queue
+        var volleySpots = sw.RainVolleyPositions.ToList();
+        Check(volleySpots.Count >= 2 && volleySpots.Distinct().Count() == volleySpots.Count &&
+              Vector2.Distance(volleySpots[0], rainMark) < 0.05f &&
+              volleySpots.Skip(1).All(v => Vector2.Distance(v, rainMark) > 0.2f && Vector2.Distance(v, rainMark) <= data.Skills["arrow_rain"].Radius * 1.5f),
+              $"Arrow Rain's {volleySpots.Count} volleys each land on their own spot near the mark");
+        SPump(2.0f);
+        // Loot is lighter now.
+        var defaultLoot = data.LootTables["default"];
+        Check(defaultLoot.DropChance <= 0.3f && defaultLoot.GoldDropChance <= 0.35f &&
+              defaultLoot.ScrollDropChance <= 0.06f && defaultLoot.EnchantScrollDropChance <= 0.08f,
+              $"drop rates eased: gear {defaultLoot.DropChance:P0}, gold {defaultLoot.GoldDropChance:P0}");
+        // The Barrow Lord falls; the archway leads to the ruins hub.
+        var roadBoss = sw.Enemies.Values.First(e => e.Def.Id == "barrowlord");
+        storyA.World.Me.Position = roadBoss.Position + new Vector2(-1.5f, 0f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(roadBoss.Position);
+        SPump(0.4f);
+        for (int i = 0; i < 40 && !roadBoss.Dead; i++)
+        {
+            storyA.SendDebugCommand("kill_nearby");
+            storyA.SendDebugCommand("heal");
+            SPump(0.3f);
+        }
+        Check(roadBoss.Dead && !sw.ExitLocked, "the story road's gate boss falls and the archway opens");
+        storyA.SendDebugCommand("heal");
+        storyA.World.Me.Position = sw.Map.ExitDoor + new Vector2(-1.2f, 0f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(sw.Map.ExitDoor);
+        SPump(0.4f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && storyA.World.Map.Kind == World.MapKind.RuinsHub,
+              "through the archway: the ruins hub (both sides)");
+        var hub = sw.Map;
+        Check(hub.PodiumSpot != Vector2.Zero && hub.PortalSpot != Vector2.Zero && hub.FountainSpot != Vector2.Zero &&
+              hub.ExitDoorStyle == World.DoorStyle.Stairs && hub.EntryDoorStyle == World.DoorStyle.RuinArch &&
+              hub.TorchSpots.Count >= 6 && hub.WagonSpot != Vector2.Zero && hub.StashSpot != Vector2.Zero,
+              "the hub has the cart, the podium and portal stand, the fountain, standing torches, and the stairs down");
+        Check(sw.Npcs.Any(n => n.TypeId == "merchant") && sw.Npcs.Any(n => n.TypeId == "skill_trainer") &&
+              sw.Npcs.Any(n => n.TypeId == "mercenary") && sw.Npcs.Any(n => n.TypeId == "gambler") &&
+              storyA.World.Npcs.Count == sw.Npcs.Count,
+              "the peddler, the lorekeeper, the sellsword and the gambler stand in the camp");
+        Check(sw.Structures.Values.Any(st => st.Kind == World.StructureKind.Wagon) &&
+              sw.Structures.Values.Count(st => st.Kind == World.StructureKind.Torch) == hub.TorchSpots.Count &&
+              storyA.World.Structures.Values.Any(st => st.Kind == (byte)World.StructureKind.Wagon) &&
+              storyA.World.Structures.Values.Count(st => st.Kind == (byte)World.StructureKind.Torch) == hub.TorchSpots.Count &&
+              World.StructureKinds.IsBreakable(World.StructureKind.Torch),
+              "the cart and every standing torch reach the client (spawned after the map broadcast); torches break");
+        SPump(1.6f);
+        Check(storyA.World.CutscenesSeen.Contains("hub_arrival"), "the crew points the party at the stairs");
+        var sable = sw.Npcs.First(n => n.TypeId == "gambler");
+        storyA.World.Me.Position = sable.Position + new Vector2(0.8f, 0f);
+        SPump(0.3f);
+        var storyChar = sw.Players.Values.First().Character;
+        storyChar.Gold = 3000;
+        int storyBag = storyChar.Inventory.Items.Count;
+        storyA.RequestGamble("mace");
+        SPump(0.5f);
+        Check(storyChar.Gold == 3000 && storyChar.Inventory.Items.Count == storyBag,
+              "Sable's table isn't open in the camp yet (no charge, no item)");
+        // Down the stairs: the lower levels wear the tomb theme.
+        storyA.World.Me.Position = hub.ExitDoor + new Vector2(-1.0f, 0.8f);
+        storyA.World.Me.Height = hub.GroundHeightAt(hub.ExitDoor);
+        SPump(0.4f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == 1 && sw.Map.Kind == World.MapKind.Forest && sw.Map.Theme?.Id == "tomb" &&
+              storyA.World.Map.Theme?.Id == "tomb",
+              $"the stairs lead into the lower levels (theme {sw.Map.Theme?.Id})");
+        storyA.Disconnect();
+        SPump(0.3f);
+        storyServer.Stop();
+
         Console.WriteLine("\n-- Batch 50: Arrow Rain + the leaner health pool --");
         // The flat health freebie shrank so attribute life carries real weight.
         Check(Stats.StatCalculator.BaseMaxHealth < 40f,

@@ -12,15 +12,17 @@ public enum StructureKind : byte
     Workbench = 4,
     /// <summary>Breakable dressing: a clay urn that shatters under any blow or a dodge.</summary>
     Urn = 5,
-    /// <summary>Breakable dressing: a wooden barrel (defined, not yet placed anywhere).</summary>
+    /// <summary>Breakable dressing: a wooden barrel (the ruins hub's camp).</summary>
     Barrel = 6,
+    /// <summary>Breakable dressing that LIGHTS the room: a standing iron torch.</summary>
+    Torch = 7,
 }
 
 public static class StructureKinds
 {
     /// <summary>Breakables: never block movement or routing, die to any hit, and go
     /// down to a dodge roll as well as a swing.</summary>
-    public static bool IsBreakable(StructureKind k) => k is StructureKind.Urn or StructureKind.Barrel;
+    public static bool IsBreakable(StructureKind k) => k is StructureKind.Urn or StructureKind.Barrel or StructureKind.Torch;
 }
 
 /// <summary>

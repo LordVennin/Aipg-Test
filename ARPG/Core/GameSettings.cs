@@ -22,6 +22,9 @@ public class GameSettings
     /// GENERATION (the forest grows big trees), so this is decided before the map exists
     /// and replicated to joining clients.</summary>
     public string ZoneThemeId { get; set; } = "forest";
+    /// <summary>What a hosted/single-player world starts as: "story" (the road, then the
+    /// ruins hub and the lower levels) or "test" (the sanctum hub and the test maps).</summary>
+    public string StartMode { get; set; } = "story";
     /// <summary>Master sound volume, 0..1 (cycled in Options → Gameplay).</summary>
     public float SoundVolume { get; set; } = 0.8f;
     /// <summary>The alpha-blend lighting pass in dark zones (sanctum, graveyard, tomb).</summary>
@@ -72,7 +75,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 45; // v45: buried flag on enemy spawns (rise from the earth)
+    public const int ProtocolVersion = 46; // v46: story map kinds (StoryRoad, RuinsHub), torch structures
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

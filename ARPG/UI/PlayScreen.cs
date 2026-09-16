@@ -27,6 +27,9 @@ public class PlayScreen : IScreen
     private readonly WorldRenderer _renderer;
     private readonly HudUI _hud;
     private readonly CutscenePlayer _cutscene = new();
+    /// <summary>Story maps fade in from black: held dark, then eased over FadeSeconds.</summary>
+    public const float FadeHoldSeconds = 0.6f;
+    public const float FadeSeconds = 1.4f;
     private readonly InventoryUI _inventory;
     private readonly SkillMenuUI _skillMenu;
     private readonly CharacterSheetUI _characterSheet;
@@ -484,7 +487,7 @@ public class PlayScreen : IScreen
             _devSpawnKnights = false;
             _client.SendDebugCommand("spawn_enemy", "bone_knight");
         }
-        if (_devSpawnElite != null && _client.World.Map != null && _client.World.Map.Kind != World.MapKind.Hub)
+        if (_devSpawnElite != null && _client.World.Map != null && !_client.World.Map.IsHub)
         {
             // A few seconds after stepping out of the hub (past the intro cutscene), so
             // the entrance plays in view for captures.
@@ -889,7 +892,7 @@ public class PlayScreen : IScreen
                 bool tutorialDoorNear =
                     (_client.World.Map.TutorialDoor != NumVec2.Zero &&
                      NumVec2.Distance(me.Position, _client.World.Map.TutorialDoor) <= 2.4f) ||
-                    (_client.World.Map.Kind == World.MapKind.Tutorial &&
+                    (_client.World.Map.IsRoad &&
                      _client.World.Map.EntryDoor != NumVec2.Zero &&
                      NumVec2.Distance(me.Position, _client.World.Map.EntryDoor) <= 2.4f);
                 bool doorNear = tutorialDoorNear ||
@@ -914,6 +917,12 @@ public class PlayScreen : IScreen
                 else if (_hud.ToggleHint(me))
                 {
                     // An assistance stone: the tip only shows once you choose to read it.
+                }
+                else if (_client.World.Map.PodiumSpot != NumVec2.Zero &&
+                         NumVec2.Distance(me.Position, _client.World.Map.PodiumSpot) <= 2.2f)
+                {
+                    // The scroll podium: map scrolls don't exist yet — the stand waits.
+                    _hud.AddMessage("The podium's sigil stays dark — it wants a map scroll, and you carry none.");
                 }
                 else if (workbenchNear && !_build.Open)
                 {
@@ -949,6 +958,10 @@ public class PlayScreen : IScreen
                         // The trainer's list is local knowledge — no stock roundtrip.
                         _trainer.Open = true;
                         RaisePanel(_trainer);
+                    }
+                    else if (npcNear.TypeId == "gambler" && _client.World.Map.Kind == World.MapKind.RuinsHub)
+                    {
+                        _hud.AddMessage("Sable: \"Table's not up yet, dear. Come back when the camp's settled.\"");
                     }
                     else if (npcNear.TypeId == "gambler")
                     {
@@ -1342,6 +1355,15 @@ public class PlayScreen : IScreen
         }
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
         _cutscene.Draw(sb, screen); // letterbox + dialogue over everything
+        // Story maps open from BLACK: a beat of dark, then a fade — no sudden start.
+        if (_client.World.Map is { Kind: World.MapKind.StoryRoad or World.MapKind.RuinsHub })
+        {
+            float sinceLoad = (Environment.TickCount64 - _client.World.MapLoadedAtMs) / 1000f;
+            float dark = sinceLoad < FadeHoldSeconds ? 1f
+                : 1f - Math.Clamp((sinceLoad - FadeHoldSeconds) / FadeSeconds, 0f, 1f);
+            if (dark > 0f)
+                sb.Draw(TextureGen.Pixel, new Rectangle(0, 0, screen.X, screen.Y), Color.Black * dark);
+        }
         // Panels draw bottom-to-top so the last-raised window overlays the rest;
         // the debug panel always sits above the stack.
         foreach (var panel in _panelZ) panel.Draw(sb);
