@@ -1794,7 +1794,7 @@ public class WorldRenderer
 
         // Campaign doors: a standing gate at each map's entry/exit. The exit glows —
         // gold when it will take the ready press, red while the boss seals it.
-        void DrawDoor(System.Numerics.Vector2 doorPos, bool exit)
+        void DrawDoor(System.Numerics.Vector2 doorPos, bool exit, DoorStyle style = DoorStyle.Door)
         {
             if (doorPos == System.Numerics.Vector2.Zero) return;
             float doorHeight = world.Map.GroundHeightAt(doorPos);
@@ -1804,6 +1804,70 @@ public class WorldRenderer
             var glow = locked ? new Color(220, 60, 40) : new Color(240, 200, 90);
             long clock = Environment.TickCount64;
             float pulse = 0.7f + 0.3f * MathF.Sin(clock * 0.004f);
+            if (style == DoorStyle.RuinArch)
+            {
+                // The ruins' own stonework: two weathered pillars, a cracked lintel with a
+                // fallen corner, and the way through glowing between them.
+                _sorted.Add((doorPos.X + doorPos.Y + doorHeight * 1.0f + 0.1f, batch =>
+                {
+                    var stone = new Color(112, 110, 120);
+                    var stoneDark = new Color(76, 74, 86);
+                    var stoneLight = new Color(146, 144, 154);
+                    int pw = 14, ph = 74, span = 46;
+                    int lx = (int)screen.X - span / 2 - pw, rx = (int)screen.X + span / 2, top = (int)screen.Y - ph;
+                    // The glow between the pillars first, so stone overlaps it.
+                    batch.Draw(TextureGen.Blob32, new Rectangle((int)screen.X - span / 2 - 4, top + 10, span + 8, ph - 4), glow * (0.16f * pulse));
+                    batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 24, (int)screen.Y - 10, 48, 20), glow * (0.32f * pulse));
+                    foreach (int px0 in new[] { lx, rx })
+                    {
+                        batch.Draw(TextureGen.Pixel, new Rectangle(px0, top, pw, ph), stone);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(px0, top, 3, ph), stoneLight);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(px0 + pw - 3, top, 3, ph), stoneDark);
+                        // Block courses and a crack.
+                        for (int c = 1; c < 6; c++)
+                            batch.Draw(TextureGen.Pixel, new Rectangle(px0, top + c * 12, pw, 1), stoneDark);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(px0 + 5, top + 26, 1, 9), stoneDark);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(px0 + 6, top + 35, 1, 6), stoneDark);
+                        // Footing.
+                        batch.Draw(TextureGen.Pixel, new Rectangle(px0 - 2, (int)screen.Y - 6, pw + 4, 6), stoneDark);
+                    }
+                    // Lintel: whole on the left, its right end broken away.
+                    batch.Draw(TextureGen.Pixel, new Rectangle(lx - 3, top - 12, span + pw * 2 - 10, 12), stone);
+                    batch.Draw(TextureGen.Pixel, new Rectangle(lx - 3, top - 12, span + pw * 2 - 10, 3), stoneLight);
+                    batch.Draw(TextureGen.Pixel, new Rectangle(lx + span + pw * 2 - 16, top - 10, 6, 4), stone);
+                    batch.Draw(TextureGen.Pixel, new Rectangle(lx - 3, top - 1, span + pw * 2 - 10, 1), stoneDark);
+                    // Moss at the feet.
+                    batch.Draw(TextureGen.Pixel, new Rectangle(lx + 2, (int)screen.Y - 14, 5, 3), new Color(70, 96, 58));
+                    batch.Draw(TextureGen.Pixel, new Rectangle(rx + 7, (int)screen.Y - 9, 4, 3), new Color(70, 96, 58));
+                }));
+                return;
+            }
+            if (style == DoorStyle.Stairs)
+            {
+                // A stair flight DOWN into the dark: a stone-rimmed opening in the floor,
+                // steps fading from lit to black, and the way's glow at the top step.
+                _sorted.Add((doorPos.X + doorPos.Y + doorHeight * 1.0f + 0.05f, batch =>
+                {
+                    var rim = new Color(120, 118, 128);
+                    var rimDark = new Color(70, 68, 80);
+                    int ow = 60, oh = 34;
+                    var open = new Rectangle((int)screen.X - ow / 2, (int)screen.Y - oh + 6, ow, oh);
+                    batch.Draw(TextureGen.Pixel, new Rectangle(open.X - 3, open.Y - 3, open.Width + 6, open.Height + 6), rimDark);
+                    batch.Draw(TextureGen.Pixel, new Rectangle(open.X - 3, open.Y - 3, open.Width + 6, 3), rim);
+                    batch.Draw(TextureGen.Pixel, open, new Color(6, 5, 9));
+                    // Steps: each lower course darker and narrower, descending away.
+                    for (int st = 0; st < 6; st++)
+                    {
+                        float f = st / 6f;
+                        var c = Color.Lerp(new Color(96, 94, 104), new Color(10, 9, 14), f);
+                        int inset = st * 4;
+                        batch.Draw(TextureGen.Pixel, new Rectangle(open.X + inset, open.Y + st * 5, open.Width - inset * 2, 4), c);
+                        batch.Draw(TextureGen.Pixel, new Rectangle(open.X + inset, open.Y + st * 5 + 4, open.Width - inset * 2, 1), new Color(4, 4, 6));
+                    }
+                    batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 26, open.Y - 6, 52, 14), glow * (0.28f * pulse));
+                }));
+                return;
+            }
             _sorted.Add((doorPos.X + doorPos.Y + doorHeight * 1.0f + 0.1f, batch =>
             {
                 // Frame: two posts and a lintel; leaves drawn as dark planks.
@@ -1822,8 +1886,8 @@ public class WorldRenderer
                 batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 22, (int)screen.Y - 9, 44, 18), glow * (0.30f * pulse));
             }));
         }
-        DrawDoor(world.Map.ExitDoor, exit: true);
-        DrawDoor(world.Map.EntryDoor, exit: false);
+        DrawDoor(world.Map.ExitDoor, exit: true, world.Map.ExitDoorStyle);
+        DrawDoor(world.Map.EntryDoor, exit: false, world.Map.EntryDoorStyle);
         DrawDoor(world.Map.DefenseDoor, exit: false); // hub only: the caravan door west
         DrawDoor(world.Map.TutorialDoor, exit: false); // hub only: the old road south
 
@@ -1836,19 +1900,27 @@ public class WorldRenderer
                 hs.Y < -60 || hs.Y > camera.ScreenHeight + 60) continue;
             long hc = Environment.TickCount64;
             float hp = 0.55f + 0.45f * MathF.Sin(hc * 0.003f + hintPos.X);
-            AddLight(hs, 70f, new Color(150, 200, 235));
+            AddLight(hs, 110f, new Color(150, 200, 235));
             _sorted.Add((hintPos.X + hintPos.Y + hh * 1.0f, batch =>
             {
+                // A waist-high standing stone: wide enough to read as a marker from
+                // across the road, with a tall rune band and a halo.
                 var stone = new Color(116, 122, 134);
-                batch.Draw(TextureGen.Circle32, new Rectangle((int)hs.X - 9, (int)hs.Y - 5, 18, 9),
-                    new Color(0, 0, 0, 80));
-                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 5, (int)hs.Y - 26, 10, 26), stone);
-                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 7, (int)hs.Y - 4, 14, 4),
-                    new Color(84, 90, 100));
-                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 2, (int)hs.Y - 21, 4, 10),
+                var stoneDark = new Color(84, 90, 100);
+                var stoneLight = new Color(150, 156, 168);
+                batch.Draw(TextureGen.Blob32, new Rectangle((int)hs.X - 14, (int)hs.Y - 7, 28, 13),
+                    new Color(0, 0, 0, 90));
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 8, (int)hs.Y - 44, 16, 44), stone);
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 8, (int)hs.Y - 44, 3, 44), stoneLight);
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X + 5, (int)hs.Y - 42, 3, 42), stoneDark);
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 6, (int)hs.Y - 47, 12, 4), stone);   // rounded crown
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 11, (int)hs.Y - 5, 22, 5), stoneDark); // footing
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 3, (int)hs.Y - 36, 6, 18),
                     new Color(150, 205, 240) * hp);
-                batch.Draw(TextureGen.Circle32, new Rectangle((int)hs.X - 7, (int)hs.Y - 24, 14, 14),
-                    new Color(120, 190, 235) * (0.25f * hp));
+                batch.Draw(TextureGen.Pixel, new Rectangle((int)hs.X - 1, (int)hs.Y - 34, 2, 14),
+                    new Color(220, 240, 255) * hp);
+                batch.Draw(TextureGen.Blob32, new Rectangle((int)hs.X - 12, (int)hs.Y - 40, 24, 24),
+                    new Color(120, 190, 235) * (0.22f * hp));
             }));
         }
 
@@ -1859,6 +1931,14 @@ public class WorldRenderer
             var stPos = st.Position;
             var stScreen = camera.WorldToScreen(stPos, st.Height);
             var stTex = SpriteGen.GetStructureSprite(st.Kind);
+            if (st.Kind == (byte)StructureKind.Torch)
+            {
+                // A standing torch is a light source: warm, flickering, one per torch.
+                var tScreen = camera.WorldToScreen(st.Position, st.Height);
+                float tf = 0.86f + 0.14f * MathF.Sin(Environment.TickCount64 * 0.017f + st.Position.X * 3.1f)
+                                         * MathF.Sin(Environment.TickCount64 * 0.023f + st.Position.Y * 2.3f);
+                AddLight(tScreen + new Vector2(0, -44), 150f * tf, new Color(255, 170, 80));
+            }
             if (stTex == null) continue;
             float age = (Environment.TickCount64 - st.SpawnedAtMs) / 1000f;
             float pop = age < 0.25f ? 0.7f + 1.2f * age : 1f; // brief build pop
@@ -1963,6 +2043,36 @@ public class WorldRenderer
                         new Color(0, 0, 0, 80));
                     batch.Draw(stashTex,
                         new Rectangle((int)stScreen.X - w / 2, (int)stScreen.Y - h + 8, w, h), Color.White);
+                }));
+        }
+
+        // The ruins hub's scroll podium and the dormant portal stand behind it.
+        if (world.Map.PodiumSpot != System.Numerics.Vector2.Zero)
+        {
+            var pdPos = world.Map.PodiumSpot;
+            float pdH = world.Map.GroundHeightAt(pdPos);
+            var pdScreen = camera.WorldToScreen(pdPos, pdH);
+            var podiumTex = SpriteGen.GetPodium();
+            if (podiumTex != null)
+                _sorted.Add((pdPos.X + pdPos.Y + pdH * 1.0f + 0.1f, batch =>
+                {
+                    int w = podiumTex.Width * 2, h = podiumTex.Height * 2;
+                    batch.Draw(TextureGen.Blob32, new Rectangle((int)pdScreen.X - 18, (int)pdScreen.Y - 7, 36, 14), new Color(0, 0, 0, 80));
+                    batch.Draw(podiumTex, new Rectangle((int)pdScreen.X - w / 2, (int)pdScreen.Y - h + 8, w, h), Color.White);
+                }));
+        }
+        if (world.Map.PortalSpot != System.Numerics.Vector2.Zero)
+        {
+            var ptPos = world.Map.PortalSpot;
+            float ptH = world.Map.GroundHeightAt(ptPos);
+            var ptScreen = camera.WorldToScreen(ptPos, ptH);
+            var portalTex = SpriteGen.GetPortalStand();
+            if (portalTex != null)
+                _sorted.Add((ptPos.X + ptPos.Y + ptH * 1.0f + 0.1f, batch =>
+                {
+                    int w = portalTex.Width * 2, h = portalTex.Height * 2;
+                    batch.Draw(TextureGen.Blob32, new Rectangle((int)ptScreen.X - 28, (int)ptScreen.Y - 9, 56, 18), new Color(0, 0, 0, 80));
+                    batch.Draw(portalTex, new Rectangle((int)ptScreen.X - w / 2, (int)ptScreen.Y - h + 8, w, h), Color.White);
                 }));
         }
 
@@ -3351,8 +3461,10 @@ public class WorldRenderer
                 string doorHint = world.ZoneExitLocked
                     ? world.Map.Kind == World.MapKind.Defense
                         ? "Sealed — the wagon still needs you"
-                        : "Sealed — defeat the Gravelord"
-                    : $"F  Ready ({world.ZoneReadyCount}/{Math.Max(1, world.ZoneAlivePlayers)})";
+                        : world.Map.IsRoad ? "Barred — clear the way first" : "Sealed — defeat the Gravelord"
+                    : world.Map.ExitDoorStyle == DoorStyle.Stairs
+                        ? $"F  Head down ({world.ZoneReadyCount}/{Math.Max(1, world.ZoneAlivePlayers)})"
+                        : $"F  Ready ({world.ZoneReadyCount}/{Math.Max(1, world.ZoneAlivePlayers)})";
                 var dSize = labelFont.MeasureString(doorHint);
                 sb.DrawString(labelFont, doorHint,
                     new Vector2(doorScreen.X - dSize.X / 2, doorScreen.Y - 78),
@@ -3367,6 +3479,14 @@ public class WorldRenderer
                 var ddSize = labelFont.MeasureString(ddHint);
                 sb.DrawString(labelFont, ddHint,
                     new Vector2(ddScreen.X - ddSize.X / 2, ddScreen.Y - 78), new Color(255, 226, 130));
+            }
+            if (world.Map.PodiumSpot != System.Numerics.Vector2.Zero &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.PodiumSpot) <= 2.2f)
+            {
+                var pdS = camera.WorldToScreen(world.Map.PodiumSpot, world.Map.GroundHeightAt(world.Map.PodiumSpot));
+                const string pdHint = "F  Place a map scroll";
+                var pdSize = labelFont.MeasureString(pdHint);
+                sb.DrawString(labelFont, pdHint, new Vector2(pdS.X - pdSize.X / 2, pdS.Y - 66), new Color(200, 225, 250));
             }
             if (world.Map.WorkbenchSpot != System.Numerics.Vector2.Zero &&
                 System.Numerics.Vector2.Distance(hintMe.Position, world.Map.WorkbenchSpot) <= 2.4f)

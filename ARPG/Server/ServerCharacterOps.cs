@@ -358,7 +358,7 @@ public partial class ServerWorld
     /// storage is tied to a physical object, so moves require standing beside it.
     /// Today there is one container: the hub's stash chest.</summary>
     private bool StashInReach(ServerPlayer p, string containerId) =>
-        containerId == GameMap.HubStashId && Map.Kind == MapKind.Hub &&
+        containerId == GameMap.HubStashId && Map.IsHub &&
         Vector2.Distance(p.Position, Map.StashSpot) <= 3.0f;
 
     /// <summary>
@@ -464,6 +464,11 @@ public partial class ServerWorld
             _events.MessageFor(p, "The gambler waits in the sanctum.");
             return;
         }
+        if (Map.Kind == MapKind.RuinsHub)
+        {
+            _events.MessageFor(p, "Sable: \"Table's not up yet, dear. Come back when the camp's settled.\"");
+            return;
+        }
         int level = p.Character.Level;
         var candidates = GambleBalance.Candidates(Data, offer, level);
         if (candidates.Count == 0)
@@ -557,7 +562,8 @@ public partial class ServerWorld
         {
             case "warp_next":
                 // Dev shortcut through the campaign loop (skips the ready-door dance).
-                if (Campaign) TransitionTo(MapIndex >= 3 ? 0 : MapIndex + 1);
+                // From any authored map (road, defense, tutorial) the next stop is home.
+                if (Campaign) TransitionTo(MapIndex >= 3 || MapIndex < 0 ? 0 : MapIndex + 1);
                 break;
             case "warp_tutorial":
                 // Dev shortcut into the Old Road introduction (captures, playtests).
@@ -742,7 +748,7 @@ public partial class ServerWorld
             {
                 // "magic" (one random affix), "rare" (two or three + a name), or an affix
                 // list like "vampiric+thorny" — a grunt two tiles ahead, for testing.
-                if (Map.Kind == MapKind.Hub) break;
+                if (Map.IsHub) break;
                 EliteAffix affixes;
                 if (arg is null or "magic") affixes = EliteAffixInfo.Rollable[_rng.Next(EliteAffixInfo.Rollable.Length)];
                 else if (arg == "rare")

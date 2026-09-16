@@ -596,6 +596,7 @@ public static class SpriteGen
                     4 => DrawWorkbench(),
                     5 => DrawUrn(),
                     6 => DrawBarrel(),
+                    7 => DrawTorch(),
                     _ => DrawSpikedBarrier(),
                 },
             };
@@ -789,6 +790,109 @@ public static class SpriteGen
         for (int x = 4; x < 8; x++) Set(x, 13, glaze);              // foot shadow
         Set(4, 3, clayLight); Set(4, 4, clayLight);                 // highlight streak
         return BakeStrip(px, w, h);
+    }
+
+    /// <summary>A standing iron torch: a dark pole on a three-footed base, an iron cup,
+    /// and a two-tone flame. Breakable; the renderer adds its flickering light.</summary>
+    private static Texture2D DrawTorch()
+    {
+        const int w = 12, h = 30;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        var iron = new Color(66, 64, 72);
+        var ironLight = new Color(104, 102, 112);
+        var flame = new Color(255, 150, 40);
+        var flameCore = new Color(255, 236, 170);
+        var flameDark = new Color(210, 80, 20);
+        // Base: three feet and a collar.
+        for (int x = 2; x < 10; x++) Set(x, 29, iron);
+        Set(2, 28, iron); Set(9, 28, iron); Set(5, 28, ironLight); Set(6, 28, ironLight);
+        for (int x = 4; x < 8; x++) Set(x, 27, iron);
+        // Pole.
+        for (int y = 12; y < 27; y++) { Set(5, y, ironLight); Set(6, y, iron); }
+        // Cup.
+        for (int x = 3; x < 9; x++) { Set(x, 11, iron); Set(x, 10, ironLight); }
+        Set(2, 9, iron); Set(9, 9, iron);
+        // Flame: a tongue with a bright core.
+        int[] half = { 1, 2, 2, 3, 3, 3, 2, 2, 1 };
+        for (int i = 0; i < half.Length; i++)
+        {
+            int y = 9 - i;
+            for (int x = 6 - half[i]; x < 6 + half[i]; x++)
+                Set(x, y, i < 2 ? flameDark : i > 6 ? flameCore : flame);
+        }
+        Set(5, 6, flameCore); Set(6, 6, flameCore); Set(5, 5, flameCore);
+        Set(6, 0, flameCore);
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>The scroll podium: a stone lectern with a slanted top — where map
+    /// scrolls will go once they exist.</summary>
+    public static Texture2D GetPodium()
+    {
+        if (_device == null) return null;
+        if (!_cache.TryGetValue("podium", out var frames))
+        {
+            const int w = 18, h = 24;
+            var px = new Color[w * h];
+            void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+            void Rect(int x0, int y0, int x1, int y1, Color c)
+            { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+            var stone = new Color(118, 116, 124);
+            var stoneDark = new Color(84, 82, 92);
+            var stoneLight = new Color(150, 148, 156);
+            var rune = new Color(120, 190, 235);
+            Rect(3, 21, 14, 23, stoneDark);            // foot
+            Rect(4, 20, 13, 20, stone);
+            Rect(6, 9, 11, 19, stone);                 // column
+            Rect(6, 9, 6, 19, stoneLight); Rect(11, 9, 11, 19, stoneDark);
+            Rect(2, 4, 15, 8, stone);                  // slanted top (front face)
+            Rect(2, 4, 15, 4, stoneLight);
+            Rect(3, 2, 14, 3, stoneLight);             // top surface
+            Rect(3, 8, 15, 8, stoneDark);
+            Set(8, 3, rune); Set(9, 3, rune);          // a faint sigil waiting for a scroll
+            Set(8, 6, rune); Set(9, 6, rune);
+            frames = new[] { BakeStrip(px, w, h) };
+            _cache["podium"] = frames;
+        }
+        return frames[0];
+    }
+
+    /// <summary>The portal stand: a broken stone ring on a plinth, dormant — the
+    /// portal opens here once a scroll is placed on the podium.</summary>
+    public static Texture2D GetPortalStand()
+    {
+        if (_device == null) return null;
+        if (!_cache.TryGetValue("portalstand", out var frames))
+        {
+            const int w = 30, h = 36;
+            var px = new Color[w * h];
+            void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+            void Rect(int x0, int y0, int x1, int y1, Color c)
+            { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+            var stone = new Color(112, 110, 120);
+            var stoneDark = new Color(78, 76, 88);
+            var stoneLight = new Color(146, 144, 154);
+            var moss = new Color(70, 96, 58);
+            Rect(2, 32, 27, 35, stoneDark);            // plinth
+            Rect(3, 30, 26, 31, stone);
+            Rect(4, 30, 25, 30, stoneLight);
+            // The ring: an ellipse of stone blocks, the top broken away.
+            for (int a = 0; a < 360; a += 6)
+            {
+                float rad = a * MathF.PI / 180f;
+                int cx = 15 + (int)MathF.Round(MathF.Cos(rad) * 11f);
+                int cy = 17 + (int)MathF.Round(MathF.Sin(rad) * 12f);
+                if (a > 235 && a < 305) continue;      // the missing crown
+                var c = a > 90 && a < 270 ? stoneLight : stone;
+                Rect(cx - 1, cy - 1, cx + 1, cy + 1, c);
+                if ((a / 6) % 4 == 0) Set(cx, cy, stoneDark);
+            }
+            Set(6, 24, moss); Set(7, 25, moss); Set(23, 26, moss); Set(8, 30, moss);
+            frames = new[] { BakeStrip(px, w, h) };
+            _cache["portalstand"] = frames;
+        }
+        return frames[0];
     }
 
     /// <summary>A wooden barrel: staves, two iron hoops, a lighter lid.</summary>

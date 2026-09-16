@@ -1,9 +1,9 @@
 {
   "Id": "default",
-  "DropChance": 0.45,
-  "ScrollDropChance": 0.1,
-  "EnchantScrollDropChance": 0.14,
-  "GoldDropChance": 0.45,
+  "DropChance": 0.28,
+  "ScrollDropChance": 0.06,
+  "EnchantScrollDropChance": 0.08,
+  "GoldDropChance": 0.35,
   "GoldMin": 4,
   "GoldMax": 14,
   "RarityWeightNormal": 45,

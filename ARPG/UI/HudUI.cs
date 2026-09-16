@@ -63,7 +63,7 @@ public class HudUI
     public int NearHintIndex(ClientPlayer me)
     {
         var map = _client.World.Map;
-        if (map == null || map.Kind != World.MapKind.Tutorial) return -1;
+        if (map == null || !map.IsRoad) return -1;
         for (int i = 0; i < map.TutorialHints.Count; i++)
             if (System.Numerics.Vector2.Distance(me.Position, map.TutorialHints[i].Pos) <= HintReadRange)
                 return i;
@@ -182,14 +182,21 @@ public class HudUI
         {
             var zoneFont = FontManager.GetBold(16);
             var subFont = FontManager.Get(12);
-            string zoneName = _client.World.Map?.Kind == World.MapKind.Hub
+            var zMap = _client.World.Map;
+            bool lower = zMap?.Theme?.Id == "tomb"; // the story's runs: the levels under the ruins
+            string zoneName = zMap?.Kind == World.MapKind.Hub
                 ? "The Sanctum"
-                : _client.World.Map?.Kind == World.MapKind.Tutorial
-                    ? "The Old Road"
-                    : $"Mirewood Depths {_client.World.ZoneMapIndex} / 3";
-            string zoneSub = _client.World.Map?.Kind == World.MapKind.Hub
+                : zMap?.Kind == World.MapKind.RuinsHub
+                    ? "The Ruins"
+                    : zMap?.IsRoad == true
+                        ? "The Old Road"
+                        : lower ? $"The Lower Levels {_client.World.ZoneMapIndex} / 3"
+                                : $"Mirewood Depths {_client.World.ZoneMapIndex} / 3";
+            string zoneSub = zMap?.Kind == World.MapKind.Hub
                 ? (_client.World.ZoneLoop > 1 ? $"expedition {_client.World.ZoneLoop} awaits" : "gear up, then take the door")
-                : _client.World.Map?.Kind == World.MapKind.Tutorial
+                : zMap?.Kind == World.MapKind.RuinsHub
+                ? (_client.World.ZoneLoop > 1 ? "the camp holds — the stairs wait" : "head below and see what you can find")
+                : zMap?.IsRoad == true
                 ? "clear the way to the ruins"
                 : $"enemy level {_client.World.ZoneEnemyLevel}" +
                   (_client.World.ZoneReadyCount > 0

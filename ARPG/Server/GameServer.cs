@@ -40,11 +40,11 @@ public class GameServer : IServerEvents
     /// <summary>Fixed simulation rate of the dedicated server thread.</summary>
     public const float TickRate = 60f;
 
-    public GameServer(GameData data, int mapSeed, string zoneThemeId = null, bool campaign = false)
+    public GameServer(GameData data, int mapSeed, string zoneThemeId = null, bool campaign = false, bool story = false)
     {
         Data = data;
         MapSeed = mapSeed;
-        World = new ServerWorld(data, mapSeed, this, zoneThemeId, campaign);
+        World = new ServerWorld(data, mapSeed, this, zoneThemeId, campaign, story);
         _net = new NetManager(_listener) { AutoRecycle = true };
 
         _listener.ConnectionRequestEvent += request =>

@@ -909,7 +909,7 @@ computed stats. All commands execute server-side like any other request.
 
 Dev conveniences for automated/headless sessions: `--sp` starts straight into
 single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
-`ARPG_DEVUI=debug[,skills][,inventory][,drops][,loot][,elite[:rare|magic|affix+affix]][,shop][,shopgrid][,tree][,summons][,knight][,warp][,tutorial][,mace][,flamefx]`
+`ARPG_DEVUI=debug[,skills][,inventory][,drops][,loot][,elite[:rare|magic|affix+affix]][,shop][,shopgrid][,tree][,summons][,knight][,warp][,tutorial][,mace][,flamefx]` (set `ARPG_STORY=1` to boot the story world instead of the test grounds)
 opens panels at startup (`warp` jumps to the next campaign map and `tutorial` into
 the Old Road three seconds in — debug command `warp_tutorial`; `drops` scatters one of every scroll shortly after
 joining, for loot-UI work; `loot` rings the player with one drop of every item
@@ -922,7 +922,7 @@ spawns a Barrow Knight beside the player for attack-animation work).
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (777 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (793 checks, exit code 0 on success). It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

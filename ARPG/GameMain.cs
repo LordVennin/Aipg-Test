@@ -129,6 +129,13 @@ public class GameMain : Game
     private static bool HostCampaign =>
         Environment.GetEnvironmentVariable("ARPG_ARENA") != "1";
 
+    /// <summary>Story worlds open on the road and home in the ruins; test worlds keep
+    /// the sanctum and the test maps. The menu's choice (Settings.StartMode) decides;
+    /// automation boots (--sp) stay on the test grounds unless ARPG_STORY=1.</summary>
+    private bool HostStory =>
+        Environment.GetEnvironmentVariable("ARPG_STORY") == "1" ||
+        (!AutoSinglePlayer && Environment.GetEnvironmentVariable("ARPG_STORY") != "0" && Settings.StartMode == "story");
+
     /// <summary>Every session start stops at the CHARACTER SELECT screen first: pick a
     /// saved character (or create one) and the interrupted action resumes with it. The
     /// chosen name becomes Settings.PlayerName. Dev/automation boots (--sp) skip the
@@ -154,7 +161,7 @@ public class GameMain : Game
 
     private void StartSinglePlayerNow()
     {
-        var server = new GameServer(Data, SeedRng.Next(), HostZoneThemeId, campaign: HostCampaign);
+        var server = new GameServer(Data, SeedRng.Next(), HostZoneThemeId, campaign: HostCampaign, story: HostStory);
         if (!server.Start(0))
         {
             SwitchScreen(new MainMenuScreen(this, "Could not start the local server."));
@@ -177,7 +184,7 @@ public class GameMain : Game
 
     private string StartHostNow(int port)
     {
-        var server = new GameServer(Data, SeedRng.Next(), HostZoneThemeId, campaign: HostCampaign);
+        var server = new GameServer(Data, SeedRng.Next(), HostZoneThemeId, campaign: HostCampaign, story: HostStory);
         if (!server.Start(port))
             return $"Could not listen on port {port} (already in use?).";
         server.StartLoop(); // simulation runs on its own thread, decoupled from rendering

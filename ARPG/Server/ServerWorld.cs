@@ -125,6 +125,11 @@ public partial class ServerWorld
 
     /// <summary>True when this world runs the hub-and-runs game loop (Arena otherwise).</summary>
     public bool Campaign { get; }
+    /// <summary>The STORY flavour of the campaign: opens on the story road, homes in
+    /// the ruins hub, and its runs are the lower levels (the tomb theme). False = the
+    /// test grounds: the sanctum hub and the themed forest runs.</summary>
+    public bool Story { get; }
+    public const int StoryRoadIndex = -3;
     /// <summary>Which forest excursion this is (1-based). Drives enemy level scaling.</summary>
     public int Loop { get; private set; } = 1;
     /// <summary>0 = hub, 1..3 = the run's forest maps.</summary>
@@ -135,7 +140,7 @@ public partial class ServerWorld
     public bool ExitLocked => Campaign &&
         ((MapIndex == 3 && BossAlive) ||
          (Map.Kind == MapKind.Defense && DefPhase != DefensePhase.Won) ||
-         (Map.Kind == MapKind.Tutorial && BossAlive));
+         (Map.IsRoad && BossAlive));
     public bool BossAlive => _bossEnemyId >= 0 &&
                              Enemies.TryGetValue(_bossEnemyId, out var b) && !b.Dead;
     public int ReadyCount => _readyAtDoor.Count;
@@ -166,7 +171,7 @@ public partial class ServerWorld
     public const int TutorialSeed = 20777;
 
     public ServerWorld(GameData data, int mapSeed, IServerEvents events, string zoneThemeId = null,
-        bool campaign = false)
+        bool campaign = false, bool story = false)
     {
         Data = data;
         var theme = data.ZoneThemes.FirstOrDefault(t => t.Id == zoneThemeId)
@@ -177,11 +182,22 @@ public partial class ServerWorld
         _rng = new Random();
         Loot = new LootGenerator(data, _rng);
         Campaign = campaign;
+        Story = campaign && story;
 
+        if (Story)
+        {
+            // The story opens ON the road: the caravan's push to the ruins is the first
+            // thing a new character sees; the ruins hub comes after the gate falls.
+            MapIndex = StoryRoadIndex;
+            Map = new GameMap(TutorialSeed, ThemeFor(MapKind.StoryRoad), MapKind.StoryRoad);
+            SetupTutorial();
+            return;
+        }
         if (campaign)
         {
             Map = new GameMap(CampaignMapSeed(0), ThemeFor(MapKind.Hub), MapKind.Hub);
             SetupHub();
+            FurnishHub();
             return;
         }
 
@@ -324,9 +340,20 @@ public partial class ServerWorld
                 Height = Map.GroundHeightAt(Map.ChestSpots[i]),
                 Opened = _openedChests.Contains(i + 1),
             });
-        // Clay urns along the walls: something to smash on the way to the door. They
-        // hold nothing in the sanctum (it would be a free gold tap) and stand again
-        // on every return.
+    }
+
+    /// <summary>The hub's STRUCTURES (urns; in the ruins the cart, torches and barrels),
+    /// spawned AFTER the map broadcast: structure packets sent before MapChange race it
+    /// and get wiped by the client's map-change reset. Urns hold nothing in a hub (it
+    /// would be a free gold tap) and stand again on every return.</summary>
+    private void FurnishHub()
+    {
+        if (Map.Kind == MapKind.RuinsHub)
+        {
+            AddStructure(StructureKind.Wagon, Map.WagonSpot, 1_000_000f, ownerId: -1, radius: 0.85f);
+            foreach (var spot in Map.TorchSpots) SpawnBreakable(StructureKind.Torch, spot);
+            foreach (var spot in Map.BarrelSpots) SpawnBreakable(StructureKind.Barrel, spot);
+        }
         foreach (var spot in Map.UrnSpots)
             SpawnBreakable(StructureKind.Urn, spot);
     }
@@ -440,12 +467,13 @@ public partial class ServerWorld
         // Every defense sortie gets a freshly generated arena too.
         if (newIndex == DefenseMapIndex) _defenseEntries++;
         MapIndex = newIndex;
-        var newKind = newIndex == 0 ? MapKind.Hub
+        var newKind = newIndex == 0 ? (Story ? MapKind.RuinsHub : MapKind.Hub)
             : newIndex == DefenseMapIndex ? MapKind.Defense
-            : newIndex == TutorialMapIndex ? MapKind.Tutorial : MapKind.Forest;
+            : newIndex == TutorialMapIndex ? MapKind.Tutorial
+            : newIndex == StoryRoadIndex ? MapKind.StoryRoad : MapKind.Forest;
         int seed = newIndex == DefenseMapIndex
             ? unchecked(_runSeed * 31 + _defenseEntries * 65537 + 12345)
-            : newIndex == TutorialMapIndex ? TutorialSeed
+            : newIndex is TutorialMapIndex or StoryRoadIndex ? TutorialSeed
             : CampaignMapSeed(newIndex);
         Map = new GameMap(seed, ThemeFor(newKind), newKind);
         // Coming home wakes the fallen: anyone still down stands back up in the hub.
@@ -492,11 +520,12 @@ public partial class ServerWorld
         Packs.Clear();
         Npcs.Clear();
         Chests.Clear();
-        if (newIndex == 0) SetupHub();
+        if (newIndex == 0) { if (Story) SetupRuinsHub(); else SetupHub(); }
         _events.MapChanged(this);
+        if (newIndex == 0) FurnishHub(); // structures spawn AFTER the map broadcast
         if (newIndex > 0) SetupForest(); // packs spawn AFTER the map broadcast
         else if (newIndex == DefenseMapIndex) SetupDefense();
-        else if (newIndex == TutorialMapIndex) SetupTutorial();
+        else if (newIndex is TutorialMapIndex or StoryRoadIndex) SetupTutorial();
         _events.ZoneStateChanged(this);
     }
 
@@ -506,9 +535,12 @@ public partial class ServerWorld
     private ZoneTheme ThemeFor(MapKind kind) =>
         kind == MapKind.Hub
             ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "sanctum") ?? _theme
-            : kind == MapKind.Tutorial
+            : kind is MapKind.Tutorial or MapKind.StoryRoad or MapKind.RuinsHub
                 ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "graveyard") ?? _theme
-                : _theme;
+                : Story && kind == MapKind.Forest
+                    // The story's runs are the LOWER LEVELS under the ruins.
+                    ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "tomb") ?? _theme
+                    : _theme;
 
     /// <summary>The exit door: standing near it, the interact key toggles READY. When
     /// every living player is ready the group moves on (hub -> map 1 -> 2 -> 3 -> hub).
@@ -523,7 +555,7 @@ public partial class ServerWorld
 
         // Tutorial map: the entry door leaves for home any time; the ruins gate
         // opens home only once the way is clear.
-        if (Map.Kind == MapKind.Tutorial)
+        if (Map.IsRoad)
         {
             bool atGate = Vector2.Distance(p.Position, Map.ExitDoor) <= 2.6f;
             bool atEntry = Vector2.Distance(p.Position, Map.EntryDoor) <= 2.6f;
@@ -550,7 +582,7 @@ public partial class ServerWorld
         HashSet<int> set;
         HashSet<int>[] others;
         string doorName;
-        if (Map.Kind == MapKind.Hub)
+        if (Map.IsHub)
         {
             var candidates = new (Vector2 pos, int target, HashSet<int> ready, string name)[]
             {
@@ -710,7 +742,7 @@ public partial class ServerWorld
         if (!Campaign || Players.Count == 0) return;
         // The introduction is forgiving: the caravan drags the fallen back to camp
         // (TickPlayers' respawn countdown), so even a full wipe never ends the visit.
-        if (Map.Kind == MapKind.Tutorial) return;
+        if (Map.IsRoad) return;
         if (Players.Values.Any(pl => pl.Alive)) { _wipeReturnAt = 0f; return; }
         if (_wipeReturnAt <= 0f)
         {
@@ -730,7 +762,7 @@ public partial class ServerWorld
     public void UseFountain(int playerId)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
-        if (Map.Kind != MapKind.Hub) return;
+        if (!Map.IsHub) return;
         if (Vector2.Distance(p.Position, Map.FountainSpot) > 2.6f) return;
         bool refilled = false;
         foreach (var it in p.Character.Equipment.Values
@@ -887,6 +919,7 @@ public partial class ServerWorld
         TickPlayers(dt);
         TickDefense(dt);
         TickTutorial();
+        TickRuinsHub();
         CheckPartyWipe();
 
         // Batched skill-XP sync: damage-based grants mark players dirty; the full
@@ -928,7 +961,7 @@ public partial class ServerWorld
                     p.RespawnTimer -= dt;
                     if (p.RespawnTimer <= 0) RevivePlayer(p, atSpawn: true, healthFraction: 1f);
                 }
-                else if (Map.Kind == MapKind.Tutorial)
+                else if (Map.IsRoad)
                 {
                     // The introduction is forgiving: the caravan drags you back to
                     // camp on its own — and the crew ribs you for it.
@@ -2414,14 +2447,26 @@ public partial class ServerWorld
                     // again, spaced out; the first is announced by the cast itself.
                     int volleys = def.Volleys + Math.Max(0, stats.ProjectileCount - 1);
                     for (int v = 0; v < volleys; v++)
+                    {
+                        // Later volleys drift off the mark — each rains on its own spot
+                        // within the radius, so a chain of volleys carpets the area
+                        // instead of hammering one point.
+                        var volleyAt = effectPoint;
+                        if (v > 0)
+                        {
+                            float ang = (float)(_rng.NextDouble() * Math.PI * 2);
+                            float dist = stats.Radius * RainVolleyScatter * (0.5f + 0.5f * (float)_rng.NextDouble());
+                            volleyAt = ClampToRange(p.Position, effectPoint + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * dist, stats.Range);
+                        }
                         _rainVolleys.Add(new RainVolley
                         {
-                            Position = effectPoint, Radius = stats.Radius,
+                            Position = volleyAt, Radius = stats.Radius,
                             OwnerId = playerId, SkillId = skillId,
                             Stats = stats, ChargeMult = chargeMult,
                             StartedAt = Time + v * RainVolleySpacing,
                             Announced = v == 0,
                         });
+                    }
                 }
                 else
                 {
@@ -3290,7 +3335,11 @@ public partial class ServerWorld
 
     private readonly List<RainVolley> _rainVolleys = new();
     public const float RainVolleySpacing = 0.6f;
+    /// <summary>How far (in radii) a follow-up volley may land from the mark.</summary>
+    public const float RainVolleyScatter = 0.7f;
     public int PendingRainVolleys => _rainVolleys.Count;
+    /// <summary>Where the pending volleys will land (tests: each on its own spot).</summary>
+    public IEnumerable<Vector2> RainVolleyPositions => _rainVolleys.Select(v => v.Position);
 
     private void TickRainVolleys()
     {
@@ -3621,7 +3670,7 @@ public partial class ServerWorld
                 _events.DefenseStateChanged(this);
             }
             // Tutorial gate boss down: the victory scene plays and the gate unlocks.
-            if (Map.Kind == MapKind.Tutorial && e.Id == _bossEnemyId)
+            if (Map.IsRoad && e.Id == _bossEnemyId)
             {
                 // The master's fall takes its thralls with it, and nobody is touched
                 // while the victory scene plays.

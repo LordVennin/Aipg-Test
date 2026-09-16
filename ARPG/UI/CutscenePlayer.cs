@@ -61,6 +61,14 @@ public class CutscenePlayer
                 steps.Add(new Step(gate, "Brakka",
                     "Clear the way. We'll bring the wagon up behind you.", 3.2f));
                 break;
+            case "hub_arrival":
+                steps.Add(new Step(camp, "Brakka",
+                    "Roof over our heads at last. Get the cart unhitched — we're staying.", 3.6f));
+                steps.Add(new Step(map.ExitDoor, "Odessa",
+                    "Those stairs go DOWN. Old places keep their best things below.", 3.6f));
+                steps.Add(new Step(map.ExitDoor, "Odessa",
+                    "Head down and see if you can find anything useful. We'll hold the camp.", 3.6f));
+                break;
             case "tut_victory":
                 steps.Add(new Step(boss, "Brakka",
                     "HA! Not bad. Not bad at all.", 2.8f));

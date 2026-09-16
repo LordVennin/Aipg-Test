@@ -1703,3 +1703,33 @@ item's flavour under it.
   Uniques never come up. Price is unchanged (45 + 12/level, jewelry x1.5).
 - **Mace Slam** no longer darkens the ground during its wind-up (the mark could
   sit away from a moving caster); the impact's fissures and dust show the area.
+
+## Batch 77 addendum: the story opening
+
+- **Two ways in.** The main menu offers **Story** and **Test Grounds** (the host
+  screen has the same switch). Test Grounds is everything as it was: the sanctum
+  hub and the themed test maps. Story opens on the road, homes in the ruins, and
+  its runs are the lower levels (the tomb theme).
+- **The story road**: the authored Old Road stretched a fifth longer (100 tiles),
+  so the fights and the six assistance stones sit further apart. Stones are twice
+  the size, stand BESIDE the road (three rows off its centre, alternating sides,
+  on ground cleared for them) and are read with the interact key. The map fades
+  in from black, and both ends are ruined stone archways instead of plank doors.
+- **The ruins hub**: flagstone camp inside the ruins. Archway in on the west
+  wall; the cart, Weaver the Peddler, the stash and Maren the Lorekeeper against
+  the north wall by the entrance; the fountain mid-room; the scroll podium before
+  the east wall with the dormant portal stand behind it (the podium says it wants
+  a map scroll — those come later); the stairs down in the north-east corner;
+  Brakka and Sable still unpacking south of the entrance (Sable's table refuses
+  rolls there for now). Nine destructible standing torches light the room;
+  barrels and urns dress it. On first arrival the crew points you at the stairs.
+- **Arrow Rain**: every volley after the first lands on its own spot within 0.7
+  radii of the mark (still inside cast range), so chained volleys carpet the area
+  instead of hammering one point.
+- **Loot** (default table): gear 45% -> 28%, gold 45% -> 35%, skill scrolls 10% ->
+  6%, enchant scrolls 14% -> 8%. The boss table is untouched.
+- Hub furniture (urns, and in the ruins the cart, torches and barrels) now
+  spawns AFTER the map broadcast — structure packets sent before it raced the
+  client's map reset and could vanish.
+- Dev: `ARPG_STORY=1` starts an automation boot in story mode; the `warp` token
+  goes home from any authored map. Protocol 46.

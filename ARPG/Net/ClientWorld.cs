@@ -516,7 +516,7 @@ public class ClientWorld
     {
         if (e.RevealedAtMs != 0) return;
         e.RevealedAtMs = Environment.TickCount64;
-        bool open = Map != null && Map.Kind is not (World.MapKind.Defense or World.MapKind.Hub);
+        bool open = Map != null && Map.Kind is not (World.MapKind.Defense or World.MapKind.Hub or World.MapKind.RuinsHub);
         e.Rose = allowRise && open && !e.IsBoss && e.State == (byte)Server.EnemyState.Idle;
         if (!e.Rose) return;
         if (e.Def?.SpriteStyle == "Necro")
