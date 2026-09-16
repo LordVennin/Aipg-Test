@@ -5214,6 +5214,9 @@ public static class HeadlessNetTest
               hub.ExitDoorStyle == World.DoorStyle.Stairs && hub.EntryDoorStyle == World.DoorStyle.RuinArch &&
               hub.TorchSpots.Count >= 6 && hub.WagonSpot != Vector2.Zero && hub.StashSpot != Vector2.Zero,
               "the hub has the cart, the podium and portal stand, the fountain, standing torches, and the stairs down");
+        Check(hub.IsSolid(hub.Width - 5, hub.Height - 5) && !hub.IsSolid(4, hub.Height - 4) && !hub.IsSolid(hub.Width - 5, 4) &&
+              hub.EntryDoor.X < 3f && hub.EntryDoor.Y < hub.Height / 2f && hub.ExitDoor.X > hub.Width - 5f && hub.ExitDoor.Y < 4f,
+              "the ruins are an upside-down L: a bar along the north from the archway to the stairs, a stem south of the entrance");
         Check(sw.Npcs.Any(n => n.TypeId == "merchant") && sw.Npcs.Any(n => n.TypeId == "skill_trainer") &&
               sw.Npcs.Any(n => n.TypeId == "mercenary") && sw.Npcs.Any(n => n.TypeId == "gambler") &&
               storyA.World.Npcs.Count == sw.Npcs.Count,

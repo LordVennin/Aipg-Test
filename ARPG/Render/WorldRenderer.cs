@@ -552,6 +552,145 @@ public class WorldRenderer
         }
     }
 
+    /// <summary>A ruined archway painted INTO the wall: on a west or north wall the
+    /// opening sits on the wall's visible face (its +x or +y side), framed by stone
+    /// jambs and a lintel, the dark inside lit by the way's glow at the foot; on the
+    /// story road's gate (an east-wall opening whose faces look away from the camera)
+    /// a lintel slab spans the two jambs instead. Nothing here is a billboard.</summary>
+    private void DrawArchway(IsoCamera camera, ClientWorld world, NumVec2 doorPos, Color glow, float pulse)
+    {
+        var map = world.Map;
+        var stone = new Color(118, 116, 126);
+        var stoneDark = new Color(72, 70, 82);
+        var stoneLight = new Color(152, 150, 160);
+        var inside = new Color(5, 4, 8);
+        Vector2 P(float x, float y, float h) => camera.WorldToScreen(new NumVec2(x, y), h);
+
+        bool west = doorPos.X < 3f, north = doorPos.Y < 3f, east = doorPos.X > map.Width - 3f;
+        if (map.Kind == MapKind.StoryRoad && !west)
+        {
+            // The gate: jamb walls stand two tiles either side of a three-tile opening
+            // at this column; a slab rests across them at wall-top height.
+            int gx = (int)doorPos.X, yc = (int)doorPos.Y;
+            float top = map.WallHeight(gx, yc - 2);
+            if (top <= 0) top = 2;
+            float y0 = yc - 2, y1 = yc + 3;
+            float gateDepth = gx + y1 + 1.05f;
+            _sorted.Add((gateDepth, batch =>
+            {
+                // Top surface.
+                FillQuad(batch, P(gx, y0, top + 0.3f), P(gx + 1, y0, top + 0.3f), P(gx + 1, y1, top + 0.3f), P(gx, y1, top + 0.3f), stoneLight);
+                // Front (+x) face and the near end cap (+y face).
+                FillQuad(batch, P(gx + 1, y0, top), P(gx + 1, y1, top), P(gx + 1, y1, top + 0.3f), P(gx + 1, y0, top + 0.3f), stone);
+                FillQuad(batch, P(gx, y1, top), P(gx + 1, y1, top), P(gx + 1, y1, top + 0.3f), P(gx, y1, top + 0.3f), stoneDark);
+                // Block seams along the face, a fallen chip at the far end.
+                for (int k = 1; k < 5; k++)
+                    DrawSeg(batch, P(gx + 1, y0 + k, top), P(gx + 1, y0 + k, top + 0.3f), stoneDark, 1f);
+                FillQuad(batch, P(gx + 0.3f, y0, top + 0.3f), P(gx + 1, y0, top + 0.3f), P(gx + 1, y0 + 0.4f, top + 0.3f), P(gx + 0.3f, y0 + 0.4f, top + 0.3f), stone);
+                // The way through: a glow on the ground between the jambs.
+                var g = P(doorPos.X, doorPos.Y, 0f);
+                batch.Draw(TextureGen.Blob32, new Rectangle((int)g.X - 34, (int)g.Y - 14, 68, 28), glow * (0.22f * pulse));
+            }));
+            return;
+        }
+
+        // A wall opening on a visible face. West wall: the face is the plane x = 1
+        // spanning the door tile's y; north wall: the plane y = 1 spanning its x.
+        int t = west ? (int)doorPos.Y : (int)doorPos.X;
+        float wallTop = west ? map.WallHeight(0, t) : map.WallHeight(t, 0);
+        if (wallTop <= 0) wallTop = 2;
+        float openTop = MathF.Min(wallTop - 0.25f, 1.7f), frameTop = openTop + 0.22f;
+        Vector2 F(float along, float h) => west ? P(1f, t + along, h) : P(t + along, 1f, h);
+        float depth = west ? 0 + t + 1 + 0.05f : t + 0 + 1 + 0.05f;
+        _sorted.Add((depth, batch =>
+        {
+            // Jambs and lintel (stone), then the dark opening, then the glow inside.
+            FillQuad(batch, F(0.02f, 0f), F(0.98f, 0f), F(0.98f, frameTop), F(0.02f, frameTop), stone);
+            FillQuad(batch, F(0.02f, frameTop - 0.05f), F(0.98f, frameTop - 0.05f), F(0.98f, frameTop), F(0.02f, frameTop), stoneLight);
+            FillQuad(batch, F(0.02f, 0f), F(0.14f, 0f), F(0.14f, frameTop), F(0.02f, frameTop), stoneLight);
+            FillQuad(batch, F(0.86f, 0f), F(0.98f, 0f), F(0.98f, frameTop), F(0.86f, frameTop), stoneDark);
+            FillQuad(batch, F(0.14f, 0f), F(0.86f, 0f), F(0.86f, openTop), F(0.14f, openTop), inside);
+            // A shallow arch: the corners of the opening filled back in.
+            FillQuad(batch, F(0.14f, openTop - 0.12f), F(0.22f, openTop - 0.12f), F(0.22f, openTop), F(0.14f, openTop), stone);
+            FillQuad(batch, F(0.78f, openTop - 0.12f), F(0.86f, openTop - 0.12f), F(0.86f, openTop), F(0.78f, openTop), stone);
+            // Light from beyond, pooling at the foot of the opening.
+            FillQuad(batch, F(0.14f, 0f), F(0.86f, 0f), F(0.86f, 0.35f), F(0.14f, 0.35f), glow * (0.30f * pulse));
+            FillQuad(batch, F(0.14f, 0.35f), F(0.86f, 0.35f), F(0.86f, 0.75f), F(0.14f, 0.75f), glow * (0.14f * pulse));
+            // Block seams on the jambs.
+            for (int k = 1; k < 4; k++)
+            {
+                DrawSeg(batch, F(0.02f, k * 0.5f), F(0.14f, k * 0.5f), stoneDark, 1f);
+                DrawSeg(batch, F(0.86f, k * 0.5f), F(0.98f, k * 0.5f), stoneDark, 1f);
+            }
+            // The threshold: light spilling onto the floor.
+            var g = P(doorPos.X, doorPos.Y, 0f);
+            batch.Draw(TextureGen.Blob32, new Rectangle((int)g.X - 26, (int)g.Y - 11, 52, 22), glow * (0.20f * pulse));
+        }));
+    }
+
+    /// <summary>A stair flight DOWN cut into the floor tile: four steps descending
+    /// toward the north wall, each lower and darker, their risers facing the camera,
+    /// a stone rim around the opening and the way's glow on the top step.</summary>
+    private void DrawStairsDown(IsoCamera camera, ClientWorld world, NumVec2 doorPos, Color glow, float pulse)
+    {
+        int tx = (int)doorPos.X, ty = (int)doorPos.Y;
+        Vector2 P(float x, float y, float h) => camera.WorldToScreen(new NumVec2(x, y), h);
+        const int steps = 4;
+        const float drop = 0.24f; // levels per step
+        float depth = tx + ty + 0.06f;
+        _sorted.Add((depth, batch =>
+        {
+            // The hole itself, then the steps from the far (deepest) one forward so
+            // nearer treads overlap the ones behind.
+            FillQuad(batch, P(tx - 0.5f, ty, 0f), P(tx + 1.5f, ty, 0f), P(tx + 1.5f, ty + 1, 0f), P(tx - 0.5f, ty + 1, 0f), new Color(4, 4, 7));
+            for (int k = steps - 1; k >= 0; k--)
+            {
+                float yFar = ty + 1f - (k + 1) / (float)steps, yNear = ty + 1f - k / (float)steps;
+                float h = -(k + 1) * drop;
+                var tread = Color.Lerp(new Color(104, 102, 112), new Color(14, 13, 20), k / (float)(steps - 1));
+                var riser = Color.Lerp(new Color(70, 68, 80), new Color(8, 8, 12), k / (float)(steps - 1));
+                // Riser: the +y face between this tread and the one above it.
+                FillQuad(batch, P(tx - 0.5f, yNear, h + drop), P(tx + 1.5f, yNear, h + drop), P(tx + 1.5f, yNear, h), P(tx - 0.5f, yNear, h), riser);
+                FillQuad(batch, P(tx - 0.5f, yFar, h), P(tx + 1.5f, yFar, h), P(tx + 1.5f, yNear, h), P(tx - 0.5f, yNear, h), tread);
+                DrawSeg(batch, P(tx - 0.5f, yNear, h), P(tx + 1.5f, yNear, h), new Color(0, 0, 0) * 0.5f, 1f);
+            }
+            // Stone rim around the opening.
+            var rim = new Color(140, 138, 148);
+            DrawSeg(batch, P(tx - 0.5f, ty, 0f), P(tx + 1.5f, ty, 0f), rim, 2f);
+            DrawSeg(batch, P(tx + 1.5f, ty, 0f), P(tx + 1.5f, ty + 1, 0f), rim, 2f);
+            DrawSeg(batch, P(tx + 1.5f, ty + 1, 0f), P(tx - 0.5f, ty + 1, 0f), rim, 2f);
+            DrawSeg(batch, P(tx - 0.5f, ty + 1, 0f), P(tx - 0.5f, ty, 0f), rim, 2f);
+            // The way down glows at the top step.
+            var g = P(tx + 0.5f, ty + 0.85f, 0f);
+            batch.Draw(TextureGen.Blob32, new Rectangle((int)g.X - 22, (int)g.Y - 9, 44, 18), glow * (0.26f * pulse));
+        }));
+    }
+
+    /// <summary>Fill a convex screen-space quad (scanline of 1px rows) — how doorways,
+    /// lintels and stair steps are painted INTO the isometric wall and floor planes
+    /// instead of as front-facing sprites.</summary>
+    private static void FillQuad(SpriteBatch b, Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Color c)
+    {
+        float minY = MathF.Min(MathF.Min(p0.Y, p1.Y), MathF.Min(p2.Y, p3.Y));
+        float maxY = MathF.Max(MathF.Max(p0.Y, p1.Y), MathF.Max(p2.Y, p3.Y));
+        int y0 = (int)MathF.Floor(minY), y1 = (int)MathF.Ceiling(maxY);
+        for (int y = y0; y < y1; y++)
+        {
+            float sy = y + 0.5f, xl = float.MaxValue, xr = float.MinValue;
+            void Edge(Vector2 a, Vector2 e)
+            {
+                if ((sy >= a.Y && sy < e.Y) || (sy >= e.Y && sy < a.Y))
+                {
+                    float x = a.X + (e.X - a.X) * ((sy - a.Y) / (e.Y - a.Y));
+                    xl = MathF.Min(xl, x); xr = MathF.Max(xr, x);
+                }
+            }
+            Edge(p0, p1); Edge(p1, p2); Edge(p2, p3); Edge(p3, p0);
+            if (xr > xl)
+                b.Draw(TextureGen.Pixel, new Rectangle((int)MathF.Round(xl), y, Math.Max(1, (int)MathF.Round(xr - xl)), 1), c);
+        }
+    }
+
     /// <summary>A thin stretched line between two screen points (swing streaks, sparks).</summary>
     private static void DrawSeg(SpriteBatch b, Vector2 a, Vector2 c, Color col, float thick)
     {
@@ -1806,66 +1945,12 @@ public class WorldRenderer
             float pulse = 0.7f + 0.3f * MathF.Sin(clock * 0.004f);
             if (style == DoorStyle.RuinArch)
             {
-                // The ruins' own stonework: two weathered pillars, a cracked lintel with a
-                // fallen corner, and the way through glowing between them.
-                _sorted.Add((doorPos.X + doorPos.Y + doorHeight * 1.0f + 0.1f, batch =>
-                {
-                    var stone = new Color(112, 110, 120);
-                    var stoneDark = new Color(76, 74, 86);
-                    var stoneLight = new Color(146, 144, 154);
-                    int pw = 14, ph = 74, span = 46;
-                    int lx = (int)screen.X - span / 2 - pw, rx = (int)screen.X + span / 2, top = (int)screen.Y - ph;
-                    // The glow between the pillars first, so stone overlaps it.
-                    batch.Draw(TextureGen.Blob32, new Rectangle((int)screen.X - span / 2 - 4, top + 10, span + 8, ph - 4), glow * (0.16f * pulse));
-                    batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 24, (int)screen.Y - 10, 48, 20), glow * (0.32f * pulse));
-                    foreach (int px0 in new[] { lx, rx })
-                    {
-                        batch.Draw(TextureGen.Pixel, new Rectangle(px0, top, pw, ph), stone);
-                        batch.Draw(TextureGen.Pixel, new Rectangle(px0, top, 3, ph), stoneLight);
-                        batch.Draw(TextureGen.Pixel, new Rectangle(px0 + pw - 3, top, 3, ph), stoneDark);
-                        // Block courses and a crack.
-                        for (int c = 1; c < 6; c++)
-                            batch.Draw(TextureGen.Pixel, new Rectangle(px0, top + c * 12, pw, 1), stoneDark);
-                        batch.Draw(TextureGen.Pixel, new Rectangle(px0 + 5, top + 26, 1, 9), stoneDark);
-                        batch.Draw(TextureGen.Pixel, new Rectangle(px0 + 6, top + 35, 1, 6), stoneDark);
-                        // Footing.
-                        batch.Draw(TextureGen.Pixel, new Rectangle(px0 - 2, (int)screen.Y - 6, pw + 4, 6), stoneDark);
-                    }
-                    // Lintel: whole on the left, its right end broken away.
-                    batch.Draw(TextureGen.Pixel, new Rectangle(lx - 3, top - 12, span + pw * 2 - 10, 12), stone);
-                    batch.Draw(TextureGen.Pixel, new Rectangle(lx - 3, top - 12, span + pw * 2 - 10, 3), stoneLight);
-                    batch.Draw(TextureGen.Pixel, new Rectangle(lx + span + pw * 2 - 16, top - 10, 6, 4), stone);
-                    batch.Draw(TextureGen.Pixel, new Rectangle(lx - 3, top - 1, span + pw * 2 - 10, 1), stoneDark);
-                    // Moss at the feet.
-                    batch.Draw(TextureGen.Pixel, new Rectangle(lx + 2, (int)screen.Y - 14, 5, 3), new Color(70, 96, 58));
-                    batch.Draw(TextureGen.Pixel, new Rectangle(rx + 7, (int)screen.Y - 9, 4, 3), new Color(70, 96, 58));
-                }));
+                DrawArchway(camera, world, doorPos, glow, pulse);
                 return;
             }
             if (style == DoorStyle.Stairs)
             {
-                // A stair flight DOWN into the dark: a stone-rimmed opening in the floor,
-                // steps fading from lit to black, and the way's glow at the top step.
-                _sorted.Add((doorPos.X + doorPos.Y + doorHeight * 1.0f + 0.05f, batch =>
-                {
-                    var rim = new Color(120, 118, 128);
-                    var rimDark = new Color(70, 68, 80);
-                    int ow = 60, oh = 34;
-                    var open = new Rectangle((int)screen.X - ow / 2, (int)screen.Y - oh + 6, ow, oh);
-                    batch.Draw(TextureGen.Pixel, new Rectangle(open.X - 3, open.Y - 3, open.Width + 6, open.Height + 6), rimDark);
-                    batch.Draw(TextureGen.Pixel, new Rectangle(open.X - 3, open.Y - 3, open.Width + 6, 3), rim);
-                    batch.Draw(TextureGen.Pixel, open, new Color(6, 5, 9));
-                    // Steps: each lower course darker and narrower, descending away.
-                    for (int st = 0; st < 6; st++)
-                    {
-                        float f = st / 6f;
-                        var c = Color.Lerp(new Color(96, 94, 104), new Color(10, 9, 14), f);
-                        int inset = st * 4;
-                        batch.Draw(TextureGen.Pixel, new Rectangle(open.X + inset, open.Y + st * 5, open.Width - inset * 2, 4), c);
-                        batch.Draw(TextureGen.Pixel, new Rectangle(open.X + inset, open.Y + st * 5 + 4, open.Width - inset * 2, 1), new Color(4, 4, 6));
-                    }
-                    batch.Draw(TextureGen.Circle32, new Rectangle((int)screen.X - 26, open.Y - 6, 52, 14), glow * (0.28f * pulse));
-                }));
+                DrawStairsDown(camera, world, doorPos, glow, pulse);
                 return;
             }
             _sorted.Add((doorPos.X + doorPos.Y + doorHeight * 1.0f + 0.1f, batch =>

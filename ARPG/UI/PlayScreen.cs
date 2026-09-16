@@ -90,6 +90,7 @@ public class PlayScreen : IScreen
     private bool _devArrowRain;
     private bool _devFlameFx;
     private bool _devGiveMace;
+    private string _devTeleport;
     /// <summary>ARPG_DEVUI=gear[:family]: wear a full armor set shortly after joining
     /// (GUI automation — verifies the worn-armor overlays).</summary>
     private string _devEquipSet;
@@ -271,6 +272,8 @@ public class PlayScreen : IScreen
             if (devUi.Contains("rain")) _devArrowRain = true;
             if (devUi.Contains("flamefx")) _devFlameFx = true;
             if (devUi.Contains("mace")) _devGiveMace = true;
+            var tpToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("tp:"));
+            if (tpToken != null) _devTeleport = tpToken.Substring(3).Replace(';', ',');
             if (devUi.Contains("warp")) _devWarpNext = true;
             if (devUi.Contains("tutorial")) _devWarpTutorial = true;
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
@@ -436,6 +439,11 @@ public class PlayScreen : IScreen
             _devGiveCurios = false;
             _client.SendDebugCommand("give_curio", "merc_contract");
             _client.SendDebugCommand("give_curio", "flamethrower_blueprint");
+        }
+        if (_devTeleport != null && _clientTime > 5f)
+        {
+            _client.SendDebugCommand("teleport", _devTeleport);
+            _devTeleport = null;
         }
         if (_devGiveMace && _clientTime > 1.5f)
         {
