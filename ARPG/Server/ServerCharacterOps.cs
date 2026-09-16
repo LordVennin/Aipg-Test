@@ -565,6 +565,20 @@ public partial class ServerWorld
                 // From any authored map (road, defense, tutorial) the next stop is home.
                 if (Campaign) TransitionTo(MapIndex >= 3 || MapIndex < 0 ? 0 : MapIndex + 1);
                 break;
+            case "teleport":
+            {
+                // Dev: "x,y" — stand there (captures of far-off spots).
+                var parts = (arg ?? "").Split(',');
+                if (parts.Length == 2 && float.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float tx) &&
+                    float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float ty))
+                {
+                    p.Position = new System.Numerics.Vector2(tx, ty);
+                    p.Height = Map.GroundHeightAt(p.Position);
+                    p.IgnoreStateUntil = Time + 0.5f;
+                    _events.PlayerRespawned(p);
+                }
+                break;
+            }
             case "warp_tutorial":
                 // Dev shortcut into the Old Road introduction (captures, playtests).
                 if (Campaign) TransitionTo(TutorialMapIndex);

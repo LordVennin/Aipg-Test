@@ -1733,3 +1733,21 @@ item's flavour under it.
   client's map reset and could vanish.
 - Dev: `ARPG_STORY=1` starts an automation boot in story mode; the `warp` token
   goes home from any authored map. Protocol 46.
+
+## Batch 78 addendum: doors in the wall, an L-shaped camp
+
+- **Archways and stairs are geometry, not billboards.** A ruined archway on a west
+  or north wall is painted onto the wall's visible face: stone jambs and a lintel
+  framing a dark opening, the way's glow pooling at its foot and spilling onto the
+  threshold. The story road's gate is the three-tile opening between the existing
+  jamb walls with a stone slab spanning them at wall-top height (the ready spot
+  moved into the opening). The stairs down are a two-tile pit cut into the floor:
+  four treads descending toward the wall, risers facing the camera, a stone rim.
+  The test maps keep their plank doors.
+- **The ruins hub is an upside-down L** (30x22): a bar along the north wall from
+  the archway at its west end (top-left) to the stairs at its east end (top-right),
+  and a stem hanging south from the entrance where Brakka and Sable are unpacking.
+  The cart, peddler, stash and lorekeeper line the bar's north wall; the fountain
+  holds mid-bar; the podium and portal stand sit at the bar's east end south of the
+  stairs. The collapsed south-east block is solid mass with a half-tumbled edge.
+- Dev: `ARPG_DEVUI=tp:x;y` teleports five seconds in (debug command `teleport x,y`).
