@@ -1,0 +1,308 @@
+[
+ {
+  "Id": "warp_mode_defense",
+  "Name": "Besieged",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_mode",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 45,
+  "IsPercent": false,
+  "MapEffect": "The caravan makes a stand: build, then hold five waves"
+ },
+ {
+  "Id": "warp_mode_survival",
+  "Name": "Hunted",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_mode",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 45,
+  "IsPercent": false,
+  "MapEffect": "The dead come in waves: survive all five"
+ },
+ {
+  "Id": "warp_zone_forest",
+  "Name": "Mirewood",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_zone",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 80,
+  "IsPercent": false,
+  "MapEffect": "Zone: the Mirewood (forest)"
+ },
+ {
+  "Id": "warp_zone_swamp",
+  "Name": "Fenbound",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_zone",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 70,
+  "IsPercent": false,
+  "MapEffect": "Zone: the Fen (graveyard swamp)"
+ },
+ {
+  "Id": "warp_zone_ruins",
+  "Name": "Sunken",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_zone",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 60,
+  "IsPercent": false,
+  "MapEffect": "Zone: the Sunken Halls (tomb)"
+ },
+ {
+  "Id": "warp_weather_rain",
+  "Name": "Rainswept",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_weather",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 60,
+  "IsPercent": false,
+  "MapEffect": "Weather: rain"
+ },
+ {
+  "Id": "warp_weather_snow",
+  "Name": "Frostbound",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_weather",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 50,
+  "IsPercent": false,
+  "MapEffect": "Weather: snow"
+ },
+ {
+  "Id": "warp_weather_wind",
+  "Name": "Windlashed",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_weather",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 50,
+  "IsPercent": false,
+  "MapEffect": "Weather: wind"
+ },
+ {
+  "Id": "warp_level_t1",
+  "Name": "of Depth",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_level",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 2,
+  "Weight": 100,
+  "IsPercent": false,
+  "MapEffect": "+{0} enemy levels"
+ },
+ {
+  "Id": "warp_level_t2",
+  "Name": "of the Deep",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 4,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_level",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 3,
+  "MaximumValue": 5,
+  "Weight": 55,
+  "IsPercent": false,
+  "MapEffect": "+{0} enemy levels"
+ },
+ {
+  "Id": "warp_level_t3",
+  "Name": "of the Abyss",
+  "AffixType": "Suffix",
+  "Tier": 3,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_level",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 6,
+  "MaximumValue": 9,
+  "Weight": 25,
+  "IsPercent": false,
+  "MapEffect": "+{0} enemy levels"
+ },
+ {
+  "Id": "warp_density_t1",
+  "Name": "of the Horde",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_density",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 20,
+  "MaximumValue": 40,
+  "Weight": 90,
+  "IsPercent": true,
+  "MapEffect": "{0}% more packs"
+ },
+ {
+  "Id": "warp_density_t2",
+  "Name": "of the Legion",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_density",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 45,
+  "MaximumValue": 80,
+  "Weight": 40,
+  "IsPercent": true,
+  "MapEffect": "{0}% more packs"
+ },
+ {
+  "Id": "warp_elites_t1",
+  "Name": "of Champions",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_elites",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 30,
+  "MaximumValue": 60,
+  "Weight": 80,
+  "IsPercent": true,
+  "MapEffect": "{0}% more magic and rare packs"
+ },
+ {
+  "Id": "warp_elites_t2",
+  "Name": "of Warlords",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 8,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_elites",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 70,
+  "MaximumValue": 120,
+  "Weight": 35,
+  "IsPercent": true,
+  "MapEffect": "{0}% more magic and rare packs"
+ },
+ {
+  "Id": "warp_boss",
+  "Name": "of the Warden",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_boss",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 55,
+  "IsPercent": false,
+  "MapEffect": "A boss holds the way out"
+ },
+ {
+  "Id": "warp_loot_t1",
+  "Name": "of Plenty",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_loot",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 20,
+  "MaximumValue": 40,
+  "Weight": 80,
+  "IsPercent": true,
+  "MapEffect": "{0}% more item drops and rarer finds"
+ },
+ {
+  "Id": "warp_loot_t2",
+  "Name": "of Fortune",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 6,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_loot",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 45,
+  "MaximumValue": 80,
+  "Weight": 35,
+  "IsPercent": true,
+  "MapEffect": "{0}% more item drops and rarer finds"
+ }
+]

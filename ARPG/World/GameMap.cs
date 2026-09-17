@@ -965,17 +965,29 @@ public class GameMap
         StashSpot = new Vector2(6.2f, 2.5f);
         // The sellsword unpacks in the stem; the gambler sets up by the fountain.
         NpcSpots.Add(new Vector2(5.0f, 15.0f));  // mercenary
-        NpcSpots.Add(new Vector2(19.5f, 7.0f));  // gambler
+        NpcSpots.Add(new Vector2(18.0f, 7.6f));  // gambler
         FountainSpot = new Vector2(15.5f, yc + 0.5f); // mid-bar
-        // The scroll podium at the bar's east end, the portal stand behind it.
-        PodiumSpot = new Vector2(Width - 5.5f, 7.5f);
-        PortalSpot = new Vector2(Width - 2.7f, 6.4f);
+        // The scroll podium and the portal arch share a raised DAIS filling the bar's
+        // east end — a level up, climbed by a three-tile stair from the west — the
+        // camp's one built thing that matters. Podium at the front of the dais, the
+        // arch at the back against the east wall.
+        for (int y = 3; y <= 8; y++)
+            for (int x = Width - 7; x <= Width - 2; x++)
+                _ground[Idx(x, y)] = 1;
+        for (int y = 5; y <= 7; y++)
+        {
+            int rampI = Idx(Width - 8, y);
+            _ramp[rampI] = (byte)RampDirection.PlusX; // rising east onto the dais
+            _rampStyle[rampI] = 1;
+        }
+        PodiumSpot = new Vector2(Width - 4.7f, 6.5f);
+        PortalSpot = new Vector2(Width - 2.4f, 6.0f);
 
         // Standing torches along the walls — the room's light, and breakable.
         TorchSpots.Add(new Vector2(9.0f, 2.4f));
         TorchSpots.Add(new Vector2(16.5f, 2.4f));
-        TorchSpots.Add(new Vector2(Width - 7.5f, 2.4f));
-        TorchSpots.Add(new Vector2(Width - 2.6f, 9.0f));
+        TorchSpots.Add(new Vector2(Width - 6.5f, 3.6f)); // on the dais, flanking the arch
+        TorchSpots.Add(new Vector2(Width - 6.5f, 8.4f));
         TorchSpots.Add(new Vector2(12.5f, barBottom + 0.6f));
         TorchSpots.Add(new Vector2(20.5f, barBottom + 0.6f));
         TorchSpots.Add(new Vector2(2.6f, 12.0f));
@@ -990,7 +1002,7 @@ public class GameMap
         UrnSpots.Add(new Vector2(stemRight - 0.5f, Height - 2.6f));
         UrnSpots.Add(new Vector2(stemRight - 1.3f, Height - 2.3f));
         UrnSpots.Add(new Vector2(18.5f, 2.4f));
-        UrnSpots.Add(new Vector2(Width - 2.6f, barBottom - 0.4f));
+        UrnSpots.Add(new Vector2(Width - 2.6f, 2.3f));
         // Only the walls bounding the L stand; the collapsed block is void.
         VoidEnclosedWalls();
     }

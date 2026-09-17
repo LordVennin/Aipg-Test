@@ -212,6 +212,8 @@ public class LootTable
     public float BlueprintDropChance { get; set; } = 0.003f;
     /// <summary>Independent chance (0..1) that a PET drops (rat or grimoire, coinflip) —
     /// the rarest ordinary find in the game.</summary>
+    /// <summary>Chance a sealed warp scroll drops — the key to the portal loop.</summary>
+    public float WarpScrollDropChance { get; set; } = 0.015f;
     public float PetDropChance { get; set; } = 0.0015f;
     /// <summary>Independent chance (0..1) that gold drops; amount scales with enemy level.</summary>
     public float GoldDropChance { get; set; } = 0.4f;

@@ -21,12 +21,12 @@ public class LootGenerator
     }
 
     /// <summary>Roll the drops for one enemy kill. May return zero, one or two items.</summary>
-    public List<ItemInstance> RollDrops(string lootTableId, int itemLevel)
+    public List<ItemInstance> RollDrops(string lootTableId, int itemLevel, float dropMult = 1f)
     {
         var table = _data.GetLootTable(lootTableId);
         var drops = new List<ItemInstance>();
 
-        if (_rng.NextDouble() < table.DropChance)
+        if (_rng.NextDouble() < table.DropChance * dropMult)
         {
             var item = GenerateEquipment(table, itemLevel);
             if (item != null) drops.Add(item);
@@ -57,10 +57,16 @@ public class LootGenerator
                 BaseItemId = "flamethrower_blueprint", ItemLevel = itemLevel, Rarity = ItemRarity.Normal,
             });
         // Uniques: rarer still from an ordinary kill (rares and bosses roll their own).
-        if (_rng.NextDouble() < table.UniqueDropChance)
+        if (_rng.NextDouble() < table.UniqueDropChance * dropMult)
         {
             var unique = GenerateUnique(itemLevel);
             if (unique != null) drops.Add(unique);
+        }
+        // Sealed warp scrolls: the keys to the portal. Their level is the kill's.
+        if (_rng.NextDouble() < table.WarpScrollDropChance * dropMult)
+        {
+            var warp = GenerateWarpScroll(itemLevel);
+            if (warp != null) drops.Add(warp);
         }
         // Pets: the rarest ordinary find — a coinflip between the known companions.
         if (_rng.NextDouble() < table.PetDropChance)
@@ -182,6 +188,7 @@ public class LootGenerator
     public ItemInstance Generate(ItemBase itemBase, int itemLevel, ItemRarity rarity, int? forcedModifierCount = null)
     {
         var (maxPrefixes, maxSuffixes) = RollSlots();
+        if (itemBase.Category == ItemCategory.WarpScroll) { maxPrefixes = 3; maxSuffixes = 3; }
         var item = new ItemInstance
         {
             BaseItemId = itemBase.Id,
@@ -253,6 +260,32 @@ public class LootGenerator
         float value = pick.MinimumValue + (float)_rng.NextDouble() * (pick.MaximumValue - pick.MinimumValue);
         item.Modifiers.Add(new ItemModifierRoll { ModifierId = pick.Id, Value = RoundRoll(pick, value) });
         return true;
+    }
+
+    /// <summary>A sealed warp scroll at `itemLevel`: rarity rolled like gear, then one
+    /// to six zone modifiers from the warp pool (one mode, one zone, one weather at
+    /// most — the pool's groups see to it), sealed. Normal: one line; magic: two or
+    /// three; rare: four to six.</summary>
+    public ItemInstance GenerateWarpScroll(int itemLevel, ItemRarity? forcedRarity = null, int? forcedModifierCount = null)
+    {
+        var itemBase = _data.Items.Values.FirstOrDefault(b => b.Category == ItemCategory.WarpScroll);
+        if (itemBase == null) return null;
+        int roll = _rng.Next(100);
+        var rarity = forcedRarity ?? (roll < 35 ? ItemRarity.Normal : roll < 80 ? ItemRarity.Magic : ItemRarity.Rare);
+        int desired = forcedModifierCount ?? rarity switch
+        {
+            ItemRarity.Normal => 1,
+            ItemRarity.Magic => _rng.Next(2, 4),
+            _ => _rng.Next(4, 7),
+        };
+        var item = new ItemInstance
+        {
+            BaseItemId = itemBase.Id, ItemLevel = Math.Max(1, itemLevel), Rarity = rarity,
+            BaseModifierLimit = 6, MaxPrefixes = 3, MaxSuffixes = 3,
+        };
+        RollModifiers(item, itemBase, desired);
+        item.Locked = true; // sealed AFTER the seals go on (a locked item takes no affix)
+        return item;
     }
 
     public ItemInstance GenerateScrollItem()

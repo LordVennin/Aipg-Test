@@ -583,6 +583,10 @@ public partial class ServerWorld
                 // Dev shortcut into the Old Road introduction (captures, playtests).
                 if (Campaign) TransitionTo(TutorialMapIndex);
                 break;
+            case "warp_home":
+                // Dev shortcut straight back to the hub from anywhere.
+                if (Campaign && MapIndex != 0) TransitionTo(0);
+                break;
             case "spawn_enemy":
             {
                 string type = string.IsNullOrEmpty(arg)
@@ -909,6 +913,22 @@ public partial class ServerWorld
                     _events.DefenseStateChanged(this);
                 }
                 break;
+            case "give_warp":
+            {
+                // Dev: a sealed warp scroll at the character's level — "rare", "magic" or
+                // a '+'-joined list of warp modifier ids to seal exactly those.
+                var warp = DevWarpScroll(c, arg);
+                if (warp != null) GiveItem(p, warp);
+                _events.CharacterChanged(p);
+                break;
+            }
+            case "open_portal":
+            {
+                // Dev: seal a scroll (same arg as give_warp) straight onto the podium.
+                var warp = DevWarpScroll(c, arg);
+                if (warp != null && Map.Kind == MapKind.RuinsHub && !PortalOpen) OpenPortal(warp);
+                break;
+            }
             case "give_curio":
             {
                 string curioId = string.IsNullOrEmpty(arg) ? "merc_contract" : arg;
@@ -935,6 +955,27 @@ public partial class ServerWorld
             _events.CharacterChanged(p);
             _events.PlayerHealthChanged(p);
         }
+    }
+
+    /// <summary>Dev: a sealed warp scroll at the character's level — "rare", "magic",
+    /// empty (rolled like a drop) or a '+'-joined list of warp modifier ids sealed at
+    /// their top value.</summary>
+    private ItemInstance DevWarpScroll(CharacterData c, string arg)
+    {
+        var scrollBase = Data.Items.Values.FirstOrDefault(b => b.Category == ItemCategory.WarpScroll);
+        if (scrollBase == null) return null;
+        if (string.IsNullOrEmpty(arg) || !arg.Contains("warp_"))
+            return Loot.GenerateWarpScroll(Math.Max(1, c.Level),
+                arg == "rare" ? ItemRarity.Rare : arg == "magic" ? ItemRarity.Magic : null);
+        var warp = new ItemInstance
+        {
+            BaseItemId = scrollBase.Id, ItemLevel = Math.Max(1, c.Level), Rarity = ItemRarity.Rare,
+            BaseModifierLimit = 6, MaxPrefixes = 3, MaxSuffixes = 3, Locked = true,
+        };
+        foreach (var id in arg.Split('+'))
+            if (Data.Modifiers.TryGetValue(id, out var wm))
+                warp.Modifiers.Add(new ItemModifierRoll { ModifierId = wm.Id, Value = wm.MaximumValue });
+        return warp;
     }
 
     private bool GiveItem(ServerPlayer p, ItemInstance item)

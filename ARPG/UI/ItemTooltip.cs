@@ -288,6 +288,14 @@ public static class ItemTooltip
             lines.Add(new Line($"Requires skill tag: {scrollDef.RequiredTag}", new Color(200, 160, 255)));
             lines.Add(new Line(scrollDef.Description ?? "", gray));
         }
+        else if (itemBase.Category == ItemCategory.WarpScroll)
+        {
+            var violet = new Color(200, 170, 255);
+            lines.Add(new Line($"Zone level {item.ItemLevel}  ·  {item.Modifiers.Count} / 6 seals", violet));
+            foreach (var descLine in WrapText(itemBase.Description ?? "", 44))
+                lines.Add(new Line(descLine, new Color(170, 160, 150)));
+            lines.Add(new Line("Place it on the podium in the ruins to open the portal.", gray));
+        }
         else if (itemBase.Category == ItemCategory.EnchantScroll)
         {
             foreach (var descLine in WrapText(itemBase.Description ?? "", 44))
@@ -348,6 +356,7 @@ public static class ItemTooltip
     {
         ItemCategory.BodyArmor => "Body Armor",
         ItemCategory.SkillScroll => "Skill Scroll",
+        ItemCategory.WarpScroll => "Sealed Warp Scroll",
         _ => c.ToString(),
     };
 

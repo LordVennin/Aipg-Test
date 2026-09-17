@@ -184,20 +184,27 @@ public class HudUI
             var subFont = FontManager.Get(12);
             var zMap = _client.World.Map;
             bool lower = zMap?.Theme?.Id == "tomb"; // the story's runs: the levels under the ruins
+            bool sealedZone = _client.World.ZoneTitle.Length > 0;
             string zoneName = zMap?.Kind == World.MapKind.Hub
                 ? "The Sanctum"
                 : zMap?.Kind == World.MapKind.RuinsHub
                     ? "The Ruins"
                     : zMap?.IsRoad == true
                         ? "The Old Road"
+                        : sealedZone ? $"Sealed Zone: {_client.World.ZoneTitle}"
                         : lower ? $"The Lower Levels {_client.World.ZoneMapIndex} / 3"
                                 : $"Mirewood Depths {_client.World.ZoneMapIndex} / 3";
             string zoneSub = zMap?.Kind == World.MapKind.Hub
                 ? (_client.World.ZoneLoop > 1 ? $"expedition {_client.World.ZoneLoop} awaits" : "gear up, then take the door")
                 : zMap?.Kind == World.MapKind.RuinsHub
-                ? (_client.World.ZoneLoop > 1 ? "the camp holds — the stairs wait" : "head below and see what you can find")
+                ? (_client.World.PortalOpen ? $"the portal stands open — {_client.World.PortalTitle}"
+                   : _client.World.ZoneLoop > 1 ? "the camp holds — the stairs wait" : "head below and see what you can find")
                 : zMap?.IsRoad == true
-                ? "clear the way to the ruins"
+                ? (sealedZone ? "hunt the road back west — the Barrow Lord holds the far end" : "clear the way to the ruins")
+                : sealedZone && _client.World.SurvivalTotal > 0
+                ? (_client.World.SurvivalDone ? "every wave beaten — the way out is open"
+                   : _client.World.SurvivalWave == 0 ? $"enemy level {_client.World.ZoneEnemyLevel}  ·  stand together"
+                   : $"wave {_client.World.SurvivalWave} of {_client.World.SurvivalTotal}  ·  enemy level {_client.World.ZoneEnemyLevel}")
                 : $"enemy level {_client.World.ZoneEnemyLevel}" +
                   (_client.World.ZoneReadyCount > 0
                       ? $"  ·  {_client.World.ZoneReadyCount}/{Math.Max(1, _client.World.ZoneAlivePlayers)} at the door"

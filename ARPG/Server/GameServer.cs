@@ -219,6 +219,9 @@ public class GameServer : IServerEvents
             case PacketType.GambleRequest:
                 World.Gamble(playerId, r.GetString());
                 break;
+            case PacketType.PodiumRequest:
+                World.UsePodium(playerId, r.GetGuid());
+                break;
             case PacketType.LearnSkillRequest:
                 World.LearnSkill(playerId, r.GetString());
                 break;
@@ -331,6 +334,7 @@ public class GameServer : IServerEvents
         accept.Put(World.Map.Seed);
         accept.Put(World.Map.Theme?.Id ?? "");
         accept.Put((byte)World.Map.Kind);
+        accept.Put(World.Map.Weather ?? "");
         accept.PutVec2(player.Position);
         accept.Put(player.Height);
         accept.Put(player.Health);
@@ -550,9 +554,10 @@ public class GameServer : IServerEvents
             w.Put(world.Map.Seed);
             w.Put(world.Map.Theme?.Id ?? "");
             w.Put((byte)world.Map.Kind);
+            w.Put(world.Map.Weather ?? "");
             w.Put(world.Loop);
             w.Put(world.MapIndex);
-            w.Put(world.CampaignEnemyLevel);
+            w.Put(world.ZoneEnemyLevel);
             w.Put(world.ExitLocked);
             w.PutVec2(p.Position);
             w.Put(p.Height);
@@ -571,10 +576,16 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.ZoneState);
         w.Put(World.Loop);
         w.Put(World.MapIndex);
-        w.Put(World.CampaignEnemyLevel);
+        w.Put(World.ZoneEnemyLevel);
         w.Put(World.ReadyCount);
         w.Put(World.Players.Values.Count(p => p.Alive));
         w.Put(World.ExitLocked);
+        w.Put(World.PortalOpen);
+        w.Put(World.PortalTitle ?? "");
+        w.Put(World.ZoneTitle ?? "");
+        w.Put(World.SurvivalWave);
+        w.Put(World.SurvivalTotal);
+        w.Put(World.SurvivalDone);
         return w;
     }
 

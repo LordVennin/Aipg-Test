@@ -1778,3 +1778,53 @@ item's flavour under it.
   there — so the ruins' collapsed block is the black beyond the room's walls and
   only the ring of walls bounding the L stands. (`GameMap.IsVoid`, applied by
   `VoidEnclosedWalls`; other generators can call it when a room shape wants it.)
+
+## Batch 81 addendum: sealed warp scrolls, the podium and portal, the road as a grind
+
+- **Sealed warp scrolls** are the game's map system. A new item category
+  (`WarpScroll`, base `sealed_warp_scroll`, six seal slots, sealed shut — never
+  enchanted, never equipped) that drops sealed with 1 / 2–3 / 4–6 seals by rarity
+  (normal / magic / rare) from a dedicated pool (`Data/Modifiers/warp.json`).
+  Every seal says what it does to the destination in its tooltip. Exclusive
+  groups keep one of each: **mode** (Besieged = a caravan stand; Hunted = a Last
+  Stand), **zone** (Mirewood / Fenbound = the fen / Sunken = the halls under the
+  ruins), **weather** (Rainswept / Frostbound / Windlashed); then **depth** (+1–2 /
+  +3–5 / +6–9 enemy levels over the scroll's level), **of the Horde / Legion**
+  (+20–40% / +45–80% packs), **of Champions / Warlords** (more magic and rare
+  leaders), **of the Warden** (a Gravelord holds the zone's exit) and **of Plenty
+  / Fortune** (more drops). A scroll with no mode seal is a standard crawl.
+- **Drop rates**: 1.5% per ordinary kill (default table), 35% from bosses, 25%
+  from chests. Scrolls drop at the zone's enemy level.
+- **The podium and portal** stand on a raised DAIS filling the ruins' east end —
+  six tiles square, a level up, climbed by a three-tile stone stair from the
+  west, flagstone on top and brick faces (no sod, no clutter). The podium is a
+  stepped stone lectern with a slanted reading top; the portal is a stone arch
+  (two pillars taller than the room's walls, a lintel, a keystone rune) against
+  the east wall. Both are drawn as geometry in the map's projection, not sprites.
+  Interact at the podium (F) to pick a scroll from the bag; it burns, the arch's
+  vortex opens (violet motes spiralling into a bright eye, a light on the dais)
+  and the HUD names the destination. Only one scroll at a time; the portal
+  closes behind the party when it steps through (ready at the arch, everyone
+  alive), and the zone's exit leads home.
+- **Sealed zones** generate from the scroll: theme, weather, enemy level, pack
+  count, elite chance, the Warden, the loot multiplier. Standard crawl = a forest
+  map (the theme's floor); Besieged = a caravan-stand arena with its build phase
+  and waves; Hunted = **Last Stand**: the map starts empty, then five waves of
+  hunters spawn 6–10 tiles around the living players and close in from anywhere —
+  hunters ignore aggro range and leash (`ServerEnemy.Hunting`). Wave size 5 + 2 x
+  wave + 2 per extra player, each wave a level higher; the exit unseals when the
+  fifth wave falls. The HUD banner reads "Sealed Zone: <title>" with the wave.
+- **The road back**: the ruins' entrance doorway leads back OUT onto the story
+  road — a grind, not the introduction. You arrive through the east doorway, the
+  map is re-populated at the campaign level (every placement plus a few more
+  buried), the Barrow Lord waits at the FAR west end where the camp stood, no
+  cart, no crew, no scenes, and the doorway home is always open. Killing him
+  gives his boss-table loot (35% scroll) with no victory scene.
+- **Fixes on the way**: `GenerateWarpScroll` locked the item before rolling (a
+  locked item takes no affix) — sealed after; `give_warp` never told the client
+  about the new item.
+- Dev: `ARPG_DEVUI=scroll[:rare|magic|warp_id+warp_id]` puts a sealed scroll in
+  the bag two seconds in (debug `give_warp …`); `portal[:same]` seals one straight
+  onto the podium (debug `open_portal …`); debug `warp_home` goes home from
+  anywhere. Protocol 47 (zone state carries the portal, zone title and survival
+  wave; map changes carry the weather).

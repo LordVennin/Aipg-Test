@@ -122,7 +122,7 @@ public partial class ServerWorld
         int players = Math.Max(1, Players.Count);
         // The run's stipend: supplies exist only inside the arena.
         foreach (var pl in Players.Values) pl.Supplies = DefenseBalance.SupplyStart;
-        float wagonHp = DefenseBalance.WagonHealthAt(CampaignEnemyLevel) *
+        float wagonHp = DefenseBalance.WagonHealthAt(ZoneEnemyLevel) *
                         (1f + DefenseBalance.WagonHealthPerExtraPlayer * (players - 1));
         AddStructure(StructureKind.Wagon, Map.WagonSpot, wagonHp, ownerId: -1, radius: 0.85f);
         AddStructure(StructureKind.Workbench, Map.WorkbenchSpot, 1f, ownerId: -1, radius: 0.5f);
@@ -212,7 +212,7 @@ public partial class ServerWorld
                 ? Map.SpawnPortals[_rng.Next(Map.SpawnPortals.Count)]
                 : Map.PlayerSpawn;
             var boss = SpawnEnemy("gravelord", bossPortal, EliteAffix.Boss,
-                level: CampaignEnemyLevel + DefenseBalance.WaveLevelStep * (wave - 1) + 1);
+                level: ZoneEnemyLevel + DefenseBalance.WaveLevelStep * (wave - 1) + 1);
             boss.State = EnemyState.Chase;
             _events.WorldEffect("burst", bossPortal, 1.6f, 0.6f, boss.Height);
             foreach (var pl in Players.Values)
@@ -275,7 +275,7 @@ public partial class ServerWorld
                     (float)(_rng.NextDouble() - 0.5) * 1.2f,
                     (float)(_rng.NextDouble() - 0.5) * 1.2f);
                 if (Map.CircleHitsWall(pos, 0.4f)) pos = portal;
-                int level = CampaignEnemyLevel + DefenseBalance.WaveLevelStep * (WaveNumber - 1);
+                int level = ZoneEnemyLevel + DefenseBalance.WaveLevelStep * (WaveNumber - 1);
                 var e = SpawnEnemy(RollWaveEnemy(WaveNumber), pos, level: level);
                 e.State = EnemyState.Chase; // marching orders from birth
                 _events.WorldEffect("burst", portal, 1.0f, 0.35f, e.Height);
@@ -313,13 +313,13 @@ public partial class ServerWorld
         var at = wagon?.Position ?? Map.WagonSpot;
         float h = wagon?.Height ?? Map.GroundHeightAt(at);
         // The caravan pays its escort: two boss-table showers plus a purse of gold.
-        int lootLevel = CampaignEnemyLevel + DefenseBalance.WavesTotal;
+        int lootLevel = ZoneEnemyLevel + DefenseBalance.WavesTotal;
         for (int roll = 0; roll < 2; roll++)
             foreach (var item in Loot.RollDrops("boss", lootLevel))
                 SpawnDrop(item, at + new Vector2(
                     (float)(_rng.NextDouble() - 0.5) * 2.4f,
                     0.8f + (float)_rng.NextDouble() * 1.2f), h);
-        SpawnGoldDrop(120 + 40 * CampaignEnemyLevel, at + new Vector2(0f, 1.2f), h);
+        SpawnGoldDrop(120 + 40 * ZoneEnemyLevel, at + new Vector2(0f, 1.2f), h);
         foreach (var pl in Players.Values)
             _events.MessageFor(pl, "The wagon stands! The caravan pays its debt — the way home is open.");
         _events.DefenseStateChanged(this);
@@ -341,7 +341,7 @@ public partial class ServerWorld
     private void TickTurrets()
     {
         if (DefPhase != DefensePhase.Wave) return;
-        int level = CampaignEnemyLevel + DefenseBalance.WaveLevelStep * (WaveNumber - 1);
+        int level = ZoneEnemyLevel + DefenseBalance.WaveLevelStep * (WaveNumber - 1);
         float levelMult = 1f + DefenseBalance.CrossbowDamagePerLevel * Math.Max(0, level - 1);
         foreach (var s in Structures.Values.ToList())
         {

@@ -140,7 +140,11 @@ public partial class ServerWorld
     public bool ExitLocked => Campaign &&
         ((MapIndex == 3 && BossAlive) ||
          (Map.Kind == MapKind.Defense && DefPhase != DefensePhase.Won) ||
-         (Map.IsRoad && BossAlive));
+         (Map.IsRoad && BossAlive && !_roadReturn) ||
+         (MapIndex == ScrollMapIndex && Map.Kind != MapKind.Defense && (BossAlive || (_scrollRun?.Survival == true && !SurvivalDone))));
+    /// <summary>Back on the road from the ruins: a grind, not the introduction — no
+    /// caravan, no scenes, the boss at the far (west) end, the doorway home always open.</summary>
+    private bool _roadReturn;
     public bool BossAlive => _bossEnemyId >= 0 &&
                              Enemies.TryGetValue(_bossEnemyId, out var b) && !b.Dead;
     public int ReadyCount => _readyAtDoor.Count;
@@ -369,11 +373,27 @@ public partial class ServerWorld
         Npcs.Clear();
         Chests.Clear();
         _bossEnemyId = -1;
-        int level = CampaignEnemyLevel;
-        bool knights = Loop >= 2;
+        int level = ZoneEnemyLevel;
+        bool knights = Loop >= 2 || level >= 4;
         var packRng = new Random(Map.Seed ^ 0x5041434B); // "PACK" — deterministic per map
+        var run = MapIndex == ScrollMapIndex ? _scrollRun : null;
+        if (run?.Survival == true) return; // the waves are the population
+        // A scroll's "of the Horde" seals add packs: extra anchors jittered off the
+        // existing ones, so denser means more fights on the same corridor.
+        var packSpots = Map.PackSpots.ToList();
+        if (run != null && run.DensityPct > 0)
+        {
+            int extra = (int)MathF.Round(Map.PackSpots.Count * run.DensityPct / 100f);
+            for (int i = 0; i < extra && Map.PackSpots.Count > 0; i++)
+            {
+                var basePos = Map.PackSpots[packRng.Next(Map.PackSpots.Count)];
+                var jitter = new Vector2((float)(packRng.NextDouble() - 0.5) * 5f, (float)(packRng.NextDouble() - 0.5) * 3f);
+                var pos = basePos + jitter;
+                if (!Map.CircleHitsWall(pos, 0.5f) && !Map.IsWater((int)pos.X, (int)pos.Y)) packSpots.Add(pos);
+            }
+        }
         // Loop 1 mixes in Crypt Leapers; loop 2+ adds Graveguard AND Grave Callers.
-        foreach (var spot in Map.PackSpots)
+        foreach (var spot in packSpots)
         {
             (string, int)[] entries = packRng.Next(knights ? 6 : 4) switch
             {
@@ -385,6 +405,10 @@ public partial class ServerWorld
                 _ => new[] { ("grave_caller", 1), ("crypt_leaper", 1), ("grunt", 1) },
             };
             var affix = EliteAffixInfo.RollPackLeader(packRng, out string leaderName);
+            // "of Champions": a plain pack gets another chance at a leader.
+            if (affix == EliteAffix.None && run != null && run.ElitePct > 0 &&
+                packRng.NextDouble() < Math.Min(0.95, run.ElitePct / 100.0))
+                affix = EliteAffixInfo.RollPackLeader(packRng, out leaderName);
             Packs.Add(new PackSpawner
             {
                 Position = spot,
@@ -418,7 +442,7 @@ public partial class ServerWorld
                 ScatterRadius = 1.1f,
                 NoRespawn = true,
             });
-        if (MapIndex == 3)
+        if (MapIndex == 3 || run?.Boss == true)
             Packs.Add(new PackSpawner
             {
                 Position = Map.BossSpot,
@@ -446,6 +470,9 @@ public partial class ServerWorld
         _readyAtDoor.Clear();
         _readyAtDefenseDoor.Clear();
         _readyAtTutorialDoor.Clear();
+        _readyAtPortal.Clear();
+        _readyAtRoad.Clear();
+        if (newIndex != ScrollMapIndex) _scrollRun = null;
         Enemies.Clear();       // clients wipe on MapChange — no death broadcasts needed
         Projectiles.Clear();
         Drops.Clear();
@@ -470,12 +497,19 @@ public partial class ServerWorld
         var newKind = newIndex == 0 ? (Story ? MapKind.RuinsHub : MapKind.Hub)
             : newIndex == DefenseMapIndex ? MapKind.Defense
             : newIndex == TutorialMapIndex ? MapKind.Tutorial
-            : newIndex == StoryRoadIndex ? MapKind.StoryRoad : MapKind.Forest;
+            : newIndex == StoryRoadIndex ? MapKind.StoryRoad
+            : newIndex == ScrollMapIndex ? (_scrollRun?.Defense == true ? MapKind.Defense : MapKind.Forest)
+            : MapKind.Forest;
         int seed = newIndex == DefenseMapIndex
             ? unchecked(_runSeed * 31 + _defenseEntries * 65537 + 12345)
             : newIndex is TutorialMapIndex or StoryRoadIndex ? TutorialSeed
+            : newIndex == ScrollMapIndex ? (_scrollRun?.Seed ?? CampaignMapSeed(9))
             : CampaignMapSeed(newIndex);
-        Map = new GameMap(seed, ThemeFor(newKind), newKind);
+        var theme = newIndex == ScrollMapIndex
+            ? Data.ZoneThemes.FirstOrDefault(t => t.Id == _scrollRun?.ThemeId) ?? _theme
+            : ThemeFor(newKind);
+        Map = new GameMap(seed, theme, newKind);
+        if (newIndex == ScrollMapIndex && _scrollRun?.Weather != null) Map.Weather = _scrollRun.Weather;
         // Coming home wakes the fallen: anyone still down stands back up in the hub.
         if (newIndex == 0)
             foreach (var pl in Players.Values.Where(pl => !pl.Alive))
@@ -484,13 +518,21 @@ public partial class ServerWorld
         // Everyone arrives together at the new map's spawn (dead players are pulled
         // through on their feet — the run moves as a group).
         int slot = 0;
+        // Back onto the road from the ruins: arrive through the east doorway.
+        var spawnAt = newIndex == StoryRoadIndex && _roadReturn
+            ? Map.ExitDoor + new Vector2(-1.6f, 0f)
+            : Map.PlayerSpawn;
         foreach (var p in Players.Values)
         {
             var offset = new Vector2((slot % 3) * 0.9f - 0.9f, (slot / 3) * 0.9f);
             slot++;
-            p.Position = Map.PlayerSpawn + offset;
+            p.Position = spawnAt + offset;
             p.Height = Map.GroundHeightAt(p.Position);
             p.IgnoreStateUntil = Time + 0.5f; // in-flight old-map state packets can't yank us back
+            // Nothing follows the party through a door: a shock or a freeze-in-place
+            // from the last fight must not keep rejecting movement on the new map.
+            p.FrozenUntil = 0f;
+            p.ElectrocutedUntil = 0f;
             if (!p.Alive)
             {
                 p.Health = p.Stats.MaxHealth * 0.5f;
@@ -526,6 +568,12 @@ public partial class ServerWorld
         if (newIndex > 0) SetupForest(); // packs spawn AFTER the map broadcast
         else if (newIndex == DefenseMapIndex) SetupDefense();
         else if (newIndex is TutorialMapIndex or StoryRoadIndex) SetupTutorial();
+        else if (newIndex == ScrollMapIndex)
+        {
+            if (Map.Kind == MapKind.Defense) SetupDefense();
+            else if (_scrollRun?.Survival == true) { SetupForest(); SetupSurvival(); }
+            else SetupForest();
+        }
         _events.ZoneStateChanged(this);
     }
 
@@ -586,9 +634,12 @@ public partial class ServerWorld
         {
             var candidates = new (Vector2 pos, int target, HashSet<int> ready, string name)[]
             {
-                (Map.ExitDoor, MapIndex >= 3 ? 0 : MapIndex + 1, _readyAtDoor, "the door"),
+                (Map.ExitDoor, MapIndex >= 3 ? 0 : MapIndex + 1, _readyAtDoor, Map.Kind == MapKind.RuinsHub ? "the stairs" : "the door"),
                 (Map.DefenseDoor, DefenseMapIndex, _readyAtDefenseDoor, "the caravan door"),
                 (Map.TutorialDoor, TutorialMapIndex, _readyAtTutorialDoor, "the old road door"),
+                // The ruins: the doorway back out to the road, and the portal when it's open.
+                (Map.Kind == MapKind.RuinsHub ? Map.EntryDoor : Vector2.Zero, StoryRoadIndex, _readyAtRoad, "the road"),
+                (PortalOpen ? Map.PortalSpot : Vector2.Zero, ScrollMapIndex, _readyAtPortal, "the portal"),
             };
             var best = candidates
                 .Where(c => c.pos != Vector2.Zero && Vector2.Distance(p.Position, c.pos) <= 2.6f)
@@ -608,7 +659,7 @@ public partial class ServerWorld
                 _events.MessageFor(p, "The way is sealed — the Gravelord still stands.");
                 return;
             }
-            doorTarget = MapIndex >= 3 ? 0 : MapIndex + 1;
+            doorTarget = MapIndex >= 3 || MapIndex < 0 ? 0 : MapIndex + 1;
             set = _readyAtDoor;
             others = new[] { _readyAtDefenseDoor, _readyAtTutorialDoor };
             doorName = "the door";
@@ -622,7 +673,14 @@ public partial class ServerWorld
                 $"{p.Name} is {(nowReady ? "ready" : "no longer ready")} at {doorName} ({set.Count}/{alive}).");
         _events.ZoneStateChanged(this);
         if (alive > 0 && set.Count >= alive)
-            TransitionTo(doorTarget);
+        {
+            if (doorTarget == ScrollMapIndex) EnterPortal();
+            else
+            {
+                _roadReturn = doorTarget == StoryRoadIndex && Map.Kind == MapKind.RuinsHub;
+                TransitionTo(doorTarget);
+            }
+        }
     }
 
     /// <summary>The equipped flask ITEM matching the requested kind (health or mana)
@@ -783,6 +841,8 @@ public partial class ServerWorld
 
     /// <summary>Open a hub chest: the lid pops for everyone and the starter gear inside
     /// drops on the ground. Once per chest per RUN SESSION — no farming the sanctum.</summary>
+    public const float ChestWarpScrollChance = 0.25f;
+
     public void OpenChest(int playerId, int chestId)
     {
         if (!Players.TryGetValue(playerId, out var p) || !p.Alive) return;
@@ -797,6 +857,12 @@ public partial class ServerWorld
             var item = Loot.GenerateEquipment(table, itemLevel: 1, forcedRarity: ItemRarity.Normal);
             if (item != null)
                 SpawnDrop(item, chest.Position + new Vector2(0.4f + 0.5f * i, 0.55f), chest.Height);
+        }
+        // A chest is the likeliest place to find a sealed warp scroll.
+        if (_rng.NextDouble() < ChestWarpScrollChance)
+        {
+            var warp = Loot.GenerateWarpScroll(Math.Max(1, ZoneEnemyLevel));
+            if (warp != null) SpawnDrop(warp, chest.Position + new Vector2(0.9f, 0.1f), chest.Height);
         }
         _events.ChestChanged(chest);
         _events.WorldEffect("hit", chest.Position, 0.5f, 0.3f, chest.Height);
@@ -920,6 +986,7 @@ public partial class ServerWorld
         TickDefense(dt);
         TickTutorial();
         TickRuinsHub();
+        TickSurvival();
         CheckPartyWipe();
 
         // Batched skill-XP sync: damage-based grants mark players dirty; the full
@@ -1574,7 +1641,8 @@ public partial class ServerWorld
             switch (e.State)
             {
                 case EnemyState.Idle:
-                    if ((target != null && pathDist <= e.Def.AggroRange) || meatDist <= e.Def.AggroRange)
+                    if ((target != null && (pathDist <= e.Def.AggroRange || (e.Hunting && pathDist < float.MaxValue))) ||
+                        meatDist <= e.Def.AggroRange)
                     {
                         e.State = EnemyState.Chase;
                         e.TargetPlayerId = target?.Id ?? -1;
@@ -1583,7 +1651,7 @@ public partial class ServerWorld
                     break;
 
                 case EnemyState.Chase:
-                    bool playerHeld = target != null && pathDist <= e.Def.AggroRange * 1.5f;
+                    bool playerHeld = target != null && (pathDist <= e.Def.AggroRange * 1.5f || (e.Hunting && pathDist < float.MaxValue));
                     bool meatHeld = meatDist <= e.Def.AggroRange * 1.5f;
                     if (!playerHeld && !meatHeld)
                     {
@@ -3670,7 +3738,7 @@ public partial class ServerWorld
                 _events.DefenseStateChanged(this);
             }
             // Tutorial gate boss down: the victory scene plays and the gate unlocks.
-            if (Map.IsRoad && e.Id == _bossEnemyId)
+            if (Map.IsRoad && e.Id == _bossEnemyId && !_roadReturn)
             {
                 // The master's fall takes its thralls with it, and nobody is touched
                 // while the victory scene plays.
@@ -3725,7 +3793,7 @@ public partial class ServerWorld
         bool rareKill = EliteAffixInfo.IsRare(e.Affixes);
         int lootRolls = e.Affixes == EliteAffix.None || e.Affixes == EliteAffix.Minion ? 1 : rareKill ? 3 : 2;
         for (int roll = 0; roll < lootRolls; roll++)
-            foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Level))
+            foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Level, ZoneLootMultiplier))
                 SpawnDrop(item, e.Position, e.Height);
         if (rareKill)
         {

@@ -28,8 +28,34 @@ public partial class ServerWorld
     /// enemy placements, and the weakened Gravelord holding the ruins gate.</summary>
     private void SetupTutorial()
     {
-        _tutorialIntroAt = Time + 1.2f;
-        _tutClearwayPlayed = false;
+        _tutorialIntroAt = _roadReturn ? 0f : Time + 1.2f;
+        _tutClearwayPlayed = _roadReturn;
+
+        // Back from the ruins: the caravan has moved in, so the road is just the road.
+        // The dead are re-placed at the campaign's level, the boss holds the FAR end
+        // (where the camp stood), and the doorway home stays open.
+        if (_roadReturn)
+        {
+            float rcr = Map.Height / 2 + 0.5f;
+            float x0r = Map.Kind == MapKind.StoryRoad ? 8f : 0f;
+            float sxr = (Map.Width - x0r) / 84f;
+            int lvl = Math.Max(1, CampaignEnemyLevel);
+            foreach (var (kind, x84, y) in new (string, float, float)[]
+            {
+                ("grunt", 17.5f, rcr), ("grunt", 18.5f, rcr + 1f), ("spitter", 25.5f, rcr - 2f),
+                ("grunt", 36.5f, rcr), ("grunt", 38.5f, rcr + 1f), ("shambler", 37.5f, rcr - 1f),
+                ("crypt_leaper", 46.5f, rcr), ("grunt", 56.5f, rcr), ("shambler", 58.5f, rcr + 1f),
+                ("grunt", 66.5f, rcr - 1f), ("spitter", 70.5f, rcr + 2f),
+            })
+                if (Data.Enemies.ContainsKey(kind))
+                    SpawnEnemy(kind, new Vector2(x0r + x84 * sxr, y), level: lvl, buried: x84 < 30f);
+            if (Data.Enemies.ContainsKey("barrowlord"))
+            {
+                var boss = SpawnEnemy("barrowlord", new Vector2(x0r + 6.5f, rcr), EliteAffix.Boss, level: lvl);
+                _bossEnemyId = boss.Id;
+            }
+            return;
+        }
 
         // The caravan, parked at camp (indestructible scenery here — no defense rules).
         AddStructure(StructureKind.Wagon, Map.WagonSpot, 1_000_000f, ownerId: -1, radius: 0.85f);
