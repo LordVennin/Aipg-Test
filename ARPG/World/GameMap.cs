@@ -200,6 +200,7 @@ public class GameMap
         _water = new byte[width * height];
         _tallGrass = new byte[width * height];
         _ruins = new byte[width * height];
+        _void = new byte[width * height];
         switch (kind)
         {
             case MapKind.Hub: GenerateHub(); break;
@@ -238,6 +239,32 @@ public class GameMap
     public bool IsTallGrass(int x, int y) => InBounds(x, y) && _tallGrass[Idx(x, y)] == 1;
     /// <summary>Ruins ground (tutorial map's east end): flagstone tint + ruin props.</summary>
     public bool IsRuins(int x, int y) => InBounds(x, y) && _ruins[Idx(x, y)] == 1;
+    /// <summary>VOID: solid for movement and routing like any wall, but nothing is
+    /// there to draw — the space beyond a room's walls, not a mass of wall tops. The
+    /// map's rectangle is storage; the void is where it stops being a place.</summary>
+    private readonly byte[] _void;
+    public bool IsVoid(int x, int y) => InBounds(x, y) && _void[Idx(x, y)] == 1;
+
+    /// <summary>Turn every wall tile that touches no open floor (8-neighbourhood)
+    /// into void: only the ring of walls actually bounding the rooms stays standing;
+    /// the filler behind them becomes nothing.</summary>
+    private void VoidEnclosedWalls()
+    {
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+            {
+                if (_wall[Idx(x, y)] == 0) continue;
+                bool touchesFloor = false;
+                for (int dy = -1; dy <= 1 && !touchesFloor; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int nx = x + dx, ny = y + dy;
+                        if (!InBounds(nx, ny) || (dx == 0 && dy == 0)) continue;
+                        if (_wall[Idx(nx, ny)] == 0) { touchesFloor = true; break; }
+                    }
+                if (!touchesFloor) _void[Idx(x, y)] = 1;
+            }
+    }
 
     /// <summary>Legacy-style solid check (used by tests/debug helpers on the ground layer).</summary>
     public bool IsWallAt(Vector2 pos) => IsSolid((int)MathF.Floor(pos.X), (int)MathF.Floor(pos.Y));
@@ -964,6 +991,8 @@ public class GameMap
         UrnSpots.Add(new Vector2(stemRight - 1.3f, Height - 2.3f));
         UrnSpots.Add(new Vector2(18.5f, 2.4f));
         UrnSpots.Add(new Vector2(Width - 2.6f, barBottom - 0.4f));
+        // Only the walls bounding the L stand; the collapsed block is void.
+        VoidEnclosedWalls();
     }
 
     // ------------------------------------------------------------------ defense arena generation

@@ -1773,3 +1773,8 @@ item's flavour under it.
 - **Movement lock**: on a story map you cannot move through the fade from black
   or while a scene plays (client-side), so nobody walks into an aggro range
   before the crew has spoken.
+- **Void tiles**: a map's rectangle is storage, not the place. Wall tiles that touch
+  no open floor become VOID — solid for movement and routing, but nothing is drawn
+  there — so the ruins' collapsed block is the black beyond the room's walls and
+  only the ring of walls bounding the L stands. (`GameMap.IsVoid`, applied by
+  `VoidEnclosedWalls`; other generators can call it when a room shape wants it.)

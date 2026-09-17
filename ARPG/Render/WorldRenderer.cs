@@ -819,6 +819,7 @@ public class WorldRenderer
         {
             for (int x = 0; x < map.Width; x++)
             {
+                if (map.IsVoid(x, y)) continue; // nothing there to draw
                 if ((map.IsSolid(x, y) && map.Feature(x, y) == TileFeature.None) ||
                     map.GroundLevel(x, y) > 0)
                     continue; // ramps at ground level get a floor beneath their sprite
@@ -967,7 +968,7 @@ public class WorldRenderer
                 var ramp = map.Ramp(x, y);
                 int bridge = map.BridgeLevel(x, y);
                 bool elevated = ground > 0 || wall > 0 || ramp != RampDirection.None || bridge > 0;
-                if (!elevated) continue;
+                if (!elevated || map.IsVoid(x, y)) continue;
                 // The draw lambdas below run after these loops finish, and a `for`
                 // variable is ONE variable shared by every iteration — capture copies,
                 // or every deferred neighbour lookup reads the past-the-end x and y.
