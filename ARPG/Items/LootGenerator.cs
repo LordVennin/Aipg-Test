@@ -21,6 +21,11 @@ public class LootGenerator
     }
 
     /// <summary>Roll the drops for one enemy kill. May return zero, one or two items.</summary>
+    /// <summary>Story gating: sealed warp scrolls and mercenary contracts only drop once
+    /// the world has introduced them. Both default on (the test grounds).</summary>
+    public bool WarpScrollsAllowed = true;
+    public bool ContractsAllowed = true;
+
     public List<ItemInstance> RollDrops(string lootTableId, int itemLevel, float dropMult = 1f)
     {
         var table = _data.GetLootTable(lootTableId);
@@ -44,7 +49,7 @@ public class LootGenerator
         // Curios: the defense mode's rare finds. Contracts hire mercenaries at the
         // researcher; the blueprint (found once, ever, per character) unlocks the
         // flamethrower turret.
-        if (_data.Items.ContainsKey("merc_contract") &&
+        if (ContractsAllowed && _data.Items.ContainsKey("merc_contract") &&
             _rng.NextDouble() < table.MercContractDropChance)
             drops.Add(new ItemInstance
             {
@@ -63,7 +68,7 @@ public class LootGenerator
             if (unique != null) drops.Add(unique);
         }
         // Sealed warp scrolls: the keys to the portal. Their level is the kill's.
-        if (_rng.NextDouble() < table.WarpScrollDropChance * dropMult)
+        if (WarpScrollsAllowed && _rng.NextDouble() < table.WarpScrollDropChance * dropMult)
         {
             var warp = GenerateWarpScroll(itemLevel);
             if (warp != null) drops.Add(warp);

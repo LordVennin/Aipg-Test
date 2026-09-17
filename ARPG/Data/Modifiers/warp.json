@@ -304,5 +304,22 @@
   "Weight": 35,
   "IsPercent": true,
   "MapEffect": "{0}% more item drops and rarer finds"
+ },
+ {
+  "Id": "warp_rooms",
+  "Name": "of the Long Road",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_rooms",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 3,
+  "MaximumValue": 3,
+  "Weight": 30,
+  "IsPercent": false,
+  "MapEffect": "Three rooms deep: each room's exit leads to the next, the last leads home"
  }
 ]

@@ -19,6 +19,8 @@ public class ScrollRun
     public float ElitePct;          // more magic/rare leaders
     public bool Boss;
     public float LootPct;           // more drops, rarer finds
+    /// <summary>Rooms deep (1 = a single map; "of the Long Road" = three, the boss on the last).</summary>
+    public int Rooms = 1;
     public int Seed;
     public const int SurvivalWaves = 5;
 
@@ -64,6 +66,7 @@ public class ScrollRun
                 case "warp_elites": run.ElitePct += roll.Value; break;
                 case "warp_boss": run.Boss = true; break;
                 case "warp_loot": run.LootPct += roll.Value; break;
+                case "warp_rooms": run.Rooms = Math.Max(1, (int)roll.Value); break;
             }
         }
         run.Title = modeName.Length > 0 ? $"{zoneName} — {modeName}" : zoneName;
@@ -89,8 +92,91 @@ public partial class ServerWorld
     public string PortalTitle => PortalOpen ? _portalRun?.Title ?? "" : "";
     private ScrollRun _portalRun;
     /// <summary>The zone's banner title: the scroll's destination on a scroll map.</summary>
-    public string ZoneTitle => MapIndex == ScrollMapIndex ? _scrollRun?.Title ?? "a sealed zone"
+    public string ZoneTitle => MapIndex == ScrollMapIndex
+        ? (_scrollRun == null ? "a sealed zone" : _scrollRun.Rooms > 1 ? $"{_scrollRun.Title} ({_scrollRoom}/{_scrollRun.Rooms})" : _scrollRun.Title)
         : MapIndex == StoryRoadIndex && _roadReturn ? "the road back" : "";
+    /// <summary>Which room of a chained scroll zone the party is in (1-based; 0 off it).</summary>
+    private int _scrollRoom;
+    public int ScrollRoom => MapIndex == ScrollMapIndex ? _scrollRoom : 0;
+
+    /// <summary>Story progression flips: scrolls exist once the Codex has given one up.</summary>
+    private void SetScrollsUnlocked(bool on)
+    {
+        ScrollsUnlocked = on;
+        Loot.WarpScrollsAllowed = on;
+    }
+
+    /// <summary>The Codex's scroll: the Mirewood, three rooms deep, the Gravelord on the
+    /// last — the test grounds' forest run, sealed onto paper. Always the same.</summary>
+    public ItemInstance CodexScroll()
+    {
+        var scrollBase = Data.Items.Values.FirstOrDefault(b => b.Category == ItemCategory.WarpScroll);
+        if (scrollBase == null) return null;
+        var scroll = new ItemInstance
+        {
+            BaseItemId = scrollBase.Id, ItemLevel = Math.Max(1, CampaignEnemyLevel), Rarity = ItemRarity.Rare,
+            BaseModifierLimit = 6, MaxPrefixes = 3, MaxSuffixes = 3, Locked = true,
+        };
+        foreach (var id in new[] { "warp_zone_forest", "warp_rooms", "warp_boss" })
+            if (Data.Modifiers.TryGetValue(id, out var wm))
+                scroll.Modifiers.Add(new ItemModifierRoll { ModifierId = wm.Id, Value = wm.MaximumValue });
+        return scroll;
+    }
+
+    /// <summary>The archive under the ruins: tomes between the shelves at the campaign
+    /// level, the Gilded Codex at the reading desk. The stairs up are never sealed.</summary>
+    private void SetupArchive()
+    {
+        Spawners.Clear();
+        Packs.Clear();
+        Npcs.Clear();
+        Chests.Clear();
+        _bossEnemyId = -1;
+        int level = Math.Max(1, CampaignEnemyLevel);
+        int pi = 0;
+        foreach (var spot in Map.PackSpots)
+        {
+            bool frost = pi % 2 == 0;
+            Packs.Add(new PackSpawner
+            {
+                Position = spot,
+                Entries = frost ? new[] { ("tome_frost", 2), ("tome_shade", 1) } : new[] { ("tome_shade", 2), ("tome_frost", 1) },
+                EnemyLevel = level + 1,
+                ScatterRadius = 1.2f,
+                NoRespawn = true,
+                Buried = false,
+            });
+            pi++;
+        }
+        Packs.Add(new PackSpawner
+        {
+            Position = Map.BossSpot,
+            Entries = new[] { ("codex", 1) },
+            LeaderAffixes = EliteAffix.Boss,
+            EnemyLevel = Math.Max(Data.Enemies.TryGetValue("codex", out var cd) ? cd.Level : 4, level + 3),
+            ScatterRadius = 0.2f,
+            NoRespawn = true,
+            Buried = false,
+        });
+        for (int i = 0; i < Packs.Count; i++) SpawnPackMembers(Packs[i], i);
+        _bossEnemyId = Enemies.Values.FirstOrDefault(e => !e.Dead && e.Def.Id == "codex")?.Id ?? -1;
+        foreach (var pl in Players.Values)
+            _events.MessageFor(pl, "The air is dry and still. Paper everywhere — and something turning its pages in the dark.");
+    }
+
+    /// <summary>Back in the camp after the Codex fell: Maren explains the scroll and
+    /// points the party at the podium. Once.</summary>
+    private void TickCodexScene()
+    {
+        if (!Story || Map.Kind != MapKind.RuinsHub || _codexScenePlayed) return;
+        if (_codexSceneAt < 0f) { _codexSceneAt = Time + 1.8f; return; }
+        if (_codexSceneAt <= 0f || Time < _codexSceneAt) return;
+        _codexScenePlayed = true;
+        _codexSceneAt = 0f;
+        _events.CutscenePlayed("codex_scroll");
+        foreach (var pl in Players.Values)
+            _events.MessageFor(pl, "Maren: \"Put that scroll on the podium. Whatever the seals describe, the portal will open onto it.\"");
+    }
     /// <summary>Enemy level for the zone being played: the scroll's on a scroll map,
     /// the campaign loop's everywhere else.</summary>
     public int ZoneEnemyLevel => MapIndex == ScrollMapIndex && _scrollRun != null ? _scrollRun.EnemyLevel : CampaignEnemyLevel;
@@ -147,6 +233,7 @@ public partial class ServerWorld
         _scrollRun = _portalRun;
         _portalRun = null;
         _portalScroll = null;
+        _scrollRoom = 0; // TransitionTo counts the first room
         TransitionTo(ScrollMapIndex);
     }
 

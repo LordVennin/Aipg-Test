@@ -21,6 +21,9 @@ public class WorldRenderer
 
     /// <summary>Screen rectangles of drop name labels this frame, for click-to-pick-up.</summary>
     public readonly List<(Rectangle rect, Guid dropId)> DropLabelRects = new();
+    /// <summary>Loot labels are hidden this frame because enemies are close (HUD hint).</summary>
+    public bool LootLabelsHidden;
+    public const float LabelHideRange = 7f;
 
     /// <summary>Screen rectangles of enemy sprites this frame, for hover targeting
     /// (front-most = last drawn; hit-test in reverse).</summary>
@@ -361,7 +364,7 @@ public class WorldRenderer
                     // ALWAYS dress (a bare block reads as a glitch in a colonnade).
                     uint featVariants = tileStyle switch
                     {
-                        "forest" => 3u, "graveyard" => 3u, "ruins" => 2u, _ => 2u,
+                        "forest" => 3u, "graveyard" => 3u, "ruins" => 2u, "archive" => 2u, _ => 2u,
                     };
                     if (roll < Theme.WallFeatureChance || tileStyle == "ruins")
                         _features.Add((x, y, map.GroundLevel(x, y) + wall,
@@ -384,7 +387,7 @@ public class WorldRenderer
                     // markers, bones, dead shrubs and mire; ruins scatter rubble.
                     uint variants = tileStyle switch
                     {
-                        "forest" => 9u, "graveyard" => 8u, "ruins" => 3u, _ => 3u,
+                        "forest" => 9u, "graveyard" => 8u, "ruins" => 3u, "archive" => 4u, _ => 3u,
                     };
                     _clutter.Add((pos, map.GroundLevel(x, y), $"{tileStyle}:clutter:{(n >> 8) % variants}"));
                 }
@@ -1512,7 +1515,9 @@ public class WorldRenderer
             var screen = camera.WorldToScreen(pos, drop.Height);
             var item = drop.Item;
             var lie = DropLie(drop.DropId);
-            _sorted.Add((pos.X + pos.Y + drop.Height * 1.0f + 0.05f + UnderDeckBias(pos, drop.Height), batch =>
+            // Drops lie ON the floor: they sort under any body standing near them, so a
+            // carpet of loot never buries the enemies walking over it.
+            _sorted.Add((pos.X + pos.Y + drop.Height * 1.0f - 0.45f + UnderDeckBias(pos, drop.Height), batch =>
             {
                 // Fresh drops fall in from chest height and bounce; the shadow stays put.
                 var (lift, spin) = drop.Landing ? DropLanding(drop.Age, lie.Flip) : (0f, 0f);
@@ -1734,20 +1739,27 @@ public class WorldRenderer
             // breaks the surface first (skeletons rattle sideways as they assemble).
             float riseT = e.Rose ? Math.Clamp((animClock - e.RevealedAtMs) / (ClientEnemy.RiseSeconds * 1000f), 0f, 1f) : 1f;
             bool rising = riseT < 1f;
+            // Hovering bodies (the archive's tomes) ride a slow bob above their shadow,
+            // and self-lit ones cast their colour on the gloom.
+            bool hover = def?.Hover == true;
+            int hoverLift = hover ? 10 + (int)MathF.Round(3f * MathF.Sin(animClock * 0.004f + e.Id * 1.3f)) : 0;
+            if (!string.IsNullOrEmpty(def?.Glow) && e.Health > 0)
+                AddLight(screen + new Vector2(0, -14 - hoverLift), e.IsBoss ? 170f : 80f, ParseColor(def.Glow, Color.White));
             _sorted.Add((pos.X + pos.Y + e.Height * 1.0f + 0.1f + UnderDeckBias(pos, e.Height), batch =>
             {
                 int barY;
                 if (frames != null)
                 {
-                    // Procedural pixel sprite: shamble animation while chasing/attacking.
-                    bool animated = e.State is (byte)Server.EnemyState.Chase or (byte)Server.EnemyState.Attack;
-                    int frame = animated ? (int)((animClock / 170 + e.Id) % frames.Length) : 0;
+                    // Procedural pixel sprite: shamble animation while chasing/attacking
+                    // (tomes always beat their covers).
+                    bool animated = hover || e.State is (byte)Server.EnemyState.Chase or (byte)Server.EnemyState.Attack;
+                    int frame = animated ? (int)((animClock / (hover ? 140 : 170) + e.Id) % frames.Length) : 0;
                     var tex = frames[frame];
                     int scale = e.IsBoss ? 3 : 2; // the boss reads bigger at a glance
                     float sMul = def?.SpriteScale ?? 1f;   // runts render smaller
                     int w = (int)(tex.Width * scale * sMul), h = (int)(tex.Height * scale * sMul);
                     var spriteRect = new Rectangle((int)(screen.X + animOff.X) - w / 2,
-                        (int)(screen.Y + animOff.Y) - h + 6, w, h);
+                        (int)(screen.Y + animOff.Y) - h + 6 - hoverLift, w, h);
                     Rectangle? srcRect = null;
                     if (rising)
                     {
@@ -2280,6 +2292,28 @@ public class WorldRenderer
                     batch.Draw(stashTex,
                         new Rectangle((int)stScreen.X - w / 2, (int)stScreen.Y - h + 8, w, h), Color.White);
                 }));
+        }
+
+        // Authored dressing: the crew's camps, the archive's candles and desk. Rugs lie
+        // under whoever stands on them; lit props flicker.
+        foreach (var prop in world.Map.Props)
+        {
+            var ptex = SpriteGen.GetPropSprite(prop.Key);
+            if (ptex == null) continue;
+            var ppos = prop.Pos;
+            float pHeight = world.Map.GroundHeightAt(ppos);
+            var pScreen2 = camera.WorldToScreen(ppos, pHeight);
+            if (pScreen2.X < -80 || pScreen2.X > camera.ScreenWidth + 80 ||
+                pScreen2.Y < -100 || pScreen2.Y > camera.ScreenHeight + 100) continue;
+            if (prop.Light.Length > 0)
+            {
+                float pf = 0.9f + 0.1f * MathF.Sin(Environment.TickCount64 * 0.009f + ppos.X * 3f);
+                AddLight(pScreen2 + new Vector2(0, -ptex.Height), prop.LightRadius * pf, ParseColor(prop.Light, Color.White));
+            }
+            bool flat = prop.Key.EndsWith(":rug");
+            int pw = ptex.Width * 2, ph = ptex.Height * 2;
+            var pdest = new Rectangle((int)pScreen2.X - pw / 2, (int)pScreen2.Y - ph + (flat ? ph / 2 : 4), pw, ph);
+            _sorted.Add((ppos.X + ppos.Y + pHeight * 1.0f + (flat ? -0.4f : 0.1f), batch => batch.Draw(ptex, pdest, Color.White)));
         }
 
         // The ruins hub's scroll podium and portal ring: stone built INTO the dais.
@@ -3616,9 +3650,18 @@ public class WorldRenderer
             }
         }
         var slotInCluster = new int[clusterAnchors.Count];
+        // In a fight the labels get out of the way: a wall of item names over a pack is
+        // how enemies vanish. Hold Alt to read the loot mid-fight anyway.
+        var labelMe = world.Me;
+        bool altHeld = Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.LeftAlt) ||
+                       Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.RightAlt);
+        bool combatNear = !altHeld && labelMe != null && world.Enemies.Values.Any(en =>
+            en.Health > 0 && en.RevealedAtMs != 0 && System.Numerics.Vector2.Distance(en.Position, labelMe.Position) <= LabelHideRange);
+        LootLabelsHidden = combatNear && dropList.Count > 0;
         for (int i = 0; i < dropList.Count; i++)
         {
             var drop = dropList[i];
+            if (combatNear && drop.DropId != HoveredDropId) continue;
             var anchorDrop = dropList[clusterAnchors[clusterOf[i]]];
             var anchorScreen = camera.WorldToScreen(anchorDrop.Position, anchorDrop.Height);
             int slot = slotInCluster[clusterOf[i]]++;

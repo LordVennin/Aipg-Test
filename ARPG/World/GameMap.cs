@@ -52,6 +52,24 @@ public enum MapKind : byte
     /// by the entrance, the scroll podium and portal stand east, the stairs down in
     /// the north-east corner, the crew still setting up south of the door.</summary>
     RuinsHub = 6,
+    /// <summary>The story's first dungeon: the archive under the ruins — one small,
+    /// dark, authored room of shelves and scattered paper, the Gilded Codex at its
+    /// far end. The stairs back up are always open.</summary>
+    Archive = 7,
+}
+
+/// <summary>A map-authored decoration: a prop sprite (see SpriteGen.GetPropSprite
+/// keys) standing at a world position, optionally casting light. Pure client-side
+/// dressing derived from the map, so it never crosses the wire.</summary>
+public sealed class MapProp
+{
+    public Vector2 Pos;
+    public string Key;
+    /// <summary>RRGGBB light the prop casts; empty = unlit.</summary>
+    public string Light = "";
+    public float LightRadius;
+    public MapProp(float x, float y, string key, string light = "", float lightRadius = 0f)
+    { Pos = new Vector2(x, y); Key = key; Light = light; LightRadius = lightRadius; }
 }
 
 /// <summary>
@@ -137,6 +155,9 @@ public class GameMap
     public Vector2 StashSpot { get; private set; }
     /// <summary>Breakable clay urns (hub dressing along the walls).</summary>
     public List<Vector2> UrnSpots { get; } = new();
+    /// <summary>Authored dressing sprites: the crew's camps in the ruins, the archive's
+    /// candles and desk. Drawn by the client straight from the map.</summary>
+    public List<MapProp> Props { get; } = new();
     public const string HubStashId = "hub_stash";
 
     /// <summary>Hub only: the door into the DEFENSE loop, across the room from the
@@ -186,6 +207,7 @@ public class GameMap
                 MapKind.Tutorial => (84, 22), // a long straight road east — never rolled
                 MapKind.StoryRoad => (108, 22), // the story cut: a fifth longer, plus the road behind the camp
                 MapKind.RuinsHub => (30, 22),
+                MapKind.Archive => (30, 16),
                 _ => (44, 44),
             };
         }
@@ -209,6 +231,7 @@ public class GameMap
             case MapKind.Tutorial: GenerateTutorial(story: false); break; // AUTHORED — the seed only styles clutter
             case MapKind.StoryRoad: GenerateTutorial(story: true); break;
             case MapKind.RuinsHub: GenerateRuinsHub(); break;
+            case MapKind.Archive: GenerateArchive(); break;
             default: Generate(new Random(seed)); break;
         }
         // The introduction is always rain-soaked, whatever the theme says.
@@ -961,10 +984,10 @@ public class GameMap
         // The peddler's camp: the bar's west end, under the stairs.
         WagonSpot = new Vector2(2.9f, 6.4f);
         NpcSpots.Add(new Vector2(5.6f, 6.2f));   // merchant, at the cart's tail
-        NpcSpots.Add(new Vector2(7.6f, 3.8f));   // skill trainer, at the stash
+        NpcSpots.Add(new Vector2(20.5f, 2.8f));  // skill trainer: her study along the bar's north-east wall
         StashSpot = new Vector2(6.2f, 2.5f);
         // The sellsword unpacks in the stem; the gambler sets up by the fountain.
-        NpcSpots.Add(new Vector2(5.0f, 15.0f));  // mercenary
+        NpcSpots.Add(new Vector2(3.4f, 13.6f));  // mercenary: his corner along the stem's west wall
         NpcSpots.Add(new Vector2(18.0f, 7.6f));  // gambler
         FountainSpot = new Vector2(15.5f, yc + 0.5f); // mid-bar
         // The scroll podium and the portal arch share a raised DAIS filling the bar's
@@ -1003,8 +1026,76 @@ public class GameMap
         UrnSpots.Add(new Vector2(stemRight - 1.3f, Height - 2.3f));
         UrnSpots.Add(new Vector2(18.5f, 2.4f));
         UrnSpots.Add(new Vector2(Width - 2.6f, 2.3f));
+        // The crew has SET UP: three camps, each dressed as its owner would.
+        // Weaver's stall by the cart under the stairs...
+        Props.Add(new MapProp(5.6f, 4.3f, "camp:stall"));
+        Props.Add(new MapProp(1.75f, 4.7f, "camp:awning"));
+        Props.Add(new MapProp(5.6f, 6.9f, "camp:rug"));
+        Props.Add(new MapProp(7.5f, 8.3f, "camp:crate"));
+        Props.Add(new MapProp(4.5f, 8.1f, "camp:sacks"));
+        // ...Maren's study along the bar's north-east wall...
+        Props.Add(new MapProp(22.3f, 2.5f, "camp:lectern"));
+        Props.Add(new MapProp(19.0f, 2.3f, "camp:books"));
+        Props.Add(new MapProp(23.5f, 4.1f, "camp:books"));
+        Props.Add(new MapProp(17.4f, 2.7f, "camp:bedroll"));
+        Props.Add(new MapProp(21.0f, 4.3f, "camp:candles", "FFC880", 110f));
+        Props.Add(new MapProp(20.5f, 3.5f, "camp:rug"));
+        // ...and Brakka's corner in the stem: rack, brazier, bedroll, a crate for a table.
+        Props.Add(new MapProp(1.85f, 14.2f, "camp:rack"));
+        Props.Add(new MapProp(5.1f, 14.7f, "camp:brazier", "FF9A50", 150f));
+        Props.Add(new MapProp(2.3f, 15.6f, "camp:bedroll"));
+        Props.Add(new MapProp(4.7f, 11.6f, "camp:crate"));
+        Props.Add(new MapProp(4.5f, 13.1f, "camp:stool"));
         // Only the walls bounding the L stand; the collapsed block is void.
         VoidEnclosedWalls();
+    }
+
+    // ------------------------------------------------------------------ the archive (story basement)
+
+    /// <summary>
+    /// The archive under the ruins: one long, low, DARK room. Shelves (one-high wall
+    /// blocks dressed as bookcases) line the north and south walls with gaps to walk
+    /// through, two shelf islands break the middle, paper litters the floor, a few
+    /// candles gutter. The stairs back up are an archway in the west wall where the
+    /// party arrives; the Gilded Codex keeps the reading desk at the far east end.
+    /// Authored, so identical every time.
+    /// </summary>
+    private void GenerateArchive()
+    {
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+            {
+                bool border = x == 0 || y == 0 || x == Width - 1 || y == Height - 1;
+                _wall[Idx(x, y)] = border ? (byte)2 : (byte)0;
+            }
+        // Shelves along the long walls: runs of three with a one-tile gap.
+        for (int x = 2; x <= Width - 3; x++)
+        {
+            if ((x - 2) % 4 == 3) continue; // the gap
+            if (x >= 4) _wall[Idx(x, 1)] = 1;   // the arrival's corner stays clear
+            if (x >= 4 && x <= Width - 6) _wall[Idx(x, Height - 2)] = 1;
+        }
+        // Two shelf islands staggered across the middle.
+        for (int x = 10; x <= 12; x++) _wall[Idx(x, 5)] = 1;
+        for (int x = 17; x <= 19; x++) _wall[Idx(x, 10)] = 1;
+        // The way back up: an archway painted on the west wall; the party arrives before it.
+        float yc = Height / 2f + 0.5f; // 8.5
+        ExitDoor = new Vector2(1.5f, yc);
+        ExitDoorStyle = DoorStyle.RuinArch;
+        PlayerSpawn = new Vector2(3.0f, yc);
+        // The reading desk at the far end: the Codex's perch.
+        BossSpot = new Vector2(Width - 4.5f, yc);
+        Props.Add(new MapProp(Width - 2.6f, yc - 0.1f, "archive:desk", "FFD890", 130f));
+        // Tomes lurk between the shelves.
+        PackSpots.Add(new Vector2(7.5f, 4.5f));
+        PackSpots.Add(new Vector2(8.5f, 11.5f));
+        PackSpots.Add(new Vector2(14.5f, 8.5f));
+        PackSpots.Add(new Vector2(20.5f, 4.5f));
+        PackSpots.Add(new Vector2(21.5f, 12.0f));
+        // Candles: the only light besides what the party carries and the tomes' glow.
+        foreach (var (cx, cy) in new[] { (6.5f, 2.6f), (14.5f, 2.6f), (23.5f, 2.6f), (9.5f, 13.4f), (19.5f, 13.4f), (12.5f, 6.4f) })
+            Props.Add(new MapProp(cx, cy, "archive:candle", "FFC070", 95f));
+        Weather = "";
     }
 
     // ------------------------------------------------------------------ defense arena generation

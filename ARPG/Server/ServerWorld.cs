@@ -145,6 +145,20 @@ public partial class ServerWorld
     /// <summary>Back on the road from the ruins: a grind, not the introduction — no
     /// caravan, no scenes, the boss at the far (west) end, the doorway home always open.</summary>
     private bool _roadReturn;
+    /// <summary>The story's first dungeon under the ruins (the hub's stairs lead here).</summary>
+    public const int BasementMapIndex = -5;
+    /// <summary>Story progression: sealed warp scrolls only exist in the world once the
+    /// Codex has given up the first one; mercenary contracts once the sellsword is
+    /// open for hire (not yet). The test grounds have everything unlocked.</summary>
+    public bool ScrollsUnlocked { get; private set; }
+    public bool ContractsUnlocked { get; private set; }
+    /// <summary>The Codex has fallen once: its fixed scroll is given only that time.</summary>
+    public bool CodexFelled { get; private set; }
+    private float _codexSceneAt;
+    private bool _codexScenePlayed;
+    /// <summary>World time of the last unique that dropped (no two within UniqueSpacing).</summary>
+    private float _lastUniqueAt = -1000f;
+    public const float UniqueSpacing = 90f;
     public bool BossAlive => _bossEnemyId >= 0 &&
                              Enemies.TryGetValue(_bossEnemyId, out var b) && !b.Dead;
     public int ReadyCount => _readyAtDoor.Count;
@@ -185,6 +199,11 @@ public partial class ServerWorld
         _events = events;
         _rng = new Random();
         Loot = new LootGenerator(data, _rng);
+        // The story unlocks its systems as it goes; the test grounds start with everything.
+        ScrollsUnlocked = !story;
+        ContractsUnlocked = !story;
+        Loot.WarpScrollsAllowed = ScrollsUnlocked;
+        Loot.ContractsAllowed = ContractsUnlocked;
         Campaign = campaign;
         Story = campaign && story;
 
@@ -442,7 +461,7 @@ public partial class ServerWorld
                 ScatterRadius = 1.1f,
                 NoRespawn = true,
             });
-        if (MapIndex == 3 || run?.Boss == true)
+        if (MapIndex == 3 || (run?.Boss == true && _scrollRoom >= run.Rooms))
             Packs.Add(new PackSpawner
             {
                 Position = Map.BossSpot,
@@ -493,17 +512,21 @@ public partial class ServerWorld
         if (newIndex == 1) Loop = ++_forestEntries;
         // Every defense sortie gets a freshly generated arena too.
         if (newIndex == DefenseMapIndex) _defenseEntries++;
+        // A scroll zone "of the Long Road" chains rooms: re-entering the scroll map
+        // from itself is the next room.
+        _scrollRoom = newIndex == ScrollMapIndex ? (MapIndex == ScrollMapIndex ? _scrollRoom + 1 : 1) : 0;
         MapIndex = newIndex;
         var newKind = newIndex == 0 ? (Story ? MapKind.RuinsHub : MapKind.Hub)
             : newIndex == DefenseMapIndex ? MapKind.Defense
             : newIndex == TutorialMapIndex ? MapKind.Tutorial
             : newIndex == StoryRoadIndex ? MapKind.StoryRoad
+            : newIndex == BasementMapIndex ? MapKind.Archive
             : newIndex == ScrollMapIndex ? (_scrollRun?.Defense == true ? MapKind.Defense : MapKind.Forest)
             : MapKind.Forest;
         int seed = newIndex == DefenseMapIndex
             ? unchecked(_runSeed * 31 + _defenseEntries * 65537 + 12345)
-            : newIndex is TutorialMapIndex or StoryRoadIndex ? TutorialSeed
-            : newIndex == ScrollMapIndex ? (_scrollRun?.Seed ?? CampaignMapSeed(9))
+            : newIndex is TutorialMapIndex or StoryRoadIndex or BasementMapIndex ? TutorialSeed
+            : newIndex == ScrollMapIndex ? unchecked((_scrollRun?.Seed ?? CampaignMapSeed(9)) + _scrollRoom * 7919)
             : CampaignMapSeed(newIndex);
         var theme = newIndex == ScrollMapIndex
             ? Data.ZoneThemes.FirstOrDefault(t => t.Id == _scrollRun?.ThemeId) ?? _theme
@@ -568,6 +591,7 @@ public partial class ServerWorld
         if (newIndex > 0) SetupForest(); // packs spawn AFTER the map broadcast
         else if (newIndex == DefenseMapIndex) SetupDefense();
         else if (newIndex is TutorialMapIndex or StoryRoadIndex) SetupTutorial();
+        else if (newIndex == BasementMapIndex) SetupArchive();
         else if (newIndex == ScrollMapIndex)
         {
             if (Map.Kind == MapKind.Defense) SetupDefense();
@@ -583,6 +607,8 @@ public partial class ServerWorld
     private ZoneTheme ThemeFor(MapKind kind) =>
         kind == MapKind.Hub
             ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "sanctum") ?? _theme
+            : kind == MapKind.Archive
+                ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "archive") ?? _theme
             : kind is MapKind.Tutorial or MapKind.StoryRoad or MapKind.RuinsHub
                 ? Data.ZoneThemes.FirstOrDefault(t => t.Id == "graveyard") ?? _theme
                 : Story && kind == MapKind.Forest
@@ -634,7 +660,7 @@ public partial class ServerWorld
         {
             var candidates = new (Vector2 pos, int target, HashSet<int> ready, string name)[]
             {
-                (Map.ExitDoor, MapIndex >= 3 ? 0 : MapIndex + 1, _readyAtDoor, Map.Kind == MapKind.RuinsHub ? "the stairs" : "the door"),
+                (Map.ExitDoor, Map.Kind == MapKind.RuinsHub ? BasementMapIndex : MapIndex >= 3 ? 0 : MapIndex + 1, _readyAtDoor, Map.Kind == MapKind.RuinsHub ? "the stairs" : "the door"),
                 (Map.DefenseDoor, DefenseMapIndex, _readyAtDefenseDoor, "the caravan door"),
                 (Map.TutorialDoor, TutorialMapIndex, _readyAtTutorialDoor, "the old road door"),
                 // The ruins: the doorway back out to the road, and the portal when it's open.
@@ -656,13 +682,15 @@ public partial class ServerWorld
             if (Vector2.Distance(p.Position, Map.ExitDoor) > 2.6f) return;
             if (ExitLocked)
             {
-                _events.MessageFor(p, "The way is sealed — the Gravelord still stands.");
+                _events.MessageFor(p, BossAlive ? "The way is sealed — the Gravelord still stands." : "The way is sealed — beat every wave first.");
                 return;
             }
-            doorTarget = MapIndex >= 3 || MapIndex < 0 ? 0 : MapIndex + 1;
+            // A scroll zone with rooms left leads deeper; everything else authored leads home.
+            bool deeper = MapIndex == ScrollMapIndex && _scrollRun != null && _scrollRoom < _scrollRun.Rooms;
+            doorTarget = deeper ? ScrollMapIndex : MapIndex >= 3 || MapIndex < 0 ? 0 : MapIndex + 1;
             set = _readyAtDoor;
             others = new[] { _readyAtDefenseDoor, _readyAtTutorialDoor };
-            doorName = "the door";
+            doorName = deeper ? "the way deeper" : Map.Kind == MapKind.Archive ? "the stairs up" : "the door";
         }
         bool nowReady = set.Add(playerId);
         if (!nowReady) set.Remove(playerId);
@@ -674,7 +702,7 @@ public partial class ServerWorld
         _events.ZoneStateChanged(this);
         if (alive > 0 && set.Count >= alive)
         {
-            if (doorTarget == ScrollMapIndex) EnterPortal();
+            if (doorTarget == ScrollMapIndex && MapIndex != ScrollMapIndex) EnterPortal();
             else
             {
                 _roadReturn = doorTarget == StoryRoadIndex && Map.Kind == MapKind.RuinsHub;
@@ -806,7 +834,7 @@ public partial class ServerWorld
         {
             _wipeReturnAt = Time + 2.5f;
             foreach (var pl in Players.Values)
-                _events.MessageFor(pl, "The party has fallen — the Sanctum reclaims you.");
+                _events.MessageFor(pl, Story ? "The party has fallen — you come to upstairs, in the camp." : "The party has fallen — the Sanctum reclaims you.");
             return;
         }
         if (Time < _wipeReturnAt) return;
@@ -859,7 +887,7 @@ public partial class ServerWorld
                 SpawnDrop(item, chest.Position + new Vector2(0.4f + 0.5f * i, 0.55f), chest.Height);
         }
         // A chest is the likeliest place to find a sealed warp scroll.
-        if (_rng.NextDouble() < ChestWarpScrollChance)
+        if (ScrollsUnlocked && _rng.NextDouble() < ChestWarpScrollChance)
         {
             var warp = Loot.GenerateWarpScroll(Math.Max(1, ZoneEnemyLevel));
             if (warp != null) SpawnDrop(warp, chest.Position + new Vector2(0.9f, 0.1f), chest.Height);
@@ -986,6 +1014,7 @@ public partial class ServerWorld
         TickDefense(dt);
         TickTutorial();
         TickRuinsHub();
+        TickCodexScene();
         TickSurvival();
         CheckPartyWipe();
 
@@ -2036,6 +2065,7 @@ public partial class ServerWorld
             DamageKind = primary.Key,
             AttackHit = !e.Def.ProjectileIsSpell,
             Added = extra.Count > 0 ? extra : null,
+            SpriteOverride = primary.Key == DamageKind.Cold ? "IceShard" : null,
         };
         Projectiles[pr.Id] = pr;
         _events.ProjectileSpawned(pr);
@@ -3666,7 +3696,8 @@ public partial class ServerWorld
             {
                 float credited = MathF.Min(damage, e.Health);
                 float sxp = credited * e.Def.XpReward * e.XpScale / e.MaxHealth *
-                            Stats.XpBalance.LevelFactor(trainer.Character.Level, e.Level);
+                            Stats.XpBalance.LevelFactor(trainer.Character.Level, e.Level) *
+                            SkillMath.SkillXpGainRate;
                 if (sxp > 0f && GrantSkillXp(trainer, trained, sxp))
                     trainer.SkillXpDirty = true; // batched CharacterChanged, not per hit
             }
@@ -3737,6 +3768,25 @@ public partial class ServerWorld
                 killer.Supplies += DefenseBalance.SupplyPerKill;
                 _events.DefenseStateChanged(this);
             }
+            // The Gilded Codex down: its loose leaves scatter, and the FIRST time it
+            // gives up the sealed scroll that opens the world (and unlocks scrolls).
+            if (Map.Kind == MapKind.Archive && e.Def.Id == "codex")
+            {
+                foreach (var other in Enemies.Values.ToList())
+                    if (!other.Dead && other.Id != e.Id && other.Def.Id == "tome_lesser")
+                        DamageEnemy(other, other.Health + 1f, -1, null);
+                if (!CodexFelled)
+                {
+                    CodexFelled = true;
+                    SetScrollsUnlocked(true);
+                    var first = CodexScroll();
+                    if (first != null) SpawnDrop(first, e.Position, e.Height);
+                    _codexSceneAt = -1f; // armed: plays on the next return to the camp
+                    foreach (var pl in Players.Values)
+                        _events.MessageFor(pl, "Something falls from between the Codex's pages: a scroll, sealed with wax.");
+                }
+                _events.ZoneStateChanged(this);
+            }
             // Tutorial gate boss down: the victory scene plays and the gate unlocks.
             if (Map.IsRoad && e.Id == _bossEnemyId && !_roadReturn)
             {
@@ -3792,20 +3842,37 @@ public partial class ServerWorld
         // instead); a boss drops a unique one time in three.
         bool rareKill = EliteAffixInfo.IsRare(e.Affixes);
         int lootRolls = e.Affixes == EliteAffix.None || e.Affixes == EliteAffix.Minion ? 1 : rareKill ? 3 : 2;
+        var killDrops = new List<ItemInstance>();
         for (int roll = 0; roll < lootRolls; roll++)
-            foreach (var item in Loot.RollDrops(e.Def.LootTableId, e.Level, ZoneLootMultiplier))
-                SpawnDrop(item, e.Position, e.Height);
+            killDrops.AddRange(Loot.RollDrops(e.Def.LootTableId, e.Level, ZoneLootMultiplier));
         if (rareKill)
         {
             var rareTable = Data.GetLootTable(e.Def.LootTableId);
-            var prize = _rng.NextDouble() < 0.125 ? Loot.GenerateUnique(e.Level)
+            var prize = _rng.NextDouble() < 0.08 ? Loot.GenerateUnique(e.Level)
                 : rareTable != null ? Loot.GenerateEquipment(rareTable, e.Level, ItemRarity.Rare) : null;
-            if (prize != null) SpawnDrop(prize, e.Position, e.Height);
+            if (prize != null) killDrops.Add(prize);
         }
         if (e.Affixes.HasFlag(EliteAffix.Boss) && _rng.NextDouble() < 0.34)
         {
             var bossUnique = Loot.GenerateUnique(e.Level);
-            if (bossUnique != null) SpawnDrop(bossUnique, e.Position, e.Height);
+            if (bossUnique != null) killDrops.Add(bossUnique);
+        }
+        // Uniques are SPACED: one per kill at most, and none within UniqueSpacing of the
+        // last one anywhere (a pack can't shake two out) — a blocked unique becomes a rare.
+        foreach (var item in killDrops)
+        {
+            var drop = item;
+            if (drop.GetBase(Data)?.Unique == true)
+            {
+                if (Time - _lastUniqueAt < UniqueSpacing)
+                {
+                    var swapTable = Data.GetLootTable(e.Def.LootTableId);
+                    drop = swapTable != null ? Loot.GenerateEquipment(swapTable, e.Level, ItemRarity.Rare) : null;
+                    if (drop == null) continue;
+                }
+                else _lastUniqueAt = Time;
+            }
+            SpawnDrop(drop, e.Position, e.Height);
         }
 
         // Gold drop, scaled by enemy level.

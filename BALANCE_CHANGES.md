@@ -1828,3 +1828,52 @@ item's flavour under it.
   onto the podium (debug `open_portal …`); debug `warp_home` goes home from
   anywhere. Protocol 47 (zone state carries the portal, zone title and survival
   wave; map changes carry the weather).
+
+## Batch 82 addendum: the camps set up, the archive below, gated drops
+
+- **The crew has set up.** Per the annotated layout: Weaver keeps the cart under
+  the stairs with a cloth-covered stall of goods, an awning hung off the west
+  wall, a rug, a crate and sacks; Maren's study runs along the bar's north-east
+  wall — a lectern with an open book, stacks of books, a bedroll, guttering
+  candles (lit) and a rug; Brakka's corner is the stem's west wall — a weapon
+  rack (spear, sword, shield), a lit brazier, a bedroll, a crate for a table and
+  a stool. Dressing is map-authored (`GameMap.Props`, a prop key plus optional
+  light) and drawn straight from the map by the client, so nothing new crosses
+  the wire.
+- **Skill XP** now earns at 45% of what it did (`SkillMath.SkillXpGainRate`) —
+  a skill no longer hits rank 6 inside a room or two. The rank curve is unchanged.
+- **Drops**: gear 28% -> 24%, gold 35% -> 30%, ordinary-kill uniques 0.4% ->
+  0.3%; a rare's prize is a unique one time in twelve (was one in eight). Uniques
+  are SPACED: at most one per kill and none within 90 s of the last, anywhere —
+  a blocked unique becomes a rare instead. No more two Grave Thrifts off one pack.
+- **Loot never buries enemies.** Ground items sort at floor level, under any
+  body standing near them; and while a living enemy is within 7 tiles, item
+  labels get out of the way (hold Alt to read the loot mid-fight, hovered labels
+  stay).
+- **Gated drops (story only).** Sealed warp scrolls do not exist in the world
+  until the Codex has given up the first one; mercenary contracts do not drop
+  until the sellsword is open for hire (not yet). Chests obey the same gate. The
+  test grounds have everything unlocked from the start.
+- **The Archive.** The ruins' stairs now lead DOWN into the archive: one small
+  (30x16), extra-dark authored room — bookcases along the long walls with gaps
+  to slip through, two shelf islands mid-room, paper everywhere, six candles
+  and a reading desk the only light besides what the party carries and the
+  tomes' own glow. The stairs up are never sealed. Enemies are living books:
+  **Frost Tomes** (blue, hover, keep their distance, shoot ice shards — spell
+  projectiles, Cold), **Shade Tomes** (purple, hover, bite), and at the desk
+  **The Gilded Codex** (gold, larger, backs away and casts an arcane burst; its
+  main attack is SUMMONING Loose Leaves — 5-hp golden tomes, four every 11 s
+  from 2.5 s into the fight — which all fall with it). Tomes are bloodless.
+- **Dying below** (the whole party down) puts everyone back upstairs in the camp,
+  alive, after a beat — the existing wipe rule with a story message.
+- **The Codex's scroll.** Its FIRST fall drops a fixed sealed scroll: Mirewood ·
+  of the Long Road · of the Warden — the forest, three rooms deep, the Gravelord
+  on the last, exactly the test grounds' run. That fall also unlocks scrolls for
+  every drop table. Back in the camp Maren explains it once (`codex_scroll`
+  scene) and points at the podium. Later falls roll the boss table.
+- **Rooms.** A scroll can chain rooms ("of the Long Road", a new seal in the
+  pool): each room's exit leads to the next, a fresh map each time, the boss
+  only on the last, the last's exit leads home. The banner shows "(2/3)".
+- Dev: `ARPG_DEVUI=basement` walks down the stairs three seconds in (debug
+  `warp_basement`); debug `give_codex_scroll`, `unlock_scrolls`. `--nettest
+  story` runs the story sections alone.

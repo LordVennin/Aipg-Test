@@ -45,6 +45,7 @@ public static class SpriteGen
                 DrawSkeletonKnight(tint, def.Id, 2),
             },
             "Necro" => new[] { DrawNecromancer(tint, 0), DrawNecromancer(tint, 1) },
+            "Tome" => new[] { DrawTome(tint, def.Id, 0), DrawTome(tint, def.Id, 1), DrawTome(tint, def.Id, 2) },
             _ => null,
         };
         _cache[key] = frames;
@@ -2408,8 +2409,191 @@ public static class SpriteGen
         { for (int y = y0; y < y0 + rh; y++) for (int x = x0; x < x0 + rw; x++) Set(x, y, c); }
         void VLine(int x, int y0, int len, Color c) { for (int y = y0; y < y0 + len; y++) Set(x, y, c); }
 
+        var plank = new Color(118, 88, 56); var plankDark = Shade(plank, 0.65f); var plankLite = Shade(plank, 1.25f);
+        var cloth = new Color(150, 62, 58); var clothDark = Shade(cloth, 0.7f);
+        var paper = new Color(226, 216, 190); var paperDark = Shade(paper, 0.78f);
+        var flame = new Color(255, 190, 90); var flameCore = new Color(255, 240, 200);
+        var iron = new Color(70, 68, 78); var ironLite = Shade(iron, 1.4f);
         switch ($"{style}:{kind}")
         {
+            // ---------------- the crew's camps in the ruins
+            case "camp:stall":
+            {
+                Init(24, 17);
+                Rect(2, 7, 20, 3, plank); Rect(2, 9, 20, 1, plankDark);       // table top
+                VLine(4, 10, 6, plankDark); VLine(19, 10, 6, plankDark);       // legs
+                Rect(1, 4, 22, 3, cloth); Rect(1, 6, 22, 1, clothDark);      // cloth spread
+                for (int x = 2; x < 22; x += 4) Rect(x, 4, 2, 2, clothDark); // stripes
+                Rect(5, 1, 2, 3, new Color(90, 140, 200)); Set(5, 0, new Color(60, 80, 120));   // bottle
+                Rect(9, 2, 3, 2, paper); Set(12, 2, paperDark);                                   // scroll
+                Rect(14, 1, 3, 3, new Color(150, 110, 76)); Set(15, 0, Shade(new Color(150, 110, 76), 0.7f)); // pot
+                Rect(18, 2, 3, 2, new Color(200, 170, 80));                                       // coin stack
+                break;
+            }
+            case "camp:awning":
+            {
+                Init(16, 24);
+                VLine(2, 2, 20, plankDark); VLine(13, 4, 18, plankDark);       // poles
+                Rect(1, 1, 14, 2, plank);                                       // crossbar
+                for (int y = 3; y < 14; y++) Rect(2, y, 12, 1, (y / 3) % 2 == 0 ? cloth : clothDark); // hanging cloth
+                Set(3, 14, clothDark); Set(7, 14, clothDark); Set(11, 14, clothDark); // ragged hem
+                break;
+            }
+            case "camp:rug":
+            {
+                Init(22, 11);
+                var rugA = new Color(120, 52, 56); var rugB = new Color(160, 120, 70);
+                for (int y = 1; y < 10; y++)
+                {
+                    int w2 = 10 - Math.Abs(y - 5) * 2;
+                    Rect(11 - w2, y, w2 * 2, 1, rugA);
+                    if (y is 3 or 5 or 7) Rect(11 - w2 + 2, y, Math.Max(0, w2 * 2 - 4), 1, rugB);
+                }
+                Set(11, 5, rugB); Set(10, 5, rugA); Set(12, 5, rugA);
+                break;
+            }
+            case "camp:crate":
+            {
+                Init(12, 11);
+                Rect(1, 2, 10, 8, plank); Rect(1, 9, 10, 1, plankDark);
+                Rect(1, 1, 10, 1, plankLite);
+                VLine(1, 1, 9, plankDark); VLine(10, 1, 9, plankDark);
+                Rect(2, 5, 8, 1, plankDark);
+                Set(3, 3, plankLite); Set(8, 7, plankLite);
+                break;
+            }
+            case "camp:sacks":
+            {
+                Init(16, 10);
+                var sack = new Color(170, 146, 100); var sackDark = Shade(sack, 0.7f);
+                Rect(1, 4, 7, 5, sack); Rect(2, 3, 5, 1, sack); Rect(1, 8, 7, 1, sackDark); Rect(3, 2, 3, 1, sackDark);
+                Rect(8, 3, 7, 6, sack); Rect(9, 2, 5, 1, sack); Rect(8, 8, 7, 1, sackDark); Rect(10, 1, 3, 1, sackDark);
+                Set(4, 6, sackDark); Set(11, 5, sackDark);
+                break;
+            }
+            case "camp:lectern":
+            {
+                Init(14, 22);
+                Rect(4, 16, 6, 5, plankDark); Rect(3, 20, 8, 1, plankDark);     // foot
+                VLine(6, 8, 8, plank); VLine(7, 8, 8, plankDark);               // post
+                Rect(2, 5, 10, 4, plank); Rect(2, 8, 10, 1, plankDark);         // slanted top
+                Rect(3, 2, 8, 4, paper); Rect(3, 5, 8, 1, paperDark);          // the open book
+                Set(6, 2, paperDark); Set(7, 2, paperDark);                    // its spine
+                for (int x = 4; x < 10; x += 2) { if (x != 6) Set(x, 3, new Color(80, 70, 80)); }
+                break;
+            }
+            case "camp:books":
+            {
+                Init(12, 10);
+                Rect(1, 6, 9, 3, new Color(110, 60, 60)); Rect(1, 8, 9, 1, new Color(70, 40, 40));
+                Rect(2, 3, 8, 3, new Color(70, 90, 130)); Rect(2, 5, 8, 1, new Color(50, 60, 90));
+                Rect(3, 1, 6, 2, new Color(120, 110, 70)); Rect(3, 2, 6, 1, new Color(80, 74, 46));
+                VLine(9, 6, 2, paper); VLine(9, 3, 2, paper); VLine(8, 1, 1, paper); // page edges
+                break;
+            }
+            case "camp:bedroll":
+            {
+                Init(22, 10);
+                var wool = new Color(96, 84, 110); var woolDark = Shade(wool, 0.7f); var woolLite = Shade(wool, 1.25f);
+                Rect(2, 3, 18, 5, wool); Rect(2, 7, 18, 1, woolDark);
+                Rect(2, 2, 18, 1, woolLite);
+                Rect(4, 4, 5, 3, paper); Rect(4, 6, 5, 1, paperDark); // pillow
+                Rect(13, 4, 6, 1, woolDark);                          // fold
+                break;
+            }
+            case "camp:candles":
+            {
+                Init(12, 12);
+                Rect(1, 9, 10, 2, plankDark); // a board they stand on
+                foreach (var (cx, ch) in new[] { (2, 4), (6, 6), (9, 3) })
+                {
+                    Rect(cx, 9 - ch, 2, ch, paper); Set(cx, 9 - ch, paperDark);
+                    Set(cx, 8 - ch, flame); Set(cx + 1, 8 - ch, flame); Set(cx, 7 - ch, flameCore);
+                }
+                break;
+            }
+            case "camp:rack":
+            {
+                Init(18, 24);
+                VLine(2, 2, 21, plankDark); VLine(15, 2, 21, plankDark);        // uprights
+                Rect(2, 4, 14, 1, plank); Rect(2, 12, 14, 1, plank);            // rails
+                VLine(5, 3, 18, ironLite); Rect(4, 2, 3, 2, iron);            // spear
+                VLine(9, 5, 14, ironLite); Rect(8, 5, 3, 1, iron); Rect(9, 18, 1, 2, plankDark); // sword
+                Rect(11, 6, 4, 6, new Color(120, 70, 50)); Rect(12, 7, 2, 4, iron); // shield
+                break;
+            }
+            case "camp:brazier":
+            {
+                Init(14, 20);
+                VLine(3, 12, 7, iron); VLine(10, 12, 7, iron); VLine(6, 13, 6, iron); // legs
+                Rect(2, 9, 10, 3, iron); Rect(2, 8, 10, 1, ironLite);                 // bowl
+                Rect(3, 5, 8, 3, flame); Rect(4, 3, 6, 2, flame); Rect(5, 1, 4, 2, flame);
+                Rect(5, 5, 4, 2, flameCore); Set(6, 3, flameCore);
+                Set(3, 4, flame); Set(10, 4, flame);
+                break;
+            }
+            case "camp:stool":
+            {
+                Init(9, 9);
+                Rect(1, 2, 7, 2, plank); Rect(1, 3, 7, 1, plankDark);
+                VLine(2, 4, 4, plankDark); VLine(6, 4, 4, plankDark);
+                break;
+            }
+
+            // ---------------- the archive
+            case "archive:feature":
+            {
+                // A bookcase standing on its block: shelves of coloured spines. Variant 1 is
+                // half-emptied, spines fallen over.
+                Init(22, 30);
+                Rect(1, 1, 20, 28, plankDark); Rect(2, 2, 18, 26, Shade(plank, 0.55f));
+                var spines = new[] { new Color(120, 60, 60), new Color(70, 90, 130), new Color(120, 110, 70), new Color(80, 110, 80), new Color(110, 70, 120), paper };
+                var rngS = new Random(variant * 7 + 3);
+                for (int shelf = 0; shelf < 4; shelf++)
+                {
+                    int sy = 3 + shelf * 6;
+                    Rect(2, sy + 5, 18, 1, plank); // the shelf board
+                    int x = 3;
+                    while (x < 19)
+                    {
+                        int bw = 1 + rngS.Next(2), bh = 3 + rngS.Next(2);
+                        bool gap = variant == 1 && rngS.Next(3) == 0;
+                        if (!gap) Rect(x, sy + 5 - bh, bw, bh, spines[rngS.Next(spines.Length)]);
+                        else if (rngS.Next(2) == 0) Rect(x, sy + 4, 3, 1, spines[rngS.Next(spines.Length)]); // fallen
+                        x += bw + (gap ? 2 : 0);
+                    }
+                }
+                Rect(1, 1, 20, 1, plank);
+                break;
+            }
+            case "archive:clutter":
+            {
+                if (variant == 0) { Init(8, 6); Rect(1, 1, 6, 4, paper); Rect(1, 4, 6, 1, paperDark); Set(3, 2, new Color(90, 80, 90)); }
+                else if (variant == 1) { Init(11, 8); Rect(1, 3, 7, 4, paper); Rect(3, 1, 7, 4, paperDark); Rect(3, 1, 7, 1, paper); Set(5, 2, new Color(90, 80, 90)); }
+                else if (variant == 2) { Init(10, 6); Rect(1, 2, 8, 3, paper); Set(1, 2, paperDark); Set(8, 4, paperDark); Set(4, 3, new Color(90, 80, 90)); Set(6, 3, new Color(90, 80, 90)); }
+                else { Init(9, 6); Rect(1, 1, 7, 4, new Color(110, 60, 60)); Rect(1, 4, 7, 1, new Color(70, 40, 40)); VLine(7, 1, 3, paper); }
+                break;
+            }
+            case "archive:candle":
+            {
+                Init(8, 11);
+                Rect(2, 8, 4, 2, iron); Rect(1, 9, 6, 1, iron);
+                Rect(3, 3, 2, 5, paper); Set(3, 3, paperDark);
+                Set(3, 2, flame); Set(4, 2, flame); Set(3, 1, flameCore); Set(4, 0, flame);
+                break;
+            }
+            case "archive:desk":
+            {
+                Init(28, 20);
+                Rect(2, 9, 24, 3, plank); Rect(2, 11, 24, 1, plankDark); Rect(2, 8, 24, 1, plankLite); // top
+                VLine(4, 12, 7, plankDark); VLine(23, 12, 7, plankDark); Rect(4, 18, 20, 1, plankDark);
+                Rect(6, 4, 12, 4, paper); Rect(6, 7, 12, 1, paperDark); Set(11, 4, paperDark); Set(12, 4, paperDark); // open book
+                for (int x = 7; x < 17; x += 2) { if (x is not (11 or 12)) Set(x, 5, new Color(80, 70, 80)); }
+                Rect(20, 2, 2, 6, paper); Set(20, 1, flame); Set(21, 1, flame); Set(20, 0, flameCore); // candle
+                Rect(2, 5, 3, 3, new Color(70, 90, 130)); Rect(2, 7, 3, 1, new Color(50, 60, 90)); // a closed book
+                break;
+            }
+
             case "graveyard:clutter":
                 if (variant == 0) // rounded gravestone
                 {
@@ -4065,6 +4249,68 @@ public static class SpriteGen
     // ------------------------------------------------------------------ ghoul (hunched spitter)
 
     /// <summary>Hunched four-legged spitter with a gaping jaw and back spines. Faces right.</summary>
+    /// <summary>A living book seen face-on: spine in the middle, the two covers spread
+    /// like wings with the pages showing, a rune burning on the spine. Three frames
+    /// beat the covers (wide, raised, wide) — the "flap". Drawn high on the canvas so
+    /// the renderer's hover lift keeps it off the floor.</summary>
+    private static Texture2D DrawTome(Color coverTint, string seedKey, int frame)
+    {
+        var c = new Canvas();
+        var cover = coverTint;
+        var coverDark = Shade(coverTint, 0.62f);
+        var coverLite = Shade(coverTint, 1.3f);
+        var spine = Shade(coverTint, 0.5f);
+        var page = new Color(236, 226, 200);
+        var pageDark = new Color(198, 186, 156);
+        var ink = new Color(70, 60, 70);
+        var rune = new Color(
+            Math.Min(255, coverTint.R + 90), Math.Min(255, coverTint.G + 90), Math.Min(255, coverTint.B + 90));
+        // Frame 1 raises the covers (narrower, taller); 0 and 2 spread them wide.
+        bool raised = frame == 1;
+        int cx = 13;
+        int top = raised ? 9 : 13, bottom = raised ? 25 : 24;
+        int span = raised ? 6 : 10; // cover width each side
+        // Left cover: a slab that leans up-and-out when raised.
+        for (int y = top; y <= bottom; y++)
+        {
+            int inset = raised ? Math.Max(0, (y - top) / 4) : Math.Max(0, (bottom - y) / 6);
+            int x0 = cx - 1 - span + inset, x1 = cx - 2;
+            for (int x = x0; x <= x1; x++)
+            {
+                bool edge = x == x0 || y == top || y == bottom;
+                c.Set(x, y, edge ? coverDark : cover);
+                c.Set(cx + 1 + (cx - 1 - x), y, edge ? coverDark : cover); // mirrored right cover
+            }
+        }
+        // Pages: inset on both covers, ruled with faint ink lines.
+        for (int y = top + 2; y <= bottom - 2; y++)
+        {
+            int inset = raised ? Math.Max(0, (y - top) / 4) : Math.Max(0, (bottom - y) / 6);
+            int x0 = cx - 1 - span + inset + 2, x1 = cx - 3;
+            for (int x = x0; x <= x1; x++)
+            {
+                var pc = ((y - top) % 3 == 0 && x > x0 && x < x1) ? ink : (y == bottom - 2 ? pageDark : page);
+                c.Set(x, y, pc);
+                c.Set(cx + 1 + (cx - 1 - x), y, pc);
+            }
+        }
+        // Spine: dark, with the rune burning on it.
+        c.Rect(cx - 1, top - 1, 3, bottom - top + 3, spine);
+        c.Rect(cx - 1, top - 1, 3, 1, coverLite);
+        int ry = (top + bottom) / 2;
+        c.Set(cx, ry - 2, rune); c.Set(cx, ry - 1, rune); c.Set(cx, ry, rune); c.Set(cx, ry + 1, rune);
+        c.Set(cx - 1, ry - 1, rune); c.Set(cx + 1, ry - 1, rune);
+        c.Set(cx - 1, ry + 1, rune); c.Set(cx + 1, ry + 1, rune);
+        // A few loose leaves trailing below.
+        var rng = new Random((seedKey + "t" + frame).GetHashCode() & int.MaxValue);
+        for (int i = 0; i < 3; i++)
+        {
+            int lx = cx - 6 + rng.Next(12), ly = bottom + 2 + rng.Next(4);
+            c.Set(lx, ly, page); c.Set(lx + 1, ly, pageDark);
+        }
+        return c.Bake(_device);
+    }
+
     private static Texture2D DrawGhoul(Color bodyTint, string seedKey, int frame)
     {
         var c = new Canvas();

@@ -1,0 +1,13 @@
+{
+  "Id": "minion",
+  "DropChance": 0.0,
+  "ScrollDropChance": 0.0,
+  "EnchantScrollDropChance": 0.0,
+  "GoldDropChance": 0.12,
+  "GoldMin": 1,
+  "GoldMax": 3,
+  "UniqueDropChance": 0.0,
+  "MercContractDropChance": 0.0,
+  "PetDropChance": 0.0,
+  "WarpScrollDropChance": 0.0
+}

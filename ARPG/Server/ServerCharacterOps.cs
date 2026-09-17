@@ -587,6 +587,21 @@ public partial class ServerWorld
                 // Dev shortcut straight back to the hub from anywhere.
                 if (Campaign && MapIndex != 0) TransitionTo(0);
                 break;
+            case "warp_basement":
+                // Dev shortcut down into the archive (story).
+                if (Campaign && Story) TransitionTo(BasementMapIndex);
+                break;
+            case "give_codex_scroll":
+            {
+                // Dev: the Codex's fixed scroll (the Mirewood, three rooms, the Gravelord).
+                var cs = CodexScroll();
+                if (cs != null) GiveItem(p, cs);
+                _events.CharacterChanged(p);
+                break;
+            }
+            case "unlock_scrolls":
+                SetScrollsUnlocked(true);
+                break;
             case "spawn_enemy":
             {
                 string type = string.IsNullOrEmpty(arg)

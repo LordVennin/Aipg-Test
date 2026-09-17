@@ -189,6 +189,8 @@ public class HudUI
                 ? "The Sanctum"
                 : zMap?.Kind == World.MapKind.RuinsHub
                     ? "The Ruins"
+                    : zMap?.Kind == World.MapKind.Archive
+                    ? "The Archive"
                     : zMap?.IsRoad == true
                         ? "The Old Road"
                         : sealedZone ? $"Sealed Zone: {_client.World.ZoneTitle}"
@@ -199,6 +201,8 @@ public class HudUI
                 : zMap?.Kind == World.MapKind.RuinsHub
                 ? (_client.World.PortalOpen ? $"the portal stands open — {_client.World.PortalTitle}"
                    : _client.World.ZoneLoop > 1 ? "the camp holds — the stairs wait" : "head below and see what you can find")
+                : zMap?.Kind == World.MapKind.Archive
+                ? "the dark under the camp — something gilded keeps the far end"
                 : zMap?.IsRoad == true
                 ? (sealedZone ? "hunt the road back west — the Barrow Lord holds the far end" : "clear the way to the ruins")
                 : sealedZone && _client.World.SurvivalTotal > 0

@@ -1,9 +1,9 @@
 {
   "Id": "default",
-  "DropChance": 0.28,
+  "DropChance": 0.24,
   "ScrollDropChance": 0.06,
   "EnchantScrollDropChance": 0.08,
-  "GoldDropChance": 0.35,
+  "GoldDropChance": 0.30,
   "GoldMin": 4,
   "GoldMax": 14,
   "RarityWeightNormal": 45,
@@ -24,5 +24,6 @@
     "Bow": 70,
     "Quiver": 45
   },
-  "WarpScrollDropChance": 0.015
+  "WarpScrollDropChance": 0.015,
+  "UniqueDropChance": 0.003
 }
