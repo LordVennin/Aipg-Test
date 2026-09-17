@@ -119,5 +119,27 @@
       "litter:3E482C",
       "dirt:5C4A32"
     ]
+  },
+  {
+    "Id": "archive",
+    "Name": "The Archive",
+    "Background": "050407",
+    "FloorA": "2E2836",
+    "FloorB": "282331",
+    "FloorC": "342E3E",
+    "FloorD": "231E2B",
+    "CliffFace": "4A4052",
+    "ElevatedTop": "3A3444",
+    "WallFace": "4E4238",
+    "WallTop": "2E2620",
+    "RampTint": "6A6070",
+    "DeckA": "5A4A32",
+    "DeckB": "50422C",
+    "DeckLip": "2E2418",
+    "PropStyle": "archive",
+    "ClutterDensity": 0.09,
+    "WallFeatureChance": 1.0,
+    "StoneBrick": true,
+    "AmbientLight": "34324A"
   }
 ]

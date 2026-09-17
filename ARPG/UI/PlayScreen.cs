@@ -102,6 +102,7 @@ public class PlayScreen : IScreen
     private bool _devWarpTutorial;
     private string _devGiveScroll;
     private string _devOpenPortal;
+    private bool _devWarpBasement;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     /// <summary>The tooltip held open by Alt (and where its mouse anchor was), so the
@@ -286,6 +287,7 @@ public class PlayScreen : IScreen
             // portal[:same] — seal one straight onto the podium (captures of the open portal).
             var scrollToken = devTokens.FirstOrDefault(t => t.StartsWith("scroll"));
             if (scrollToken != null) _devGiveScroll = scrollToken.Contains(':') ? scrollToken.Split(':')[1] : "rare";
+            if (devTokens.Contains("basement")) _devWarpBasement = true;
             var portalToken = devTokens.FirstOrDefault(t => t.StartsWith("portal"));
             if (portalToken != null) _devOpenPortal = portalToken.Contains(':') ? portalToken.Split(':')[1] : "rare";
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
@@ -544,6 +546,11 @@ public class PlayScreen : IScreen
         {
             _devWarpTutorial = false;
             _client.SendDebugCommand("warp_tutorial");
+        }
+        if (_devWarpBasement && _clientTime > 3f)
+        {
+            _devWarpBasement = false;
+            _client.SendDebugCommand("warp_basement");
         }
         if (_devGiveScroll != null && _clientTime > 2f)
         {

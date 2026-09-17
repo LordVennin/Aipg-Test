@@ -155,9 +155,88 @@ public static class HeadlessNetTest
         SPump(0.4f);
         storyA.RequestDoorReady();
         SPump(1.2f);
-        Check(sw.MapIndex == 1 && sw.Map.Kind == World.MapKind.Forest && sw.Map.Theme?.Id == "tomb" &&
-              storyA.World.Map.Theme?.Id == "tomb",
-              $"the stairs lead into the lower levels (theme {sw.Map.Theme?.Id})");
+        // ------------------------------------------------------------------ Batch 82: the archive, the Codex, the crew's camps
+        Console.WriteLine("\n-- Batch 82: the camps set up, the archive below, the Gilded Codex, gated drops --");
+        Check(sw.MapIndex == Server.ServerWorld.BasementMapIndex && sw.Map.Kind == World.MapKind.Archive &&
+              sw.Map.Theme?.Id == "archive" && storyA.World.Map.Kind == World.MapKind.Archive && storyA.World.Map.Theme?.Id == "archive",
+              $"the stairs lead down into the archive (theme {sw.Map.Theme?.Id}, both sides)");
+        var archive = sw.Map;
+        Check(archive.Width == 30 && archive.Height == 16 && archive.Theme.AmbientLight == "34324A" &&
+              archive.Props.Count(pr => pr.Key == "archive:candle") >= 5 && archive.Props.Any(pr => pr.Key == "archive:desk") &&
+              archive.IsSolid(4, 1) && !archive.IsSolid(5, 1) && !archive.IsSolid(4, 2) && archive.IsSolid(11, 5) && archive.ExitDoorStyle == World.DoorStyle.RuinArch &&
+              archive.ExitDoor.X < 3f && archive.BossSpot.X > archive.Width - 6,
+              "a small, extra-dark room: shelves along the walls and across the middle, candles, a reading desk at the far end, the way up at the near end");
+        Check(!sw.ExitLocked, "the stairs back up are never sealed");
+        var storyP = sw.Players.Values.First();
+        var tomes = sw.Enemies.Values.Where(e => e.Def.Id.StartsWith("tome_")).ToList();
+        var codex = sw.Enemies.Values.FirstOrDefault(e => e.Def.Id == "codex");
+        Check(tomes.Count >= 12 && tomes.Any(e => e.Def.Id == "tome_frost") && tomes.Any(e => e.Def.Id == "tome_shade") &&
+              codex != null && codex.Affixes.HasFlag(Server.EliteAffix.Boss) && sw.BossAlive &&
+              data.Enemies["tome_frost"].Ranged && data.Enemies["tome_frost"].ProjectileIsSpell && data.Enemies["tome_frost"].DamageTypes.ContainsKey(Skills.DamageKind.Cold) &&
+              !data.Enemies["tome_shade"].Ranged && data.Enemies["tome_shade"].AttackRange < 2f &&
+              data.Enemies["codex"].AddSpawnType == "tome_lesser" && data.Enemies["tome_lesser"].MaxHealth == 5 &&
+              data.Enemies.Values.Where(e => e.SpriteStyle == "Tome").All(e => e.Hover && e.Glow.Length > 0) &&
+              data.Enemies["tome_frost"].Glow.StartsWith("6E") && data.Enemies["codex"].Glow.StartsWith("FF"),
+              $"{tomes.Count} tomes between the shelves (frost ones shoot ice, shade ones bite), and the Gilded Codex — a summoner of 5-hp leaves — keeps the desk; all of them hover and glow");
+        Check(!sw.ScrollsUnlocked && !sw.Loot.WarpScrollsAllowed && !sw.ContractsUnlocked && !sw.Loot.ContractsAllowed,
+              "story mode: no sealed scrolls and no mercenary contracts drop before the world has introduced them");
+        var gatedGen = new Items.LootGenerator(data, new Random(99)) { WarpScrollsAllowed = false, ContractsAllowed = false };
+        int gatedFinds = 0;
+        for (int i = 0; i < 3000; i++)
+            gatedFinds += gatedGen.RollDrops("boss", 5, 1f).Count(d => d.GetBase(data).Category == Items.ItemCategory.WarpScroll || d.BaseItemId == "merc_contract");
+        Check(gatedFinds == 0, "gated: three thousand boss kills yield neither a scroll nor a contract");
+        Check(Skills.SkillMath.SkillXpGainRate <= 0.5f && Server.ServerWorld.UniqueSpacing >= 60f &&
+              data.LootTables["default"].DropChance <= 0.25f && data.LootTables["default"].UniqueDropChance <= 0.003f,
+              $"skill XP earns at {Skills.SkillMath.SkillXpGainRate:P0}; uniques never twice within {Server.ServerWorld.UniqueSpacing}s; gear {data.LootTables["default"].DropChance:P0}");
+        // The Codex falls: its first fall gives up THE scroll.
+        storyA.World.Me.Position = codex.Position + new Vector2(-1.6f, 0f);
+        storyA.World.Me.Height = 0f;
+        SPump(0.4f);
+        for (int i = 0; i < 40 && !codex.Dead; i++)
+        {
+            storyA.SendDebugCommand("kill_nearby");
+            storyA.SendDebugCommand("heal");
+            SPump(0.3f);
+        }
+        var codexDrop = sw.Drops.Values.FirstOrDefault(d => d.Item != null && d.Item.GetBase(data).Category == Items.ItemCategory.WarpScroll);
+        Check(codex.Dead && sw.CodexFelled && sw.ScrollsUnlocked && sw.Loot.WarpScrollsAllowed && codexDrop != null &&
+              codexDrop.Item.Modifiers.Any(m => m.ModifierId == "warp_rooms") && codexDrop.Item.Modifiers.Any(m => m.ModifierId == "warp_zone_forest") &&
+              codexDrop.Item.Modifiers.Any(m => m.ModifierId == "warp_boss") && codexDrop.Item.Locked &&
+              !sw.Enemies.Values.Any(e => !e.Dead && e.Def.Id == "tome_lesser"),
+              "the Codex falls, its leaves with it: the sealed scroll (the Mirewood, three rooms, the Gravelord) drops, and scrolls are unlocked from now on");
+        storyA.World.Me.Position = codexDrop.Position + new Vector2(0.3f, 0f);
+        SPump(0.3f);
+        storyA.RequestPickup(codexDrop.DropId);
+        SPump(0.5f);
+        var codexScroll = storyP.Character.Inventory.Items.FirstOrDefault(it => it.Item.Modifiers.Any(m => m.ModifierId == "warp_rooms"));
+        Check(codexScroll != null, "the scroll goes in the bag");
+        // Dying down here puts the party back upstairs; Maren then explains the scroll.
+        int scenesBeforeDeath = storyA.World.CutscenesSeen.Count;
+        storyA.SendDebugCommand("die");
+        SPump(0.4f);
+        Check(!storyP.Alive && sw.MapIndex == Server.ServerWorld.BasementMapIndex, "down in the dark");
+        SPump(3.2f);
+        Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && storyP.Alive && storyP.Health > 0f &&
+              storyA.World.Map.Kind == World.MapKind.RuinsHub,
+              "the fallen party comes to upstairs in the camp");
+        SPump(2.4f);
+        Check(storyA.World.CutscenesSeen.Contains("codex_scroll") && storyA.World.CutscenesSeen.Count == scenesBeforeDeath + 1,
+              "Maren explains the scroll and points at the podium (once)");
+        SPump(0.2f);
+        var ruinsMap = sw.Map;
+        var marenSpot = ruinsMap.NpcSpots[1];
+        var brakkaSpot = ruinsMap.NpcSpots[2];
+        Check(marenSpot.X > 16f && marenSpot.Y < 4f && brakkaSpot.X < 5f && brakkaSpot.Y > 11f && ruinsMap.NpcSpots[0].X < 7f && ruinsMap.NpcSpots[0].Y < 8f &&
+              sw.Npcs.First(n => n.TypeId == "skill_trainer").Position == marenSpot && sw.Npcs.First(n => n.TypeId == "mercenary").Position == brakkaSpot,
+              "the crew camps where they were pointed: Weaver by the cart, Maren along the north-east wall, Brakka in the stem's west corner");
+        Check(ruinsMap.Props.Count >= 15 && ruinsMap.Props.Any(pr => pr.Key == "camp:stall") && ruinsMap.Props.Any(pr => pr.Key == "camp:lectern") &&
+              ruinsMap.Props.Any(pr => pr.Key == "camp:rack") && ruinsMap.Props.Count(pr => pr.Key == "camp:bedroll") == 2 &&
+              ruinsMap.Props.Count(pr => pr.Light.Length > 0) >= 2 &&
+              ruinsMap.Props.Where(pr => pr.Key is "camp:lectern" or "camp:candles").All(pr => Vector2.Distance(pr.Pos, marenSpot) < 3.5f) &&
+              ruinsMap.Props.Where(pr => pr.Key is "camp:rack" or "camp:brazier").All(pr => Vector2.Distance(pr.Pos, brakkaSpot) < 3.5f) &&
+              ruinsMap.Props.Where(pr => pr.Key is "camp:stall" or "camp:awning").All(pr => Vector2.Distance(pr.Pos, ruinsMap.NpcSpots[0]) < 4.5f) &&
+              storyA.World.Map.Props.Count == ruinsMap.Props.Count,
+              $"each camp is dressed for its owner ({ruinsMap.Props.Count} props: stall and awning, lectern and candles, rack and brazier) — the client builds the same set");
 
         // ------------------------------------------------------------------ Batch 81: sealed scrolls, the portal, the road grind
         Console.WriteLine("\n-- Batch 81: sealed warp scrolls, the podium and portal, the road as a grind --");
@@ -198,10 +277,9 @@ public static class HeadlessNetTest
               ruins.GroundHeightAt(ruins.PortalSpot) == ruins.GroundHeightAt(ruins.PodiumSpot) &&
               !ruins.IsSolid((int)ruins.PodiumSpot.X, (int)ruins.PodiumSpot.Y) && !ruins.IsSolid((int)ruins.PortalSpot.X, (int)ruins.PortalSpot.Y),
               "the podium and portal stand on a raised dais in the ruins' east wing, reached by a ramp");
-        var storyP = sw.Players.Values.First();
         storyA.SendDebugCommand("give_warp", "warp_zone_ruins+warp_weather_snow+warp_boss+warp_level_t1");
         SPump(0.4f);
-        var sealedScroll = storyP.Character.Inventory.Items.FirstOrDefault(s => s.Item.GetBase(data).Category == Items.ItemCategory.WarpScroll);
+        var sealedScroll = storyP.Character.Inventory.Items.FirstOrDefault(s => s.Item.Modifiers.Any(m => m.ModifierId == "warp_weather_snow"));
         Check(sealedScroll != null && sealedScroll.Item.Modifiers.Count == 4 && sealedScroll.Item.Locked &&
               storyA.World.MyCharacter.Inventory.Items.Any(s => s.Item.BaseItemId == sealedScroll.Item.BaseItemId),
               "a sealed scroll lands in the bag (server and client)");
@@ -222,7 +300,8 @@ public static class HeadlessNetTest
               $"the scroll burns on the podium and the portal opens onto {sw.PortalTitle} (client sees it too)");
         storyA.SendDebugCommand("give_warp", "rare");
         SPump(0.3f);
-        var spare = storyP.Character.Inventory.Items.First(s => s.Item.GetBase(data).Category == Items.ItemCategory.WarpScroll);
+        var spare = storyP.Character.Inventory.Items.First(s => s.Item.GetBase(data).Category == Items.ItemCategory.WarpScroll &&
+                                                                 s.Item.InstanceId != codexScroll.Item.InstanceId); // not the Codex's
         storyA.RequestUsePodium(spare.Item.InstanceId);
         SPump(0.3f);
         Check(storyP.Character.Inventory.Items.Any(s => s.Item.InstanceId == spare.Item.InstanceId),
@@ -340,6 +419,54 @@ public static class HeadlessNetTest
         SPump(1.2f);
         Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && storyA.World.CutscenesSeen.Count == scenesBeforeGrind,
               "the doorway home works with the boss still standing; no scenes play on a grind");
+        // The Codex's scroll: the Mirewood three rooms deep, the Gravelord on the last.
+        var longRoad = storyP.Character.Inventory.Items.First(it => it.Item.Modifiers.Any(m => m.ModifierId == "warp_rooms"));
+        storyA.World.Me.Position = ruins.PodiumSpot + new Vector2(-1.0f, 0.5f);
+        storyA.World.Me.Height = ruins.GroundHeightAt(ruins.PodiumSpot);
+        SPump(0.3f);
+        storyA.RequestUsePodium(longRoad.Item.InstanceId);
+        SPump(0.4f);
+        storyA.World.Me.Position = ruins.PortalSpot + new Vector2(-0.8f, 0.6f);
+        SPump(0.3f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == Server.ServerWorld.ScrollMapIndex && sw.Map.Kind == World.MapKind.Forest && sw.Map.Theme?.Id == "forest" &&
+              sw.ScrollRoom == 1 && sw.ZoneTitle.Contains("(1/3)") && !sw.BossAlive && !sw.ExitLocked &&
+              storyA.World.ZoneTitle == sw.ZoneTitle,
+              $"room one of three: the Mirewood, no boss yet, the exit open ('{sw.ZoneTitle}')");
+        int room1Seed = sw.Map.Seed;
+        storyA.World.Me.Position = sw.Map.ExitDoor + new Vector2(-1.0f, 0.5f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(sw.Map.ExitDoor);
+        SPump(0.4f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == Server.ServerWorld.ScrollMapIndex && sw.ScrollRoom == 2 && sw.Map.Seed != room1Seed && !sw.BossAlive &&
+              storyA.World.ZoneTitle.Contains("(2/3)"),
+              "the exit leads deeper: room two, a different map");
+        storyA.World.Me.Position = sw.Map.ExitDoor + new Vector2(-1.0f, 0.5f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(sw.Map.ExitDoor);
+        SPump(0.4f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        var lastBoss = sw.Enemies.Values.FirstOrDefault(e => e.Def.Id == "gravelord");
+        Check(sw.ScrollRoom == 3 && lastBoss != null && sw.ExitLocked, "room three: the Gravelord waits and the way home is sealed");
+        storyA.World.Me.Position = lastBoss.Position + new Vector2(-1.5f, 0f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(lastBoss.Position);
+        SPump(0.4f);
+        for (int i = 0; i < 40 && !lastBoss.Dead; i++)
+        {
+            storyA.SendDebugCommand("kill_nearby");
+            storyA.SendDebugCommand("heal");
+            SPump(0.3f);
+        }
+        storyA.SendDebugCommand("heal");
+        storyA.World.Me.Position = sw.Map.ExitDoor + new Vector2(-1.0f, 0.5f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(sw.Map.ExitDoor);
+        SPump(0.4f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(lastBoss.Dead && sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && sw.ScrollRoom == 0,
+              "the Gravelord falls and the last room's exit leads home");
         storyA.Disconnect();
         SPump(0.3f);
         storyServer.Stop();
@@ -931,7 +1058,7 @@ public static class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 481, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Count == 482, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
         Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 46,
               "every full family has a tier X (46 tiered families reach tier 10)");
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&
@@ -6176,9 +6303,11 @@ public static class HeadlessNetTest
             Check(hiddenAtFirst && lurkOnA != null && lurkOnA.RevealedAtMs > 0 && lurkOnA.Rose &&
                   (clientA.World.Effects.Any(fx => fx.Kind == "dirtburst") || clientA.World.BloodDrops.Count + clientA.World.BloodStains.Count > 0),
                   $"a BURIED enemy lies unseen until a player nears ({Vector2.Distance(farSpot, meAOnServer.Position):0.0} tiles) then rises; an unburied one stands in view");
-            Check(data.Enemies.Values.All(d => d.Undead) && server.World.Enemies.Values.Any(e => e.Buried) &&
+            Check(data.Enemies.Values.Where(d => d.SpriteStyle != "Tome").All(d => d.Undead) &&
+                  data.Enemies.Values.Where(d => d.SpriteStyle == "Tome").All(d => !d.Undead && d.Blood.Length == 0) &&
+                  server.World.Enemies.Values.Any(e => e.Buried) &&
                   !server.World.SpawnEnemy("gravelord", farSpot, Server.EliteAffix.Boss, buried: true).Buried,
-                  "every current enemy is undead; bosses never spawn buried");
+                  "every graveyard enemy is undead (the archive's tomes are bloodless paper, never buried); bosses never spawn buried");
             clientA.World.Me.Position = meAOnServer.Position;
             Pump(0.3f);
         }

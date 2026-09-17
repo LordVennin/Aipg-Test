@@ -69,6 +69,17 @@ public class CutscenePlayer
                 steps.Add(new Step(map.ExitDoor, "Odessa",
                     "Head down and see if you can find anything useful. We'll hold the camp.", 3.6f));
                 break;
+            case "codex_scroll":
+            {
+                var maren = map.NpcSpots.Count > 1 ? map.NpcSpots[1] : camp;
+                steps.Add(new Step(maren, "Maren",
+                    "That scroll — look at the seals. It isn't a letter. It's a DOOR.", 3.8f));
+                steps.Add(new Step(map.PodiumSpot != NumVec2.Zero ? map.PodiumSpot : maren, "Maren",
+                    "Set it on the podium out east. The portal opens onto whatever world the seals describe.", 4.2f));
+                steps.Add(new Step(maren, "Maren",
+                    "There will be more of them below, and stranger. Bring me anything ancient you find in there.", 4.0f));
+                break;
+            }
             case "tut_victory":
                 steps.Add(new Step(boss, "Brakka",
                     "HA! Not bad. Not bad at all.", 2.8f));

@@ -69,6 +69,9 @@ public static class SkillMath
     public const float SkillXpGrowth = 0.15f;
     public const float SkillXpStep = 30f;
     public const float SkillXpBase = 60f;
+    /// <summary>Every point of skill XP earned in play is scaled by this: at 1.0 a
+    /// skill hit rank 6 inside a room or two, which made ranks meaningless.</summary>
+    public const float SkillXpGainRate = 0.45f;
 
     public static float XpToNextLevel(int level) => XpToNextLevel(level, SkillXpBase);
 

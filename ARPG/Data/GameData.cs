@@ -103,6 +103,12 @@ public class EnemyDefinition
     /// <summary>Undead: packs of these may spawn BURIED, lying unseen under the earth
     /// until a player comes near, then clawing up out of the ground.</summary>
     public bool Undead { get; set; }
+    /// <summary>Hovers: drawn lifted off the ground with a bob and a detached shadow
+    /// (the archive's tomes). Cosmetic — the simulation treats it like any walker.</summary>
+    public bool Hover { get; set; }
+    /// <summary>Self-lit (RRGGBB): the body casts this light on the gloom around it.
+    /// Empty = unlit.</summary>
+    public string Glow { get; set; } = "";
     /// <summary>Visual size multiplier on the sprite (0.75 = a runt, 1 = normal).</summary>
     public float SpriteScale { get; set; } = 1f;
 }
