@@ -1495,6 +1495,7 @@ public static class HeadlessNetTest
         for (int attempt = 0; attempt < 8 && !slowed; attempt++)
         {
             srvMulti.Mana = srvMulti.Stats.MaxMana;
+            if (clientB.World.Me != null) clientB.World.Me.Mana = srvMulti.Stats.MaxMana; // the client gates casts on ITS copy
             srvMulti.SkillReadyAt.Clear();
             srvMulti.GlobalSkillReadyAt = 0;
             clientB.RequestUseSkill("mace_slam", pack3[0].Position);
@@ -5221,6 +5222,9 @@ public static class HeadlessNetTest
               hub.EntryDoor.Y > hub.Height - 3f && hub.EntryDoor.X < 6f && !hub.IsSolid((int)hub.EntryDoor.X, hub.Height - 1) &&
               hub.ExitDoor.X < 4f && hub.ExitDoor.Y < 4f,
               "the ruins are an upside-down L: the doorway at the stem's foot, the stairs in the north-west corner");
+        Check(hub.IsVoid(hub.Width - 5, hub.Height - 5) && hub.IsSolid(hub.Width - 5, hub.Height - 5) &&
+              !hub.IsVoid(10, 10) && hub.IsSolid(10, 10) && !hub.IsVoid(15, 5) && !hub.IsVoid(0, 5),
+              "the collapsed block is void (solid but nothing to draw); only the walls bounding the rooms stand");
         Check(sw.Npcs.Any(n => n.TypeId == "merchant") && sw.Npcs.Any(n => n.TypeId == "skill_trainer") &&
               sw.Npcs.Any(n => n.TypeId == "mercenary") && sw.Npcs.Any(n => n.TypeId == "gambler") &&
               storyA.World.Npcs.Count == sw.Npcs.Count,
