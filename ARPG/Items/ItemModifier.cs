@@ -38,12 +38,17 @@ public class ItemModifier
     /// <summary>True for percent-increased stats — controls tooltip formatting only.</summary>
     public bool IsPercent { get; set; }
 
+    /// <summary>Warp-scroll modifiers don't touch stats: this is the line the scroll
+    /// shows instead ("{0}" takes the rolled value), and what the portal reads.</summary>
+    public string MapEffect { get; set; }
+
     public bool CompatibleWith(ItemCategory category) =>
         CompatibleItemCategories == null || CompatibleItemCategories.Count == 0 ||
         CompatibleItemCategories.Contains(category);
 
     public string DescribeRoll(float value)
     {
+        if (!string.IsNullOrEmpty(MapEffect)) return MapEffect.Replace("{0}", $"{value:0}");
         string amount = IsPercent ? $"{value:0}%" : $"{value:0.#}";
         string statName = StatAffected switch
         {

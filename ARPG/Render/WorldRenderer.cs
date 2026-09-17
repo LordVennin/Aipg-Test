@@ -372,6 +372,7 @@ public class WorldRenderer
                     map.IsWater(x, y))
                     continue;
                 if (_pathTiles.Contains(y * map.Width + x)) continue; // trails stay clear
+                if (map.IsHub && map.GroundLevel(x, y) > 0) continue; // the dais stays swept
                 if (map.IsTallGrass(x, y)) continue; // tall grass IS the decoration there
                 if (roll < Theme.ClutterDensity)
                 {
@@ -647,6 +648,113 @@ public class WorldRenderer
             for (int k = 1; k < 5; k++)
                 DrawSeg(batch, P(gx + 1, y0 + k, top), P(gx + 1, y0 + k, top + 0.3f), stoneDark, 1f);
             FillQuad(batch, P(gx + 0.3f, y0, top + 0.3f), P(gx + 1, y0, top + 0.3f), P(gx + 1, y0 + 0.4f, top + 0.3f), P(gx + 0.3f, y0 + 0.4f, top + 0.3f), stone);
+        }));
+    }
+
+    /// <summary>The podium (a squat stone lectern with a slanted top) and the portal
+    /// ring (eight stone posts around an oval, the missing crown facing the room),
+    /// drawn as prisms in the world's planes on top of the dais. While the portal is
+    /// open a violet vortex turns inside the ring and lights the dais.</summary>
+    private void DrawPodiumAndPortal(IsoCamera camera, ClientWorld world)
+    {
+        var map = world.Map;
+        var stone = new Color(118, 116, 126);
+        var stoneDark = new Color(72, 70, 82);
+        var stoneLight = new Color(152, 150, 160);
+        Vector2 P(float x, float y, float h) => camera.WorldToScreen(new NumVec2(x, y), h);
+        // A small prism: footprint [x0,x1]x[y0,y1], from height h0 to h1 (levels).
+        void Prism(SpriteBatch b, float x0, float y0, float x1, float y1, float h0, float h1, Color top, Color left, Color right)
+        {
+            FillQuad(b, P(x0, y0, h1), P(x1, y0, h1), P(x1, y1, h1), P(x0, y1, h1), top);
+            FillQuad(b, P(x0, y1, h0), P(x1, y1, h0), P(x1, y1, h1), P(x0, y1, h1), left);   // +y face
+            FillQuad(b, P(x1, y0, h0), P(x1, y1, h0), P(x1, y1, h1), P(x1, y0, h1), right);  // +x face
+        }
+
+        var pd = map.PodiumSpot;
+        float pdH = map.GroundHeightAt(pd);
+        _sorted.Add((pd.X + pd.Y + pdH * 1.0f + 0.12f, batch =>
+        {
+            // Foot, column, the slanted reading top, a sigil waiting for a scroll.
+            Prism(batch, pd.X - 0.5f, pd.Y - 0.5f, pd.X + 0.5f, pd.Y + 0.5f, pdH, pdH + 0.1f, stone, stoneDark, stoneDark);
+            Prism(batch, pd.X - 0.36f, pd.Y - 0.36f, pd.X + 0.36f, pd.Y + 0.36f, pdH + 0.1f, pdH + 0.22f, stone, stoneDark, stoneDark);
+            Prism(batch, pd.X - 0.2f, pd.Y - 0.2f, pd.X + 0.2f, pd.Y + 0.2f, pdH + 0.22f, pdH + 0.82f, stone, stoneDark, new Color(90, 88, 100));
+            FillQuad(batch, P(pd.X - 0.4f, pd.Y - 0.34f, pdH + 0.86f), P(pd.X + 0.4f, pd.Y - 0.34f, pdH + 0.92f),
+                P(pd.X + 0.4f, pd.Y + 0.34f, pdH + 1.08f), P(pd.X - 0.4f, pd.Y + 0.34f, pdH + 1.02f), stoneLight);
+            FillQuad(batch, P(pd.X - 0.4f, pd.Y + 0.34f, pdH + 0.82f), P(pd.X + 0.4f, pd.Y + 0.34f, pdH + 0.82f),
+                P(pd.X + 0.4f, pd.Y + 0.34f, pdH + 1.08f), P(pd.X - 0.4f, pd.Y + 0.34f, pdH + 1.02f), stoneDark);
+            FillQuad(batch, P(pd.X + 0.4f, pd.Y - 0.34f, pdH + 0.82f), P(pd.X + 0.4f, pd.Y + 0.34f, pdH + 0.82f),
+                P(pd.X + 0.4f, pd.Y + 0.34f, pdH + 1.08f), P(pd.X + 0.4f, pd.Y - 0.34f, pdH + 0.92f), new Color(90, 88, 100));
+            var sig = P(pd.X, pd.Y, pdH + 0.97f);
+            var sigil = world.PortalOpen ? new Color(200, 160, 255) : new Color(110, 150, 190);
+            batch.Draw(TextureGen.Pixel, new Rectangle((int)sig.X - 3, (int)sig.Y - 1, 6, 2), sigil);
+            batch.Draw(TextureGen.Pixel, new Rectangle((int)sig.X - 1, (int)sig.Y - 3, 2, 6), sigil);
+        }));
+
+        var pt = map.PortalSpot;
+        float ptH = map.GroundHeightAt(pt);
+        long clock = Environment.TickCount64;
+        if (world.PortalOpen)
+        {
+            var ptS = camera.WorldToScreen(pt, ptH + 0.6f);
+            float flicker = 0.85f + 0.15f * MathF.Sin(clock * 0.006f);
+            AddLight(ptS, 190f * flicker, new Color(170, 120, 255));
+        }
+        // The arch: two thick pillars a tile and a half apart along y (the opening
+        // faces the room, -x), a lintel across them, a keystone rune on top. Everything
+        // sorts with its own pillar so a player standing in the opening stands between.
+        const float pillarH = 2.8f;    // levels — taller than the room's walls
+        const float halfSpan = 0.9f;   // pillar centres at pt.Y +- halfSpan
+        var lintelStone = new Color(132, 130, 140);
+        var pillarTint = world.PortalOpen ? new Color(150, 138, 172) : stone;
+        void Pillar(SpriteBatch b, float py, bool front)
+        {
+            // Foot, shaft, capital.
+            Prism(b, pt.X - 0.24f, py - 0.24f, pt.X + 0.24f, py + 0.24f, ptH, ptH + 0.14f, stone, stoneDark, stoneDark);
+            Prism(b, pt.X - 0.17f, py - 0.17f, pt.X + 0.17f, py + 0.17f, ptH + 0.14f, ptH + pillarH - 0.18f, pillarTint, stoneDark, new Color(94, 92, 104));
+            Prism(b, pt.X - 0.23f, py - 0.23f, pt.X + 0.23f, py + 0.23f, ptH + pillarH - 0.18f, ptH + pillarH, stoneLight, stoneDark, stone);
+        }
+        // Back pillar (smaller y: further up the screen).
+        _sorted.Add((pt.X + pt.Y - halfSpan + ptH * 1.0f + 0.1f, batch => Pillar(batch, pt.Y - halfSpan, false)));
+        // The plinth under the whole arch, then (when open) the vortex in the opening —
+        // drawn at the plinth's depth so the pillars and lintel frame it.
+        _sorted.Add((pt.X + pt.Y + ptH * 1.0f + 0.02f, batch =>
+        {
+            FillQuad(batch, P(pt.X - 0.7f, pt.Y - 1.1f, ptH + 0.02f), P(pt.X + 0.55f, pt.Y - 1.1f, ptH + 0.02f),
+                P(pt.X + 0.55f, pt.Y + 1.1f, ptH + 0.02f), P(pt.X - 0.7f, pt.Y + 1.1f, ptH + 0.02f), new Color(96, 94, 106));
+            FillQuad(batch, P(pt.X - 0.7f, pt.Y + 1.1f, ptH), P(pt.X + 0.55f, pt.Y + 1.1f, ptH),
+                P(pt.X + 0.55f, pt.Y + 1.1f, ptH + 0.02f), P(pt.X - 0.7f, pt.Y + 1.1f, ptH + 0.02f), stoneDark);
+            if (!world.PortalOpen) return;
+            // The vortex: a standing oval of violet motes spiralling into a bright eye
+            // between the pillars; a faint sheet behind them so the opening reads as
+            // filled even between motes.
+            var c = camera.WorldToScreen(pt, ptH + pillarH * 0.48f);
+            float rx = halfSpan * 32f * 0.62f, ry = pillarH * IsoCamera.LevelHeightPx * 0.42f;
+            batch.Draw(TextureGen.Blob32, new Rectangle((int)(c.X - rx), (int)(c.Y - ry), (int)(rx * 2), (int)(ry * 2)),
+                new Color(90, 40, 160) * 0.45f);
+            for (int i = 0; i < 34; i++)
+            {
+                float t = (clock * 0.0009f + i * 0.2137f) % 1f;
+                float ang = clock * 0.0021f + i * 1.9f;
+                float rr = 1f - t; // motes spiral inward
+                var m = new Vector2(c.X + MathF.Cos(ang) * rx * rr, c.Y + MathF.Sin(ang) * ry * rr);
+                int size = (int)(3 + 4 * rr);
+                var col = Color.Lerp(new Color(120, 60, 200), new Color(235, 210, 255), t);
+                batch.Draw(TextureGen.Blob32, new Rectangle((int)m.X - size / 2, (int)m.Y - size / 2, size, size), col * (0.55f + 0.45f * t));
+            }
+            batch.Draw(TextureGen.Blob32, new Rectangle((int)c.X - 9, (int)c.Y - 11, 18, 22), new Color(245, 228, 255) * 0.9f);
+        }));
+        // Front pillar and the lintel (the lintel rests on both; it sorts with the front
+        // one so it draws over whoever stands in the opening — it's above their head).
+        _sorted.Add((pt.X + pt.Y + halfSpan + ptH * 1.0f + 0.1f, batch =>
+        {
+            Pillar(batch, pt.Y + halfSpan, true);
+            Prism(batch, pt.X - 0.2f, pt.Y - halfSpan - 0.26f, pt.X + 0.2f, pt.Y + halfSpan + 0.26f,
+                ptH + pillarH, ptH + pillarH + 0.3f, lintelStone, stoneDark, stone);
+            // Keystone rune on the lintel's face, lit when the way is open.
+            var k = P(pt.X - 0.2f, pt.Y, ptH + pillarH + 0.15f);
+            var rune = world.PortalOpen ? new Color(210, 170, 255) : new Color(100, 120, 160);
+            batch.Draw(TextureGen.Pixel, new Rectangle((int)k.X - 1, (int)k.Y - 4, 2, 8), rune);
+            batch.Draw(TextureGen.Pixel, new Rectangle((int)k.X - 4, (int)k.Y - 1, 8, 2), rune);
         }));
     }
 
@@ -1146,7 +1254,8 @@ public class WorldRenderer
                     var sprite = TextureGen.GetRampSprite(ramp, map.RampIsStairs(x, y));
                     var corner = camera.WorldToScreen(new NumVec2(x, y), ground);
                     float rampDepth = x + y + (ground + 0.5f) * 0.6f;
-                    var rampTint = _rampTint * OccluderFade(rampDepth,
+                    // Ruins stairs are cut stone, not sod: a cool grey over the baked shading.
+                    var rampTint = (map.IsRuins(x, y) ? new Color(168, 166, 180) : _rampTint) * OccluderFade(rampDepth,
                         new Rectangle((int)corner.X - 32, (int)corner.Y - TextureGen.RampSpriteOffsetY, 64, 96));
                     _sorted.Add((rampDepth, batch =>
                         batch.Draw(sprite,
@@ -1210,7 +1319,7 @@ public class WorldRenderer
                         float efDepth = x + y + 1 + ground * 0.001f;
                         var faceRect = new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - topPx, 64, topPx + 16);
                         float efFade = OccluderFade(efDepth, faceRect);
-                        if (organic)
+                        if (organic && !map.IsRuins(x, y))
                         {
                             // Earth cliff with a grass lip tinted per tile — the lip
                             // overhangs the seam so rim tiles blend into their tops.
@@ -1227,9 +1336,10 @@ public class WorldRenderer
                         }
                         else
                         {
-                            var efTint = _cliffFace * efFade;
+                            bool ruinsFace = map.IsRuins(x, y);
+                            var efTint = (ruinsFace ? new Color(96, 94, 106) : _cliffFace) * efFade;
                             _sorted.Add((efDepth, batch =>
-                                batch.Draw(TextureGen.GetPrismFaces(ground),
+                                batch.Draw(ruinsFace || brick ? TextureGen.GetPrismFacesBrick(ground) : TextureGen.GetPrismFaces(ground),
                                     new Vector2((int)baseScreen.X - 32, (int)baseScreen.Y - topPx),
                                     efTint)));
                         }
@@ -1241,7 +1351,14 @@ public class WorldRenderer
                     var etTex = organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
                     uint etHash = TileHash(map.Seed ^ 0x746F70, x, y);
                     var etRim = top;
-                    if (_materials.Count > 0)
+                    bool ruinsTop = map.IsRuins(x, y);
+                    if (ruinsTop)
+                    {
+                        // Ruins paving on the raised top (the hub's dais): the same
+                        // flagstone as the floor, lifted a shade — not the theme's sod.
+                        etTex = TextureGen.DiamondBrick;
+                    }
+                    else if (_materials.Count > 0)
                     {
                         // Textured ground on the raised top too, a touch brighter than the floor.
                         etTex = GroundTiles.Get(MaterialAt(map, x, y), (int)(etHash % GroundTiles.VariantCount));
@@ -1252,7 +1369,7 @@ public class WorldRenderer
                     var etDark = new Color((int)(top.R * 0.8f), (int)(top.G * 0.8f), (int)(top.B * 0.8f)) * etFade;
                     var etLite = new Color(
                         Math.Min(255, top.R + 22), Math.Min(255, top.G + 30), Math.Min(255, top.B + 16)) * etFade;
-                    bool etOrganic = organic && _materials.Count == 0; // textures carry their own detail
+                    bool etOrganic = organic && _materials.Count == 0 && !ruinsTop; // textures carry their own detail
                     _sorted.Add((etDepth, batch =>
                     {
                         batch.Draw(etTex,
@@ -2165,35 +2282,9 @@ public class WorldRenderer
                 }));
         }
 
-        // The ruins hub's scroll podium and the dormant portal stand behind it.
+        // The ruins hub's scroll podium and portal ring: stone built INTO the dais.
         if (world.Map.PodiumSpot != System.Numerics.Vector2.Zero)
-        {
-            var pdPos = world.Map.PodiumSpot;
-            float pdH = world.Map.GroundHeightAt(pdPos);
-            var pdScreen = camera.WorldToScreen(pdPos, pdH);
-            var podiumTex = SpriteGen.GetPodium();
-            if (podiumTex != null)
-                _sorted.Add((pdPos.X + pdPos.Y + pdH * 1.0f + 0.1f, batch =>
-                {
-                    int w = podiumTex.Width * 2, h = podiumTex.Height * 2;
-                    batch.Draw(TextureGen.Blob32, new Rectangle((int)pdScreen.X - 18, (int)pdScreen.Y - 7, 36, 14), new Color(0, 0, 0, 80));
-                    batch.Draw(podiumTex, new Rectangle((int)pdScreen.X - w / 2, (int)pdScreen.Y - h + 8, w, h), Color.White);
-                }));
-        }
-        if (world.Map.PortalSpot != System.Numerics.Vector2.Zero)
-        {
-            var ptPos = world.Map.PortalSpot;
-            float ptH = world.Map.GroundHeightAt(ptPos);
-            var ptScreen = camera.WorldToScreen(ptPos, ptH);
-            var portalTex = SpriteGen.GetPortalStand();
-            if (portalTex != null)
-                _sorted.Add((ptPos.X + ptPos.Y + ptH * 1.0f + 0.1f, batch =>
-                {
-                    int w = portalTex.Width * 2, h = portalTex.Height * 2;
-                    batch.Draw(TextureGen.Blob32, new Rectangle((int)ptScreen.X - 28, (int)ptScreen.Y - 9, 56, 18), new Color(0, 0, 0, 80));
-                    batch.Draw(portalTex, new Rectangle((int)ptScreen.X - w / 2, (int)ptScreen.Y - h + 8, w, h), Color.White);
-                }));
-        }
+            DrawPodiumAndPortal(camera, world);
 
         // The sanctum fountain (hub only): flask refills between runs.
         if (world.Map.FountainSpot != System.Numerics.Vector2.Zero)
@@ -3599,13 +3690,29 @@ public class WorldRenderer
                 sb.DrawString(labelFont, ddHint,
                     new Vector2(ddScreen.X - ddSize.X / 2, ddScreen.Y - 78), new Color(255, 226, 130));
             }
-            if (world.Map.PodiumSpot != System.Numerics.Vector2.Zero &&
-                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.PodiumSpot) <= 2.2f)
+            if (world.Map.PodiumSpot != System.Numerics.Vector2.Zero && !world.PortalOpen &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.PodiumSpot) <= 2.6f)
             {
                 var pdS = camera.WorldToScreen(world.Map.PodiumSpot, world.Map.GroundHeightAt(world.Map.PodiumSpot));
-                const string pdHint = "F  Place a map scroll";
+                const string pdHint = "F  Place a sealed scroll";
                 var pdSize = labelFont.MeasureString(pdHint);
-                sb.DrawString(labelFont, pdHint, new Vector2(pdS.X - pdSize.X / 2, pdS.Y - 66), new Color(200, 225, 250));
+                sb.DrawString(labelFont, pdHint, new Vector2(pdS.X - pdSize.X / 2, pdS.Y - 66), new Color(200, 170, 255));
+            }
+            if (world.Map.PortalSpot != System.Numerics.Vector2.Zero && world.PortalOpen &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.PortalSpot) <= 2.6f)
+            {
+                var ptS = camera.WorldToScreen(world.Map.PortalSpot, world.Map.GroundHeightAt(world.Map.PortalSpot));
+                string ptHint = $"F  Step through ({world.ZoneReadyCount}/{Math.Max(1, world.ZoneAlivePlayers)})";
+                var ptSize = labelFont.MeasureString(ptHint);
+                sb.DrawString(labelFont, ptHint, new Vector2(ptS.X - ptSize.X / 2, ptS.Y - 74), new Color(255, 226, 130));
+            }
+            if (world.Map.Kind == World.MapKind.RuinsHub && world.Map.EntryDoor != System.Numerics.Vector2.Zero &&
+                System.Numerics.Vector2.Distance(hintMe.Position, world.Map.EntryDoor) <= 2.4f)
+            {
+                var rdS = camera.WorldToScreen(world.Map.EntryDoor, world.Map.GroundHeightAt(world.Map.EntryDoor));
+                string rdHint = $"F  Back out to the road ({world.ZoneReadyCount}/{Math.Max(1, world.ZoneAlivePlayers)})";
+                var rdSize = labelFont.MeasureString(rdHint);
+                sb.DrawString(labelFont, rdHint, new Vector2(rdS.X - rdSize.X / 2, rdS.Y - 78), new Color(255, 226, 130));
             }
             if (world.Map.WorkbenchSpot != System.Numerics.Vector2.Zero &&
                 System.Numerics.Vector2.Distance(hintMe.Position, world.Map.WorkbenchSpot) <= 2.4f)

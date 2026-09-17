@@ -299,6 +299,9 @@ public class ServerEnemy
     /// <summary>Spawned buried: clients keep it unseen until a player nears, then play
     /// the rise from the earth. Cosmetic — the server simulates it like any other.</summary>
     public bool Buried;
+    /// <summary>A Last Stand hunter: it has the party's scent and never loses it —
+    /// aggro range and leash don't apply, it closes on the nearest player from anywhere.</summary>
+    public bool Hunting;
     /// <summary>Server time of the last damage taken (Regenerating waits 2s after it).</summary>
     public float LastDamagedAt = -100f;
     /// <summary>Regenerating: seconds since the last health sync while regrowing.</summary>

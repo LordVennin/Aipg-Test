@@ -160,6 +160,9 @@ public enum PacketType : byte
     /// <summary>Server -> client: play the scripted scene with this id (tutorial beats).
     /// Clients run the cutscene locally — letterbox, camera focus, dialogue.</summary>
     CutsceneEvent,
+    /// <summary>Client -> server: place a sealed warp scroll (instance id) on the ruins'
+    /// podium. The scroll is consumed and the portal opens.</summary>
+    PodiumRequest,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

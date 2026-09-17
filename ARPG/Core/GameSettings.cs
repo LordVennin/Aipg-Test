@@ -75,7 +75,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 46; // v46: story map kinds (StoryRoad, RuinsHub), torch structures
+    public const int ProtocolVersion = 47; // v47: sealed warp scrolls, the portal, zone state additions, map weather on the wire
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

@@ -11,7 +11,7 @@ public static class Program
         {
             // Headless multiplayer self-test: runs a server plus two clients in-process
             // without any graphics. Used to validate the authoritative networking model.
-            Environment.Exit(HeadlessNetTest.Run());
+            Environment.Exit(HeadlessNetTest.Run(storyOnly: args.Contains("story")));
             return;
         }
 

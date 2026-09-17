@@ -453,6 +453,13 @@ public class ClientWorld
     public int ZoneReadyCount;
     public int ZoneAlivePlayers;
     public bool ZoneExitLocked;
+    // The portal loop: is the hub's portal open (and to where); a scroll zone's title;
+    // the survival waves of a "Last Stand".
+    public bool PortalOpen;
+    public string PortalTitle = "";
+    public string ZoneTitle = "";
+    public int SurvivalWave, SurvivalTotal;
+    public bool SurvivalDone;
 
     // Defense-run state (DefenseState packets; drives the wave banner + wagon bar).
     public byte DefensePhase;      // (Server.DefensePhase)

@@ -1,27 +1,41 @@
 [
-  {
-    "Id": "merc_contract",
-    "Name": "Mercenary Contract",
-    "Category": "Curio",
-    "InventoryWidth": 1,
-    "InventoryHeight": 1,
-    "RequiredLevel": 1,
-    "BaseModifierLimit": 0,
-    "DropWeight": 0,
-    "BaseGoldValue": 40,
-    "MaxStack": 10,
-    "Description": "A sealed writ of service, name left blank. The Sanctum's researcher knows who still answers these."
-  },
-  {
-    "Id": "flamethrower_blueprint",
-    "Name": "Flamethrower Blueprint",
-    "Category": "Curio",
-    "InventoryWidth": 2,
-    "InventoryHeight": 1,
-    "RequiredLevel": 1,
-    "BaseModifierLimit": 0,
-    "DropWeight": 0,
-    "BaseGoldValue": 120,
-    "Description": "Scorched schematics for a brass fire-spitter. Someone clever could make this real."
-  }
+ {
+  "Id": "merc_contract",
+  "Name": "Mercenary Contract",
+  "Category": "Curio",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "RequiredLevel": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 40,
+  "MaxStack": 10,
+  "Description": "A sealed writ of service, name left blank. The Sanctum's researcher knows who still answers these."
+ },
+ {
+  "Id": "flamethrower_blueprint",
+  "Name": "Flamethrower Blueprint",
+  "Category": "Curio",
+  "InventoryWidth": 2,
+  "InventoryHeight": 1,
+  "RequiredLevel": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 120,
+  "Description": "Scorched schematics for a brass fire-spitter. Someone clever could make this real."
+ },
+ {
+  "Id": "sealed_warp_scroll",
+  "Name": "Sealed Warp Scroll",
+  "Category": "WarpScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "RequiredLevel": 1,
+  "BaseModifierLimit": 6,
+  "DropWeight": 0,
+  "BaseGoldValue": 60,
+  "MaxStack": 1,
+  "SpriteColor": "8A62D8",
+  "Description": "A scroll bound in violet wax. Its seals describe a place that does not exist yet \u2014 the podium in the ruins reads them aloud and opens the way."
+ }
 ]

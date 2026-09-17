@@ -325,6 +325,14 @@ public class GameClient
 
     /// <summary>Gamble a specific gear base at the gambler NPC (server re-validates
     /// gold, level eligibility and proximity; rarity is fate's roll).</summary>
+    /// <summary>Place a sealed warp scroll on the ruins' podium (server-validated).</summary>
+    public void RequestUsePodium(Guid scrollId)
+    {
+        var w = Packets.Make(PacketType.PodiumRequest);
+        w.PutGuid(scrollId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestGamble(string offerToken)
     {
         var w = Packets.Make(PacketType.GambleRequest);
@@ -478,6 +486,7 @@ public class GameClient
                 int mapSeed = r.GetInt();
                 string zoneThemeId = r.GetString();
                 var mapKind = (MapKind)r.GetByte();
+                string joinWeather = r.GetString();
                 var pos = r.GetVec2();
                 float joinHeight = r.GetFloat();
                 float hp = r.GetFloat();
@@ -487,6 +496,7 @@ public class GameClient
                 World.Map = new GameMap(mapSeed,
                     _data.ZoneThemes.FirstOrDefault(t => t.Id == zoneThemeId) ?? _data.ZoneThemes.FirstOrDefault(),
                     mapKind);
+                if (joinWeather.Length > 0 || mapKind == MapKind.Forest) World.Map.Weather = joinWeather;
                 World.Players[World.MyPlayerId] = new ClientPlayer
                 {
                     Id = World.MyPlayerId,
@@ -678,6 +688,7 @@ public class GameClient
                 int mcSeed = r.GetInt();
                 string mcTheme = r.GetString();
                 var mcKind = (MapKind)r.GetByte();
+                string mcWeather = r.GetString();
                 World.ZoneLoop = r.GetInt();
                 World.ZoneMapIndex = r.GetInt();
                 World.ZoneEnemyLevel = r.GetInt();
@@ -687,6 +698,8 @@ public class GameClient
                 World.Map = new GameMap(mcSeed,
                     _data.ZoneThemes.FirstOrDefault(t => t.Id == mcTheme) ?? _data.ZoneThemes.FirstOrDefault(),
                     mcKind);
+                // The server's weather wins (a scroll's seal can override the theme's).
+                World.Map.Weather = mcWeather;
                 World.ClearForMapChange();
                 if (World.Me is { } traveler)
                 {
@@ -705,6 +718,12 @@ public class GameClient
                 World.ZoneReadyCount = r.GetInt();
                 World.ZoneAlivePlayers = r.GetInt();
                 World.ZoneExitLocked = r.GetBool();
+                World.PortalOpen = r.GetBool();
+                World.PortalTitle = r.GetString();
+                World.ZoneTitle = r.GetString();
+                World.SurvivalWave = r.GetInt();
+                World.SurvivalTotal = r.GetInt();
+                World.SurvivalDone = r.GetBool();
                 break;
             }
             case PacketType.ChestInfo:

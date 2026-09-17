@@ -26,5 +26,6 @@
     "Flask": 30,
     "Bow": 70,
     "Quiver": 45
-  }
+  },
+  "WarpScrollDropChance": 0.35
 }

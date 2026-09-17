@@ -985,17 +985,47 @@ public static class SpriteGen
     /// anything that isn't a curio.</summary>
     public static Texture2D GetCurioSprite(Items.ItemBase itemBase)
     {
-        if (_device == null || itemBase is not { Category: Items.ItemCategory.Curio }) return null;
+        if (_device == null || itemBase is not { Category: Items.ItemCategory.Curio or Items.ItemCategory.WarpScroll }) return null;
         string key = "curio:" + itemBase.Id;
         if (!_cache.TryGetValue(key, out var frames))
         {
             frames = new[]
             {
-                itemBase.Id == "flamethrower_blueprint" ? DrawBlueprint() : DrawContract(),
+                itemBase.Category == Items.ItemCategory.WarpScroll ? DrawWarpScroll()
+                    : itemBase.Id == "flamethrower_blueprint" ? DrawBlueprint() : DrawContract(),
             };
             _cache[key] = frames;
         }
         return frames[0];
+    }
+
+    /// <summary>A sealed warp scroll: a rolled parchment bound with a violet ribbon and
+    /// a wax seal, a faint sigil glowing through the paper.</summary>
+    private static Texture2D DrawWarpScroll()
+    {
+        const int w = 16, h = 14;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+        var paper = new Color(222, 208, 176);
+        var paperDark = new Color(178, 160, 126);
+        var paperLight = new Color(240, 230, 204);
+        var ribbon = new Color(122, 74, 200);
+        var wax = new Color(150, 40, 60);
+        var sigil = new Color(160, 120, 255);
+        Rect(2, 4, 13, 10, paper);               // the roll
+        Rect(2, 4, 13, 4, paperLight);
+        Rect(2, 10, 13, 10, paperDark);
+        Rect(1, 3, 3, 11, paperDark);            // rolled ends
+        Rect(12, 3, 14, 11, paperDark);
+        Set(2, 3, paperLight); Set(13, 3, paperLight);
+        Rect(7, 2, 8, 12, ribbon);               // ribbon around the middle
+        Set(7, 12, new Color(90, 50, 150)); Set(8, 13, new Color(90, 50, 150));
+        Rect(6, 6, 9, 8, wax);                   // the seal
+        Set(7, 7, new Color(210, 90, 110));
+        Set(4, 6, sigil); Set(5, 8, sigil); Set(10, 6, sigil); Set(11, 8, sigil); // sigils through the paper
+        return BakeStrip(px, w, h);
     }
 
     private static Texture2D DrawContract()

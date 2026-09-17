@@ -33,10 +33,327 @@ public static class HeadlessNetTest
         }
     }
 
-    public static int Run()
+    /// <summary>The story sections (Batches 77, 81): their own server so they can run
+    /// alone with `--nettest story` while the portal loop is being worked on.</summary>
+    private static void RunStory(GameData data)
+    {
+        // ------------------------------------------------------------------ Batch 77: the story opening
+        Console.WriteLine("\n-- Batch 77: story mode (the road, the ruins hub, the lower levels) --");
+        var storyServer = new GameServer(data, 515151, "forest", campaign: true, story: true);
+        Check(storyServer.Start(0), "story server started");
+        var storyA = new GameClient(data, "StoryA", null);
+        storyA.Connect("127.0.0.1", storyServer.LocalPort, out _);
+        void SPump(float seconds)
+        {
+            const float dt = 1f / 60f;
+            int steps = (int)(seconds / dt);
+            for (int i = 0; i < steps; i++)
+            {
+                storyServer.Update(dt);
+                storyA.Update(dt);
+                Thread.Sleep(2);
+            }
+        }
+        SPump(1.5f);
+        var sw = storyServer.World;
+        Check(storyA.Status == ClientStatus.InGame && sw.Story &&
+              sw.MapIndex == Server.ServerWorld.StoryRoadIndex && sw.Map.Kind == World.MapKind.StoryRoad,
+              "the story opens on the story road, not in the sanctum");
+        Check(sw.Map.Width == 108 && sw.Map.Weather == "rain" &&
+              sw.Map.ExitDoorStyle == World.DoorStyle.RuinArch && sw.Map.EntryDoor == Vector2.Zero &&
+              sw.Map.GateSpot != Vector2.Zero && sw.Map.ExitDoor.X > sw.Map.Width - 4f &&
+              !sw.Map.IsSolid(sw.Map.Width - 1, (int)sw.Map.ExitDoor.Y) && sw.Map.IsSolid(7, sw.Map.Height / 2) &&
+              !sw.Map.IsSolid(3, sw.Map.Height / 2),
+              $"the story road is a fifth longer ({sw.Map.Width} wide), rains, has no door behind the camp (road and rubble instead), a lintelled gate, and a doorway out through the east wall");
+        int roadYc = sw.Map.Height / 2;
+        Check(sw.Map.TutorialHints.Count >= 6 && sw.Map.TutorialHints.All(h =>
+                  MathF.Abs(h.Pos.Y - (roadYc + 0.5f)) >= 2.5f && !sw.Map.IsSolid((int)h.Pos.X, (int)h.Pos.Y)),
+              "the story road's stones stand beside the road on clear ground, never on it");
+        Check(storyA.World.Map.Kind == World.MapKind.StoryRoad && storyA.World.Map.Width == sw.Map.Width &&
+              storyA.World.Map.TutorialHints.Count == sw.Map.TutorialHints.Count,
+              "the client builds the same story road from the seed");
+        var testWorld = new GameServer(data, 616161, "forest", campaign: true).World;
+        Check(testWorld.Map.Kind == World.MapKind.Hub && !testWorld.Story,
+              "the test grounds still open in the sanctum hub");
+        // Arrow Rain: follow-up volleys land on their own spots around the mark.
+        storyA.SendDebugCommand("give_bow", "equip");
+        storyA.SendDebugCommand("learn_skill", "arrow_rain");
+        SPump(0.4f);
+        var rainSrv = sw.Players.Values.First();
+        rainSrv.Mana = rainSrv.Stats.MaxMana;
+        var rainMark = rainSrv.Position + new Vector2(2.5f, 0f);
+        storyA.RequestUseSkill("arrow_rain", rainMark);
+        SPump(0.6f); // the wind-up lands, the volleys queue
+        var volleySpots = sw.RainVolleyPositions.ToList();
+        Check(volleySpots.Count >= 2 && volleySpots.Distinct().Count() == volleySpots.Count &&
+              Vector2.Distance(volleySpots[0], rainMark) < 0.05f &&
+              volleySpots.Skip(1).All(v => Vector2.Distance(v, rainMark) > 0.2f && Vector2.Distance(v, rainMark) <= data.Skills["arrow_rain"].Radius * 1.5f),
+              $"Arrow Rain's {volleySpots.Count} volleys each land on their own spot near the mark");
+        SPump(2.0f);
+        // Loot is lighter now.
+        var defaultLoot = data.LootTables["default"];
+        Check(defaultLoot.DropChance <= 0.3f && defaultLoot.GoldDropChance <= 0.35f &&
+              defaultLoot.ScrollDropChance <= 0.06f && defaultLoot.EnchantScrollDropChance <= 0.08f,
+              $"drop rates eased: gear {defaultLoot.DropChance:P0}, gold {defaultLoot.GoldDropChance:P0}");
+        // The Barrow Lord falls; the archway leads to the ruins hub.
+        var roadBoss = sw.Enemies.Values.First(e => e.Def.Id == "barrowlord");
+        storyA.World.Me.Position = roadBoss.Position + new Vector2(-1.5f, 0f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(roadBoss.Position);
+        SPump(0.4f);
+        for (int i = 0; i < 40 && !roadBoss.Dead; i++)
+        {
+            storyA.SendDebugCommand("kill_nearby");
+            storyA.SendDebugCommand("heal");
+            SPump(0.3f);
+        }
+        Check(roadBoss.Dead && !sw.ExitLocked, "the story road's gate boss falls and the archway opens");
+        storyA.SendDebugCommand("heal");
+        storyA.World.Me.Position = sw.Map.ExitDoor + new Vector2(-1.2f, 0f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(sw.Map.ExitDoor);
+        SPump(0.4f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && storyA.World.Map.Kind == World.MapKind.RuinsHub,
+              "through the archway: the ruins hub (both sides)");
+        var hub = sw.Map;
+        Check(hub.PodiumSpot != Vector2.Zero && hub.PortalSpot != Vector2.Zero && hub.FountainSpot != Vector2.Zero &&
+              hub.ExitDoorStyle == World.DoorStyle.Stairs && hub.EntryDoorStyle == World.DoorStyle.RuinArch &&
+              hub.TorchSpots.Count >= 6 && hub.WagonSpot != Vector2.Zero && hub.StashSpot != Vector2.Zero,
+              "the hub has the cart, the podium and portal stand, the fountain, standing torches, and the stairs down");
+        Check(hub.IsSolid(hub.Width - 5, hub.Height - 5) && !hub.IsSolid(4, hub.Height - 4) && !hub.IsSolid(hub.Width - 5, 4) &&
+              hub.EntryDoor.Y > hub.Height - 3f && hub.EntryDoor.X < 6f && !hub.IsSolid((int)hub.EntryDoor.X, hub.Height - 1) &&
+              hub.ExitDoor.X < 4f && hub.ExitDoor.Y < 4f,
+              "the ruins are an upside-down L: the doorway at the stem's foot, the stairs in the north-west corner");
+        Check(hub.IsVoid(hub.Width - 5, hub.Height - 5) && hub.IsSolid(hub.Width - 5, hub.Height - 5) &&
+              !hub.IsVoid(10, 10) && hub.IsSolid(10, 10) && !hub.IsVoid(15, 5) && !hub.IsVoid(0, 5),
+              "the collapsed block is void (solid but nothing to draw); only the walls bounding the rooms stand");
+        Check(sw.Npcs.Any(n => n.TypeId == "merchant") && sw.Npcs.Any(n => n.TypeId == "skill_trainer") &&
+              sw.Npcs.Any(n => n.TypeId == "mercenary") && sw.Npcs.Any(n => n.TypeId == "gambler") &&
+              storyA.World.Npcs.Count == sw.Npcs.Count,
+              "the peddler, the lorekeeper, the sellsword and the gambler stand in the camp");
+        Check(sw.Structures.Values.Any(st => st.Kind == World.StructureKind.Wagon) &&
+              sw.Structures.Values.Count(st => st.Kind == World.StructureKind.Torch) == hub.TorchSpots.Count &&
+              storyA.World.Structures.Values.Any(st => st.Kind == (byte)World.StructureKind.Wagon) &&
+              storyA.World.Structures.Values.Count(st => st.Kind == (byte)World.StructureKind.Torch) == hub.TorchSpots.Count &&
+              World.StructureKinds.IsBreakable(World.StructureKind.Torch),
+              "the cart and every standing torch reach the client (spawned after the map broadcast); torches break");
+        SPump(1.6f);
+        Check(storyA.World.CutscenesSeen.Contains("hub_arrival"), "the crew points the party at the stairs");
+        var sable = sw.Npcs.First(n => n.TypeId == "gambler");
+        storyA.World.Me.Position = sable.Position + new Vector2(0.8f, 0f);
+        SPump(0.3f);
+        var storyChar = sw.Players.Values.First().Character;
+        storyChar.Gold = 3000;
+        int storyBag = storyChar.Inventory.Items.Count;
+        storyA.RequestGamble("mace");
+        SPump(0.5f);
+        Check(storyChar.Gold == 3000 && storyChar.Inventory.Items.Count == storyBag,
+              "Sable's table isn't open in the camp yet (no charge, no item)");
+        // Down the stairs: the lower levels wear the tomb theme.
+        storyA.World.Me.Position = hub.ExitDoor + new Vector2(-1.0f, 0.8f);
+        storyA.World.Me.Height = hub.GroundHeightAt(hub.ExitDoor);
+        SPump(0.4f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == 1 && sw.Map.Kind == World.MapKind.Forest && sw.Map.Theme?.Id == "tomb" &&
+              storyA.World.Map.Theme?.Id == "tomb",
+              $"the stairs lead into the lower levels (theme {sw.Map.Theme?.Id})");
+
+        // ------------------------------------------------------------------ Batch 81: sealed scrolls, the portal, the road grind
+        Console.WriteLine("\n-- Batch 81: sealed warp scrolls, the podium and portal, the road as a grind --");
+        // Sealed warp scrolls: a real item with six seal slots, sealed shut.
+        var warpBase = data.Items.Values.FirstOrDefault(b => b.Category == Items.ItemCategory.WarpScroll);
+        Check(warpBase != null && warpBase.BaseModifierLimit == 6 && !warpBase.IsEquippable,
+              "the sealed warp scroll is an item base with six seal slots that never equips");
+        var warpGen = new Items.LootGenerator(data, new Random(4242));
+        var warpNormal = warpGen.GenerateWarpScroll(5, Items.ItemRarity.Normal);
+        var warpMagic = warpGen.GenerateWarpScroll(5, Items.ItemRarity.Magic);
+        var warpRare = warpGen.GenerateWarpScroll(5, Items.ItemRarity.Rare);
+        Check(warpNormal.Modifiers.Count == 1 && warpMagic.Modifiers.Count is >= 2 and <= 3 &&
+              warpRare.Modifiers.Count is >= 4 and <= 6 && warpRare.Locked && warpRare.BaseModifierLimit == 6 &&
+              warpRare.Modifiers.All(m => data.Modifiers[m.ModifierId].CompatibleItemCategories.Contains(Items.ItemCategory.WarpScroll)) &&
+              warpRare.Modifiers.Select(m => data.Modifiers[m.ModifierId].ModifierGroup).Distinct().Count() == warpRare.Modifiers.Count,
+              $"scrolls seal 1 / 2-3 / 4-6 seals by rarity from the warp pool, never two of a group ({warpNormal.Modifiers.Count}/{warpMagic.Modifiers.Count}/{warpRare.Modifiers.Count})");
+        Check(data.Modifiers.Values.Where(m => m.CompatibleItemCategories.Contains(Items.ItemCategory.WarpScroll))
+                  .All(m => !string.IsNullOrEmpty(m.MapEffect)) &&
+              data.Modifiers.Values.Count(m => m.ModifierGroup == "warp_mode") == 2 &&
+              data.Modifiers.Values.Count(m => m.ModifierGroup == "warp_zone") == 3 &&
+              data.Modifiers.Values.Count(m => m.ModifierGroup == "warp_weather") == 3,
+              "every warp seal explains what it does to the destination; modes, zones and weathers are exclusive groups");
+        Check(data.LootTables["default"].WarpScrollDropChance <= 0.02f && data.LootTables["boss"].WarpScrollDropChance >= 0.3f &&
+              Server.ServerWorld.ChestWarpScrollChance >= 0.2f,
+              $"sealed scrolls are rare from enemies ({data.LootTables["default"].WarpScrollDropChance:P1}), common from bosses and chests");
+        var pileGen = new Items.LootGenerator(data, new Random(777));
+        int warpDrops = 0;
+        for (int i = 0; i < 4000; i++)
+            warpDrops += pileGen.RollDrops("default", 5, 1f).Count(d => d.GetBase(data).Category == Items.ItemCategory.WarpScroll);
+        Check(warpDrops >= 20 && warpDrops <= 150, $"the drop roll actually hands out sealed scrolls ({warpDrops} in 4000 kills)");
+        // Home to the ruins; a scroll on the podium opens the portal.
+        storyA.SendDebugCommand("warp_home");
+        SPump(1.0f);
+        Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub, "back in the ruins for the portal");
+        var ruins = sw.Map;
+        Check(ruins.PodiumSpot.X > ruins.Width - 6 && ruins.PortalSpot.X > ruins.PodiumSpot.X &&
+              ruins.GroundHeightAt(ruins.PodiumSpot) > ruins.GroundHeightAt(ruins.FountainSpot) &&
+              ruins.GroundHeightAt(ruins.PortalSpot) == ruins.GroundHeightAt(ruins.PodiumSpot) &&
+              !ruins.IsSolid((int)ruins.PodiumSpot.X, (int)ruins.PodiumSpot.Y) && !ruins.IsSolid((int)ruins.PortalSpot.X, (int)ruins.PortalSpot.Y),
+              "the podium and portal stand on a raised dais in the ruins' east wing, reached by a ramp");
+        var storyP = sw.Players.Values.First();
+        storyA.SendDebugCommand("give_warp", "warp_zone_ruins+warp_weather_snow+warp_boss+warp_level_t1");
+        SPump(0.4f);
+        var sealedScroll = storyP.Character.Inventory.Items.FirstOrDefault(s => s.Item.GetBase(data).Category == Items.ItemCategory.WarpScroll);
+        Check(sealedScroll != null && sealedScroll.Item.Modifiers.Count == 4 && sealedScroll.Item.Locked &&
+              storyA.World.MyCharacter.Inventory.Items.Any(s => s.Item.BaseItemId == sealedScroll.Item.BaseItemId),
+              "a sealed scroll lands in the bag (server and client)");
+        storyA.World.Me.Position = ruins.FountainSpot;
+        SPump(0.3f);
+        storyA.RequestUsePodium(sealedScroll.Item.InstanceId);
+        SPump(0.4f);
+        Check(!sw.PortalOpen && storyP.Character.Inventory.Items.Any(s => s.Item.InstanceId == sealedScroll.Item.InstanceId),
+              "the podium is out of reach from the fountain: nothing happens");
+        storyA.World.Me.Position = ruins.PodiumSpot + new Vector2(-1.0f, 0.5f);
+        storyA.World.Me.Height = ruins.GroundHeightAt(ruins.PodiumSpot);
+        SPump(0.3f);
+        storyA.RequestUsePodium(sealedScroll.Item.InstanceId);
+        SPump(0.5f);
+        Check(sw.PortalOpen && sw.PortalTitle.Contains("Sunken") &&
+              !storyP.Character.Inventory.Items.Any(s => s.Item.InstanceId == sealedScroll.Item.InstanceId) &&
+              storyA.World.PortalOpen && storyA.World.PortalTitle == sw.PortalTitle,
+              $"the scroll burns on the podium and the portal opens onto {sw.PortalTitle} (client sees it too)");
+        storyA.SendDebugCommand("give_warp", "rare");
+        SPump(0.3f);
+        var spare = storyP.Character.Inventory.Items.First(s => s.Item.GetBase(data).Category == Items.ItemCategory.WarpScroll);
+        storyA.RequestUsePodium(spare.Item.InstanceId);
+        SPump(0.3f);
+        Check(storyP.Character.Inventory.Items.Any(s => s.Item.InstanceId == spare.Item.InstanceId),
+              "a second scroll is refused while the portal stands open");
+        storyP.Character.Inventory.Remove(spare.Item.InstanceId); // a random rare could carry any seal — keep later lookups exact
+        // Through the portal: the zone the scroll described.
+        storyA.World.Me.Position = ruins.PortalSpot + new Vector2(-0.8f, 0.6f);
+        SPump(0.3f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == Server.ServerWorld.ScrollMapIndex && sw.Map.Kind == World.MapKind.Forest &&
+              sw.Map.Theme?.Id == "tomb" && sw.Map.Weather == "snow" && !sw.PortalOpen &&
+              storyA.World.Map.Theme?.Id == "tomb" && storyA.World.Map.Weather == "snow" &&
+              storyA.World.ZoneTitle == sw.ZoneTitle && sw.ZoneTitle.Contains("Sunken"),
+              $"through the portal: a {sw.Map.Theme?.Id} zone under {sw.Map.Weather}, titled '{sw.ZoneTitle}' on both sides");
+        int depthSeal = (int)data.Modifiers["warp_level_t1"].MaximumValue;
+        Check(sw.ZoneEnemyLevel == sealedScroll.Item.ItemLevel + depthSeal && sw.Enemies.Values.Any(e => e.Def.Id == "gravelord") &&
+              sw.ExitLocked && sw.Enemies.Values.Where(e => !e.Affixes.HasFlag(Server.EliteAffix.Boss)).All(e => e.Level >= sw.ZoneEnemyLevel),
+              $"the Warden seal plants a boss, the Depth seal lifts the zone to level {sw.ZoneEnemyLevel}; the way home is sealed while he stands");
+        var wardBoss = sw.Enemies.Values.First(e => e.Def.Id == "gravelord");
+        storyA.World.Me.Position = wardBoss.Position + new Vector2(-1.5f, 0f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(wardBoss.Position);
+        SPump(0.4f);
+        for (int i = 0; i < 40 && !wardBoss.Dead; i++)
+        {
+            storyA.SendDebugCommand("kill_nearby");
+            storyA.SendDebugCommand("heal");
+            SPump(0.3f);
+        }
+        Check(wardBoss.Dead && !sw.ExitLocked, "the Warden falls and the zone's exit opens");
+        storyA.SendDebugCommand("heal");
+        storyA.World.Me.Position = sw.Map.ExitDoor + new Vector2(-1.0f, 0.5f);
+        storyA.World.Me.Height = sw.Map.GroundHeightAt(sw.Map.ExitDoor);
+        SPump(0.4f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && !sw.PortalOpen && sw.ZoneTitle == "",
+              "the zone's exit leads home to the ruins; the portal is closed behind the party");
+        // A Last Stand scroll: waves hunt the party wherever it stands.
+        storyA.SendDebugCommand("give_warp", "warp_mode_survival+warp_zone_swamp+warp_weather_rain");
+        SPump(0.3f);
+        var hunted = storyP.Character.Inventory.Items.First(s => s.Item.Modifiers.Any(m => m.ModifierId == "warp_mode_survival"));
+        storyA.World.Me.Position = ruins.PodiumSpot + new Vector2(-1.0f, 0.5f);
+        storyA.World.Me.Height = ruins.GroundHeightAt(ruins.PodiumSpot);
+        SPump(0.3f);
+        storyA.RequestUsePodium(hunted.Item.InstanceId);
+        SPump(0.4f);
+        storyA.World.Me.Position = ruins.PortalSpot + new Vector2(-0.8f, 0.6f);
+        SPump(0.3f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == Server.ServerWorld.ScrollMapIndex && sw.Map.Kind == World.MapKind.Forest && sw.Map.Theme?.Id == "graveyard" &&
+              sw.Map.Weather == "rain" && sw.SurvivalTotal == Server.ScrollRun.SurvivalWaves && sw.SurvivalWave == 0 &&
+              sw.Enemies.Count == 0 && sw.ExitLocked && sw.ZoneTitle.Contains("Last Stand"),
+              $"a Hunted scroll: the Fen in the rain, empty until the waves come, the exit sealed ('{sw.ZoneTitle}')");
+        SPump(8.5f);
+        int wave1 = sw.Enemies.Values.Count(e => !e.Dead);
+        Check(sw.SurvivalWave == 1 && wave1 >= 5 && storyA.World.SurvivalWave == 1 && storyA.World.SurvivalTotal == sw.SurvivalTotal &&
+              sw.Enemies.Values.All(e => Vector2.Distance(e.Position, storyP.Position) <= 11f && e.State != Server.EnemyState.Idle && e.Hunting),
+              $"wave 1 of {sw.SurvivalTotal}: {wave1} hunters close in around the party (server wave {sw.SurvivalWave}, client {storyA.World.SurvivalWave}/{storyA.World.SurvivalTotal}, states {string.Join(",", sw.Enemies.Values.Select(e => e.State))})");
+        for (int w = 0; w < 5 && !sw.SurvivalDone; w++)
+        {
+            for (int i = 0; i < 30 && sw.Enemies.Values.Any(e => !e.Dead); i++)
+            {
+                storyA.SendDebugCommand("kill_nearby");
+                storyA.SendDebugCommand("heal");
+                SPump(0.3f);
+            }
+            SPump(6.6f);
+        }
+        Check(sw.SurvivalDone && sw.SurvivalWave == Server.ScrollRun.SurvivalWaves && !sw.ExitLocked && storyA.World.SurvivalDone,
+              "five waves beaten: the Last Stand is won and the way home opens");
+        storyA.SendDebugCommand("heal");
+        storyA.SendDebugCommand("warp_home");
+        SPump(1.0f);
+        // A Besieged scroll: the caravan stand, generated as the scroll's zone.
+        storyA.SendDebugCommand("give_warp", "warp_mode_defense+warp_loot_t2");
+        SPump(0.3f);
+        var besieged = storyP.Character.Inventory.Items.First(s => s.Item.Modifiers.Any(m => m.ModifierId == "warp_mode_defense"));
+        storyA.World.Me.Position = ruins.PodiumSpot + new Vector2(-1.0f, 0.5f);
+        storyA.World.Me.Height = ruins.GroundHeightAt(ruins.PodiumSpot);
+        SPump(0.3f);
+        storyA.RequestUsePodium(besieged.Item.InstanceId);
+        SPump(0.4f);
+        storyA.World.Me.Position = ruins.PortalSpot + new Vector2(-0.8f, 0.6f);
+        SPump(0.3f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == Server.ServerWorld.ScrollMapIndex && sw.Map.Kind == World.MapKind.Defense && sw.Map.WagonSpot != Vector2.Zero &&
+              storyA.World.Map.Kind == World.MapKind.Defense && sw.ZoneLootMultiplier > 1.3f,
+              $"a Besieged scroll opens a caravan stand (loot x{sw.ZoneLootMultiplier:0.00} from the Plenty seal; map {sw.MapIndex}/{sw.Map.Kind}, portal {sw.PortalOpen}, alive {storyP.Alive}, at {storyP.Position.X:0.0},{storyP.Position.Y:0.0} h{storyP.Height:0.0}, bag has it {storyP.Character.Inventory.Items.Any(s => s.Item.InstanceId == besieged.Item.InstanceId)})");
+        storyA.SendDebugCommand("warp_home");
+        SPump(1.0f);
+        // Back out to the road: the grind. Boss at the far west end, no caravan, always open.
+        Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub, "home again for the road");
+        int scenesBeforeGrind = storyA.World.CutscenesSeen.Count;
+        storyA.World.Me.Position = ruins.EntryDoor + new Vector2(0f, -1.2f);
+        storyA.World.Me.Height = 0f;
+        SPump(0.3f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == Server.ServerWorld.StoryRoadIndex && sw.Map.Kind == World.MapKind.StoryRoad &&
+              storyA.World.Map.Kind == World.MapKind.StoryRoad,
+              "the ruins' doorway leads back out onto the road");
+        var roadAgain = sw.Map;
+        var grindBoss = sw.Enemies.Values.FirstOrDefault(e => e.Def.Id == "barrowlord");
+        Check(storyP.Position.X > roadAgain.Width - 6f && grindBoss != null && grindBoss.Position.X < 20f &&
+              !sw.Structures.Values.Any(st => st.Kind == World.StructureKind.Wagon) && sw.Npcs.Count == 0 &&
+              !sw.ExitLocked && sw.Enemies.Values.Count(e => !e.Dead) >= 8 &&
+              sw.Enemies.Values.Where(e => !e.Affixes.HasFlag(Server.EliteAffix.Boss)).All(e => e.Level == sw.CampaignEnemyLevel),
+              $"traversed backwards: arrive by the east doorway, the Barrow Lord waits at the west end (x {grindBoss?.Position.X:0}), no caravan, no crew, the doorway home open, {sw.Enemies.Count} enemies to grind");
+        storyA.World.Me.Position = roadAgain.ExitDoor + new Vector2(-1.2f, 0f);
+        SPump(0.3f);
+        storyA.RequestDoorReady();
+        SPump(1.2f);
+        Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && storyA.World.CutscenesSeen.Count == scenesBeforeGrind,
+              "the doorway home works with the boss still standing; no scenes play on a grind");
+        storyA.Disconnect();
+        SPump(0.3f);
+        storyServer.Stop();
+    }
+
+    public static int Run(bool storyOnly = false)
     {
         Console.WriteLine("=== ARPG headless multiplayer self-test ===");
         var data = GameData.LoadDefault();
+        if (storyOnly)
+        {
+            RunStory(data);
+            return Finish();
+        }
 
         var server = new GameServer(data, mapSeed: 1234);
         if (!server.Start(0))
@@ -614,7 +931,7 @@ public static class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 463, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        Check(data.Modifiers.Count == 481, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
         Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 46,
               "every full family has a tier X (46 tiered families reach tier 10)");
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&
@@ -4146,14 +4463,16 @@ public static class HeadlessNetTest
         campA.RequestOpenChest(chest1.Id);
         CPump(0.4f);
         var chestLoot = campServer.World.Drops.Values
-            .Where(d => !dropsBeforeChest.Contains(d.DropId) && d.Item != null).ToList();
+            .Where(d => !dropsBeforeChest.Contains(d.DropId) && d.Item != null &&
+                        d.Item.GetBase(data).Category != Items.ItemCategory.WarpScroll).ToList(); // a sealed scroll may ride along
         Check(chest1.Opened && chestLoot.Count == 2, $"chest pops and drops starter gear ({chestLoot.Count} items)");
         Check(chestLoot.All(d => d.Item.Rarity == Items.ItemRarity.Normal && d.Item.ItemLevel == 1),
               "chest gear is plain level-1 starter fare");
         Check(campA.World.Chests[chest1.Id].Opened, "the popped lid replicates");
         campA.RequestOpenChest(chest1.Id);
         CPump(0.3f);
-        Check(campServer.World.Drops.Values.Count(d => d.Item != null && !dropsBeforeChest.Contains(d.DropId)) == 2,
+        Check(campServer.World.Drops.Values.Count(d => d.Item != null && !dropsBeforeChest.Contains(d.DropId) &&
+                                                       d.Item.GetBase(data).Category != Items.ItemCategory.WarpScroll) == 2,
               "a chest opens only once");
 
         // Skill trainer: buying away from him is refused; at his side it costs 75 gold.
@@ -5135,130 +5454,7 @@ public static class HeadlessNetTest
         CPump(0.3f);
         campServer.Stop();
 
-        // ------------------------------------------------------------------ Batch 77: the story opening
-        Console.WriteLine("\n-- Batch 77: story mode (the road, the ruins hub, the lower levels) --");
-        var storyServer = new GameServer(data, 515151, "forest", campaign: true, story: true);
-        Check(storyServer.Start(0), "story server started");
-        var storyA = new GameClient(data, "StoryA", null);
-        storyA.Connect("127.0.0.1", storyServer.LocalPort, out _);
-        void SPump(float seconds)
-        {
-            const float dt = 1f / 60f;
-            int steps = (int)(seconds / dt);
-            for (int i = 0; i < steps; i++)
-            {
-                storyServer.Update(dt);
-                storyA.Update(dt);
-                Thread.Sleep(2);
-            }
-        }
-        SPump(1.5f);
-        var sw = storyServer.World;
-        Check(storyA.Status == ClientStatus.InGame && sw.Story &&
-              sw.MapIndex == Server.ServerWorld.StoryRoadIndex && sw.Map.Kind == World.MapKind.StoryRoad,
-              "the story opens on the story road, not in the sanctum");
-        Check(sw.Map.Width == 108 && sw.Map.Weather == "rain" &&
-              sw.Map.ExitDoorStyle == World.DoorStyle.RuinArch && sw.Map.EntryDoor == Vector2.Zero &&
-              sw.Map.GateSpot != Vector2.Zero && sw.Map.ExitDoor.X > sw.Map.Width - 4f &&
-              !sw.Map.IsSolid(sw.Map.Width - 1, (int)sw.Map.ExitDoor.Y) && sw.Map.IsSolid(7, sw.Map.Height / 2) &&
-              !sw.Map.IsSolid(3, sw.Map.Height / 2),
-              $"the story road is a fifth longer ({sw.Map.Width} wide), rains, has no door behind the camp (road and rubble instead), a lintelled gate, and a doorway out through the east wall");
-        int roadYc = sw.Map.Height / 2;
-        Check(sw.Map.TutorialHints.Count >= 6 && sw.Map.TutorialHints.All(h =>
-                  MathF.Abs(h.Pos.Y - (roadYc + 0.5f)) >= 2.5f && !sw.Map.IsSolid((int)h.Pos.X, (int)h.Pos.Y)),
-              "the story road's stones stand beside the road on clear ground, never on it");
-        Check(storyA.World.Map.Kind == World.MapKind.StoryRoad && storyA.World.Map.Width == sw.Map.Width &&
-              storyA.World.Map.TutorialHints.Count == sw.Map.TutorialHints.Count,
-              "the client builds the same story road from the seed");
-        var testWorld = new GameServer(data, 616161, "forest", campaign: true).World;
-        Check(testWorld.Map.Kind == World.MapKind.Hub && !testWorld.Story,
-              "the test grounds still open in the sanctum hub");
-        // Arrow Rain: follow-up volleys land on their own spots around the mark.
-        storyA.SendDebugCommand("give_bow", "equip");
-        storyA.SendDebugCommand("learn_skill", "arrow_rain");
-        SPump(0.4f);
-        var rainSrv = sw.Players.Values.First();
-        rainSrv.Mana = rainSrv.Stats.MaxMana;
-        var rainMark = rainSrv.Position + new Vector2(2.5f, 0f);
-        storyA.RequestUseSkill("arrow_rain", rainMark);
-        SPump(0.6f); // the wind-up lands, the volleys queue
-        var volleySpots = sw.RainVolleyPositions.ToList();
-        Check(volleySpots.Count >= 2 && volleySpots.Distinct().Count() == volleySpots.Count &&
-              Vector2.Distance(volleySpots[0], rainMark) < 0.05f &&
-              volleySpots.Skip(1).All(v => Vector2.Distance(v, rainMark) > 0.2f && Vector2.Distance(v, rainMark) <= data.Skills["arrow_rain"].Radius * 1.5f),
-              $"Arrow Rain's {volleySpots.Count} volleys each land on their own spot near the mark");
-        SPump(2.0f);
-        // Loot is lighter now.
-        var defaultLoot = data.LootTables["default"];
-        Check(defaultLoot.DropChance <= 0.3f && defaultLoot.GoldDropChance <= 0.35f &&
-              defaultLoot.ScrollDropChance <= 0.06f && defaultLoot.EnchantScrollDropChance <= 0.08f,
-              $"drop rates eased: gear {defaultLoot.DropChance:P0}, gold {defaultLoot.GoldDropChance:P0}");
-        // The Barrow Lord falls; the archway leads to the ruins hub.
-        var roadBoss = sw.Enemies.Values.First(e => e.Def.Id == "barrowlord");
-        storyA.World.Me.Position = roadBoss.Position + new Vector2(-1.5f, 0f);
-        storyA.World.Me.Height = sw.Map.GroundHeightAt(roadBoss.Position);
-        SPump(0.4f);
-        for (int i = 0; i < 40 && !roadBoss.Dead; i++)
-        {
-            storyA.SendDebugCommand("kill_nearby");
-            storyA.SendDebugCommand("heal");
-            SPump(0.3f);
-        }
-        Check(roadBoss.Dead && !sw.ExitLocked, "the story road's gate boss falls and the archway opens");
-        storyA.SendDebugCommand("heal");
-        storyA.World.Me.Position = sw.Map.ExitDoor + new Vector2(-1.2f, 0f);
-        storyA.World.Me.Height = sw.Map.GroundHeightAt(sw.Map.ExitDoor);
-        SPump(0.4f);
-        storyA.RequestDoorReady();
-        SPump(1.2f);
-        Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && storyA.World.Map.Kind == World.MapKind.RuinsHub,
-              "through the archway: the ruins hub (both sides)");
-        var hub = sw.Map;
-        Check(hub.PodiumSpot != Vector2.Zero && hub.PortalSpot != Vector2.Zero && hub.FountainSpot != Vector2.Zero &&
-              hub.ExitDoorStyle == World.DoorStyle.Stairs && hub.EntryDoorStyle == World.DoorStyle.RuinArch &&
-              hub.TorchSpots.Count >= 6 && hub.WagonSpot != Vector2.Zero && hub.StashSpot != Vector2.Zero,
-              "the hub has the cart, the podium and portal stand, the fountain, standing torches, and the stairs down");
-        Check(hub.IsSolid(hub.Width - 5, hub.Height - 5) && !hub.IsSolid(4, hub.Height - 4) && !hub.IsSolid(hub.Width - 5, 4) &&
-              hub.EntryDoor.Y > hub.Height - 3f && hub.EntryDoor.X < 6f && !hub.IsSolid((int)hub.EntryDoor.X, hub.Height - 1) &&
-              hub.ExitDoor.X < 4f && hub.ExitDoor.Y < 4f,
-              "the ruins are an upside-down L: the doorway at the stem's foot, the stairs in the north-west corner");
-        Check(hub.IsVoid(hub.Width - 5, hub.Height - 5) && hub.IsSolid(hub.Width - 5, hub.Height - 5) &&
-              !hub.IsVoid(10, 10) && hub.IsSolid(10, 10) && !hub.IsVoid(15, 5) && !hub.IsVoid(0, 5),
-              "the collapsed block is void (solid but nothing to draw); only the walls bounding the rooms stand");
-        Check(sw.Npcs.Any(n => n.TypeId == "merchant") && sw.Npcs.Any(n => n.TypeId == "skill_trainer") &&
-              sw.Npcs.Any(n => n.TypeId == "mercenary") && sw.Npcs.Any(n => n.TypeId == "gambler") &&
-              storyA.World.Npcs.Count == sw.Npcs.Count,
-              "the peddler, the lorekeeper, the sellsword and the gambler stand in the camp");
-        Check(sw.Structures.Values.Any(st => st.Kind == World.StructureKind.Wagon) &&
-              sw.Structures.Values.Count(st => st.Kind == World.StructureKind.Torch) == hub.TorchSpots.Count &&
-              storyA.World.Structures.Values.Any(st => st.Kind == (byte)World.StructureKind.Wagon) &&
-              storyA.World.Structures.Values.Count(st => st.Kind == (byte)World.StructureKind.Torch) == hub.TorchSpots.Count &&
-              World.StructureKinds.IsBreakable(World.StructureKind.Torch),
-              "the cart and every standing torch reach the client (spawned after the map broadcast); torches break");
-        SPump(1.6f);
-        Check(storyA.World.CutscenesSeen.Contains("hub_arrival"), "the crew points the party at the stairs");
-        var sable = sw.Npcs.First(n => n.TypeId == "gambler");
-        storyA.World.Me.Position = sable.Position + new Vector2(0.8f, 0f);
-        SPump(0.3f);
-        var storyChar = sw.Players.Values.First().Character;
-        storyChar.Gold = 3000;
-        int storyBag = storyChar.Inventory.Items.Count;
-        storyA.RequestGamble("mace");
-        SPump(0.5f);
-        Check(storyChar.Gold == 3000 && storyChar.Inventory.Items.Count == storyBag,
-              "Sable's table isn't open in the camp yet (no charge, no item)");
-        // Down the stairs: the lower levels wear the tomb theme.
-        storyA.World.Me.Position = hub.ExitDoor + new Vector2(-1.0f, 0.8f);
-        storyA.World.Me.Height = hub.GroundHeightAt(hub.ExitDoor);
-        SPump(0.4f);
-        storyA.RequestDoorReady();
-        SPump(1.2f);
-        Check(sw.MapIndex == 1 && sw.Map.Kind == World.MapKind.Forest && sw.Map.Theme?.Id == "tomb" &&
-              storyA.World.Map.Theme?.Id == "tomb",
-              $"the stairs lead into the lower levels (theme {sw.Map.Theme?.Id})");
-        storyA.Disconnect();
-        SPump(0.3f);
-        storyServer.Stop();
+        RunStory(data);
 
         Console.WriteLine("\n-- Batch 50: Arrow Rain + the leaner health pool --");
         // The flat health freebie shrank so attribute life carries real weight.
@@ -6251,6 +6447,11 @@ public static class HeadlessNetTest
         threadedServer.Stop();
         Check(true, "threaded server stopped cleanly (thread joined)");
 
+        return Finish();
+    }
+
+    private static int Finish()
+    {
         Console.WriteLine($"\n=== {_checks - Failures.Count}/{_checks} checks passed ===");
         if (Failures.Count > 0)
         {

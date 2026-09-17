@@ -37,6 +37,7 @@ public class PlayScreen : IScreen
     private readonly ShopUI _shop;
     private readonly TrainerUI _trainer;
     private readonly GambleUI _gamble;
+    private readonly PodiumUI _podium;
     private readonly BuildUI _build;
     private readonly ResearcherUI _researcher;
     private readonly StashUI _stash;
@@ -99,6 +100,8 @@ public class PlayScreen : IScreen
     private NumVec2? _devFaceOverride;
     private bool _devWarpNext;
     private bool _devWarpTutorial;
+    private string _devGiveScroll;
+    private string _devOpenPortal;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     /// <summary>The tooltip held open by Alt (and where its mouse anchor was), so the
@@ -198,6 +201,7 @@ public class PlayScreen : IScreen
         _shop = new ShopUI(game.Data, client, _inventory);
         _trainer = new TrainerUI(game.Data, client);
         _gamble = new GambleUI(game.Data, client);
+        _podium = new PodiumUI(game.Data, client);
         _build = new BuildUI(client);
         _researcher = new ResearcherUI(client);
         _stash = new StashUI(game.Data, client, _inventory, _drag);
@@ -240,6 +244,7 @@ public class PlayScreen : IScreen
         _panelZ.Add(new PanelZ { Owner = _shop, IsOpen = () => _shop.Open, Contains = p => _shop.Contains(p), Update = (i, b) => _shop.Update(i, b), Draw = sb => _shop.Draw(sb, _game.UiScreenSize) });
         _panelZ.Add(new PanelZ { Owner = _trainer, IsOpen = () => _trainer.Open, Contains = p => _trainer.Contains(p), Update = (i, b) => _trainer.Update(i, b), Draw = sb => _trainer.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _gamble, IsOpen = () => _gamble.Open, Contains = p => _gamble.Contains(p), Update = (i, b) => _gamble.Update(i, b), Draw = sb => _gamble.Draw(sb) });
+        _panelZ.Add(new PanelZ { Owner = _podium, IsOpen = () => _podium.Open, Contains = p => _podium.Contains(p), Update = (i, b) => _podium.Update(i, b), Draw = sb => _podium.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _build, IsOpen = () => _build.Open, Contains = p => _build.Contains(p), Update = (i, b) => _build.Update(i, b), Draw = sb => _build.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _researcher, IsOpen = () => _researcher.Open, Contains = p => _researcher.Contains(p), Update = (i, b) => _researcher.Update(i, b), Draw = sb => _researcher.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _stash, IsOpen = () => _stash.Open, Contains = p => _stash.Contains(p), Update = (i, b) => _stash.Update(i, b), Draw = sb => _stash.Draw(sb) });
@@ -274,8 +279,15 @@ public class PlayScreen : IScreen
             if (devUi.Contains("mace")) _devGiveMace = true;
             var tpToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("tp:"));
             if (tpToken != null) _devTeleport = tpToken.Substring(3).Replace(';', ',');
-            if (devUi.Contains("warp")) _devWarpNext = true;
+            var devTokens = devUi.Split(',');
+            if (devTokens.Contains("warp")) _devWarpNext = true;
             if (devUi.Contains("tutorial")) _devWarpTutorial = true;
+            // scroll[:rare|magic|warp_id+warp_id] — a sealed warp scroll in the bag;
+            // portal[:same] — seal one straight onto the podium (captures of the open portal).
+            var scrollToken = devTokens.FirstOrDefault(t => t.StartsWith("scroll"));
+            if (scrollToken != null) _devGiveScroll = scrollToken.Contains(':') ? scrollToken.Split(':')[1] : "rare";
+            var portalToken = devTokens.FirstOrDefault(t => t.StartsWith("portal"));
+            if (portalToken != null) _devOpenPortal = portalToken.Contains(':') ? portalToken.Split(':')[1] : "rare";
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
             if (gearToken != null)
                 _devEquipSet = gearToken.Contains(':') ? gearToken.Split(':')[1] : "iron";
@@ -533,6 +545,16 @@ public class PlayScreen : IScreen
             _devWarpTutorial = false;
             _client.SendDebugCommand("warp_tutorial");
         }
+        if (_devGiveScroll != null && _clientTime > 2f)
+        {
+            _client.SendDebugCommand("give_warp", _devGiveScroll);
+            _devGiveScroll = null;
+        }
+        if (_devOpenPortal != null && _clientTime > 4.5f)
+        {
+            _client.SendDebugCommand("open_portal", _devOpenPortal);
+            _devOpenPortal = null;
+        }
 
         // The server (when hosting) runs on its OWN thread with a fixed timestep — the
         // render thread only drives the client, which talks to it over loopback UDP.
@@ -559,6 +581,7 @@ public class PlayScreen : IScreen
         _shop.Layout(uiScreen);
         _trainer.Layout(uiScreen);
         _gamble.Layout(uiScreen);
+        _podium.Layout(uiScreen);
         _build.Layout(uiScreen);
         _researcher.Layout(uiScreen);
         _stash.Layout(uiScreen);
@@ -910,7 +933,14 @@ public class PlayScreen : IScreen
                     (_client.World.Map.IsRoad &&
                      _client.World.Map.EntryDoor != NumVec2.Zero &&
                      NumVec2.Distance(me.Position, _client.World.Map.EntryDoor) <= 2.4f);
-                bool doorNear = tutorialDoorNear ||
+                // The ruins: the portal (when open) and the doorway back out to the road
+                // are doors too — the server picks the nearest one in reach.
+                bool ruinsWayNear = _client.World.Map.Kind == World.MapKind.RuinsHub &&
+                    ((_client.World.PortalOpen && _client.World.Map.PortalSpot != NumVec2.Zero &&
+                      NumVec2.Distance(me.Position, _client.World.Map.PortalSpot) <= 2.6f) ||
+                     (_client.World.Map.EntryDoor != NumVec2.Zero &&
+                      NumVec2.Distance(me.Position, _client.World.Map.EntryDoor) <= 2.4f));
+                bool doorNear = tutorialDoorNear || ruinsWayNear ||
                                 (_client.World.Map.ExitDoor != NumVec2.Zero &&
                                  NumVec2.Distance(me.Position, _client.World.Map.ExitDoor) <= 2.4f) ||
                                 (_client.World.Map.DefenseDoor != NumVec2.Zero &&
@@ -933,11 +963,12 @@ public class PlayScreen : IScreen
                 {
                     // An assistance stone: the tip only shows once you choose to read it.
                 }
-                else if (_client.World.Map.PodiumSpot != NumVec2.Zero &&
-                         NumVec2.Distance(me.Position, _client.World.Map.PodiumSpot) <= 2.2f)
+                else if (_client.World.Map.PodiumSpot != NumVec2.Zero && !_client.World.PortalOpen &&
+                         NumVec2.Distance(me.Position, _client.World.Map.PodiumSpot) <= 2.6f)
                 {
-                    // The scroll podium: map scrolls don't exist yet — the stand waits.
-                    _hud.AddMessage("The podium's sigil stays dark — it wants a map scroll, and you carry none.");
+                    // The scroll podium: pick a sealed warp scroll from the bag.
+                    _podium.Open = true;
+                    RaisePanel(_podium);
                 }
                 else if (workbenchNear && !_build.Open)
                 {

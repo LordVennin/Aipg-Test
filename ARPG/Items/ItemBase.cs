@@ -25,6 +25,10 @@ public enum ItemCategory
     /// <summary>Non-equippable special items (mercenary contracts, blueprints):
     /// carried, stashed and traded to NPCs — never worn, never enchanted.</summary>
     Curio,
+    /// <summary>A sealed warp scroll: six modifier slots that describe a zone. Placed on
+    /// the ruins' podium it opens the portal to that zone. Never worn, never enchanted
+    /// — its modifiers are rolled at the drop and sealed.</summary>
+    WarpScroll,
     /// <summary>Companion creatures worn in the dedicated Pet slot: unique-rarity
     /// finds with small implicit boons and a visible critter trailing the owner.</summary>
     Pet,
@@ -139,7 +143,7 @@ public class ItemBase
     /// <summary>Items rendered in the character's hands (weapons and shields).</summary>
     public bool IsHandheld => IsWeapon || Category == ItemCategory.Shield;
     public bool IsEquippable =>
-        Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll or ItemCategory.Curio);
+        Category is not (ItemCategory.SkillScroll or ItemCategory.EnchantScroll or ItemCategory.Curio or ItemCategory.WarpScroll);
     /// <summary>Categories that can receive prefix/suffix modifiers (enchantable gear).
     /// Flasks carry only their base stats for now; pets roll at DROP time only —
     /// their modifiers are part of the find, never crafted afterward.</summary>
