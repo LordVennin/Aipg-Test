@@ -58,7 +58,10 @@ public partial class ServerWorld
         // The dead along the road — authored placements, gentle levels (the road
         // band sits on the map's center row).
         float rc = Map.Height / 2 + 0.5f;
-        float sx = Map.Width / 84f; // authored for the 84-wide road; the story road is longer
+        // Authored for the 84-wide road; the story road is longer and starts past a
+        // stretch of road behind the camp (8 tiles).
+        float x0 = Map.Kind == MapKind.StoryRoad ? 8f : 0f;
+        float sx = (Map.Width - x0) / 84f;
         foreach (var (kind, x84, y) in new (string, float, float)[]
         {
             ("grunt", 17.5f, rc), ("grunt", 18.5f, rc + 1f),
@@ -70,7 +73,7 @@ public partial class ServerWorld
             if (Data.Enemies.ContainsKey(kind))
                 // The first pair and the high-ground guard lie buried — the road's
                 // introduction to the dead rising; the middle groups stand in plain view.
-                SpawnEnemy(kind, new Vector2(x84 * sx, y), level: 1, buried: x84 < 20f || x84 > 50f);
+                SpawnEnemy(kind, new Vector2(x0 + x84 * sx, y), level: 1, buried: x84 < 20f || x84 > 50f);
 
         // The gate boss: the Barrow Lord — the Gravelord's tutorial cousin, who
         // raises melee zombies instead of spitters — already weathered: the tutorial

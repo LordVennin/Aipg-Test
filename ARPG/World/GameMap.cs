@@ -105,6 +105,9 @@ public class GameMap
     /// flight down into the dark (the ruins hub's way to the lower levels).</summary>
     public DoorStyle ExitDoorStyle { get; private set; } = DoorStyle.Door;
     public DoorStyle EntryDoorStyle { get; private set; } = DoorStyle.Door;
+    /// <summary>Story road: the gate between the jamb walls (a lintel spans it) — the
+    /// boss's threshold, distinct from the exit door in the east wall beyond it.</summary>
+    public Vector2 GateSpot { get; private set; }
     /// <summary>Ruins hub: the scroll podium (map scrolls go here later) and the
     /// dormant portal stand behind it.</summary>
     public Vector2 PodiumSpot { get; private set; }
@@ -181,7 +184,7 @@ public class GameMap
                 MapKind.Forest => (86 + dice.Next(45), 26 + dice.Next(11)),
                 MapKind.Defense => (38 + dice.Next(27), 28 + dice.Next(17)),
                 MapKind.Tutorial => (84, 22), // a long straight road east — never rolled
-                MapKind.StoryRoad => (100, 22), // the story cut: a fifth longer, stones spaced out
+                MapKind.StoryRoad => (108, 22), // the story cut: a fifth longer, plus the road behind the camp
                 MapKind.RuinsHub => (30, 22),
                 _ => (44, 44),
             };
@@ -668,8 +671,12 @@ public class GameMap
         // Every east-west anchor is authored for the 84-wide test road and STRETCHED
         // to this map's width — the story road is a fifth longer, so the stones and
         // fights sit further apart without re-authoring the layout.
-        float stretch = Width / 84f;
-        int X(float x84) => (int)MathF.Round(x84 * stretch);
+        // The story road also keeps a stretch of road BEHIND the camp (west of a
+        // rubble barricade) that the player can see but never walk: the caravan came
+        // from somewhere. Every authored x shifts past it.
+        int x0 = story ? 8 : 0;
+        float stretch = (Width - x0) / 84f;
+        int X(float x84) => x0 + (int)MathF.Round(x84 * stretch);
 
         for (int y = 0; y < Height; y++)
             for (int x = 0; x < Width; x++)
@@ -688,13 +695,13 @@ public class GameMap
         }
 
         // --- The caravan camp (west end): spawn, wagon, the door home.
-        PlayerSpawn = new Vector2(6.5f, yc + 1.5f);
-        WagonSpot = new Vector2(4.5f, yc - 0.5f);
-        EntryDoor = new Vector2(1.6f, yc + 0.5f);
-        NpcSpots.Add(new Vector2(5.5f, yc + 2.8f)); // Brakka, by the fire
-        NpcSpots.Add(new Vector2(3.2f, yc + 1.6f)); // Odessa, under the awning
+        PlayerSpawn = new Vector2(x0 + 6.5f, yc + 1.5f);
+        WagonSpot = new Vector2(x0 + 4.5f, yc - 0.5f);
+        EntryDoor = story ? Vector2.Zero : new Vector2(1.6f, yc + 0.5f); // the story has no way back
+        NpcSpots.Add(new Vector2(x0 + 5.5f, yc + 2.8f)); // Brakka, by the fire
+        NpcSpots.Add(new Vector2(x0 + 3.2f, yc + 1.6f)); // Odessa, under the awning
         for (int y = yc - 4; y <= yc + 4; y++)
-            for (int x = 2; x <= 11; x++)
+            for (int x = x0 + 2; x <= x0 + 11; x++)
                 if (y >= 1 && y < Height - 1) _wall[Idx(x, y)] = 0;
 
         // --- The rise: everything east of the stair line sits one level up, its
@@ -736,13 +743,14 @@ public class GameMap
         _wall[Idx(gateX, yc + 3)] = 2;
         BossSpot = new Vector2(gateX - 3.5f, yc + 0.5f);
         ExitDoor = new Vector2(Width - 2.5f, yc + 0.5f);
-        // The story road ends in the ruins' own stonework: the gate between the jambs
-        // IS the way out (a lintel spans it), and the camp's door west is an archway.
+        // The story road ends in the ruins' own stonework: a lintel spans the gate
+        // between the jambs, and the way out is a doorway cut through the east wall
+        // beyond it (its own lintel over the gap).
         if (story)
         {
-            ExitDoor = new Vector2(gateX + 0.5f, yc + 0.5f);
+            GateSpot = new Vector2(gateX + 0.5f, yc + 0.5f);
             ExitDoorStyle = DoorStyle.RuinArch;
-            EntryDoorStyle = DoorStyle.RuinArch;
+            _wall[Idx(Width - 1, yc)] = 0; // the doorway: out of bounds stays solid
         }
 
         // --- Swamp pools flanking the road (never on it), with ragged shorelines.
@@ -818,6 +826,20 @@ public class GameMap
                 _feature[i] = 0;
             }
 
+        // --- The road behind the camp (story): a rubble barricade with a fallen tree
+        // across the road keeps it scenery — the way the caravan came, not a way back.
+        if (story)
+        {
+            int bx = x0 - 1;
+            for (int y = yc - 2; y <= yc + 2; y++)
+                if (y >= 1 && y < Height - 1) _wall[Idx(bx, y)] = 1;
+            _wall[Idx(bx - 1, yc)] = 1;
+            _wall[Idx(bx, yc + 3)] = 2;
+            _wall[Idx(bx, yc - 3)] = 2;
+            PlantDeadTree(bx - 4, yc - 4);
+            PlantDeadTree(bx - 5, yc + 2);
+        }
+
         // --- Assistance stones: stand near one and press the interact key to read.
         // The test road keeps them on the verge; the story road sets them BESIDE the
         // road (three rows off its centre, alternating sides) on ground cleared for
@@ -873,10 +895,14 @@ public class GameMap
     /// </summary>
     private void GenerateRuinsHub()
     {
-        // The interior is an upside-down L: a BAR along the north (entrance at its west
-        // end, the stairs down at its east end) and a STEM hanging south from the
-        // west end. The south-east block is the ruins' collapsed rooms — solid mass
-        // with a ragged, half-tumbled edge.
+        // The interior is an upside-down L: a BAR along the north and a STEM hanging
+        // south from its west end. The stairs down sit in the north-west corner (the
+        // top of the room on screen), the peddler's camp along the bar's west end
+        // below them, the entrance is a doorway in the stem's south wall (the room's
+        // left corner on screen), the sellsword unpacks in the stem, the gambler by
+        // the fountain mid-bar, the podium and portal stand at the bar's east end.
+        // The south-east block is the ruins' collapsed rooms — solid mass with a
+        // ragged, half-tumbled edge.
         int barBottom = 9;   // the bar: rows 1..barBottom
         int stemRight = 9;   // the stem: columns 1..stemRight, rows barBottom+1..Height-2
         for (int y = 0; y < Height; y++)
@@ -889,49 +915,49 @@ public class GameMap
                 _wall[Idx(x, y)] = open ? (byte)0 : (byte)2;
                 _ruins[Idx(x, y)] = 1;
             }
-        // The collapsed block's edge: every other tile a low broken stub instead of a
-        // full wall, so the mass reads as fallen masonry rather than a clean cut.
         for (int x = stemRight + 1; x < Width - 1; x++)
             if ((x & 1) == 0) _wall[Idx(x, barBottom + 1)] = 1;
         for (int y = barBottom + 1; y < Height - 1; y++)
             if ((y & 1) == 1) _wall[Idx(stemRight + 1, y)] = 1;
         float yc = barBottom / 2f + 0.5f; // the bar's centre row (5)
 
-        PlayerSpawn = new Vector2(4.5f, yc);
-        EntryDoor = new Vector2(1.6f, yc);   // the archway in the west wall (top-left)
+        // The entrance: a doorway cut through the stem's south wall.
+        int doorX = 4;
+        _wall[Idx(doorX, Height - 1)] = 0; // out of bounds stays solid
+        EntryDoor = new Vector2(doorX + 0.5f, Height - 1.5f);
         EntryDoorStyle = DoorStyle.RuinArch;
-        ExitDoor = new Vector2(Width - 3.5f, 2.5f); // the stairs down, north-east corner (top-right)
+        PlayerSpawn = new Vector2(doorX + 0.5f, Height - 3.5f);
+        // The stairs down: the north-west corner.
+        ExitDoor = new Vector2(3.0f, 2.5f);
         ExitDoorStyle = DoorStyle.Stairs;
 
-        // The camp along the bar's north wall, by the entrance: the cart, the peddler
-        // beside it, the stash and the lorekeeper's table further along.
-        WagonSpot = new Vector2(6.4f, 2.7f);
-        NpcSpots.Add(new Vector2(9.0f, 3.4f));   // merchant, at the cart's tail
-        NpcSpots.Add(new Vector2(13.5f, 3.0f));  // skill trainer
-        StashSpot = new Vector2(11.3f, 2.5f);
-        // Still setting up, down the stem south of the entrance.
-        NpcSpots.Add(new Vector2(5.0f, 13.5f));  // mercenary
-        NpcSpots.Add(new Vector2(7.0f, 16.5f));  // gambler
-        FountainSpot = new Vector2(Width / 2f + 0.5f, yc + 0.5f); // mid-bar
-        // The scroll podium at the bar's east end, the portal stand behind it (up
-        // against the east wall), both south of the stairs.
+        // The peddler's camp: the bar's west end, under the stairs.
+        WagonSpot = new Vector2(2.9f, 6.4f);
+        NpcSpots.Add(new Vector2(5.6f, 6.2f));   // merchant, at the cart's tail
+        NpcSpots.Add(new Vector2(7.6f, 3.8f));   // skill trainer, at the stash
+        StashSpot = new Vector2(6.2f, 2.5f);
+        // The sellsword unpacks in the stem; the gambler sets up by the fountain.
+        NpcSpots.Add(new Vector2(5.0f, 15.0f));  // mercenary
+        NpcSpots.Add(new Vector2(19.5f, 7.0f));  // gambler
+        FountainSpot = new Vector2(15.5f, yc + 0.5f); // mid-bar
+        // The scroll podium at the bar's east end, the portal stand behind it.
         PodiumSpot = new Vector2(Width - 5.5f, 7.5f);
         PortalSpot = new Vector2(Width - 2.7f, 6.4f);
 
         // Standing torches along the walls — the room's light, and breakable.
-        TorchSpots.Add(new Vector2(3.0f, 2.6f));
+        TorchSpots.Add(new Vector2(9.0f, 2.4f));
         TorchSpots.Add(new Vector2(16.5f, 2.4f));
         TorchSpots.Add(new Vector2(Width - 7.5f, 2.4f));
         TorchSpots.Add(new Vector2(Width - 2.6f, 9.0f));
         TorchSpots.Add(new Vector2(12.5f, barBottom + 0.6f));
         TorchSpots.Add(new Vector2(20.5f, barBottom + 0.6f));
         TorchSpots.Add(new Vector2(2.6f, 12.0f));
-        TorchSpots.Add(new Vector2(stemRight - 0.6f, 14.5f));
-        TorchSpots.Add(new Vector2(4.5f, Height - 2.5f));
+        TorchSpots.Add(new Vector2(stemRight - 0.6f, 17.0f));
+        TorchSpots.Add(new Vector2(doorX + 2.5f, Height - 2.4f));
         // Barrels and crates around the cart and the unpacking crew.
-        BarrelSpots.Add(new Vector2(3.4f, 4.0f));
-        BarrelSpots.Add(new Vector2(4.2f, 4.7f));
-        BarrelSpots.Add(new Vector2(8.2f, 15.2f));
+        BarrelSpots.Add(new Vector2(2.8f, 8.6f));
+        BarrelSpots.Add(new Vector2(3.7f, 9.2f));
+        BarrelSpots.Add(new Vector2(7.6f, 14.2f));
         BarrelSpots.Add(new Vector2(3.0f, 16.6f));
         // Urns in the quiet corners.
         UrnSpots.Add(new Vector2(stemRight - 0.5f, Height - 2.6f));
