@@ -558,7 +558,7 @@ public partial class ServerWorld
         if (Map.IsRoad)
         {
             bool atGate = Vector2.Distance(p.Position, Map.ExitDoor) <= 2.6f;
-            bool atEntry = Vector2.Distance(p.Position, Map.EntryDoor) <= 2.6f;
+            bool atEntry = Map.EntryDoor != Vector2.Zero && Vector2.Distance(p.Position, Map.EntryDoor) <= 2.6f;
             if (!atGate && !atEntry) return;
             if (atGate && ExitLocked)
             {

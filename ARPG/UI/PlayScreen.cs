@@ -711,6 +711,13 @@ public class PlayScreen : IScreen
             // Frozen solid (chill freeze / electrocute seize): the server pins us anyway;
             // dropping the input locally avoids a rubber-band fight.
             if ((me.DebuffFlags & Server.PlayerDebuffs.Frozen) != 0) screenDir = NumVec2.Zero;
+            // A story map's opening holds you still: through the fade from black and
+            // while a scene plays, so nobody strolls into an aggro range before the
+            // crew has even spoken.
+            if (_client.World.Map is { Kind: World.MapKind.StoryRoad or World.MapKind.RuinsHub } &&
+                ((Environment.TickCount64 - _client.World.MapLoadedAtMs) / 1000f < FadeHoldSeconds + FadeSeconds + 0.3f ||
+                 _cutscene.Active))
+                screenDir = NumVec2.Zero;
             var worldDir = IsoCamera.ScreenDirToWorldDir(screenDir); // normalized: diagonals aren't faster
 
             // --- dodge: movement is client-predicted for responsiveness; the server

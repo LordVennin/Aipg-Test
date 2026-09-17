@@ -1751,3 +1751,25 @@ item's flavour under it.
   holds mid-bar; the podium and portal stand sit at the bar's east end south of the
   stairs. The collapsed south-east block is solid mass with a half-tumbled edge.
 - Dev: `ARPG_DEVUI=tp:x;y` teleports five seconds in (debug command `teleport x,y`).
+
+## Batch 79 addendum: the camp laid out, the road's two ends
+
+- **Ruins hub layout**: the stairs down sit in the north-west corner (the top of
+  the room on screen); the cart, Weaver, the stash and Maren fill the bar's west
+  end under them; the entrance is a doorway cut through the stem's south wall
+  (the room's left corner), with a stone slab over the gap; Brakka unpacks in
+  the stem; Sable sets up beside the fountain mid-bar; the podium and portal
+  stand keep the bar's east end. Wall tops in the ruins are flagstone, never the
+  graveyard's sod — it's indoors.
+- **No glow on obvious openings**: the stairs, the gate lintel and the wall-gap
+  doorways lose their glow circles; only an archway on a west or north wall
+  (whose face is easy to miss) keeps the light in its opening.
+- **The story road's start**: no door behind the camp. The map runs eight tiles
+  further west — road, graves, dead trees — behind a rubble barricade the player
+  can see but never cross. There is no way back from the road.
+- **The story road's end**: the gate between the jambs keeps its lintel; the way
+  out is a doorway cut through the east wall beyond it (its own slab over the
+  gap) and the yellow ready prompt stands there.
+- **Movement lock**: on a story map you cannot move through the fade from black
+  or while a scene plays (client-side), so nobody walks into an aggro range
+  before the crew has spoken.

@@ -5156,9 +5156,12 @@ public static class HeadlessNetTest
         Check(storyA.Status == ClientStatus.InGame && sw.Story &&
               sw.MapIndex == Server.ServerWorld.StoryRoadIndex && sw.Map.Kind == World.MapKind.StoryRoad,
               "the story opens on the story road, not in the sanctum");
-        Check(sw.Map.Width == 100 && sw.Map.Weather == "rain" &&
-              sw.Map.ExitDoorStyle == World.DoorStyle.RuinArch && sw.Map.EntryDoorStyle == World.DoorStyle.RuinArch,
-              $"the story road is a fifth longer ({sw.Map.Width} wide), rains, and ends in a ruined archway");
+        Check(sw.Map.Width == 108 && sw.Map.Weather == "rain" &&
+              sw.Map.ExitDoorStyle == World.DoorStyle.RuinArch && sw.Map.EntryDoor == Vector2.Zero &&
+              sw.Map.GateSpot != Vector2.Zero && sw.Map.ExitDoor.X > sw.Map.Width - 4f &&
+              !sw.Map.IsSolid(sw.Map.Width - 1, (int)sw.Map.ExitDoor.Y) && sw.Map.IsSolid(7, sw.Map.Height / 2) &&
+              !sw.Map.IsSolid(3, sw.Map.Height / 2),
+              $"the story road is a fifth longer ({sw.Map.Width} wide), rains, has no door behind the camp (road and rubble instead), a lintelled gate, and a doorway out through the east wall");
         int roadYc = sw.Map.Height / 2;
         Check(sw.Map.TutorialHints.Count >= 6 && sw.Map.TutorialHints.All(h =>
                   MathF.Abs(h.Pos.Y - (roadYc + 0.5f)) >= 2.5f && !sw.Map.IsSolid((int)h.Pos.X, (int)h.Pos.Y)),
@@ -5215,8 +5218,9 @@ public static class HeadlessNetTest
               hub.TorchSpots.Count >= 6 && hub.WagonSpot != Vector2.Zero && hub.StashSpot != Vector2.Zero,
               "the hub has the cart, the podium and portal stand, the fountain, standing torches, and the stairs down");
         Check(hub.IsSolid(hub.Width - 5, hub.Height - 5) && !hub.IsSolid(4, hub.Height - 4) && !hub.IsSolid(hub.Width - 5, 4) &&
-              hub.EntryDoor.X < 3f && hub.EntryDoor.Y < hub.Height / 2f && hub.ExitDoor.X > hub.Width - 5f && hub.ExitDoor.Y < 4f,
-              "the ruins are an upside-down L: a bar along the north from the archway to the stairs, a stem south of the entrance");
+              hub.EntryDoor.Y > hub.Height - 3f && hub.EntryDoor.X < 6f && !hub.IsSolid((int)hub.EntryDoor.X, hub.Height - 1) &&
+              hub.ExitDoor.X < 4f && hub.ExitDoor.Y < 4f,
+              "the ruins are an upside-down L: the doorway at the stem's foot, the stairs in the north-west corner");
         Check(sw.Npcs.Any(n => n.TypeId == "merchant") && sw.Npcs.Any(n => n.TypeId == "skill_trainer") &&
               sw.Npcs.Any(n => n.TypeId == "mercenary") && sw.Npcs.Any(n => n.TypeId == "gambler") &&
               storyA.World.Npcs.Count == sw.Npcs.Count,

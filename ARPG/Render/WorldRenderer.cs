@@ -552,11 +552,13 @@ public class WorldRenderer
         }
     }
 
-    /// <summary>A ruined archway painted INTO the wall: on a west or north wall the
+    /// <summary>A ruined archway painted INTO the wall. On a west or north wall the
     /// opening sits on the wall's visible face (its +x or +y side), framed by stone
-    /// jambs and a lintel, the dark inside lit by the way's glow at the foot; on the
-    /// story road's gate (an east-wall opening whose faces look away from the camera)
-    /// a lintel slab spans the two jambs instead. Nothing here is a billboard.</summary>
+    /// jambs and a lintel, the dark inside lit by the way's glow — the one case that
+    /// needs a glow, since the face is easy to miss. On an east or south wall the
+    /// faces look away from the camera, so the opening is a real GAP cut through the
+    /// wall (the map does that) and a stone slab spans the gap between the flanking
+    /// wall tops. Nothing here is a billboard.</summary>
     private void DrawArchway(IsoCamera camera, ClientWorld world, NumVec2 doorPos, Color glow, float pulse)
     {
         var map = world.Map;
@@ -566,65 +568,85 @@ public class WorldRenderer
         var inside = new Color(5, 4, 8);
         Vector2 P(float x, float y, float h) => camera.WorldToScreen(new NumVec2(x, y), h);
 
-        bool west = doorPos.X < 3f, north = doorPos.Y < 3f, east = doorPos.X > map.Width - 3f;
-        if (map.Kind == MapKind.StoryRoad && !west)
+        bool west = doorPos.X < 3f, north = doorPos.Y < 3f;
+        bool east = doorPos.X > map.Width - 3f, south = doorPos.Y > map.Height - 3f;
+        if (east || south)
         {
-            // The gate: jamb walls stand two tiles either side of a three-tile opening
-            // at this column; a slab rests across them at wall-top height.
-            int gx = (int)doorPos.X, yc = (int)doorPos.Y;
-            float top = map.WallHeight(gx, yc - 2);
+            // The slab over the gap: rests on the flanking wall tops, one tile past the
+            // gap each way, the thickness of a course.
+            int t = east ? (int)doorPos.Y : (int)doorPos.X;
+            int wx = map.Width - 1, wy = map.Height - 1;
+            float top = east ? map.WallHeight(wx, t - 1) : map.WallHeight(t - 1, wy);
             if (top <= 0) top = 2;
-            float y0 = yc - 2, y1 = yc + 3;
-            float gateDepth = gx + y1 + 1.05f;
-            _sorted.Add((gateDepth, batch =>
+            float a0 = t - 1, a1 = t + 2;
+            Vector2 Q(float along, float across, float h) => east ? P(wx + across, along, h) : P(along, wy + across, h);
+            float depth = east ? wx + a1 + 1.05f : a1 + wy + 1.05f;
+            _sorted.Add((depth, batch =>
             {
-                // Top surface.
-                FillQuad(batch, P(gx, y0, top + 0.3f), P(gx + 1, y0, top + 0.3f), P(gx + 1, y1, top + 0.3f), P(gx, y1, top + 0.3f), stoneLight);
-                // Front (+x) face and the near end cap (+y face).
-                FillQuad(batch, P(gx + 1, y0, top), P(gx + 1, y1, top), P(gx + 1, y1, top + 0.3f), P(gx + 1, y0, top + 0.3f), stone);
-                FillQuad(batch, P(gx, y1, top), P(gx + 1, y1, top), P(gx + 1, y1, top + 0.3f), P(gx, y1, top + 0.3f), stoneDark);
-                // Block seams along the face, a fallen chip at the far end.
-                for (int k = 1; k < 5; k++)
-                    DrawSeg(batch, P(gx + 1, y0 + k, top), P(gx + 1, y0 + k, top + 0.3f), stoneDark, 1f);
-                FillQuad(batch, P(gx + 0.3f, y0, top + 0.3f), P(gx + 1, y0, top + 0.3f), P(gx + 1, y0 + 0.4f, top + 0.3f), P(gx + 0.3f, y0 + 0.4f, top + 0.3f), stone);
-                // The way through: a glow on the ground between the jambs.
-                var g = P(doorPos.X, doorPos.Y, 0f);
-                batch.Draw(TextureGen.Blob32, new Rectangle((int)g.X - 34, (int)g.Y - 14, 68, 28), glow * (0.22f * pulse));
+                FillQuad(batch, Q(a0, 0f, top + 0.3f), Q(a0, 1f, top + 0.3f), Q(a1, 1f, top + 0.3f), Q(a1, 0f, top + 0.3f), stoneLight);
+                // The face toward the camera (+x on an east wall's slab, +y on a south wall's).
+                if (east)
+                    FillQuad(batch, Q(a0, 1f, top), Q(a1, 1f, top), Q(a1, 1f, top + 0.3f), Q(a0, 1f, top + 0.3f), stone);
+                else
+                    FillQuad(batch, Q(a0, 1f, top), Q(a1, 1f, top), Q(a1, 1f, top + 0.3f), Q(a0, 1f, top + 0.3f), stone);
+                // The near end cap.
+                FillQuad(batch, Q(a1, 0f, top), Q(a1, 1f, top), Q(a1, 1f, top + 0.3f), Q(a1, 0f, top + 0.3f), stoneDark);
+                DrawSeg(batch, Q(a0 + 1f, 1f, top), Q(a0 + 1f, 1f, top + 0.3f), stoneDark, 1f);
+                DrawSeg(batch, Q(a0 + 2f, 1f, top), Q(a0 + 2f, 1f, top + 0.3f), stoneDark, 1f);
             }));
             return;
         }
 
         // A wall opening on a visible face. West wall: the face is the plane x = 1
         // spanning the door tile's y; north wall: the plane y = 1 spanning its x.
-        int t = west ? (int)doorPos.Y : (int)doorPos.X;
-        float wallTop = west ? map.WallHeight(0, t) : map.WallHeight(t, 0);
+        int tt = west ? (int)doorPos.Y : (int)doorPos.X;
+        float wallTop = west ? map.WallHeight(0, tt) : map.WallHeight(tt, 0);
         if (wallTop <= 0) wallTop = 2;
         float openTop = MathF.Min(wallTop - 0.25f, 1.7f), frameTop = openTop + 0.22f;
-        Vector2 F(float along, float h) => west ? P(1f, t + along, h) : P(t + along, 1f, h);
-        float depth = west ? 0 + t + 1 + 0.05f : t + 0 + 1 + 0.05f;
-        _sorted.Add((depth, batch =>
+        Vector2 F(float along, float h) => west ? P(1f, tt + along, h) : P(tt + along, 1f, h);
+        float faceDepth = west ? 0 + tt + 1 + 0.05f : tt + 0 + 1 + 0.05f;
+        _sorted.Add((faceDepth, batch =>
         {
-            // Jambs and lintel (stone), then the dark opening, then the glow inside.
             FillQuad(batch, F(0.02f, 0f), F(0.98f, 0f), F(0.98f, frameTop), F(0.02f, frameTop), stone);
             FillQuad(batch, F(0.02f, frameTop - 0.05f), F(0.98f, frameTop - 0.05f), F(0.98f, frameTop), F(0.02f, frameTop), stoneLight);
             FillQuad(batch, F(0.02f, 0f), F(0.14f, 0f), F(0.14f, frameTop), F(0.02f, frameTop), stoneLight);
             FillQuad(batch, F(0.86f, 0f), F(0.98f, 0f), F(0.98f, frameTop), F(0.86f, frameTop), stoneDark);
             FillQuad(batch, F(0.14f, 0f), F(0.86f, 0f), F(0.86f, openTop), F(0.14f, openTop), inside);
-            // A shallow arch: the corners of the opening filled back in.
             FillQuad(batch, F(0.14f, openTop - 0.12f), F(0.22f, openTop - 0.12f), F(0.22f, openTop), F(0.14f, openTop), stone);
             FillQuad(batch, F(0.78f, openTop - 0.12f), F(0.86f, openTop - 0.12f), F(0.86f, openTop), F(0.78f, openTop), stone);
-            // Light from beyond, pooling at the foot of the opening.
             FillQuad(batch, F(0.14f, 0f), F(0.86f, 0f), F(0.86f, 0.35f), F(0.14f, 0.35f), glow * (0.30f * pulse));
             FillQuad(batch, F(0.14f, 0.35f), F(0.86f, 0.35f), F(0.86f, 0.75f), F(0.14f, 0.75f), glow * (0.14f * pulse));
-            // Block seams on the jambs.
             for (int k = 1; k < 4; k++)
             {
                 DrawSeg(batch, F(0.02f, k * 0.5f), F(0.14f, k * 0.5f), stoneDark, 1f);
                 DrawSeg(batch, F(0.86f, k * 0.5f), F(0.98f, k * 0.5f), stoneDark, 1f);
             }
-            // The threshold: light spilling onto the floor.
             var g = P(doorPos.X, doorPos.Y, 0f);
             batch.Draw(TextureGen.Blob32, new Rectangle((int)g.X - 26, (int)g.Y - 11, 52, 22), glow * (0.20f * pulse));
+        }));
+    }
+
+    /// <summary>The story road's gate: a stone slab resting across the two jamb walls
+    /// over the three-tile opening, no glow — it's a gate, not a hidden door.</summary>
+    private void DrawGateLintel(IsoCamera camera, ClientWorld world, NumVec2 gate)
+    {
+        var map = world.Map;
+        var stone = new Color(118, 116, 126);
+        var stoneDark = new Color(72, 70, 82);
+        var stoneLight = new Color(152, 150, 160);
+        Vector2 P(float x, float y, float h) => camera.WorldToScreen(new NumVec2(x, y), h);
+        int gx = (int)gate.X, yc = (int)gate.Y;
+        float top = map.WallHeight(gx, yc - 2);
+        if (top <= 0) top = 2;
+        float y0 = yc - 2, y1 = yc + 3;
+        _sorted.Add((gx + y1 + 1.05f, batch =>
+        {
+            FillQuad(batch, P(gx, y0, top + 0.3f), P(gx + 1, y0, top + 0.3f), P(gx + 1, y1, top + 0.3f), P(gx, y1, top + 0.3f), stoneLight);
+            FillQuad(batch, P(gx + 1, y0, top), P(gx + 1, y1, top), P(gx + 1, y1, top + 0.3f), P(gx + 1, y0, top + 0.3f), stone);
+            FillQuad(batch, P(gx, y1, top), P(gx + 1, y1, top), P(gx + 1, y1, top + 0.3f), P(gx, y1, top + 0.3f), stoneDark);
+            for (int k = 1; k < 5; k++)
+                DrawSeg(batch, P(gx + 1, y0 + k, top), P(gx + 1, y0 + k, top + 0.3f), stoneDark, 1f);
+            FillQuad(batch, P(gx + 0.3f, y0, top + 0.3f), P(gx + 1, y0, top + 0.3f), P(gx + 1, y0 + 0.4f, top + 0.3f), P(gx + 0.3f, y0 + 0.4f, top + 0.3f), stone);
         }));
     }
 
@@ -660,9 +682,6 @@ public class WorldRenderer
             DrawSeg(batch, P(tx + 1.5f, ty, 0f), P(tx + 1.5f, ty + 1, 0f), rim, 2f);
             DrawSeg(batch, P(tx + 1.5f, ty + 1, 0f), P(tx - 0.5f, ty + 1, 0f), rim, 2f);
             DrawSeg(batch, P(tx - 0.5f, ty + 1, 0f), P(tx - 0.5f, ty, 0f), rim, 2f);
-            // The way down glows at the top step.
-            var g = P(tx + 0.5f, ty + 0.85f, 0f);
-            batch.Draw(TextureGen.Blob32, new Rectangle((int)g.X - 22, (int)g.Y - 9, 44, 18), glow * (0.26f * pulse));
         }));
     }
 
@@ -1088,7 +1107,19 @@ public class WorldRenderer
                     var wtTex = brick ? TextureGen.DiamondBrick
                         : organic ? TextureGen.DiamondFlat : TextureGen.DiamondSolid;
                     var wtRim = wallTopColor;
-                    if (!brick && _materials.Count > 0)
+                    if (map.IsRuins(x, y))
+                    {
+                        // Ruin walls are masonry through and through: worn flagstone on top,
+                        // never the graveyard's sod (indoors, nothing grows up there).
+                        float rn = GroundNoise(map.Seed ^ 0x52554E53, x, y);
+                        int rg = Math.Min(255, (int)(84 + rn * 22) + (((x + y) & 1) == 0 ? 6 : 0));
+                        wtTex = TextureGen.DiamondBrick;
+                        wallTopColor = new Color(rg, rg, Math.Min(255, rg + 8));
+                        wtRim = wallTopColor;
+                        topTint = wallTopColor * OccluderFade(topDepth,
+                            new Rectangle((int)baseScreen.X - 32, (int)baseScreen.Y - 16 - topPx, 64, 32));
+                    }
+                    else if (!brick && _materials.Count > 0)
                     {
                         // Raised blocks wear the same textured ground as the floor, lifted
                         // a shade so the step still reads.
@@ -1973,6 +2004,8 @@ public class WorldRenderer
         }
         DrawDoor(world.Map.ExitDoor, exit: true, world.Map.ExitDoorStyle);
         DrawDoor(world.Map.EntryDoor, exit: false, world.Map.EntryDoorStyle);
+        if (world.Map.GateSpot != System.Numerics.Vector2.Zero)
+            DrawGateLintel(camera, world, world.Map.GateSpot);
         DrawDoor(world.Map.DefenseDoor, exit: false); // hub only: the caravan door west
         DrawDoor(world.Map.TutorialDoor, exit: false); // hub only: the old road south
 
