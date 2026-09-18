@@ -302,6 +302,8 @@ public class ServerEnemy
     /// <summary>A Last Stand hunter: it has the party's scent and never loses it —
     /// aggro range and leash don't apply, it closes on the nearest player from anywhere.</summary>
     public bool Hunting;
+    /// <summary>Id of the boss that conjured this enemy (-1 = none): its adds fall with it.</summary>
+    public int SummonerId = -1;
     /// <summary>Server time of the last damage taken (Regenerating waits 2s after it).</summary>
     public float LastDamagedAt = -100f;
     /// <summary>Regenerating: seconds since the last health sync while regrowing.</summary>

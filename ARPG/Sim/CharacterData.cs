@@ -47,8 +47,21 @@ public class MercData
 ///  - the payload sent to the server on join,
 ///  - the authoritative state the server maintains and echoes back on every change.
 /// </summary>
+/// <summary>Where the story stands for this character — saved with the character so a
+/// reload puts them back in the camp with the world as they left it. The host's
+/// progress is the world's; anyone who joins catches up to it.</summary>
+public class StoryProgress
+{
+    public bool ReachedCamp { get; set; }
+    public bool CodexFelled { get; set; }
+    public bool ScrollsUnlocked { get; set; }
+    public bool ContractsUnlocked { get; set; }
+    public List<string> ScenesSeen { get; set; } = new();
+}
+
 public class CharacterData
 {
+    public StoryProgress Story { get; set; } = new();
     public string Name { get; set; } = "Exile";
     /// <summary>Starting class id (Data/Classes) — a starting KIT only, never a gate.</summary>
     public string ClassId { get; set; } = "warrior";

@@ -152,7 +152,7 @@ public partial class ServerWorld
         if (Time < _ruinsIntroAt) return;
         _ruinsIntroPlayed = true;
         _ruinsIntroAt = 0f;
-        _events.CutscenePlayed("hub_arrival");
+        PlayScene("hub_arrival");
         foreach (var pl in Players.Values)
             _events.MessageFor(pl, "Odessa: \"Head down below and see if you can find anything useful.\"");
     }

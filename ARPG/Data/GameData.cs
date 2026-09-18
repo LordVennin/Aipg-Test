@@ -72,6 +72,11 @@ public class EnemyDefinition
     /// <summary>Reinforcement summon (bosses): enemy type conjured around this enemy
     /// while it fights. Empty = never summons.</summary>
     public string AddSpawnType { get; set; } = "";
+    /// <summary>A second reinforcement type: summons alternate between the two.</summary>
+    public string AddSpawnAltType { get; set; } = "";
+    /// <summary>Summoned reinforcements spawn with this much health instead of their
+    /// own (0 = their own): the Codex's leaves are real tomes with paper-thin life.</summary>
+    public float AddSpawnHealth { get; set; }
     public int AddSpawnCount { get; set; } = 3;
     /// <summary>Seconds between summons, and the delay after FIRST engaging before the
     /// first one — a boss never opens the fight with its adds.</summary>
@@ -111,6 +116,24 @@ public class EnemyDefinition
     public string Glow { get; set; } = "";
     /// <summary>Visual size multiplier on the sprite (0.75 = a runt, 1 = normal).</summary>
     public float SpriteScale { get; set; } = 1f;
+}
+
+/// <summary>A scripted scene (Data/Cutscenes/*.json): timed lines, each focused on a
+/// named spot of the current map. Anchors: "camp" (the wagon), "gate"/"exit" (the
+/// exit door), "boss", "podium", "spawn", "npc:N" (the Nth NPC station), any with
+/// "+dx,dy" appended (e.g. "camp+9,-1"). Edit the text here, not in code.</summary>
+public class CutsceneDefinition
+{
+    public string Id { get; set; }
+    public List<CutsceneStep> Steps { get; set; } = new();
+}
+
+public class CutsceneStep
+{
+    public string Anchor { get; set; } = "camp";
+    public string Speaker { get; set; } = "";
+    public string Line { get; set; } = "";
+    public float Duration { get; set; } = 3.5f;
 }
 
 /// <summary>A starting class, loaded from Data/Classes/classes.json: purely a STARTING
@@ -258,6 +281,8 @@ public class GameData
     public List<ClassDefinition> Classes { get; } = new();
     /// <summary>Zone visual themes in file order (Data/Zones/themes.json).</summary>
     public List<ZoneTheme> ZoneThemes { get; } = new();
+    /// <summary>Scripted scenes by id (Data/Cutscenes/*.json).</summary>
+    public Dictionary<string, CutsceneDefinition> Cutscenes { get; } = new();
 
     /// <summary>Skill level reached -> total scroll slots unlocked (Data/Config/scroll_slots.json).</summary>
     public Dictionary<int, int> ScrollSlotProgression { get; private set; } = new();
@@ -287,6 +312,8 @@ public class GameData
             data.Npcs[npc.Id] = npc;
 
         data.ZoneThemes.AddRange(LoadAll<ZoneTheme>(Path.Combine(dataDir, "Zones")));
+        foreach (var scene in LoadAll<CutsceneDefinition>(Path.Combine(dataDir, "Cutscenes")))
+            if (!string.IsNullOrEmpty(scene.Id)) data.Cutscenes[scene.Id] = scene;
         data.Classes.AddRange(LoadAll<ClassDefinition>(Path.Combine(dataDir, "Classes")));
 
         string slotsPath = Path.Combine(dataDir, "Config", "scroll_slots.json");

@@ -342,6 +342,9 @@ public class GameServer : IServerEvents
         accept.Put(player.Mana);
         accept.Put(Json.SaveCompact(player.Character));
         peer.Send(accept, DeliveryMethod.ReliableOrdered);
+        // Story worlds pick up where the character left off (a map change, if any,
+        // follows the accept like any other transition).
+        World.AdoptStoryProgress(player);
         peer.Send(ZoneStatePacket(), DeliveryMethod.ReliableOrdered);
         foreach (var chest in World.Chests)
             peer.Send(ChestPacket(chest), DeliveryMethod.ReliableOrdered);

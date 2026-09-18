@@ -1,0 +1,111 @@
+[
+ {
+  "Id": "tut_intro",
+  "Steps": [
+   {
+    "Anchor": "camp",
+    "Speaker": "Brakka",
+    "Line": "Road's washed out, and the dead don't much care for company.",
+    "Duration": 3.8
+   },
+   {
+    "Anchor": "camp+9,-1",
+    "Speaker": "Brakka",
+    "Line": "Clear us a path east to those ruins and we'll make camp somewhere dry.",
+    "Duration": 3.8
+   },
+   {
+    "Anchor": "camp",
+    "Speaker": "Odessa",
+    "Line": "Mind the pools, dear. Things live in them. Well... 'live'.",
+    "Duration": 3.4
+   }
+  ]
+ },
+ {
+  "Id": "tut_clearway",
+  "Steps": [
+   {
+    "Anchor": "boss",
+    "Speaker": "Brakka",
+    "Line": "There's the gate... and THAT is exactly why we hired you.",
+    "Duration": 3.8
+   },
+   {
+    "Anchor": "gate",
+    "Speaker": "Brakka",
+    "Line": "Clear the way. We'll bring the wagon up behind you.",
+    "Duration": 3.2
+   }
+  ]
+ },
+ {
+  "Id": "tut_victory",
+  "Steps": [
+   {
+    "Anchor": "boss",
+    "Speaker": "Brakka",
+    "Line": "HA! Not bad. Not bad at all.",
+    "Duration": 2.8
+   },
+   {
+    "Anchor": "gate",
+    "Speaker": "Odessa",
+    "Line": "Dry, defensible, and riddled with things to study. The ruins will do nicely.",
+    "Duration": 4.0
+   },
+   {
+    "Anchor": "gate",
+    "Speaker": "Brakka",
+    "Line": "We'll bring the wagon through and get a roof up — come along when you're ready.",
+    "Duration": 3.4
+   }
+  ]
+ },
+ {
+  "Id": "hub_arrival",
+  "Steps": [
+   {
+    "Anchor": "camp",
+    "Speaker": "Brakka",
+    "Line": "Roof over our heads at last. Get the cart unhitched — we're staying.",
+    "Duration": 3.6
+   },
+   {
+    "Anchor": "exit",
+    "Speaker": "Odessa",
+    "Line": "Those stairs go DOWN. Old places keep their best things below.",
+    "Duration": 3.6
+   },
+   {
+    "Anchor": "exit",
+    "Speaker": "Odessa",
+    "Line": "Head down and see if you can find anything useful. We'll hold the camp.",
+    "Duration": 3.6
+   }
+  ]
+ },
+ {
+  "Id": "codex_scroll",
+  "Steps": [
+   {
+    "Anchor": "npc:1",
+    "Speaker": "Maren",
+    "Line": "That scroll — look at the seals. It isn't a letter. It's a DOOR.",
+    "Duration": 3.8
+   },
+   {
+    "Anchor": "podium",
+    "Speaker": "Maren",
+    "Line": "Set it on the podium out east. The portal opens onto whatever world the seals describe.",
+    "Duration": 4.2
+   },
+   {
+    "Anchor": "npc:1",
+    "Speaker": "Maren",
+    "Line": "There will be more of them below, and stranger. Bring me anything ancient you find in there.",
+    "Duration": 4.0
+   }
+  ]
+ }
+]
