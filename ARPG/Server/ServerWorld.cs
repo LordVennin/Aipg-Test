@@ -586,6 +586,7 @@ public partial class ServerWorld
         Npcs.Clear();
         Chests.Clear();
         if (newIndex == 0) { if (Story) SetupRuinsHub(); else SetupHub(); }
+        if (newIndex == 0 && Story) MarkStory(sp => sp.ReachedCamp = true);
         _events.MapChanged(this);
         if (newIndex == 0) FurnishHub(); // structures spawn AFTER the map broadcast
         if (newIndex > 0) SetupForest(); // packs spawn AFTER the map broadcast
@@ -1630,9 +1631,19 @@ public partial class ServerWorld
                         float ang = ai * MathF.Tau / e.Def.AddSpawnCount + 0.6f;
                         var apos = e.Position + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * 1.7f;
                         if (Map.CircleHitsWall(apos, 0.4f)) apos = e.Position;
-                        var add = SpawnEnemy(e.Def.AddSpawnType, apos, level: e.Level);
+                        string addType = e.Def.AddSpawnAltType.Length > 0 && (ai & 1) == 1 && Data.Enemies.ContainsKey(e.Def.AddSpawnAltType)
+                            ? e.Def.AddSpawnAltType : e.Def.AddSpawnType;
+                        var add = SpawnEnemy(addType, apos, level: e.Level);
                         add.State = EnemyState.Chase; // raised mid-fight: already angry
                         add.TargetPlayerId = e.TargetPlayerId;
+                        add.SummonerId = e.Id;
+                        if (e.Def.AddSpawnHealth > 0f)
+                        {
+                            // Paper-thin conjurations: real tomes, a breath of life each.
+                            add.MaxHealth = e.Def.AddSpawnHealth;
+                            add.Health = e.Def.AddSpawnHealth;
+                            _events.EnemyHealthChanged(add);
+                        }
                     }
                 }
             }
@@ -3773,12 +3784,13 @@ public partial class ServerWorld
             if (Map.Kind == MapKind.Archive && e.Def.Id == "codex")
             {
                 foreach (var other in Enemies.Values.ToList())
-                    if (!other.Dead && other.Id != e.Id && other.Def.Id == "tome_lesser")
+                    if (!other.Dead && other.SummonerId == e.Id)
                         DamageEnemy(other, other.Health + 1f, -1, null);
                 if (!CodexFelled)
                 {
                     CodexFelled = true;
                     SetScrollsUnlocked(true);
+                    MarkStory(sp => { sp.CodexFelled = true; sp.ScrollsUnlocked = true; });
                     var first = CodexScroll();
                     if (first != null) SpawnDrop(first, e.Position, e.Height);
                     _codexSceneAt = -1f; // armed: plays on the next return to the camp

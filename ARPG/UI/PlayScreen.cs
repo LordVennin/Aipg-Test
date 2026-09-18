@@ -408,7 +408,7 @@ public class PlayScreen : IScreen
         // actions and hotkeys below) — the world itself keeps simulating.
         if (_client.CutsceneQueued != null)
         {
-            _cutscene.Start(_client.CutsceneQueued, _client.World.Map);
+            _cutscene.Start(_client.CutsceneQueued, _client.World.Map, _game.Data);
             _client.CutsceneQueued = null;
         }
         if (_cutscene.Active)

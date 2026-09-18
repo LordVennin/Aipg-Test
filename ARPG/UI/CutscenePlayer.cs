@@ -1,4 +1,5 @@
 using ARPG.Core;
+using ARPG.Data;
 using ARPG.Render;
 using ARPG.World;
 using FontStashSharp;
@@ -12,8 +13,8 @@ namespace ARPG.UI;
 /// <summary>
 /// The scripted-scene player: letterbox bars, a camera focus the play screen lerps
 /// toward, and timed dialogue lines. Scenes are identified by id (broadcast by the
-/// server so everyone watches together) and DEFINED here against the current map's
-/// authored spots — no data files, no sync traffic beyond the one id. Click or
+/// server so everyone watches together) and their text lives in Data/Cutscenes —
+/// anchored to the current map's authored spots, no sync traffic beyond the one id. Click or
 /// SPACE advances a line early; ENTER skips the whole scene. The world keeps
 /// simulating underneath — a cutscene is a view, never a pause.
 /// </summary>
@@ -29,66 +30,54 @@ public class CutscenePlayer
     /// <summary>Where the camera should look right now (world space).</summary>
     public NumVec2 Focus => Active ? _steps[_index].Focus : default;
 
-    public void Start(string id, GameMap map)
+    public void Start(string id, GameMap map, GameData data)
     {
         _steps.Clear();
         _index = 0;
         _timer = 0f;
-        Build(id, map, _steps);
+        Build(id, map, data, _steps);
         Active = _steps.Count > 0;
     }
 
-    /// <summary>The scenes themselves, staged against the map's authored landmarks.</summary>
-    private static void Build(string id, GameMap map, List<Step> steps)
+    /// <summary>The scenes come from Data/Cutscenes/*.json; each line's anchor names a
+    /// spot of the current map (see CutsceneDefinition), so the same text plays
+    /// correctly on any map that has the spot.</summary>
+    private static void Build(string id, GameMap map, GameData data, List<Step> steps)
     {
-        if (map == null) return;
-        var camp = map.WagonSpot;
-        var gate = map.ExitDoor;
-        var boss = map.BossSpot;
-        switch (id)
+        if (map == null || data == null || !data.Cutscenes.TryGetValue(id, out var scene)) return;
+        foreach (var st in scene.Steps)
+            steps.Add(new Step(ResolveAnchor(st.Anchor, map), st.Speaker ?? "", st.Line ?? "", Math.Max(0.5f, st.Duration)));
+    }
+
+    public static NumVec2 ResolveAnchor(string anchor, GameMap map)
+    {
+        string key = string.IsNullOrWhiteSpace(anchor) ? "camp" : anchor.Trim();
+        var offset = NumVec2.Zero;
+        int plus = key.IndexOf('+');
+        if (plus >= 0)
         {
-            case "tut_intro":
-                steps.Add(new Step(camp, "Brakka",
-                    "Road's washed out, and the dead don't much care for company.", 3.8f));
-                steps.Add(new Step(camp + new NumVec2(9f, -1f), "Brakka",
-                    "Clear us a path east to those ruins and we'll make camp somewhere dry.", 3.8f));
-                steps.Add(new Step(camp, "Odessa",
-                    "Mind the pools, dear. Things live in them. Well... 'live'.", 3.4f));
-                break;
-            case "tut_clearway":
-                steps.Add(new Step(boss, "Brakka",
-                    "There's the gate... and THAT is exactly why we hired you.", 3.8f));
-                steps.Add(new Step(gate, "Brakka",
-                    "Clear the way. We'll bring the wagon up behind you.", 3.2f));
-                break;
-            case "hub_arrival":
-                steps.Add(new Step(camp, "Brakka",
-                    "Roof over our heads at last. Get the cart unhitched — we're staying.", 3.6f));
-                steps.Add(new Step(map.ExitDoor, "Odessa",
-                    "Those stairs go DOWN. Old places keep their best things below.", 3.6f));
-                steps.Add(new Step(map.ExitDoor, "Odessa",
-                    "Head down and see if you can find anything useful. We'll hold the camp.", 3.6f));
-                break;
-            case "codex_scroll":
-            {
-                var maren = map.NpcSpots.Count > 1 ? map.NpcSpots[1] : camp;
-                steps.Add(new Step(maren, "Maren",
-                    "That scroll — look at the seals. It isn't a letter. It's a DOOR.", 3.8f));
-                steps.Add(new Step(map.PodiumSpot != NumVec2.Zero ? map.PodiumSpot : maren, "Maren",
-                    "Set it on the podium out east. The portal opens onto whatever world the seals describe.", 4.2f));
-                steps.Add(new Step(maren, "Maren",
-                    "There will be more of them below, and stranger. Bring me anything ancient you find in there.", 4.0f));
-                break;
-            }
-            case "tut_victory":
-                steps.Add(new Step(boss, "Brakka",
-                    "HA! Not bad. Not bad at all.", 2.8f));
-                steps.Add(new Step(gate, "Odessa",
-                    "Dry, defensible, and riddled with things to study. The ruins will do nicely.", 4.0f));
-                steps.Add(new Step(gate, "Brakka",
-                    "We'll bring the wagon through and get a roof up — come along when you're ready.", 3.4f));
-                break;
+            var parts = key[(plus + 1)..].Split(',');
+            if (parts.Length == 2 &&
+                float.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float dx) &&
+                float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float dy))
+                offset = new NumVec2(dx, dy);
+            key = key[..plus];
         }
+        NumVec2 at;
+        if (key.StartsWith("npc:") && int.TryParse(key[4..], out int npcIndex) && npcIndex >= 0 && npcIndex < map.NpcSpots.Count)
+            at = map.NpcSpots[npcIndex];
+        else
+            at = key switch
+            {
+                "gate" or "exit" => map.ExitDoor,
+                "boss" => map.BossSpot,
+                "podium" => map.PodiumSpot,
+                "spawn" => map.PlayerSpawn,
+                "fountain" => map.FountainSpot,
+                _ => map.WagonSpot,
+            };
+        if (at == NumVec2.Zero) at = map.WagonSpot != NumVec2.Zero ? map.WagonSpot : map.PlayerSpawn;
+        return at + offset;
     }
 
     public void Update(float dt, InputManager input)

@@ -1877,3 +1877,36 @@ item's flavour under it.
 - Dev: `ARPG_DEVUI=basement` walks down the stairs three seconds in (debug
   `warp_basement`); debug `give_codex_scroll`, `unlock_scrolls`. `--nettest
   story` runs the story sections alone.
+
+## Batch 83 addendum: alcoves, a real library, loot that never hides a body, saved progress
+
+- **Alcoves.** Weaver's and Brakka's camps are now walled rooms against the west
+  walls: knee-high stone partitions (`GameMap.IsPartition` — one-high, bare-topped,
+  never a ruin feature) with a single doorway each. Weaver's: the bar's west end
+  under the stairs (cart against the wall, stall across the south side, awning,
+  rug, sacks; doorway facing the room). Brakka's: the stem's west wall, walled
+  north and south (rack, brazier, bedroll, crate, stool; doorway facing the stem).
+  Random rubble no longer spawns in the ruins hub — the camp is dressed by hand.
+- **Loot labels vs enemies.** No more hiding in combat. Instead a label goes
+  ghostly (28%) wherever an enemy's body overlaps its box, so whatever is hitting
+  you shows through the item names; hovered labels stay solid.
+- **The archive is a library now**: 44x22. Bookcases are their own tile kind
+  (`GameMap.IsShelf`): solid for movement, but drawn as the shelf sprite standing
+  on the floor — no stone block under them — so they stand free in the room.
+  Cases line the long walls (runs of three, gaps between) and form three
+  staggered aisles across the middle; ten candles; the desk at the far end. Only
+  three packs of tomes (nine books), all deeper than twelve tiles from the stairs,
+  and tomes' aggro range is 7 (was 9) — nothing jumps you on arrival.
+- **The Codex summons real tomes**: alternating Frost and Shade Tomes, four at a
+  time, spawned with 5 hp (`AddSpawnAltType`, `AddSpawnHealth`); they fall with
+  it. The "Loose Leaf" breed is gone.
+- **Story progress saves.** `CharacterData.Story` (reached the camp, Codex
+  felled, scrolls/contracts unlocked, scenes seen) is written onto every present
+  character as it happens and travels with the character JSON, so it is in the
+  save file. Hosting a story world with a character who reached the camp opens
+  IN the camp with the world's flags restored and no scene replayed; a new
+  character still opens on the road. Joiners catch up to the host's world.
+- **Cutscene text is data**: `Data/Cutscenes/cutscenes.json` — one entry per
+  scene id, a list of steps with `Anchor` (camp, gate/exit, boss, podium, spawn,
+  fountain, npc:N, any with "+dx,dy"), `Speaker`, `Line`, `Duration`. Edit the
+  lines there; the code only resolves anchors.

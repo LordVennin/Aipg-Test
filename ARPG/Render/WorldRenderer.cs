@@ -21,9 +21,6 @@ public class WorldRenderer
 
     /// <summary>Screen rectangles of drop name labels this frame, for click-to-pick-up.</summary>
     public readonly List<(Rectangle rect, Guid dropId)> DropLabelRects = new();
-    /// <summary>Loot labels are hidden this frame because enemies are close (HUD hint).</summary>
-    public bool LootLabelsHidden;
-    public const float LabelHideRange = 7f;
 
     /// <summary>Screen rectangles of enemy sprites this frame, for hover targeting
     /// (front-most = last drawn; hit-test in reverse).</summary>
@@ -357,6 +354,13 @@ public class WorldRenderer
                 // Ruins tiles dress in ruin props regardless of the map's theme —
                 // that's how the tutorial's east end turns to broken masonry.
                 string tileStyle = map.IsRuins(x, y) ? "ruins" : style;
+                if (map.IsShelf(x, y))
+                {
+                    // A bookcase IS the tile: the sprite stands on the floor, no block.
+                    _features.Add((x, y, map.GroundLevel(x, y), $"archive:feature:{(n >> 16) % 2}"));
+                    continue;
+                }
+                if (map.IsPartition(x, y)) continue; // low camp walls stay bare
                 if (wall == 1)
                 {
                     // Features stand on ANY elevation now — terrace tops grow their
@@ -375,7 +379,7 @@ public class WorldRenderer
                     map.IsWater(x, y))
                     continue;
                 if (_pathTiles.Contains(y * map.Width + x)) continue; // trails stay clear
-                if (map.IsHub && map.GroundLevel(x, y) > 0) continue; // the dais stays swept
+                if (map.Kind == MapKind.RuinsHub) continue; // the camp is dressed by hand — no random rubble
                 if (map.IsTallGrass(x, y)) continue; // tall grass IS the decoration there
                 if (roll < Theme.ClutterDensity)
                 {
@@ -931,9 +935,9 @@ public class WorldRenderer
             for (int x = 0; x < map.Width; x++)
             {
                 if (map.IsVoid(x, y)) continue; // nothing there to draw
-                if ((map.IsSolid(x, y) && map.Feature(x, y) == TileFeature.None) ||
+                if ((map.IsSolid(x, y) && map.Feature(x, y) == TileFeature.None && !map.IsShelf(x, y)) ||
                     map.GroundLevel(x, y) > 0)
-                    continue; // ramps at ground level get a floor beneath their sprite
+                    continue; // ramps at ground level get a floor beneath their sprite; bookcases stand on floor
                 var screen = camera.WorldToScreen(new NumVec2(x + 0.5f, y + 0.5f));
                 if (screen.X < -80 || screen.X > camera.ScreenWidth + 80 ||
                     screen.Y < -80 || screen.Y > camera.ScreenHeight + 80) continue;
@@ -1079,7 +1083,7 @@ public class WorldRenderer
                 var ramp = map.Ramp(x, y);
                 int bridge = map.BridgeLevel(x, y);
                 bool elevated = ground > 0 || wall > 0 || ramp != RampDirection.None || bridge > 0;
-                if (!elevated || map.IsVoid(x, y)) continue;
+                if (!elevated || map.IsVoid(x, y) || map.IsShelf(x, y)) continue; // a bookcase draws as its sprite
                 // The draw lambdas below run after these loops finish, and a `for`
                 // variable is ONE variable shared by every iteration — capture copies,
                 // or every deferred neighbour lookup reads the past-the-end x and y.
@@ -3650,18 +3654,9 @@ public class WorldRenderer
             }
         }
         var slotInCluster = new int[clusterAnchors.Count];
-        // In a fight the labels get out of the way: a wall of item names over a pack is
-        // how enemies vanish. Hold Alt to read the loot mid-fight anyway.
-        var labelMe = world.Me;
-        bool altHeld = Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.LeftAlt) ||
-                       Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.RightAlt);
-        bool combatNear = !altHeld && labelMe != null && world.Enemies.Values.Any(en =>
-            en.Health > 0 && en.RevealedAtMs != 0 && System.Numerics.Vector2.Distance(en.Position, labelMe.Position) <= LabelHideRange);
-        LootLabelsHidden = combatNear && dropList.Count > 0;
         for (int i = 0; i < dropList.Count; i++)
         {
             var drop = dropList[i];
-            if (combatNear && drop.DropId != HoveredDropId) continue;
             var anchorDrop = dropList[clusterAnchors[clusterOf[i]]];
             var anchorScreen = camera.WorldToScreen(anchorDrop.Position, anchorDrop.Height);
             int slot = slotInCluster[clusterOf[i]]++;
@@ -3674,14 +3669,20 @@ public class WorldRenderer
                 (int)(anchorScreen.Y - 30) - slot * 22, (int)size.X + 8, (int)size.Y + 4);
 
             bool hovered = drop.DropId == HoveredDropId;
-            sb.Draw(TextureGen.Pixel, rect, hovered ? new Color(58, 48, 20, 230) : new Color(0, 0, 0, 170));
+            // An enemy standing under the label shows THROUGH it: the name goes ghostly
+            // wherever a body overlaps its box, so loot never hides what's hitting you.
+            bool bodyUnder = false;
+            for (int hi = 0; hi < EnemyHitRects.Count && !bodyUnder; hi++)
+                if (EnemyHitRects[hi].rect.Intersects(rect)) bodyUnder = true;
+            float la = bodyUnder && !hovered ? 0.28f : 1f;
+            sb.Draw(TextureGen.Pixel, rect, (hovered ? new Color(58, 48, 20, 230) : new Color(0, 0, 0, 170)) * la);
             if (hovered)
             {
                 sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Y, rect.Width, 1), new Color(255, 220, 130));
                 sb.Draw(TextureGen.Pixel, new Rectangle(rect.X, rect.Bottom - 1, rect.Width, 1), new Color(255, 220, 130));
             }
             sb.DrawString(labelFont, label, new Vector2(rect.X + 4, rect.Y + 2),
-                hovered ? Color.Lerp(labelColor, Color.White, 0.35f) : labelColor);
+                (hovered ? Color.Lerp(labelColor, Color.White, 0.35f) : labelColor) * la);
             DropLabelRects.Add((rect, drop.DropId));
         }
 

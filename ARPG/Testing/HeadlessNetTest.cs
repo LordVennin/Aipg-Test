@@ -161,23 +161,36 @@ public static class HeadlessNetTest
               sw.Map.Theme?.Id == "archive" && storyA.World.Map.Kind == World.MapKind.Archive && storyA.World.Map.Theme?.Id == "archive",
               $"the stairs lead down into the archive (theme {sw.Map.Theme?.Id}, both sides)");
         var archive = sw.Map;
-        Check(archive.Width == 30 && archive.Height == 16 && archive.Theme.AmbientLight == "34324A" &&
-              archive.Props.Count(pr => pr.Key == "archive:candle") >= 5 && archive.Props.Any(pr => pr.Key == "archive:desk") &&
-              archive.IsSolid(4, 1) && !archive.IsSolid(5, 1) && !archive.IsSolid(4, 2) && archive.IsSolid(11, 5) && archive.ExitDoorStyle == World.DoorStyle.RuinArch &&
-              archive.ExitDoor.X < 3f && archive.BossSpot.X > archive.Width - 6,
-              "a small, extra-dark room: shelves along the walls and across the middle, candles, a reading desk at the far end, the way up at the near end");
+        Check(archive.Width == 44 && archive.Height == 22 && archive.Theme.AmbientLight == "34324A" &&
+              archive.Props.Count(pr => pr.Key == "archive:candle") >= 8 && archive.Props.Any(pr => pr.Key == "archive:desk") &&
+              archive.IsShelf(6, 1) && archive.IsSolid(6, 1) && !archive.IsSolid(9, 1) && !archive.IsSolid(6, 2) &&
+              archive.IsShelf(10, 6) && archive.IsShelf(13, 6) && !archive.IsShelf(14, 6) && archive.IsShelf(13, 10) && !archive.IsShelf(10, 10) && archive.IsShelf(10, 14) &&
+              !archive.IsPartition(10, 6) && archive.ExitDoorStyle == World.DoorStyle.RuinArch &&
+              archive.ExitDoor.X < 3f && archive.BossSpot.X > archive.Width - 6 &&
+              archive.PackSpots.All(ps => Vector2.Distance(ps, archive.PlayerSpawn) > 12f),
+              "a long, extra-dark hall: bookcases (the sprite is the tile, no block) along the walls and in three staggered aisles, candles, a reading desk at the far end, the way up at the near end, no tome within twelve tiles of the stairs");
         Check(!sw.ExitLocked, "the stairs back up are never sealed");
         var storyP = sw.Players.Values.First();
         var tomes = sw.Enemies.Values.Where(e => e.Def.Id.StartsWith("tome_")).ToList();
         var codex = sw.Enemies.Values.FirstOrDefault(e => e.Def.Id == "codex");
-        Check(tomes.Count >= 12 && tomes.Any(e => e.Def.Id == "tome_frost") && tomes.Any(e => e.Def.Id == "tome_shade") &&
+        Check(tomes.Count is >= 6 and <= 10 && tomes.Any(e => e.Def.Id == "tome_frost") && tomes.Any(e => e.Def.Id == "tome_shade") &&
               codex != null && codex.Affixes.HasFlag(Server.EliteAffix.Boss) && sw.BossAlive &&
               data.Enemies["tome_frost"].Ranged && data.Enemies["tome_frost"].ProjectileIsSpell && data.Enemies["tome_frost"].DamageTypes.ContainsKey(Skills.DamageKind.Cold) &&
-              !data.Enemies["tome_shade"].Ranged && data.Enemies["tome_shade"].AttackRange < 2f &&
-              data.Enemies["codex"].AddSpawnType == "tome_lesser" && data.Enemies["tome_lesser"].MaxHealth == 5 &&
+              !data.Enemies["tome_shade"].Ranged && data.Enemies["tome_shade"].AttackRange < 2f && data.Enemies["tome_shade"].AggroRange <= 7f &&
+              data.Enemies["codex"].AddSpawnType == "tome_frost" && data.Enemies["codex"].AddSpawnAltType == "tome_shade" &&
+              data.Enemies["codex"].AddSpawnHealth == 5f && !data.Enemies.ContainsKey("tome_lesser") &&
               data.Enemies.Values.Where(e => e.SpriteStyle == "Tome").All(e => e.Hover && e.Glow.Length > 0) &&
               data.Enemies["tome_frost"].Glow.StartsWith("6E") && data.Enemies["codex"].Glow.StartsWith("FF"),
-              $"{tomes.Count} tomes between the shelves (frost ones shoot ice, shade ones bite), and the Gilded Codex — a summoner of 5-hp leaves — keeps the desk; all of them hover and glow");
+              $"{tomes.Count} tomes deep in the stacks (frost ones shoot ice, shade ones bite), and the Gilded Codex keeps the desk — it summons frost and shade tomes at 5 hp, not a breed of its own; all of them hover and glow");
+        Check(data.Cutscenes.ContainsKey("hub_arrival") && data.Cutscenes.ContainsKey("codex_scroll") && data.Cutscenes.ContainsKey("tut_intro") &&
+              data.Cutscenes["codex_scroll"].Steps.Count == 3 && data.Cutscenes["codex_scroll"].Steps[0].Anchor == "npc:1" &&
+              data.Cutscenes["tut_intro"].Steps[1].Anchor == "camp+9,-1" &&
+              UI.CutscenePlayer.ResolveAnchor("spawn+9,-1", archive) == archive.PlayerSpawn + new Vector2(9f, -1f) &&
+              UI.CutscenePlayer.ResolveAnchor("boss", archive) == archive.BossSpot,
+              "the scenes' lines live in Data/Cutscenes/cutscenes.json, anchored to named map spots");
+        Check(storyP.Character.Story != null && storyP.Character.Story.ReachedCamp && storyP.Character.Story.ScenesSeen.Contains("hub_arrival") &&
+              !storyP.Character.Story.CodexFelled && storyA.World.MyCharacter.Story.ReachedCamp && storyA.World.MyCharacter.Story.ScenesSeen.Contains("hub_arrival"),
+              "story progress rides the character: reached the camp, saw the arrival (server and the client's copy that gets saved)");
         Check(!sw.ScrollsUnlocked && !sw.Loot.WarpScrollsAllowed && !sw.ContractsUnlocked && !sw.Loot.ContractsAllowed,
               "story mode: no sealed scrolls and no mercenary contracts drop before the world has introduced them");
         var gatedGen = new Items.LootGenerator(data, new Random(99)) { WarpScrollsAllowed = false, ContractsAllowed = false };
@@ -202,8 +215,9 @@ public static class HeadlessNetTest
         Check(codex.Dead && sw.CodexFelled && sw.ScrollsUnlocked && sw.Loot.WarpScrollsAllowed && codexDrop != null &&
               codexDrop.Item.Modifiers.Any(m => m.ModifierId == "warp_rooms") && codexDrop.Item.Modifiers.Any(m => m.ModifierId == "warp_zone_forest") &&
               codexDrop.Item.Modifiers.Any(m => m.ModifierId == "warp_boss") && codexDrop.Item.Locked &&
-              !sw.Enemies.Values.Any(e => !e.Dead && e.Def.Id == "tome_lesser"),
-              "the Codex falls, its leaves with it: the sealed scroll (the Mirewood, three rooms, the Gravelord) drops, and scrolls are unlocked from now on");
+              !sw.Enemies.Values.Any(e => !e.Dead && e.SummonerId == codex.Id) &&
+              storyP.Character.Story.CodexFelled && storyP.Character.Story.ScrollsUnlocked,
+              "the Codex falls, its summoned tomes with it: the sealed scroll (the Mirewood, three rooms, the Gravelord) drops, scrolls are unlocked from now on, and the character remembers");
         storyA.World.Me.Position = codexDrop.Position + new Vector2(0.3f, 0f);
         SPump(0.3f);
         storyA.RequestPickup(codexDrop.DropId);
@@ -220,15 +234,43 @@ public static class HeadlessNetTest
               storyA.World.Map.Kind == World.MapKind.RuinsHub,
               "the fallen party comes to upstairs in the camp");
         SPump(2.4f);
-        Check(storyA.World.CutscenesSeen.Contains("codex_scroll") && storyA.World.CutscenesSeen.Count == scenesBeforeDeath + 1,
-              "Maren explains the scroll and points at the podium (once)");
+        Check(storyA.World.CutscenesSeen.Contains("codex_scroll") && storyA.World.CutscenesSeen.Count == scenesBeforeDeath + 1 &&
+              storyP.Character.Story.ScenesSeen.Contains("codex_scroll"),
+              "Maren explains the scroll and points at the podium (once, and the character remembers)");
+        // A reload: a fresh story world hosted by this character opens in the camp, the
+        // Codex already felled, scrolls unlocked, no scene replayed.
+        var savedChar = Util.Json.Load<Sim.CharacterData>(Util.Json.SaveCompact(storyA.World.MyCharacter));
+        var resumeServer = new GameServer(data, 727272, "forest", campaign: true, story: true);
+        Check(resumeServer.Start(0), "a second story server (the reload) started");
+        var resumeA = new GameClient(data, storyA.World.MyCharacter.Name, savedChar);
+        resumeA.Connect("127.0.0.1", resumeServer.LocalPort, out _);
+        for (int i = 0; i < 180; i++) { resumeServer.Update(1f / 60f); resumeA.Update(1f / 60f); Thread.Sleep(2); }
+        var rw = resumeServer.World;
+        Check(resumeA.Status == ClientStatus.InGame && rw.MapIndex == 0 && rw.Map.Kind == World.MapKind.RuinsHub &&
+              resumeA.World.Map.Kind == World.MapKind.RuinsHub && rw.CodexFelled && rw.ScrollsUnlocked && rw.Loot.WarpScrollsAllowed &&
+              !resumeA.World.CutscenesSeen.Contains("hub_arrival") && !resumeA.World.CutscenesSeen.Contains("codex_scroll"),
+              "reloading the character wakes them in the camp with the Codex felled, scrolls unlocked and no scene replayed");
+        var freshServer = new GameServer(data, 737373, "forest", campaign: true, story: true);
+        freshServer.Start(0);
+        var freshA = new GameClient(data, "FreshExile", null);
+        freshA.Connect("127.0.0.1", freshServer.LocalPort, out _);
+        for (int i = 0; i < 90; i++) { freshServer.Update(1f / 60f); freshA.Update(1f / 60f); Thread.Sleep(2); }
+        Check(freshServer.World.MapIndex == Server.ServerWorld.StoryRoadIndex && !freshServer.World.ScrollsUnlocked,
+              "a new character still opens on the road with nothing unlocked");
+        resumeA.Disconnect(); freshA.Disconnect();
+        for (int i = 0; i < 10; i++) { resumeServer.Update(1f / 60f); freshServer.Update(1f / 60f); Thread.Sleep(2); }
+        resumeServer.Stop(); freshServer.Stop();
         SPump(0.2f);
         var ruinsMap = sw.Map;
         var marenSpot = ruinsMap.NpcSpots[1];
         var brakkaSpot = ruinsMap.NpcSpots[2];
-        Check(marenSpot.X > 16f && marenSpot.Y < 4f && brakkaSpot.X < 5f && brakkaSpot.Y > 11f && ruinsMap.NpcSpots[0].X < 7f && ruinsMap.NpcSpots[0].Y < 8f &&
+        Check(marenSpot.X > 16f && marenSpot.Y < 4f && brakkaSpot.X < 5f && brakkaSpot.Y > 11f && ruinsMap.NpcSpots[0].X < 5f && ruinsMap.NpcSpots[0].Y < 8f &&
               sw.Npcs.First(n => n.TypeId == "skill_trainer").Position == marenSpot && sw.Npcs.First(n => n.TypeId == "mercenary").Position == brakkaSpot,
               "the crew camps where they were pointed: Weaver by the cart, Maren along the north-east wall, Brakka in the stem's west corner");
+        Check(ruinsMap.IsPartition(5, 5) && ruinsMap.IsSolid(5, 5) && !ruinsMap.IsSolid(5, 6) && ruinsMap.IsPartition(5, 8) &&
+              ruinsMap.IsPartition(3, 11) && ruinsMap.IsPartition(3, 17) && ruinsMap.IsPartition(5, 13) && !ruinsMap.IsSolid(5, 14) && ruinsMap.IsPartition(5, 15) &&
+              ruinsMap.WagonSpot.X < 3f && !ruinsMap.IsSolid((int)brakkaSpot.X, (int)brakkaSpot.Y) && !ruinsMap.IsSolid((int)ruinsMap.NpcSpots[0].X, (int)ruinsMap.NpcSpots[0].Y),
+              "Weaver's and Brakka's camps are walled alcoves against the west walls, each with one doorway");
         Check(ruinsMap.Props.Count >= 15 && ruinsMap.Props.Any(pr => pr.Key == "camp:stall") && ruinsMap.Props.Any(pr => pr.Key == "camp:lectern") &&
               ruinsMap.Props.Any(pr => pr.Key == "camp:rack") && ruinsMap.Props.Count(pr => pr.Key == "camp:bedroll") == 2 &&
               ruinsMap.Props.Count(pr => pr.Light.Length > 0) >= 2 &&
@@ -364,11 +406,21 @@ public static class HeadlessNetTest
               $"wave 1 of {sw.SurvivalTotal}: {wave1} hunters close in around the party (server wave {sw.SurvivalWave}, client {storyA.World.SurvivalWave}/{storyA.World.SurvivalTotal}, states {string.Join(",", sw.Enemies.Values.Select(e => e.State))})");
         for (int w = 0; w < 5 && !sw.SurvivalDone; w++)
         {
-            for (int i = 0; i < 30 && sw.Enemies.Values.Any(e => !e.Dead); i++)
+            for (int i = 0; i < 20 && sw.Enemies.Values.Any(e => !e.Dead); i++)
             {
                 storyA.SendDebugCommand("kill_nearby");
                 storyA.SendDebugCommand("heal");
                 SPump(0.3f);
+            }
+            // A straggler stuck behind water or a cliff never reaches the kill radius:
+            // go to it (the wave only ends when every hunter is down).
+            foreach (var straggler in sw.Enemies.Values.Where(e => !e.Dead).ToList())
+            {
+                storyA.SendDebugCommand("teleport", $"{straggler.Position.X.ToString(System.Globalization.CultureInfo.InvariantCulture)},{straggler.Position.Y.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+                SPump(0.15f);
+                storyA.SendDebugCommand("kill_nearby");
+                storyA.SendDebugCommand("heal");
+                SPump(0.2f);
             }
             SPump(6.6f);
         }

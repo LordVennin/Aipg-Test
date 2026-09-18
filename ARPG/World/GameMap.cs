@@ -104,6 +104,8 @@ public class GameMap
     private readonly byte[] _water;    // 1 = water: impassable to walkers, open to shots/sight
     private readonly byte[] _tallGrass; // 1 = tall grass: walkable, renders over entity legs
     private readonly byte[] _ruins;    // 1 = ruins ground: flagstone tint + ruin props (render-only)
+    private readonly byte[] _partition; // 1 = a low camp wall: a one-high block that never grows a ruin feature
+    private readonly byte[] _shelf;     // 1 = a bookcase: solid for movement, drawn as the shelf sprite alone (no block)
 
     /// <summary>Vertical step an entity can absorb when moving between surfaces. Level
     /// differences at or under this are walkable (ramp ends); full levels are not.</summary>
@@ -207,7 +209,7 @@ public class GameMap
                 MapKind.Tutorial => (84, 22), // a long straight road east — never rolled
                 MapKind.StoryRoad => (108, 22), // the story cut: a fifth longer, plus the road behind the camp
                 MapKind.RuinsHub => (30, 22),
-                MapKind.Archive => (30, 16),
+                MapKind.Archive => (44, 22),
                 _ => (44, 44),
             };
         }
@@ -222,6 +224,8 @@ public class GameMap
         _water = new byte[width * height];
         _tallGrass = new byte[width * height];
         _ruins = new byte[width * height];
+        _partition = new byte[width * height];
+        _shelf = new byte[width * height];
         _void = new byte[width * height];
         switch (kind)
         {
@@ -262,6 +266,10 @@ public class GameMap
     public bool IsTallGrass(int x, int y) => InBounds(x, y) && _tallGrass[Idx(x, y)] == 1;
     /// <summary>Ruins ground (tutorial map's east end): flagstone tint + ruin props.</summary>
     public bool IsRuins(int x, int y) => InBounds(x, y) && _ruins[Idx(x, y)] == 1;
+    /// <summary>A low camp partition (one-high, bare-topped, no ruin feature).</summary>
+    public bool IsPartition(int x, int y) => InBounds(x, y) && _partition[Idx(x, y)] == 1;
+    /// <summary>A bookcase tile: solid, but the shelf sprite IS the object — no stone block under it.</summary>
+    public bool IsShelf(int x, int y) => InBounds(x, y) && _shelf[Idx(x, y)] == 1;
     /// <summary>VOID: solid for movement and routing like any wall, but nothing is
     /// there to draw — the space beyond a room's walls, not a mass of wall tops. The
     /// map's rectangle is storage; the void is where it stops being a place.</summary>
@@ -981,13 +989,25 @@ public class GameMap
         ExitDoor = new Vector2(3.0f, 2.5f);
         ExitDoorStyle = DoorStyle.Stairs;
 
-        // The peddler's camp: the bar's west end, under the stairs.
-        WagonSpot = new Vector2(2.9f, 6.4f);
-        NpcSpots.Add(new Vector2(5.6f, 6.2f));   // merchant, at the cart's tail
+        // Low partitions wall off the crew's alcoves: knee-high stone, bare-topped,
+        // one gap each so the camps read as ROOMS rather than props on a floor.
+        void Partition(int x, int y) { _wall[Idx(x, y)] = 1; _partition[Idx(x, y)] = 1; }
+        // Weaver's alcove: the bar's west end under the stairs (x 1..4, y 4..8), its
+        // doorway facing the room at (5,6).
+        foreach (int py in new[] { 4, 5, 7, 8 }) Partition(5, py);
+        // Brakka's alcove: the stem's west wall (x 1..4, y 12..16), walled north and
+        // south, its doorway facing the stem at (5,14).
+        foreach (int px in new[] { 1, 2, 3, 4 }) { Partition(px, 11); Partition(px, 17); }
+        foreach (int py in new[] { 12, 13, 15, 16 }) Partition(5, py);
+
+        // The peddler's camp: the cart against the west wall, the stall across the
+        // alcove's south side, the awning hung off the wall, a rug to stand on.
+        WagonSpot = new Vector2(2.3f, 4.9f);
+        NpcSpots.Add(new Vector2(3.3f, 6.5f));   // merchant, in the doorway of the stall
         NpcSpots.Add(new Vector2(20.5f, 2.8f));  // skill trainer: her study along the bar's north-east wall
         StashSpot = new Vector2(6.2f, 2.5f);
-        // The sellsword unpacks in the stem; the gambler sets up by the fountain.
-        NpcSpots.Add(new Vector2(3.4f, 13.6f));  // mercenary: his corner along the stem's west wall
+        // The sellsword's corner in the stem; the gambler sets up by the fountain.
+        NpcSpots.Add(new Vector2(2.9f, 14.2f));  // mercenary: inside his alcove, facing its doorway
         NpcSpots.Add(new Vector2(18.0f, 7.6f));  // gambler
         FountainSpot = new Vector2(15.5f, yc + 0.5f); // mid-bar
         // The scroll podium and the portal arch share a raised DAIS filling the bar's
@@ -1013,26 +1033,26 @@ public class GameMap
         TorchSpots.Add(new Vector2(Width - 6.5f, 8.4f));
         TorchSpots.Add(new Vector2(12.5f, barBottom + 0.6f));
         TorchSpots.Add(new Vector2(20.5f, barBottom + 0.6f));
-        TorchSpots.Add(new Vector2(2.6f, 12.0f));
+        TorchSpots.Add(new Vector2(2.5f, 12.4f));
         TorchSpots.Add(new Vector2(stemRight - 0.6f, 17.0f));
         TorchSpots.Add(new Vector2(doorX + 2.5f, Height - 2.4f));
-        // Barrels and crates around the cart and the unpacking crew.
-        BarrelSpots.Add(new Vector2(2.8f, 8.6f));
-        BarrelSpots.Add(new Vector2(3.7f, 9.2f));
+        // Barrels outside the alcoves' doorways and along the stem.
+        BarrelSpots.Add(new Vector2(6.8f, 8.7f));
+        BarrelSpots.Add(new Vector2(7.6f, 9.3f));
         BarrelSpots.Add(new Vector2(7.6f, 14.2f));
-        BarrelSpots.Add(new Vector2(3.0f, 16.6f));
+        BarrelSpots.Add(new Vector2(7.4f, 16.8f));
         // Urns in the quiet corners.
         UrnSpots.Add(new Vector2(stemRight - 0.5f, Height - 2.6f));
         UrnSpots.Add(new Vector2(stemRight - 1.3f, Height - 2.3f));
         UrnSpots.Add(new Vector2(18.5f, 2.4f));
         UrnSpots.Add(new Vector2(Width - 2.6f, 2.3f));
         // The crew has SET UP: three camps, each dressed as its owner would.
-        // Weaver's stall by the cart under the stairs...
-        Props.Add(new MapProp(5.6f, 4.3f, "camp:stall"));
-        Props.Add(new MapProp(1.75f, 4.7f, "camp:awning"));
-        Props.Add(new MapProp(5.6f, 6.9f, "camp:rug"));
-        Props.Add(new MapProp(7.5f, 8.3f, "camp:crate"));
-        Props.Add(new MapProp(4.5f, 8.1f, "camp:sacks"));
+        // Weaver's stall in the west alcove...
+        Props.Add(new MapProp(3.4f, 8.2f, "camp:stall"));
+        Props.Add(new MapProp(1.7f, 6.7f, "camp:awning"));
+        Props.Add(new MapProp(3.3f, 6.9f, "camp:rug"));
+        Props.Add(new MapProp(1.9f, 8.3f, "camp:sacks"));
+        Props.Add(new MapProp(6.6f, 4.6f, "camp:crate"));
         // ...Maren's study along the bar's north-east wall...
         Props.Add(new MapProp(22.3f, 2.5f, "camp:lectern"));
         Props.Add(new MapProp(19.0f, 2.3f, "camp:books"));
@@ -1040,12 +1060,12 @@ public class GameMap
         Props.Add(new MapProp(17.4f, 2.7f, "camp:bedroll"));
         Props.Add(new MapProp(21.0f, 4.3f, "camp:candles", "FFC880", 110f));
         Props.Add(new MapProp(20.5f, 3.5f, "camp:rug"));
-        // ...and Brakka's corner in the stem: rack, brazier, bedroll, a crate for a table.
-        Props.Add(new MapProp(1.85f, 14.2f, "camp:rack"));
-        Props.Add(new MapProp(5.1f, 14.7f, "camp:brazier", "FF9A50", 150f));
-        Props.Add(new MapProp(2.3f, 15.6f, "camp:bedroll"));
-        Props.Add(new MapProp(4.7f, 11.6f, "camp:crate"));
-        Props.Add(new MapProp(4.5f, 13.1f, "camp:stool"));
+        // ...and Brakka's walled corner in the stem: rack, brazier, bedroll, a crate for a table.
+        Props.Add(new MapProp(1.75f, 13.2f, "camp:rack"));
+        Props.Add(new MapProp(3.7f, 16.0f, "camp:brazier", "FF9A50", 150f));
+        Props.Add(new MapProp(2.1f, 16.3f, "camp:bedroll"));
+        Props.Add(new MapProp(3.9f, 12.2f, "camp:crate"));
+        Props.Add(new MapProp(4.0f, 14.6f, "camp:stool"));
         // Only the walls bounding the L stand; the collapsed block is void.
         VoidEnclosedWalls();
     }
@@ -1068,32 +1088,34 @@ public class GameMap
                 bool border = x == 0 || y == 0 || x == Width - 1 || y == Height - 1;
                 _wall[Idx(x, y)] = border ? (byte)2 : (byte)0;
             }
-        // Shelves along the long walls: runs of three with a one-tile gap.
-        for (int x = 2; x <= Width - 3; x++)
+        void Shelf(int x, int y) { _wall[Idx(x, y)] = 1; _shelf[Idx(x, y)] = 1; }
+        // Bookcases along the long walls: runs of three with a one-tile gap, leaving
+        // the arrival (west) and the Codex's reading room (east) clear.
+        for (int x = 6; x <= Width - 7; x++)
         {
-            if ((x - 2) % 4 == 3) continue; // the gap
-            if (x >= 4) _wall[Idx(x, 1)] = 1;   // the arrival's corner stays clear
-            if (x >= 4 && x <= Width - 6) _wall[Idx(x, Height - 2)] = 1;
+            if ((x - 6) % 4 == 3) continue; // the gap
+            Shelf(x, 1);
+            Shelf(x, Height - 2);
         }
-        // Two shelf islands staggered across the middle.
-        for (int x = 10; x <= 12; x++) _wall[Idx(x, 5)] = 1;
-        for (int x = 17; x <= 19; x++) _wall[Idx(x, 10)] = 1;
+        // The stacks: three aisles of free-standing cases across the middle, runs of
+        // four with two-tile gaps, each row staggered off the last.
+        foreach (var (row, offset) in new[] { (6, 0), (10, 3), (14, 0) })
+            for (int x = 10 + offset; x <= Width - 8 - (3 - offset); x++)
+                if ((x - 10 - offset) % 6 < 4) Shelf(x, row);
         // The way back up: an archway painted on the west wall; the party arrives before it.
-        float yc = Height / 2f + 0.5f; // 8.5
+        float yc = Height / 2f + 0.5f; // 11.5
         ExitDoor = new Vector2(1.5f, yc);
         ExitDoorStyle = DoorStyle.RuinArch;
-        PlayerSpawn = new Vector2(3.0f, yc);
-        // The reading desk at the far end: the Codex's perch.
+        PlayerSpawn = new Vector2(3.5f, yc);
+        // The reading room at the far end: the desk is the Codex's perch.
         BossSpot = new Vector2(Width - 4.5f, yc);
-        Props.Add(new MapProp(Width - 2.6f, yc - 0.1f, "archive:desk", "FFD890", 130f));
-        // Tomes lurk between the shelves.
-        PackSpots.Add(new Vector2(7.5f, 4.5f));
-        PackSpots.Add(new Vector2(8.5f, 11.5f));
-        PackSpots.Add(new Vector2(14.5f, 8.5f));
-        PackSpots.Add(new Vector2(20.5f, 4.5f));
-        PackSpots.Add(new Vector2(21.5f, 12.0f));
+        Props.Add(new MapProp(Width - 2.6f, yc - 0.3f, "archive:desk", "FFD890", 130f));
+        // A few tomes lurk deep in the stacks — never within reach of the stairs.
+        PackSpots.Add(new Vector2(16.5f, 4.0f));
+        PackSpots.Add(new Vector2(22.5f, 17.5f));
+        PackSpots.Add(new Vector2(30.5f, 8.5f));
         // Candles: the only light besides what the party carries and the tomes' glow.
-        foreach (var (cx, cy) in new[] { (6.5f, 2.6f), (14.5f, 2.6f), (23.5f, 2.6f), (9.5f, 13.4f), (19.5f, 13.4f), (12.5f, 6.4f) })
+        foreach (var (cx, cy) in new[] { (8.5f, 2.6f), (17.5f, 2.6f), (27.5f, 2.6f), (12.5f, 19.4f), (24.5f, 19.4f), (34.5f, 19.4f), (15.5f, 8.4f), (26.5f, 12.4f), (36.5f, 6.5f), (36.5f, 16.5f) })
             Props.Add(new MapProp(cx, cy, "archive:candle", "FFC070", 95f));
         Weather = "";
     }

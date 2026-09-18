@@ -99,6 +99,51 @@ public partial class ServerWorld
     private int _scrollRoom;
     public int ScrollRoom => MapIndex == ScrollMapIndex ? _scrollRoom : 0;
 
+    /// <summary>Write a story flag onto every present character (it saves with them).</summary>
+    private void MarkStory(Action<Sim.StoryProgress> mark)
+    {
+        if (!Story) return;
+        foreach (var pl in Players.Values)
+        {
+            pl.Character.Story ??= new Sim.StoryProgress();
+            mark(pl.Character.Story);
+            _events.CharacterChanged(pl);
+        }
+    }
+
+    /// <summary>Play a scene for everyone and remember it on every present character,
+    /// so a reload never replays it.</summary>
+    private void PlayScene(string id)
+    {
+        _events.CutscenePlayed(id);
+        MarkStory(sp => { if (!sp.ScenesSeen.Contains(id)) sp.ScenesSeen.Add(id); });
+    }
+
+    /// <summary>A player has joined a story world. The FIRST player's saved progress
+    /// becomes the world's (a returning host wakes in the camp with the Codex felled
+    /// and the scenes already seen); later joiners catch up to the world.</summary>
+    public void AdoptStoryProgress(ServerPlayer p)
+    {
+        if (!Story) return;
+        var sp = p.Character.Story ??= new Sim.StoryProgress();
+        if (Players.Count == 1 && MapIndex == StoryRoadIndex && !_roadReturn)
+        {
+            if (sp.CodexFelled) CodexFelled = true;
+            if (sp.ScrollsUnlocked) SetScrollsUnlocked(true);
+            if (sp.ContractsUnlocked) { ContractsUnlocked = true; Loot.ContractsAllowed = true; }
+            if (sp.ScenesSeen.Contains("hub_arrival")) _ruinsIntroPlayed = true;
+            if (sp.ScenesSeen.Contains("codex_scroll")) _codexScenePlayed = true;
+            if (sp.ReachedCamp) TransitionTo(0);
+            return;
+        }
+        bool changed = false;
+        if (MapIndex != StoryRoadIndex && !sp.ReachedCamp) { sp.ReachedCamp = true; changed = true; }
+        if (CodexFelled && !sp.CodexFelled) { sp.CodexFelled = true; changed = true; }
+        if (ScrollsUnlocked && !sp.ScrollsUnlocked) { sp.ScrollsUnlocked = true; changed = true; }
+        if (ContractsUnlocked && !sp.ContractsUnlocked) { sp.ContractsUnlocked = true; changed = true; }
+        if (changed) _events.CharacterChanged(p);
+    }
+
     /// <summary>Story progression flips: scrolls exist once the Codex has given one up.</summary>
     private void SetScrollsUnlocked(bool on)
     {
@@ -173,7 +218,7 @@ public partial class ServerWorld
         if (_codexSceneAt <= 0f || Time < _codexSceneAt) return;
         _codexScenePlayed = true;
         _codexSceneAt = 0f;
-        _events.CutscenePlayed("codex_scroll");
+        PlayScene("codex_scroll");
         foreach (var pl in Players.Values)
             _events.MessageFor(pl, "Maren: \"Put that scroll on the podium. Whatever the seals describe, the portal will open onto it.\"");
     }
