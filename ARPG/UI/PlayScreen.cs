@@ -103,6 +103,8 @@ public class PlayScreen : IScreen
     private string _devGiveScroll;
     private string _devOpenPortal;
     private bool _devWarpBasement;
+    private bool _devWarpDefense;
+    private bool _devBarriers;
     /// <summary>True while a left-button press that a UI panel consumed (e.g. an X close
     /// button) is STILL held — the held-triggered primary attack must not fire from it.</summary>
     /// <summary>The tooltip held open by Alt (and where its mouse anchor was), so the
@@ -288,6 +290,8 @@ public class PlayScreen : IScreen
             var scrollToken = devTokens.FirstOrDefault(t => t.StartsWith("scroll"));
             if (scrollToken != null) _devGiveScroll = scrollToken.Contains(':') ? scrollToken.Split(':')[1] : "rare";
             if (devTokens.Contains("basement")) _devWarpBasement = true;
+            if (devTokens.Contains("defense")) _devWarpDefense = true;
+            if (devTokens.Contains("barriers")) _devBarriers = true;
             var portalToken = devTokens.FirstOrDefault(t => t.StartsWith("portal"));
             if (portalToken != null) _devOpenPortal = portalToken.Contains(':') ? portalToken.Split(':')[1] : "rare";
             var gearToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("gear"));
@@ -546,6 +550,20 @@ public class PlayScreen : IScreen
         {
             _devWarpTutorial = false;
             _client.SendDebugCommand("warp_tutorial");
+        }
+        if (_devWarpDefense && _clientTime > 3f)
+        {
+            _devWarpDefense = false;
+            _client.SendDebugCommand("warp_defense");
+        }
+        if (_devBarriers && _clientTime > 6.5f && _client.World.Me != null)
+        {
+            // A wall for the camera: a run east of the player, a turn south, a turret behind.
+            _devBarriers = false;
+            var o = _client.World.Me.Position;
+            for (int i = 0; i < 4; i++) _client.SendDebugCommand("build", $"1,{(int)o.X + 2 + i},{(int)o.Y - 2},0");
+            for (int i = 1; i < 4; i++) _client.SendDebugCommand("build", $"1,{(int)o.X + 5},{(int)o.Y - 2 + i},1");
+            _client.SendDebugCommand("build", $"0,{(int)o.X + 3},{(int)o.Y},2");
         }
         if (_devWarpBasement && _clientTime > 3f)
         {

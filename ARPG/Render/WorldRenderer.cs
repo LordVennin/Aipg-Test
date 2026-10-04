@@ -662,6 +662,111 @@ public class WorldRenderer
     /// ring (eight stone posts around an oval, the missing crown facing the room),
     /// drawn as prisms in the world's planes on top of the dais. While the portal is
     /// open a violet vortex turns inside the ring and lights the dais.</summary>
+    /// <summary>A placed barrier's height in levels: a chest-high wall, not a full block.</summary>
+    public const float BarrierHeight = 0.72f;
+
+    /// <summary>A spiked barrier as terrain: a stone block filling its tile in the
+    /// map's own projection — a flagstone top, shaded +x/+y faces in the theme's wall
+    /// colour, rim lines where an edge is exposed — with the face toward a neighbouring
+    /// barrier left out so a run of them is one continuous wall. Sharpened stakes ride
+    /// the ridge along the placement axis. Damage darkens the stone and cracks the
+    /// top; a fresh build rises out of the ground.</summary>
+    private void DrawBarrierBlock(SpriteBatch b, IsoCamera camera, int tx, int ty, float ground,
+        (bool east, bool south, bool west, bool north) nb, Color tint, float rise, float healthFrac, byte rotation)
+    {
+        float h = BarrierHeight * rise;
+        Vector2 P(float x, float y, float lvl) => camera.WorldToScreen(new NumVec2(x, y), lvl);
+        float x0 = tx, y0 = ty, x1 = tx + 1, y1 = ty + 1;
+        // Stacked field stone, leaning toward the theme's own wall colour so it belongs
+        // to the map it stands on; aged darker as it takes damage.
+        float wear = 0.72f + 0.28f * healthFrac;
+        Color Mul(Color c, float f) => new((int)Math.Min(255, c.R * f), (int)Math.Min(255, c.G * f), (int)Math.Min(255, c.B * f), c.A);
+        var stoneTop = LerpColor(new Color(132, 126, 116), _wallTop, 0.35f);
+        var stoneFace = LerpColor(new Color(104, 98, 90), _wallFace, 0.35f);
+        var topCol = Mul(MultiplyTint(stoneTop, tint), wear);
+        var faceSouth = Mul(MultiplyTint(stoneFace, tint), wear * 0.72f);   // the +y face (lower-left on screen) is in shade
+        var faceEast = Mul(MultiplyTint(stoneFace, tint), wear * 0.92f);    // the +x face (lower-right) catches light
+        var rim = Mul(MultiplyTint(stoneTop, tint), wear * 1.22f);
+        var seam = Mul(faceSouth, 0.7f);
+        // Faces first (they sit lower on screen), then the top.
+        if (!nb.south)
+        {
+            FillQuad(b, P(x0, y1, ground), P(x1, y1, ground), P(x1, y1, ground + h), P(x0, y1, ground + h), faceSouth);
+            // A mortar course halfway up, and a block seam mid-face.
+            var sA = P(x0, y1, ground + h * 0.5f); var sB = P(x1, y1, ground + h * 0.5f);
+            DrawLine(b, sA, sB, seam);
+            DrawLine(b, P(x0 + 0.5f, y1, ground), P(x0 + 0.5f, y1, ground + h * 0.5f), seam);
+            DrawLine(b, P(x0 + 0.25f, y1, ground + h * 0.5f), P(x0 + 0.25f, y1, ground + h), seam);
+            DrawLine(b, P(x0 + 0.75f, y1, ground + h * 0.5f), P(x0 + 0.75f, y1, ground + h), seam);
+        }
+        if (!nb.east)
+        {
+            FillQuad(b, P(x1, y0, ground), P(x1, y1, ground), P(x1, y1, ground + h), P(x1, y0, ground + h), faceEast);
+            var seamE = Mul(faceEast, 0.72f);
+            DrawLine(b, P(x1, y0, ground + h * 0.5f), P(x1, y1, ground + h * 0.5f), seamE);
+            DrawLine(b, P(x1, y0 + 0.5f, ground), P(x1, y0 + 0.5f, ground + h * 0.5f), seamE);
+            DrawLine(b, P(x1, y0 + 0.25f, ground + h * 0.5f), P(x1, y0 + 0.25f, ground + h), seamE);
+            DrawLine(b, P(x1, y0 + 0.75f, ground + h * 0.5f), P(x1, y0 + 0.75f, ground + h), seamE);
+        }
+        FillQuad(b, P(x0, y0, ground + h), P(x1, y0, ground + h), P(x1, y1, ground + h), P(x0, y1, ground + h), topCol);
+        // Flagstone joints on the top: a cross of seams, so a run reads as laid blocks.
+        var topSeam = Mul(topCol, 0.78f);
+        DrawLine(b, P(x0 + 0.5f, y0, ground + h), P(x0 + 0.5f, y1, ground + h), topSeam);
+        DrawLine(b, P(x0, y0 + 0.5f, ground + h), P(x1, y0 + 0.5f, ground + h), topSeam);
+        // Rim lines on exposed top edges only (a continuing neighbour owns the shared edge).
+        if (!nb.north) DrawLine(b, P(x0, y0, ground + h), P(x1, y0, ground + h), rim);
+        if (!nb.west) DrawLine(b, P(x0, y0, ground + h), P(x0, y1, ground + h), rim);
+        if (!nb.east) DrawLine(b, P(x1, y0, ground + h), P(x1, y1, ground + h), rim);
+        if (!nb.south) DrawLine(b, P(x0, y1, ground + h), P(x1, y1, ground + h), rim);
+        // Cracks as it breaks: dark hairlines across the top, more as health falls.
+        if (healthFrac < 0.75f)
+        {
+            var crack = Mul(topCol, 0.45f);
+            int cracks = healthFrac < 0.25f ? 3 : healthFrac < 0.5f ? 2 : 1;
+            var cRng = new Random(tx * 73 + ty * 31);
+            for (int c = 0; c < cracks; c++)
+            {
+                float ax = x0 + 0.15f + (float)cRng.NextDouble() * 0.7f, ay = y0 + 0.15f + (float)cRng.NextDouble() * 0.7f;
+                float bx2 = Math.Clamp(ax + ((float)cRng.NextDouble() - 0.5f) * 0.6f, x0 + 0.05f, x1 - 0.05f);
+                float by2 = Math.Clamp(ay + ((float)cRng.NextDouble() - 0.5f) * 0.6f, y0 + 0.05f, y1 - 0.05f);
+                DrawLine(b, P(ax, ay, ground + h), P(bx2, by2, ground + h), crack);
+            }
+        }
+        // Stakes along the ridge: sharpened timber leaning outward, set along the
+        // placement axis (0/2 = along x, 1/3 = along y) so a run's spikes line up.
+        if (rise >= 1f)
+        {
+            var wood = MultiplyTint(Mul(new Color(112, 80, 48), wear), tint);
+            var woodDark = Mul(wood, 0.7f);
+            var point = MultiplyTint(Mul(new Color(188, 178, 156), wear), tint);
+            bool alongX = (rotation & 1) == 0;
+            for (int k = 0; k < 3; k++)
+            {
+                float t = 0.18f + k * 0.32f;
+                float sx = alongX ? x0 + t : x0 + 0.5f, sy = alongX ? y0 + 0.5f : y0 + t;
+                // Each stake leans outward (toward the camera) and stands a good half level.
+                var foot = P(sx, sy, ground + h);
+                var tip = P(sx + (alongX ? 0.05f : 0.22f), sy + (alongX ? 0.22f : 0.05f), ground + h + 0.6f);
+                DrawLine(b, foot + new Vector2(-1, 0), tip + new Vector2(-1, 0), woodDark);
+                DrawLine(b, foot, tip, wood);
+                DrawLine(b, foot + new Vector2(1, 0), tip + new Vector2(1, 0), wood);
+                DrawLine(b, foot + new Vector2(2, 0), tip + new Vector2(2, 0), woodDark);
+                var tipDir = Vector2.Normalize(tip - foot);
+                DrawLine(b, tip, tip + tipDir * 4f, point);
+                DrawLine(b, tip + new Vector2(1, 0), tip + new Vector2(1, 0) + tipDir * 3f, point);
+            }
+        }
+    }
+
+    private static void DrawLine(SpriteBatch b, Vector2 a, Vector2 c, Color col)
+    {
+        var d = c - a;
+        float len = d.Length();
+        if (len < 0.5f) return;
+        float ang = MathF.Atan2(d.Y, d.X);
+        b.Draw(TextureGen.Pixel, a, null, col, ang, Vector2.Zero, new Vector2(len, 1f), SpriteEffects.None, 0f);
+    }
+
     private void DrawPodiumAndPortal(IsoCamera camera, ClientWorld world)
     {
         var map = world.Map;
@@ -2191,6 +2296,33 @@ public class WorldRenderer
                                          * MathF.Sin(Environment.TickCount64 * 0.023f + st.Position.Y * 2.3f);
                 AddLight(tScreen + new Vector2(0, -44), 150f * tf, new Color(255, 170, 80));
             }
+            if (st.Kind == (byte)StructureKind.SpikedBarrier)
+            {
+                // A barrier is GEOMETRY, not a billboard: a stone block cut to its tile
+                // like the map's own walls, faces dropped where a neighbouring barrier
+                // continues the run, so a row reads as one wall.
+                int bx = (int)MathF.Floor(stPos.X), by = (int)MathF.Floor(stPos.Y);
+                bool BarrierAt(int tx, int ty) => world.Structures.Values.Any(o =>
+                    o.Kind == (byte)StructureKind.SpikedBarrier && (int)MathF.Floor(o.Position.X) == tx && (int)MathF.Floor(o.Position.Y) == ty);
+                var neighbours = (east: BarrierAt(bx + 1, by), south: BarrierAt(bx, by + 1), west: BarrierAt(bx - 1, by), north: BarrierAt(bx, by - 1));
+                float bAge = (Environment.TickCount64 - st.SpawnedAtMs) / 1000f;
+                float rise = bAge < 0.3f ? bAge / 0.3f : 1f; // builds UP out of the ground
+                float frac = st.MaxHealth > 0 ? Math.Clamp(st.Health / st.MaxHealth, 0f, 1f) : 1f;
+                var bCopy = st;
+                _sorted.Add((stPos.X + stPos.Y + st.Height * 1.0f + 0.1f + UnderDeckBias(stPos, st.Height), batch =>
+                {
+                    DrawBarrierBlock(batch, camera, bx, by, bCopy.Height, neighbours, Color.White, rise, frac, bCopy.Rotation);
+                    if (frac < 0.995f)
+                    {
+                        var topS = camera.WorldToScreen(new NumVec2(bx + 0.5f, by + 0.5f), bCopy.Height + BarrierHeight);
+                        var bar = new Rectangle((int)topS.X - 14, (int)topS.Y - 22, 28, 3);
+                        batch.Draw(TextureGen.Pixel, bar, new Color(20, 20, 20, 200));
+                        batch.Draw(TextureGen.Pixel, new Rectangle(bar.X, bar.Y, (int)(bar.Width * frac), bar.Height),
+                            frac > 0.5f ? new Color(150, 200, 120) : frac > 0.25f ? new Color(230, 190, 80) : new Color(220, 80, 60));
+                    }
+                }));
+                continue;
+            }
             if (stTex == null) continue;
             float age = (Environment.TickCount64 - st.SpawnedAtMs) / 1000f;
             float pop = age < 0.25f ? 0.7f + 1.2f * age : 1f; // brief build pop
@@ -2257,8 +2389,20 @@ public class WorldRenderer
                     // The claimed tile, as an iso diamond under the ghost.
                     DrawTileDiamond(batch, camera, preview.Pos, bpHeight, tint * 0.55f);
                     int w = bpTex.Width * 2, h = bpTex.Height * 2;
-                    batch.Draw(bpTex, new Rectangle((int)bpScreen.X - w / 2, (int)bpScreen.Y - h + 8, w, h),
-                        null, tint * 0.6f, 0f, Vector2.Zero, bpFlip, 0f);
+                    if (preview.Kind == (byte)StructureKind.SpikedBarrier)
+                    {
+                        // The ghost is the block itself, see-through, already joined to
+                        // any barrier it would continue.
+                        int gx = (int)MathF.Floor(preview.Pos.X), gy = (int)MathF.Floor(preview.Pos.Y);
+                        bool GhostNb(int tx, int ty) => world.Structures.Values.Any(o =>
+                            o.Kind == (byte)StructureKind.SpikedBarrier && (int)MathF.Floor(o.Position.X) == tx && (int)MathF.Floor(o.Position.Y) == ty);
+                        DrawBarrierBlock(batch, camera, gx, gy, bpHeight,
+                            (GhostNb(gx + 1, gy), GhostNb(gx, gy + 1), GhostNb(gx - 1, gy), GhostNb(gx, gy - 1)),
+                            tint * 0.6f, 1f, 1f, preview.Rotation);
+                    }
+                    else
+                        batch.Draw(bpTex, new Rectangle((int)bpScreen.X - w / 2, (int)bpScreen.Y - h + 8, w, h),
+                            null, tint * 0.6f, 0f, Vector2.Zero, bpFlip, 0f);
                     string hint = preview.Kind is 0 or 1 or 2 ? "R rotate  ·  right-click cancel" : "right-click cancel";
                     var hFont = FontManager.Get(12);
                     var hSize = hFont.MeasureString(hint);

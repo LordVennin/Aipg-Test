@@ -587,6 +587,26 @@ public partial class ServerWorld
                 // Dev shortcut straight back to the hub from anywhere.
                 if (Campaign && MapIndex != 0) TransitionTo(0);
                 break;
+            case "warp_defense":
+                // Dev shortcut into the caravan stand.
+                if (Campaign) TransitionTo(DefenseMapIndex);
+                break;
+            case "build":
+            {
+                // Dev: "kind,x,y[,rot]" — place a structure outright (no phase, no cost) for captures.
+                var bp = (arg ?? "").Split(',');
+                if (Map.Kind == MapKind.Defense && bp.Length >= 3 && int.TryParse(bp[0], out int bk) &&
+                    float.TryParse(bp[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float bx) &&
+                    float.TryParse(bp[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float by))
+                {
+                    byte rot = bp.Length > 3 && byte.TryParse(bp[3], out byte br) ? br : (byte)0;
+                    var bkind = (StructureKind)bk;
+                    var bpos = new System.Numerics.Vector2(MathF.Floor(bx) + 0.5f, MathF.Floor(by) + 0.5f);
+                    if (!_structTiles.Contains(TileIndexOf(bpos)))
+                        AddStructure(bkind, bpos, DefenseBalance.Health(bkind), p.Id, bkind == StructureKind.SpikedBarrier ? 0.45f : 0.4f, rot);
+                }
+                break;
+            }
             case "warp_basement":
                 // Dev shortcut down into the archive (story).
                 if (Campaign && Story) TransitionTo(BasementMapIndex);
