@@ -558,12 +558,21 @@ public class PlayScreen : IScreen
         }
         if (_devBarriers && _clientTime > 6.5f && _client.World.Me != null)
         {
-            // A wall for the camera: a run east of the player, a turn south, a turret behind.
+            // A wall for the camera: a run beside the player with a corner and a turret
+            // behind it — laid toward whichever side has open ground.
             _devBarriers = false;
             var o = _client.World.Me.Position;
-            for (int i = 0; i < 4; i++) _client.SendDebugCommand("build", $"1,{(int)o.X + 2 + i},{(int)o.Y - 2},0");
-            for (int i = 1; i < 4; i++) _client.SendDebugCommand("build", $"1,{(int)o.X + 5},{(int)o.Y - 2 + i},1");
-            _client.SendDebugCommand("build", $"0,{(int)o.X + 3},{(int)o.Y},2");
+            var dm = _client.World.Map;
+            int ox = (int)o.X, oy = (int)o.Y;
+            bool Free(int x, int y) => !dm.IsSolid(x, y) && !dm.IsWater(x, y);
+            int dir = Enumerable.Range(0, 7).All(i => Free(ox + 2 + i, oy - 2) && Free(ox + 2 + i, oy + 2)) ? 1
+                    : Enumerable.Range(0, 7).All(i => Free(ox - 2 - i, oy - 2) && Free(ox - 2 - i, oy + 2)) ? -1 : 0;
+            if (dir != 0)
+            {
+                for (int i = 0; i < 4; i++) _client.SendDebugCommand("build", $"1,{ox + dir * (2 + i)},{oy - 2},0");
+                for (int i = 1; i < 4; i++) _client.SendDebugCommand("build", $"1,{ox + dir * 5},{oy - 2 + i},1");
+                _client.SendDebugCommand("build", $"0,{ox + dir * 3},{oy},2");
+            }
         }
         if (_devWarpBasement && _clientTime > 3f)
         {

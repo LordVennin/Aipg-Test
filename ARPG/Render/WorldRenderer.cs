@@ -665,18 +665,19 @@ public class WorldRenderer
     /// <summary>A placed barrier's height in levels: a chest-high wall, not a full block.</summary>
     public const float BarrierHeight = 0.72f;
 
-    /// <summary>A spiked barrier as terrain: a stone block filling its tile in the
-    /// map's own projection — a flagstone top, shaded +x/+y faces in the theme's wall
-    /// colour, rim lines where an edge is exposed — with the face toward a neighbouring
-    /// barrier left out so a run of them is one continuous wall. Sharpened stakes ride
-    /// the ridge along the placement axis. Damage darkens the stone and cracks the
+    /// <summary>A spiked barrier as terrain: a THIN stone wall through its tile in the
+    /// map's own projection (StructureKinds.BarrierBars gives the footprint — one bar
+    /// along the placement axis, reaching to any tile edge where another barrier
+    /// continues, so runs, corners and tees join). Flagstone top with laid-block
+    /// seams, shaded +x/+y faces, rim lines on the exposed top edges, sharpened
+    /// stakes leaning out along the ridge. Damage darkens the stone and cracks the
     /// top; a fresh build rises out of the ground.</summary>
     private void DrawBarrierBlock(SpriteBatch b, IsoCamera camera, int tx, int ty, float ground,
         (bool east, bool south, bool west, bool north) nb, Color tint, float rise, float healthFrac, byte rotation)
     {
         float h = BarrierHeight * rise;
         Vector2 P(float x, float y, float lvl) => camera.WorldToScreen(new NumVec2(x, y), lvl);
-        float x0 = tx, y0 = ty, x1 = tx + 1, y1 = ty + 1;
+        var bars = StructureKinds.BarrierBars(tx, ty, rotation, nb.east, nb.south, nb.west, nb.north);
         // Stacked field stone, leaning toward the theme's own wall colour so it belongs
         // to the map it stands on; aged darker as it takes damage.
         float wear = 0.72f + 0.28f * healthFrac;
@@ -687,53 +688,77 @@ public class WorldRenderer
         var faceSouth = Mul(MultiplyTint(stoneFace, tint), wear * 0.72f);   // the +y face (lower-left on screen) is in shade
         var faceEast = Mul(MultiplyTint(stoneFace, tint), wear * 0.92f);    // the +x face (lower-right) catches light
         var rim = Mul(MultiplyTint(stoneTop, tint), wear * 1.22f);
-        var seam = Mul(faceSouth, 0.7f);
-        // Faces first (they sit lower on screen), then the top.
-        if (!nb.south)
+        var seamS = Mul(faceSouth, 0.7f);
+        var seamE = Mul(faceEast, 0.72f);
+        float ex = tx + 1, ey = ty + 1;
+        // Faces of every bar first (they sit lower on screen), then every top, then the
+        // rims — so where two bars cross, the tops cover the faces that run under them.
+        foreach (var (x0, y0, x1, y1) in bars)
         {
-            FillQuad(b, P(x0, y1, ground), P(x1, y1, ground), P(x1, y1, ground + h), P(x0, y1, ground + h), faceSouth);
-            // A mortar course halfway up, and a block seam mid-face.
-            var sA = P(x0, y1, ground + h * 0.5f); var sB = P(x1, y1, ground + h * 0.5f);
-            DrawLine(b, sA, sB, seam);
-            DrawLine(b, P(x0 + 0.5f, y1, ground), P(x0 + 0.5f, y1, ground + h * 0.5f), seam);
-            DrawLine(b, P(x0 + 0.25f, y1, ground + h * 0.5f), P(x0 + 0.25f, y1, ground + h), seam);
-            DrawLine(b, P(x0 + 0.75f, y1, ground + h * 0.5f), P(x0 + 0.75f, y1, ground + h), seam);
+            // The +y face: skipped only where the bar ends ON a tile edge toward a neighbour.
+            bool southOpen = !(y1 >= ey - 0.001f && nb.south);
+            if (southOpen)
+            {
+                FillQuad(b, P(x0, y1, ground), P(x1, y1, ground), P(x1, y1, ground + h), P(x0, y1, ground + h), faceSouth);
+                DrawLine(b, P(x0, y1, ground + h * 0.5f), P(x1, y1, ground + h * 0.5f), seamS);
+                for (float sx = MathF.Ceiling(x0 * 4f) / 4f; sx < x1 - 0.01f; sx += 0.25f)
+                {
+                    bool upper = ((int)MathF.Round(sx * 4f) & 1) == 0;
+                    DrawLine(b, P(sx, y1, upper ? ground + h * 0.5f : ground), P(sx, y1, upper ? ground + h : ground + h * 0.5f), seamS);
+                }
+            }
+            bool eastOpen = !(x1 >= ex - 0.001f && nb.east);
+            if (eastOpen)
+            {
+                FillQuad(b, P(x1, y0, ground), P(x1, y1, ground), P(x1, y1, ground + h), P(x1, y0, ground + h), faceEast);
+                DrawLine(b, P(x1, y0, ground + h * 0.5f), P(x1, y1, ground + h * 0.5f), seamE);
+                for (float sy = MathF.Ceiling(y0 * 4f) / 4f; sy < y1 - 0.01f; sy += 0.25f)
+                {
+                    bool upper = ((int)MathF.Round(sy * 4f) & 1) == 0;
+                    DrawLine(b, P(x1, sy, upper ? ground + h * 0.5f : ground), P(x1, sy, upper ? ground + h : ground + h * 0.5f), seamE);
+                }
+            }
         }
-        if (!nb.east)
+        foreach (var (x0, y0, x1, y1) in bars)
         {
-            FillQuad(b, P(x1, y0, ground), P(x1, y1, ground), P(x1, y1, ground + h), P(x1, y0, ground + h), faceEast);
-            var seamE = Mul(faceEast, 0.72f);
-            DrawLine(b, P(x1, y0, ground + h * 0.5f), P(x1, y1, ground + h * 0.5f), seamE);
-            DrawLine(b, P(x1, y0 + 0.5f, ground), P(x1, y0 + 0.5f, ground + h * 0.5f), seamE);
-            DrawLine(b, P(x1, y0 + 0.25f, ground + h * 0.5f), P(x1, y0 + 0.25f, ground + h), seamE);
-            DrawLine(b, P(x1, y0 + 0.75f, ground + h * 0.5f), P(x1, y0 + 0.75f, ground + h), seamE);
+            FillQuad(b, P(x0, y0, ground + h), P(x1, y0, ground + h), P(x1, y1, ground + h), P(x0, y1, ground + h), topCol);
+            // Block joints along the top every half tile.
+            var topSeam = Mul(topCol, 0.78f);
+            if (x1 - x0 > y1 - y0)
+                for (float sx = MathF.Ceiling(x0 * 2f) / 2f; sx < x1 - 0.01f; sx += 0.5f)
+                    if (sx > x0 + 0.01f) DrawLine(b, P(sx, y0, ground + h), P(sx, y1, ground + h), topSeam);
+            else
+                for (float sy = MathF.Ceiling(y0 * 2f) / 2f; sy < y1 - 0.01f; sy += 0.5f)
+                    if (sy > y0 + 0.01f) DrawLine(b, P(x0, sy, ground + h), P(x1, sy, ground + h), topSeam);
         }
-        FillQuad(b, P(x0, y0, ground + h), P(x1, y0, ground + h), P(x1, y1, ground + h), P(x0, y1, ground + h), topCol);
-        // Flagstone joints on the top: a cross of seams, so a run reads as laid blocks.
-        var topSeam = Mul(topCol, 0.78f);
-        DrawLine(b, P(x0 + 0.5f, y0, ground + h), P(x0 + 0.5f, y1, ground + h), topSeam);
-        DrawLine(b, P(x0, y0 + 0.5f, ground + h), P(x1, y0 + 0.5f, ground + h), topSeam);
-        // Rim lines on exposed top edges only (a continuing neighbour owns the shared edge).
-        if (!nb.north) DrawLine(b, P(x0, y0, ground + h), P(x1, y0, ground + h), rim);
-        if (!nb.west) DrawLine(b, P(x0, y0, ground + h), P(x0, y1, ground + h), rim);
-        if (!nb.east) DrawLine(b, P(x1, y0, ground + h), P(x1, y1, ground + h), rim);
-        if (!nb.south) DrawLine(b, P(x0, y1, ground + h), P(x1, y1, ground + h), rim);
-        // Cracks as it breaks: dark hairlines across the top, more as health falls.
+        foreach (var (x0, y0, x1, y1) in bars)
+        {
+            // Rim lines on the top's exposed edges: not where the bar meets a neighbour's
+            // tile edge, and not where it runs under the other bar.
+            bool meetsN = y0 <= ty + 0.001f && nb.north, meetsS = y1 >= ey - 0.001f && nb.south;
+            bool meetsW = x0 <= tx + 0.001f && nb.west, meetsE = x1 >= ex - 0.001f && nb.east;
+            if (!meetsN) RimSplit(b, x0, x1, y0, ground + h, rim, bars, horizontal: true, P);
+            if (!meetsS) RimSplit(b, x0, x1, y1, ground + h, rim, bars, horizontal: true, P);
+            if (!meetsW) RimSplit(b, y0, y1, x0, ground + h, rim, bars, horizontal: false, P);
+            if (!meetsE) RimSplit(b, y0, y1, x1, ground + h, rim, bars, horizontal: false, P);
+        }
+        // Cracks as it breaks: dark hairlines across the tops, more as health falls.
         if (healthFrac < 0.75f)
         {
             var crack = Mul(topCol, 0.45f);
             int cracks = healthFrac < 0.25f ? 3 : healthFrac < 0.5f ? 2 : 1;
             var cRng = new Random(tx * 73 + ty * 31);
+            var (cx0, cy0, cx1, cy1) = bars[0];
             for (int c = 0; c < cracks; c++)
             {
-                float ax = x0 + 0.15f + (float)cRng.NextDouble() * 0.7f, ay = y0 + 0.15f + (float)cRng.NextDouble() * 0.7f;
-                float bx2 = Math.Clamp(ax + ((float)cRng.NextDouble() - 0.5f) * 0.6f, x0 + 0.05f, x1 - 0.05f);
-                float by2 = Math.Clamp(ay + ((float)cRng.NextDouble() - 0.5f) * 0.6f, y0 + 0.05f, y1 - 0.05f);
+                float ax = cx0 + 0.05f + (float)cRng.NextDouble() * (cx1 - cx0 - 0.1f), ay = cy0 + 0.05f + (float)cRng.NextDouble() * (cy1 - cy0 - 0.1f);
+                float bx2 = Math.Clamp(ax + ((float)cRng.NextDouble() - 0.5f) * 0.5f, cx0 + 0.03f, cx1 - 0.03f);
+                float by2 = Math.Clamp(ay + ((float)cRng.NextDouble() - 0.5f) * 0.3f, cy0 + 0.03f, cy1 - 0.03f);
                 DrawLine(b, P(ax, ay, ground + h), P(bx2, by2, ground + h), crack);
             }
         }
-        // Stakes along the ridge: sharpened timber leaning outward, set along the
-        // placement axis (0/2 = along x, 1/3 = along y) so a run's spikes line up.
+        // Stakes along the ridge of the axis bar: sharpened timber leaning out toward
+        // the camera, spaced so a run's spikes line up tile to tile.
         if (rise >= 1f)
         {
             var wood = MultiplyTint(Mul(new Color(112, 80, 48), wear), tint);
@@ -743,8 +768,7 @@ public class WorldRenderer
             for (int k = 0; k < 3; k++)
             {
                 float t = 0.18f + k * 0.32f;
-                float sx = alongX ? x0 + t : x0 + 0.5f, sy = alongX ? y0 + 0.5f : y0 + t;
-                // Each stake leans outward (toward the camera) and stands a good half level.
+                float sx = alongX ? tx + t : tx + 0.5f, sy = alongX ? ty + 0.5f : ty + t;
                 var foot = P(sx, sy, ground + h);
                 var tip = P(sx + (alongX ? 0.05f : 0.22f), sy + (alongX ? 0.22f : 0.05f), ground + h + 0.6f);
                 DrawLine(b, foot + new Vector2(-1, 0), tip + new Vector2(-1, 0), woodDark);
@@ -755,6 +779,35 @@ public class WorldRenderer
                 DrawLine(b, tip, tip + tipDir * 4f, point);
                 DrawLine(b, tip + new Vector2(1, 0), tip + new Vector2(1, 0) + tipDir * 3f, point);
             }
+        }
+    }
+
+    /// <summary>One rim edge of a bar's top, drawn in the pieces that are NOT covered by
+    /// another bar (an edge running under the crossing bar would cut its top in two).
+    /// Horizontal: the edge runs along x at world y = at, from a..b. Otherwise along y at x = at.</summary>
+    private static void RimSplit(SpriteBatch b, float a0, float a1, float at, float lvl, Color col,
+        List<(float x0, float y0, float x1, float y1)> bars, bool horizontal, Func<float, float, float, Vector2> P)
+    {
+        var cuts = new List<(float s, float e)>();
+        foreach (var (x0, y0, x1, y1) in bars)
+        {
+            // Does this bar cover the edge line strictly inside its area?
+            bool covers = horizontal ? at > y0 + 0.001f && at < y1 - 0.001f : at > x0 + 0.001f && at < x1 - 0.001f;
+            if (!covers) continue;
+            cuts.Add(horizontal ? (x0, x1) : (y0, y1));
+        }
+        float cur = a0;
+        foreach (var (cs, ce) in cuts.OrderBy(c => c.s))
+        {
+            if (cs > cur) Seg(cur, MathF.Min(cs, a1));
+            cur = MathF.Max(cur, ce);
+        }
+        if (cur < a1) Seg(cur, a1);
+        void Seg(float s, float e)
+        {
+            if (e - s < 0.01f) return;
+            if (horizontal) DrawLine(b, P(s, at, lvl), P(e, at, lvl), col);
+            else DrawLine(b, P(at, s, lvl), P(at, e, lvl), col);
         }
     }
 

@@ -523,30 +523,60 @@ public partial class ServerWorld
                 for (int tx = minX; tx <= maxX && !pushed; tx++)
                 {
                     if (!_structTiles.Contains(ty * Map.Width + tx)) continue;
-                    float cx = Math.Clamp(e.Position.X, tx, tx + 1);
-                    float cy = Math.Clamp(e.Position.Y, ty, ty + 1);
-                    var away = e.Position - new Vector2(cx, cy);
-                    float d = away.Length();
-                    if (d >= r) continue;
-                    if (d > 0.0001f)
+                    // A barrier is a thin wall: collide with its bars, not the whole
+                    // tile, so bodies press right up against what they see.
+                    foreach (var (bx0, by0, bx1, by1) in StructureBoxes(tx, ty))
                     {
-                        e.Position += away / d * (r - d + 0.001f);
+                        float cx = Math.Clamp(e.Position.X, bx0, bx1);
+                        float cy = Math.Clamp(e.Position.Y, by0, by1);
+                        var away = e.Position - new Vector2(cx, cy);
+                        float d = away.Length();
+                        if (d >= r) continue;
+                        if (d > 0.0001f)
+                        {
+                            e.Position += away / d * (r - d + 0.001f);
+                        }
+                        else
+                        {
+                            // Dead center inside the box: leave through the nearest face.
+                            float left = e.Position.X - bx0, right = bx1 - e.Position.X;
+                            float up = e.Position.Y - by0, down = by1 - e.Position.Y;
+                            float m = MathF.Min(MathF.Min(left, right), MathF.Min(up, down));
+                            if (m == left) e.Position = new Vector2(bx0 - r - 0.001f, e.Position.Y);
+                            else if (m == right) e.Position = new Vector2(bx1 + r + 0.001f, e.Position.Y);
+                            else if (m == up) e.Position = new Vector2(e.Position.X, by0 - r - 0.001f);
+                            else e.Position = new Vector2(e.Position.X, by1 + r + 0.001f);
+                        }
+                        pushed = true;
+                        break;
                     }
-                    else
-                    {
-                        // Dead center inside the tile: leave through the nearest face.
-                        float left = e.Position.X - tx, right = tx + 1 - e.Position.X;
-                        float up = e.Position.Y - ty, down = ty + 1 - e.Position.Y;
-                        float m = MathF.Min(MathF.Min(left, right), MathF.Min(up, down));
-                        if (m == left) e.Position = new Vector2(tx - r - 0.001f, e.Position.Y);
-                        else if (m == right) e.Position = new Vector2(tx + 1 + r + 0.001f, e.Position.Y);
-                        else if (m == up) e.Position = new Vector2(e.Position.X, ty - r - 0.001f);
-                        else e.Position = new Vector2(e.Position.X, ty + 1 + r + 0.001f);
-                    }
-                    pushed = true;
                 }
             if (!pushed) break;
         }
+    }
+
+    /// <summary>The solid boxes on a structure tile: a barrier's thin bars (joined to
+    /// neighbouring barriers), the whole tile for anything else.</summary>
+    private List<(float x0, float y0, float x1, float y1)> StructureBoxes(int tx, int ty)
+    {
+        ServerStructure here = null;
+        bool east = false, south = false, west = false, north = false;
+        foreach (var st in Structures.Values)
+        {
+            if (st.Destroyed) continue;
+            int sx = (int)MathF.Floor(st.Position.X), sy = (int)MathF.Floor(st.Position.Y);
+            if (sx == tx && sy == ty) here = st;
+            else if (st.Kind == StructureKind.SpikedBarrier)
+            {
+                if (sx == tx + 1 && sy == ty) east = true;
+                else if (sx == tx && sy == ty + 1) south = true;
+                else if (sx == tx - 1 && sy == ty) west = true;
+                else if (sx == tx && sy == ty - 1) north = true;
+            }
+        }
+        if (here?.Kind == StructureKind.SpikedBarrier)
+            return StructureKinds.BarrierBars(tx, ty, here.Rotation, east, south, west, north);
+        return new List<(float, float, float, float)> { (tx, ty, tx + 1, ty + 1) };
     }
 
     /// <summary>Damage a structure (enemy chewing). The wagon hitting zero loses the run.</summary>
