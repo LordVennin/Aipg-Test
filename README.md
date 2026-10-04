@@ -909,9 +909,9 @@ computed stats. All commands execute server-side like any other request.
 
 Dev conveniences for automated/headless sessions: `--sp` starts straight into
 single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
-`ARPG_DEVUI=debug[,skills][,inventory][,drops][,loot][,elite[:rare|magic|affix+affix]][,shop][,shopgrid][,tree][,summons][,knight][,warp][,tutorial][,mace][,flamefx][,scroll[:rare|magic|warp_id+warp_id]][,portal[:same]][,basement][,tp:x;y]` (set `ARPG_STORY=1` to boot the story world instead of the test grounds)
+`ARPG_DEVUI=debug[,skills][,inventory][,drops][,loot][,elite[:rare|magic|affix+affix]][,shop][,shopgrid][,tree][,summons][,knight][,warp][,tutorial][,mace][,flamefx][,scroll[:rare|magic|warp_id+warp_id]][,portal[:same]][,basement][,defense][,barriers][,tp:x;y]` (set `ARPG_STORY=1` to boot the story world instead of the test grounds)
 opens panels at startup (scene text lives in `ARPG/Data/Cutscenes/cutscenes.json`; `warp` jumps to the next campaign map and `tutorial` into
-the Old Road three seconds in — debug commands `warp_tutorial`, `warp_home`; `scroll` hands out a sealed warp scroll and `portal` seals one straight onto the ruins' podium (debug `give_warp`, `open_portal`); `basement` takes the ruins' stairs down into the archive (debug `warp_basement`); `tp` teleports five seconds in; `drops` scatters one of every scroll shortly after
+the Old Road three seconds in — debug commands `warp_tutorial`, `warp_home`; `scroll` hands out a sealed warp scroll and `portal` seals one straight onto the ruins' podium (debug `give_warp`, `open_portal`); `basement` takes the ruins' stairs down into the archive (debug `warp_basement`); `defense` warps into the caravan stand and `barriers` lays a sample wall there (debug `warp_defense`, `build kind,x,y[,rot]`); `tp` teleports five seconds in; `drops` scatters one of every scroll shortly after
 joining, for loot-UI work; `loot` rings the player with one drop of every item
 category in mixed rarities plus a gold pile, for ground-loot visuals; `elite`
 spawns a magic/rare grunt ahead once out of the hub (debug commands

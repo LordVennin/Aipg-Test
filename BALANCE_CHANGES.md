@@ -1910,3 +1910,22 @@ item's flavour under it.
   scene id, a list of steps with `Anchor` (camp, gate/exit, boss, podium, spawn,
   fountain, npc:N, any with "+dx,dy"), `Speaker`, `Line`, `Duration`. Edit the
   lines there; the code only resolves anchors.
+
+## Batch 84 addendum: barriers are walls
+
+- **Spiked barriers are geometry.** A placed barrier is no longer a billboard: it
+  is a stone block cut to its tile in the map's own projection — a flagstone top
+  with laid-block seams, shaded +x/+y faces with mortar courses, rim lines on the
+  exposed top edges — in field-stone grey leaned a third of the way toward the
+  zone's wall colour so it belongs to the ground it stands on. Chest-high (0.72 of
+  a level), not a full block, so the fight behind it stays visible. The face
+  toward a neighbouring barrier is dropped and the shared rim edge is left out, so
+  a run of barriers draws as ONE continuous wall and corners join cleanly.
+  Sharpened stakes lean outward along the ridge on the placement axis (R still
+  rotates: 0/2 along x, 1/3 along y) so a run's spikes line up. Damage darkens the
+  stone and cracks the top (one, two, three hairlines as health falls); a fresh
+  build rises out of the ground over a third of a second. The placement ghost is
+  the same block, see-through, already joined to any barrier it would continue.
+- Dev: `ARPG_DEVUI=defense` warps into the caravan stand (debug `warp_defense`);
+  `barriers` lays a sample run and a turret beside the player six seconds in
+  (debug `build kind,x,y[,rot]` places a structure outright, no phase or cost).
