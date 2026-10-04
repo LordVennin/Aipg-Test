@@ -23,6 +23,40 @@ public static class StructureKinds
     /// <summary>Breakables: never block movement or routing, die to any hit, and go
     /// down to a dodge roll as well as a swing.</summary>
     public static bool IsBreakable(StructureKind k) => k is StructureKind.Urn or StructureKind.Barrel or StructureKind.Torch;
+
+    /// <summary>Half the thickness of a spiked barrier's wall, in tiles (0.4 thick).</summary>
+    public const float BarrierHalfThickness = 0.2f;
+
+    /// <summary>A barrier's footprint inside its tile: a THIN wall, not a block. One
+    /// bar runs the tile's length along the placement axis (0/2 = along x, 1/3 =
+    /// along y); where a barrier stands on a neighbouring tile — in any direction —
+    /// a bar reaches to that tile edge as well, so runs continue and corners, tees
+    /// and crosses join. Shared by the renderer (what you see) and enemy collision
+    /// (what stops them), so the two always agree. Returns one or two axis-aligned
+    /// bars as (x0, y0, x1, y1) in world tiles.</summary>
+    public static List<(float x0, float y0, float x1, float y1)> BarrierBars(int tx, int ty, byte rotation,
+        bool east, bool south, bool west, bool north)
+    {
+        const float t = BarrierHalfThickness;
+        float cx = tx + 0.5f, cy = ty + 0.5f;
+        bool alongX = (rotation & 1) == 0;
+        var bars = new List<(float, float, float, float)>(2);
+        bool xBar = alongX || east || west;
+        bool yBar = !alongX || north || south;
+        if (xBar)
+        {
+            float x0 = alongX || west ? tx : cx - t;
+            float x1 = alongX || east ? tx + 1 : cx + t;
+            bars.Add((x0, cy - t, x1, cy + t));
+        }
+        if (yBar)
+        {
+            float y0 = !alongX || north ? ty : cy - t;
+            float y1 = !alongX || south ? ty + 1 : cy + t;
+            bars.Add((cx - t, y0, cx + t, y1));
+        }
+        return bars;
+    }
 }
 
 /// <summary>

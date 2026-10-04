@@ -1914,13 +1914,17 @@ item's flavour under it.
 ## Batch 84 addendum: barriers are walls
 
 - **Spiked barriers are geometry.** A placed barrier is no longer a billboard: it
-  is a stone block cut to its tile in the map's own projection — a flagstone top
-  with laid-block seams, shaded +x/+y faces with mortar courses, rim lines on the
-  exposed top edges — in field-stone grey leaned a third of the way toward the
-  zone's wall colour so it belongs to the ground it stands on. Chest-high (0.72 of
-  a level), not a full block, so the fight behind it stays visible. The face
-  toward a neighbouring barrier is dropped and the shared rim edge is left out, so
-  a run of barriers draws as ONE continuous wall and corners join cleanly.
+  is a THIN stone wall through its tile in the map's own projection — 0.4 tiles
+  thick, running the tile's length along the placement axis — with a flagstone
+  top with laid-block seams, shaded +x/+y faces with mortar courses and rim lines
+  on the exposed top edges, in field-stone grey leaned a third of the way toward
+  the zone's wall colour so it belongs to the ground it stands on. Chest-high
+  (0.72 of a level), so the fight behind it stays visible. Where another barrier
+  stands on a neighbouring tile, in any direction, the wall reaches to that tile
+  edge too, so runs continue and corners, tees and crosses join as one wall; the
+  footprint rule lives in one place (`StructureKinds.BarrierBars`) and ENEMY
+  COLLISION uses the same bars, so bodies press right up against what they see
+  instead of stopping a third of a tile short.
   Sharpened stakes lean outward along the ridge on the placement axis (R still
   rotates: 0/2 along x, 1/3 along y) so a run's spikes line up. Damage darkens the
   stone and cracks the top (one, two, three hairlines as health falls); a fresh
