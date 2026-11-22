@@ -296,6 +296,17 @@ public static class ItemTooltip
                 lines.Add(new Line(descLine, new Color(170, 160, 150)));
             lines.Add(new Line("Place it on the podium in the ruins to open the portal.", gray));
         }
+        else if (itemBase.IsSkillBook)
+        {
+            var teal = WorldRenderer.SkillBookColor;
+            lines.Add(new Line("Skill book — unlocks at the skill trainer:", teal));
+            foreach (var skillId in itemBase.UnlocksSkills)
+                if (data.Skills.TryGetValue(skillId, out var taught))
+                    lines.Add(new Line("  " + taught.Name, Color.White));
+            foreach (var descLine in WrapText(itemBase.Description ?? "", 44))
+                lines.Add(new Line(descLine, new Color(170, 160, 150)));
+            lines.Add(new Line("Unlocks only for whoever hands it over.", gray));
+        }
         else if (itemBase.Category == ItemCategory.EnchantScroll)
         {
             foreach (var descLine in WrapText(itemBase.Description ?? "", 44))

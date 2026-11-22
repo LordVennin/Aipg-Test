@@ -460,6 +460,8 @@ public class ClientWorld
     public string ZoneTitle = "";
     public int SurvivalWave, SurvivalTotal;
     public bool SurvivalDone;
+    /// <summary>This world only teaches skills a book has unlocked (story worlds).</summary>
+    public bool SkillsGated;
 
     // Defense-run state (DefenseState packets; drives the wave banner + wagon bar).
     public byte DefensePhase;      // (Server.DefensePhase)

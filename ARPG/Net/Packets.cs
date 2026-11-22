@@ -163,6 +163,12 @@ public enum PacketType : byte
     /// <summary>Client -> server: place a sealed warp scroll (instance id) on the ruins'
     /// podium. The scroll is consumed and the portal opens.</summary>
     PodiumRequest,
+
+    // Skill books (batch 85)
+    /// <summary>Client -> server: hand a skill book (item instance id) to the skill
+    /// trainer. The server checks reach, consumes the book and unlocks its skills for
+    /// THIS player only.</summary>
+    SkillBookTurnInRequest,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

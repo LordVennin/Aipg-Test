@@ -448,6 +448,12 @@ public class WorldItem
     public int GoldAmount;
 
     public bool IsGold => Item == null;
+    /// <summary>A drop only this player may pick up (-1 = anyone): guaranteed skill
+    /// books. If that player has left, anyone may take it.</summary>
+    public int ReservedForPlayerId = -1;
+    /// <summary>The guarantee this drop fulfils (boss id) — recorded on the character
+    /// when it is PICKED UP, never when it drops.</summary>
+    public string GuaranteeBossId;
 }
 
 /// <summary>Respawning enemy spawn point.</summary>

@@ -3860,7 +3860,9 @@ public class WorldRenderer
 
             string label = drop.IsGold ? $"{drop.GoldAmount} Gold" : drop.Item.DisplayName(_data);
             if (!drop.IsGold && drop.Item.StackCount > 1) label += $" x{drop.Item.StackCount}";
-            var labelColor = drop.IsGold ? new Color(240, 200, 90) : RarityColor(drop.Item.Rarity);
+            var labelColor = drop.IsGold ? new Color(240, 200, 90)
+                : drop.Item.GetBase(_data).IsSkillBook ? SkillBookColor   // books stand out from gear
+                : RarityColor(drop.Item.Rarity);
             var size = labelFont.MeasureString(label);
             var rect = new Rectangle((int)(anchorScreen.X - size.X / 2) - 4,
                 (int)(anchorScreen.Y - 30) - slot * 22, (int)size.X + 8, (int)size.Y + 4);
@@ -4227,6 +4229,9 @@ public class WorldRenderer
         Skills.DamageKind.Light => new Color(255, 252, 210),
         _ => new Color(245, 240, 230), // physical: thrust/blunt/slash
     };
+
+    /// <summary>Loot-label / border colour for skill books: a teal no rarity uses.</summary>
+    public static readonly Color SkillBookColor = new(96, 226, 204);
 
     public static Color RarityColor(ItemRarity rarity) => rarity switch
     {

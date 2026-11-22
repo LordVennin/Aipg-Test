@@ -999,6 +999,7 @@ public static class SpriteGen
             frames = new[]
             {
                 itemBase.Category == Items.ItemCategory.WarpScroll ? DrawWarpScroll()
+                    : itemBase.IsSkillBook ? DrawSkillBook(WorldRenderer.ParseColor(itemBase.SpriteColor, new Color(150, 110, 70)))
                     : itemBase.Id == "flamethrower_blueprint" ? DrawBlueprint() : DrawContract(),
             };
             _cache[key] = frames;
@@ -1032,6 +1033,33 @@ public static class SpriteGen
         Rect(6, 6, 9, 8, wax);                   // the seal
         Set(7, 7, new Color(210, 90, 110));
         Set(4, 6, sigil); Set(5, 8, sigil); Set(10, 6, sigil); Set(11, 8, sigil); // sigils through the paper
+        return BakeStrip(px, w, h);
+    }
+
+    /// <summary>A skill book: a thick closed tome in the book's own cover colour, page
+    /// edges showing, a ribbon marker and a bright clasp — unlike any scroll or letter.</summary>
+    private static Texture2D DrawSkillBook(Color cover)
+    {
+        const int w = 16, h = 16;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        void Rect(int x0, int y0, int x1, int y1, Color c)
+        { for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) Set(x, y, c); }
+        var coverDark = Shade(cover, 0.6f);
+        var coverLight = Shade(cover, 1.3f);
+        var pages = new Color(232, 224, 198);
+        var pagesShade = new Color(190, 182, 156);
+        var gold = new Color(236, 200, 96);
+        Rect(2, 2, 12, 13, cover);                 // front board
+        Rect(2, 2, 3, 13, coverDark);              // spine
+        Rect(4, 2, 12, 2, coverLight);
+        Rect(13, 3, 13, 13, pages);                // fore-edge
+        Rect(3, 14, 13, 14, pagesShade);           // bottom edge
+        Set(13, 5, pagesShade); Set(13, 8, pagesShade); Set(13, 11, pagesShade);
+        Rect(6, 5, 10, 5, gold);                   // title bar
+        Rect(7, 8, 9, 10, gold); Set(8, 9, cover); // emblem
+        Rect(11, 7, 12, 8, gold);                  // clasp
+        Set(5, 14, new Color(190, 50, 46)); Set(5, 15, new Color(190, 50, 46)); // ribbon
         return BakeStrip(px, w, h);
     }
 

@@ -27,5 +27,36 @@
     "Bow": 70,
     "Quiver": 45
   },
-  "WarpScrollDropChance": 0.35
+  "WarpScrollDropChance": 0.35,
+  "SkillBookDropChance": 0.3,
+  "SkillBooks": [
+    {
+      "ItemId": "book_hammer_anvil",
+      "Weight": 10
+    },
+    {
+      "ItemId": "book_shieldbearer",
+      "Weight": 10
+    },
+    {
+      "ItemId": "book_fletcher",
+      "Weight": 10
+    },
+    {
+      "ItemId": "book_embers",
+      "Weight": 10
+    },
+    {
+      "ItemId": "book_rime",
+      "Weight": 10
+    },
+    {
+      "ItemId": "book_storm",
+      "Weight": 10
+    },
+    {
+      "ItemId": "book_ossuary",
+      "Weight": 10
+    }
+  ]
 }

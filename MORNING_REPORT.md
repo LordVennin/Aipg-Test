@@ -65,6 +65,23 @@ _Running log; final pass at the end._
   and downed pose), `bandits`, `goblins` (ring the player with one of each; debug
   `spawn_family <family>`).
 
+- **3.3 where skills are gated:** in **story worlds only**. The plan says "Test grounds keep
+  everything unlocked"; the test-grounds campaign (sanctum hub) has a trainer that dozens
+  of existing checks buy from, so both it and the arena stay ungated. The sanctum trainer
+  still accepts books.
+- **3.3 books for start skills:** Arrow Shot and Mace Strike are also in *Fletcher's
+  Manual* / *Hammer and Anvil* (Fire Bolt is in *Embers*), otherwise another class could
+  never learn them now that the trainer no longer sells everything.
+- **3.3 reserved guarantee books:** "each player picks up their own" is enforced: the
+  guaranteed book is reserved for its player on the server (someone else gets "That one is
+  meant for <name>"); if that player has left, anyone may take it. Once picked up it is an
+  ordinary tradeable item.
+- **3.3 Rime Codex** teaches a single skill (Ice Spike is the only cold skill).
+- ProtocolVersion is now **49** (new `SkillBookTurnInRequest`, `ZoneState` carries
+  `SkillsGated`).
+- Dev hooks: `ARPG_DEVUI=books` (one of each book on the ground), `teach` (opens the
+  trainer panel), `book:<id>`; debug `drop_books`, `give_book <id>`.
+
 ## Behavior changes to existing checks
 - `every graveyard enemy is undead ...`: used to assert that EVERY non-tome enemy in the
   data is undead. Now asserts the four graveyard sprite families are undead, and that
@@ -81,3 +98,4 @@ _Running log; final pass at the end._
 | 2.1 fingerprint handshake (protocol 48, SimVersion 1), 2.2 coalesced character sync | done | 897 |
 | 3.1 data-driven enemy pools per theme | done | 906 |
 | 3.2 bandits and goblins (7 enemies, sprites, shove, bleed), snapshot chunking | done | 933 |
+| 3.3 skill books and the trainer | done | 959 |

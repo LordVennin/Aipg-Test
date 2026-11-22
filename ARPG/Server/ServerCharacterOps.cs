@@ -521,6 +521,16 @@ public partial class ServerWorld
                 _events.MessageFor(p, "New skills are taught by the trainer in the sanctum.");
                 return;
             }
+            // Story: the trainer only teaches what a skill book has unlocked for THIS
+            // character (the class start skill is always unlocked).
+            if (SkillsGated && !p.Character.IsSkillUnlocked(Data, skillId))
+            {
+                var book = BookFor(Data, skillId);
+                _events.MessageFor(p, book != null
+                    ? $"{Data.Skills[skillId].Name} is locked — requires: {book.Name}."
+                    : $"{Data.Skills[skillId].Name} is locked.");
+                return;
+            }
             if (p.Character.Gold < SkillPrice)
             {
                 _events.MessageFor(p, $"Training costs {SkillPrice} gold — you can't afford it yet.");
@@ -531,6 +541,7 @@ public partial class ServerWorld
             _events.MessageFor(p, $"Learned {learnedDef.Name} for {SkillPrice} gold.");
         }
         p.Character.Skills.Add(new LearnedSkill { SkillId = skillId });
+        p.Character.UnlockedSkills.Add(skillId); // whatever is known is unlocked
         MarkCharacterDirty(p);
     }
 
@@ -979,6 +990,28 @@ public partial class ServerWorld
                     var at = p.Position + new System.Numerics.Vector2(MathF.Cos(ang), MathF.Sin(ang)) * 4.5f;
                     if (Map.CircleHitsWall(at, 0.5f)) at = p.Position + new System.Numerics.Vector2(2f, 0f);
                     SpawnEnemy(family[i].Id, at, level: Math.Max(1, c.Level));
+                }
+                break;
+            }
+            case "drop_books":
+            {
+                // Dev: one of every skill book in a ring on the ground (or one named book).
+                var books = SkillBooks.Where(b => string.IsNullOrEmpty(arg) || b.Id == arg).OrderBy(b => b.Id).ToList();
+                for (int i = 0; i < books.Count; i++)
+                {
+                    float ang = i * MathF.PI * 2f / Math.Max(1, books.Count);
+                    SpawnDrop(new ItemInstance { BaseItemId = books[i].Id, BaseModifierLimit = 0 },
+                        p.Position + new System.Numerics.Vector2(MathF.Cos(ang), MathF.Sin(ang)) * 1.6f, p.Height);
+                }
+                break;
+            }
+            case "give_book":
+            {
+                // Dev: a skill book straight into the bag (book id).
+                if (Data.Items.TryGetValue(arg ?? "", out var bookBase) && bookBase.IsSkillBook)
+                {
+                    GiveItem(p, new ItemInstance { BaseItemId = bookBase.Id, BaseModifierLimit = 0 });
+                    changed = true;
                 }
                 break;
             }

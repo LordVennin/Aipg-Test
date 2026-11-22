@@ -386,6 +386,13 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestTurnInSkillBook(Guid itemInstanceId)
+    {
+        var w = Packets.Make(PacketType.SkillBookTurnInRequest);
+        w.PutGuid(itemInstanceId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestLearnSkill(string skillId)
     {
         var w = Packets.Make(PacketType.LearnSkillRequest);
@@ -737,6 +744,7 @@ public class GameClient
                 World.SurvivalWave = r.GetInt();
                 World.SurvivalTotal = r.GetInt();
                 World.SurvivalDone = r.GetBool();
+                World.SkillsGated = r.GetBool();
                 break;
             }
             case PacketType.ChestInfo:

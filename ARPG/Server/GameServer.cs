@@ -360,6 +360,9 @@ public class GameServer : IServerEvents
             case PacketType.ResearchRequest:
                 World.Research(playerId, r.GetByte());
                 break;
+            case PacketType.SkillBookTurnInRequest:
+                World.TurnInSkillBook(playerId, r.GetGuid());
+                break;
             case PacketType.DeployMercRequest:
                 World.DeployMerc(playerId, r.GetString(), r.GetVec2());
                 break;
@@ -692,6 +695,7 @@ public class GameServer : IServerEvents
         w.Put(World.SurvivalWave);
         w.Put(World.SurvivalTotal);
         w.Put(World.SurvivalDone);
+        w.Put(World.SkillsGated);
         return w;
     }
 

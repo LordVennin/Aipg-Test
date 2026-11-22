@@ -77,6 +77,8 @@ public class PlayScreen : IScreen
     private string _devSpawnFamily;
     private bool _devDropBooks;
     private bool _devSpriteSheet;
+    /// <summary>ARPG_DEVUI=teach opens the trainer panel; book:&lt;id&gt; puts that skill book in the bag.</summary>
+    private string _devGiveBook;
     /// <summary>ARPG_DEVUI=reaper: keep culling nearby enemies so scripted walkthroughs
     /// survive any map (GUI automation).</summary>
     private bool _devReaper;
@@ -282,6 +284,9 @@ public class PlayScreen : IScreen
             else if (devUi.Contains("goblins")) _devSpawnFamily = "goblin";
             if (devUi.Split(',').Contains("books")) _devDropBooks = true;
             if (devUi.Contains("spritesheet")) _devSpriteSheet = true;
+            if (devUi.Split(',').Contains("teach")) _trainer.Open = true;
+            var bookToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("book:"));
+            if (bookToken != null) _devGiveBook = bookToken.Substring(5);
             if (devUi.Contains("reaper")) _devReaper = true;
             if (devUi.Contains("gold")) _devGiveGold = true;
             if (devUi.Contains("supplies")) _devGiveSupplies = true;
@@ -523,6 +528,11 @@ public class PlayScreen : IScreen
         {
             _client.SendDebugCommand("spawn_family", _devSpawnFamily);
             _devSpawnFamily = null;
+        }
+        if (_devGiveBook != null && _clientTime > 3f)
+        {
+            _client.SendDebugCommand("give_book", _devGiveBook);
+            _devGiveBook = null;
         }
         if (_devDropBooks && _clientTime > 4f)
         {

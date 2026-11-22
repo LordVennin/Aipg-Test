@@ -61,6 +61,23 @@ public class LootGenerator
             {
                 BaseItemId = "flamethrower_blueprint", ItemLevel = itemLevel, Rarity = ItemRarity.Normal,
             });
+        // Skill books: tables that list them (the boss table) roll one, weighted.
+        if (table.SkillBooks is { Count: > 0 } && _rng.NextDouble() < table.SkillBookDropChance * dropMult)
+        {
+            var books = table.SkillBooks.Where(b => _data.Items.ContainsKey(b.ItemId ?? "")).ToList();
+            int total = books.Sum(b => Math.Max(1, b.Weight));
+            if (total > 0)
+            {
+                int pick = _rng.Next(total);
+                foreach (var b in books)
+                {
+                    pick -= Math.Max(1, b.Weight);
+                    if (pick >= 0) continue;
+                    drops.Add(new ItemInstance { BaseItemId = b.ItemId, ItemLevel = itemLevel, Rarity = ItemRarity.Normal, BaseModifierLimit = 0 });
+                    break;
+                }
+            }
+        }
         // Uniques: rarer still from an ordinary kill (rares and bosses roll their own).
         if (_rng.NextDouble() < table.UniqueDropChance * dropMult)
         {

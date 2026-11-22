@@ -3993,6 +3993,10 @@ public partial class ServerWorld
             SpawnDrop(drop, e.Position, e.Height);
         }
 
+        // Specific drops this enemy carries, and the first-kill skill book guarantee.
+        RollExtraDrops(e);
+        DropGuaranteedBooks(e);
+
         // Gold drop, scaled by enemy level.
         var table = Data.GetLootTable(e.Def.LootTableId);
         if (_rng.NextDouble() < table.GoldDropChance)
@@ -4140,12 +4144,13 @@ public partial class ServerWorld
 
     // ------------------------------------------------------------------ drops
 
-    public void SpawnDrop(ItemInstance item, Vector2 pos, float height = 0f)
+    public WorldItem SpawnDrop(ItemInstance item, Vector2 pos, float height = 0f)
     {
         var at = JitterOnSurface(pos);
         var drop = new WorldItem { Position = at, Item = item, Height = DropHeightAt(at, height) };
         Drops[drop.DropId] = drop;
         _events.WorldItemSpawned(drop);
+        return drop;
     }
 
     public void SpawnGoldDrop(int amount, Vector2 pos, float height = 0f)
@@ -4191,6 +4196,12 @@ public partial class ServerWorld
             _events.MessageFor(p, "Too far away.");
             return;
         }
+        if (drop.ReservedForPlayerId >= 0 && drop.ReservedForPlayerId != playerId &&
+            Players.TryGetValue(drop.ReservedForPlayerId, out var owner))
+        {
+            _events.MessageFor(p, $"That one is meant for {owner.Name}.");
+            return;
+        }
         if (drop.IsGold)
         {
             p.Character.Gold += drop.GoldAmount;
@@ -4202,6 +4213,11 @@ public partial class ServerWorld
         }
         Drops.Remove(dropId);
         _events.WorldItemRemoved(drop, playerId);
+        // A guaranteed book counts as received only now, in the bag.
+        if (drop.GuaranteeBossId != null && drop.ReservedForPlayerId == playerId &&
+            !p.Character.BookGuarantees.Contains(drop.GuaranteeBossId))
+            p.Character.BookGuarantees.Add(drop.GuaranteeBossId);
+        if (!drop.IsGold) QuestItemPickedUp(p, drop.Item);
         MarkCharacterDirty(p);
     }
 }

@@ -367,7 +367,7 @@ public class InventoryUI
     public void DrawItemBox(SpriteBatch sb, Rectangle rect, ItemInstance item)
     {
         var b = item.GetBase(_data);
-        var rarity = WorldRenderer.RarityColor(item.Rarity);
+        var rarity = b.IsSkillBook ? WorldRenderer.SkillBookColor : WorldRenderer.RarityColor(item.Rarity);
         sb.Draw(TextureGen.Pixel, rect, CategoryFill(b.Category));
         DrawBorder(sb, rect, rarity);
 

@@ -1,0 +1,86 @@
+[
+ {
+  "Id": "book_hammer_anvil",
+  "Name": "Hammer and Anvil",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "9A6A3C",
+  "UnlocksSkills": ["mace_strike", "mace_slam", "ground_slam"],
+  "Description": "A smith's manual gone to war: how to put the whole body behind a mace. The skill trainer can teach what it describes."
+ },
+ {
+  "Id": "book_shieldbearer",
+  "Name": "Shieldbearer's Drill",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "7C8898",
+  "UnlocksSkills": ["shield_bash"],
+  "Description": "Parade-ground drills for the shield line, annotated in a soldier's hand. The skill trainer can teach what it describes."
+ },
+ {
+  "Id": "book_fletcher",
+  "Name": "Fletcher's Manual",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "5E8A4A",
+  "UnlocksSkills": ["arrow_shot", "arrow_rain", "piercing_shot"],
+  "Description": "Shafts, heads and the draw that suits each. The skill trainer can teach what it describes."
+ },
+ {
+  "Id": "book_embers",
+  "Name": "Grimoire of Embers",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "C8502C",
+  "UnlocksSkills": ["fire_bolt", "arcane_burst"],
+  "Description": "Its pages are warm to the touch. The skill trainer can teach what it describes."
+ },
+ {
+  "Id": "book_rime",
+  "Name": "Rime Codex",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "5AA0E0",
+  "UnlocksSkills": ["ice_spike"],
+  "Description": "Frost furs the binding however long it sits by the fire. The skill trainer can teach what it describes."
+ },
+ {
+  "Id": "book_storm",
+  "Name": "Storm Letters",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "D8C850",
+  "UnlocksSkills": ["chain_lightning", "arcane_burst"],
+  "Description": "A bundle of correspondence between two weather-mages, each trying to outdo the other. The skill trainer can teach what it describes."
+ },
+ {
+  "Id": "book_ossuary",
+  "Name": "Ossuary Rites",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "B8B4A0",
+  "UnlocksSkills": ["summon_skeleton", "summon_skeleton_warrior"],
+  "Description": "Bound in something pale. It explains, patiently, how to ask the dead for a favour. The skill trainer can teach what it describes."
+ }
+]

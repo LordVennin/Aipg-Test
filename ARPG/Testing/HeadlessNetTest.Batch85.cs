@@ -93,6 +93,226 @@ public static partial class HeadlessNetTest
         Batch85Multiplayer(data);
         Batch85Pools(data);
         Batch85BanditsAndGoblins(data);
+        Batch85SkillBooks(data);
+    }
+
+    private static void Batch85SkillBooks(GameData data)
+    {
+        Console.WriteLine("\n-- Batch 85.12: skill books and the trainer --");
+        var books = data.Items.Values.Where(b => b.IsSkillBook).ToList();
+        Check(books.Count >= 7 && books.All(b => b.Category == ItemCategory.Curio && b.MaxStack == 1 && !b.IsEquippable &&
+                  b.DropWeight == 0 && b.UnlocksSkills.Count is >= 1 and <= 3 && b.UnlocksSkills.All(data.Skills.ContainsKey)),
+              $"{books.Count} skill books: Curio items, stack of one, each unlocking 1-3 real skills");
+        var startSkills = data.Classes.Select(c => c.StartSkill).ToHashSet();
+        var taught = books.SelectMany(b => b.UnlocksSkills).ToHashSet();
+        Check(data.Skills.Keys.All(id => taught.Contains(id) || startSkills.Contains(id)),
+              "every skill is reachable: taught by some book, or a class start skill" +
+              (data.Skills.Keys.FirstOrDefault(id => !taught.Contains(id) && !startSkills.Contains(id)) is { } orphan ? $" — MISSING {orphan}" : ""));
+        var bossTable = data.LootTables["boss"];
+        Check(bossTable.SkillBookDropChance > 0.1f && bossTable.SkillBooks.Count == books.Count &&
+              data.Enemies["goblin_shaman"].ExtraDrops.Count >= 2 && data.Enemies["bandit_archer"].ExtraDrops.Any(d => d.ItemId == "book_fletcher") &&
+              data.Enemies["bandit_brute"].ExtraDrops.Any(d => d.ItemId == "book_shieldbearer") &&
+              data.Enemies.Values.SelectMany(e => e.ExtraDrops).All(d => d.Chance <= 0.05f),
+              "bosses roll any book; bandits carry bow and shield books, goblin shamans spell books — all rare");
+
+        var warrior = CharacterData.CreateNew(data, "BookWar", "warrior");
+        var bowman = CharacterData.CreateNew(data, "BookBow", "archer");
+        var st = new Session(data, 851201, campaign: true, story: true, characters: new[] { warrior, bowman }, names: new[] { "BookWar", "BookBow" });
+        var w = st.World;
+        var pa = st.P(st.A);
+        var pb = st.P(st.B);
+        Check(w.SkillsGated && st.A.World.SkillsGated && pa.Character.UnlockedSkills.SetEquals(new[] { "mace_strike" }) &&
+              pb.Character.UnlockedSkills.SetEquals(new[] { "arrow_shot" }),
+              "story worlds gate skills (the client is told); a new character has only its class start skill unlocked");
+
+        // ---- the first-kill guarantee, on the road's Barrow Lord.
+        var roadBoss = w.Enemies.Values.First(e => e.Def.Id == "barrowlord");
+        w.DebugSkillHit(pa, roadBoss, null, roadBoss.Health + 1f);
+        st.Pump(0.6f);
+        var reserved = w.Drops.Values.Where(d => d.GuaranteeBossId == "barrowlord").ToList();
+        var forA = reserved.FirstOrDefault(d => d.ReservedForPlayerId == pa.Id);
+        var forB = reserved.FirstOrDefault(d => d.ReservedForPlayerId == pb.Id);
+        Check(reserved.Count == 2 && forA != null && forB != null && forA.Item.GetBase(data).IsSkillBook && forB.Item.GetBase(data).IsSkillBook,
+              "the first Barrow Lord kill drops one guaranteed skill book per present player");
+        Check(forA != null && forB != null &&
+              forA.Item.GetBase(data).UnlocksSkills.Any(id => data.Skills[id].RequiredWeapon == ItemCategory.Mace) &&
+              forB.Item.GetBase(data).UnlocksSkills.Any(id => data.Skills[id].RequiredWeapon == ItemCategory.Bow),
+              $"each book suits its player's class (warrior: {forA?.Item.GetBase(data).Name}; archer: {forB?.Item.GetBase(data).Name})");
+        Check(st.B.World.Drops.ContainsKey(forA.DropId) && st.A.World.Drops.ContainsKey(forB.DropId),
+              "both clients see both books on the ground");
+        st.Place(st.A, forB.Position);
+        st.A.RequestPickup(forB.DropId);
+        st.Pump(0.4f);
+        Check(w.Drops.ContainsKey(forB.DropId) && st.Messages[0].Any(m => m.Contains("meant for")) &&
+              !pa.Character.BookGuarantees.Contains("barrowlord"),
+              "a player cannot take the book that dropped for someone else");
+        st.Place(st.A, forA.Position);
+        st.A.RequestPickup(forA.DropId);
+        st.Pump(0.4f);
+        Check(!w.Drops.ContainsKey(forA.DropId) && pa.Character.BookGuarantees.Contains("barrowlord") &&
+              !pb.Character.BookGuarantees.Contains("barrowlord") &&
+              st.A.World.MyCharacter.BookGuarantees.Contains("barrowlord"),
+              "the guarantee is recorded when the book is PICKED UP (A has it; B, who left theirs on the ground, does not)");
+        string firstBookId = forA.Item.BaseItemId;
+
+        // B's book is left behind: the map changes and it is gone.
+        st.A.SendDebugCommand("warp_home");
+        st.Pump(1.2f);
+        Check(w.Map.Kind == World.MapKind.RuinsHub && !w.Drops.Values.Any(d => d.Item?.GetBase(data).IsSkillBook == true),
+              "leaving the map loses the book on the ground");
+        var secondLord = w.SpawnEnemy("barrowlord", pa.Position + new Vector2(3f, 0f), EliteAffix.Boss);
+        w.DebugSkillHit(pa, secondLord, null, secondLord.Health + 1f);
+        st.Pump(0.5f);
+        var again = w.Drops.Values.Where(d => d.GuaranteeBossId == "barrowlord").ToList();
+        Check(again.Count == 1 && again[0].ReservedForPlayerId == pb.Id,
+              "the next Barrow Lord kill drops the guarantee again for B only — none for A, who already picked theirs up");
+        st.Place(st.B, again[0].Position);
+        st.B.RequestPickup(again[0].DropId);
+        st.Pump(0.4f);
+        var thirdLord = w.SpawnEnemy("barrowlord", pa.Position + new Vector2(3f, 0f), EliteAffix.Boss);
+        w.DebugSkillHit(pa, thirdLord, null, thirdLord.Health + 1f);
+        st.Pump(0.5f);
+        Check(pb.Character.BookGuarantees.Contains("barrowlord") && !w.Drops.Values.Any(d => d.GuaranteeBossId == "barrowlord"),
+              "once both have picked theirs up, further kills guarantee nothing");
+        foreach (var leftover in w.Drops.Keys.ToList()) w.Drops.Remove(leftover);
+
+        // ---- turn-in at the trainer.
+        var trainer = w.Npcs.First(n => n.TypeId == "skill_trainer");
+        var aBook = pa.Character.Inventory.Items.First(pl => pl.Item.BaseItemId == firstBookId);
+        var aBookBase = aBook.Item.GetBase(data);
+        string lockedSkill = aBookBase.UnlocksSkills.First(id => pa.Character.GetSkill(id) == null);
+        st.Place(st.A, trainer.Position + new Vector2(9f, 0f));
+        st.A.RequestTurnInSkillBook(aBook.Item.InstanceId);
+        st.Pump(0.4f);
+        Check(pa.Character.Inventory.FindByInstance(aBook.Item.InstanceId) != null && pa.Character.UnlockedSkills.Count == 1,
+              "out of the trainer's reach nothing happens: the book stays in the bag");
+        st.Place(st.A, trainer.Position + new Vector2(0.9f, 0.3f));
+        st.Place(st.B, trainer.Position + new Vector2(-0.9f, 0.3f));
+        string panelState = UI.TrainerUI.SkillState(data, st.A.World.MyCharacter, true, lockedSkill, out var needBook);
+        Check(UI.TrainerUI.BooksInBag(data, st.A.World.MyCharacter).Count == 1 && panelState == "locked" &&
+              needBook != null && needBook.UnlocksSkills.Contains(lockedSkill) &&
+              UI.TrainerUI.SkillState(data, st.A.World.MyCharacter, true, "mace_strike", out _) == "known" &&
+              UI.TrainerUI.SkillState(data, st.A.World.MyCharacter, false, "ice_spike", out _) == "learn",
+              $"the trainer panel lists the book in the bag and shows its skills as locked (\"Requires: {needBook?.Name}\")");
+        pa.Character.Gold = 500;
+        pb.Character.Gold = 500;
+        st.A.RequestLearnSkill(lockedSkill);
+        st.Pump(0.4f);
+        Check(pa.Character.GetSkill(lockedSkill) == null && pa.Character.Gold == 500 &&
+              st.Messages[0].Any(m => m.Contains("locked") && m.Contains("requires")),
+              $"learning a locked skill fails and costs nothing (\"{st.Messages[0].LastOrDefault(m => m.Contains("locked"))}\")");
+        st.A.RequestTurnInSkillBook(aBook.Item.InstanceId);
+        st.Pump(0.4f);
+        Check(pa.Character.Inventory.FindByInstance(aBook.Item.InstanceId) == null &&
+              aBookBase.UnlocksSkills.All(id => pa.Character.UnlockedSkills.Contains(id)) &&
+              aBookBase.UnlocksSkills.All(id => st.A.World.MyCharacter.UnlockedSkills.Contains(id)) &&
+              st.A.World.MyCharacter.Inventory.FindByInstance(aBook.Item.InstanceId) == null,
+              $"handing {aBookBase.Name} to the trainer consumes it and unlocks {string.Join(" + ", aBookBase.UnlocksSkills)} (server and the turner's client)");
+        Check(aBookBase.UnlocksSkills.All(id => !pb.Character.UnlockedSkills.Contains(id) && !st.B.World.MyCharacter.UnlockedSkills.Contains(id)),
+              "the unlock belongs to the turner only: the second player is unchanged");
+        st.A.RequestLearnSkill(lockedSkill);
+        st.B.RequestLearnSkill(lockedSkill);
+        st.Pump(0.4f);
+        Check(pa.Character.GetSkill(lockedSkill) != null && pa.Character.Gold == 500 - ServerWorld.SkillPrice &&
+              pb.Character.GetSkill(lockedSkill) == null && pb.Character.Gold == 500,
+              $"an unlocked skill still costs {ServerWorld.SkillPrice} gold to learn; the other player still can't learn it");
+        // A second copy: nothing new in it — refused and kept; it can be dropped for a friend.
+        st.A.SendDebugCommand("give_book", firstBookId);
+        st.Pump(0.4f);
+        var spare = pa.Character.Inventory.Items.First(pl => pl.Item.BaseItemId == firstBookId);
+        st.A.RequestTurnInSkillBook(spare.Item.InstanceId);
+        st.Pump(0.4f);
+        Check(pa.Character.Inventory.FindByInstance(spare.Item.InstanceId) != null &&
+              st.Messages[0].Any(m => m.Contains("already know everything")),
+              "a book whose skills are all unlocked is refused with a message and kept");
+        st.A.RequestDropItem(spare.Item.InstanceId);
+        st.Pump(0.4f);
+        var dropped = w.Drops.Values.FirstOrDefault(d => d.Item?.InstanceId == spare.Item.InstanceId);
+        if (dropped != null)
+        {
+            st.Place(st.B, dropped.Position);
+            st.B.RequestPickup(dropped.DropId);
+            st.Pump(0.4f);
+            st.Place(st.B, trainer.Position + new Vector2(-0.9f, 0.3f));
+            st.B.RequestTurnInSkillBook(spare.Item.InstanceId);
+            st.Pump(0.4f);
+        }
+        Check(dropped != null && dropped.ReservedForPlayerId < 0 && aBookBase.UnlocksSkills.All(id => pb.Character.UnlockedSkills.Contains(id)) &&
+              pb.Character.Inventory.FindByInstance(spare.Item.InstanceId) == null,
+              "books are tradeable: dropped by one player, picked up and handed in by the other");
+        var stashGrid = pa.Character.GetStash("hub_stash");
+        st.A.SendDebugCommand("give_book", "book_ossuary");
+        st.Pump(0.4f);
+        var stashBook = pa.Character.Inventory.Items.First(pl => pl.Item.BaseItemId == "book_ossuary");
+        st.Place(st.A, w.Map.StashSpot + new Vector2(0.8f, 0f));
+        st.A.RequestMoveItem(ItemLocation.AtGrid(stashBook.X, stashBook.Y), ItemLocation.AtStash("hub_stash", 0, 0));
+        st.Pump(0.4f);
+        Check(stashGrid.Items.Any(pl => pl.Item.BaseItemId == "book_ossuary") && pa.Character.Inventory.Items.All(pl => pl.Item.BaseItemId != "book_ossuary"),
+              "and stashable");
+        st.Close();
+
+        // ---- migration: a save from before books keeps everything it knows.
+        var veteran = CharacterData.CreateNew(data, "Veteran", "mage");
+        veteran.Skills.Add(new LearnedSkill { SkillId = "chain_lightning", Level = 3 });
+        veteran.Skills.Add(new LearnedSkill { SkillId = "ground_slam" });
+        veteran.UnlockedSkills = new HashSet<string>();
+        var vet = new Session(data, 851202, campaign: true, story: true, clients: 1, characters: new[] { veteran }, names: new[] { "Veteran" });
+        var vc = vet.P(vet.A).Character;
+        Check(vc.UnlockedSkills.SetEquals(new[] { "fire_bolt", "chain_lightning", "ground_slam" }) &&
+              vet.A.World.MyCharacter.UnlockedSkills.Count == 3 && vc.GetSkill("chain_lightning").Level == 3,
+              "migration: every skill an old save already knows counts as unlocked (plus the class start skill)");
+        vet.Close();
+
+        // ---- the test grounds keep everything teachable.
+        var free = new Session(data, 851203, campaign: true, clients: 1);
+        var fp = free.P(free.A);
+        var freeTrainer = free.World.Npcs.First(n => n.TypeId == "skill_trainer");
+        free.Place(free.A, freeTrainer.Position + new Vector2(0.9f, 0.3f));
+        fp.Character.Gold = 500;
+        free.A.RequestLearnSkill("chain_lightning");
+        free.A.SendDebugCommand("give_book", "book_rime");
+        free.Pump(0.5f);
+        var freeBook = fp.Character.Inventory.Items.FirstOrDefault(pl => pl.Item.BaseItemId == "book_rime");
+        if (freeBook != null) free.A.RequestTurnInSkillBook(freeBook.Item.InstanceId);
+        free.Pump(0.4f);
+        Check(!free.World.SkillsGated && !free.A.World.SkillsGated && fp.Character.GetSkill("chain_lightning") != null &&
+              freeBook != null && fp.Character.UnlockedSkills.Contains("ice_spike"),
+              "the test grounds keep every skill teachable without books (and the sanctum trainer still reads books)");
+
+        // ---- drop rates.
+        var lootGen = new LootGenerator(data, new Random(8512));
+        int bossBooks = 0;
+        for (int i = 0; i < 2000; i++) bossBooks += lootGen.RollDrops("boss", 6).Count(d => d.GetBase(data).IsSkillBook);
+        int trashBooks = 0;
+        for (int i = 0; i < 2000; i++) trashBooks += lootGen.RollDrops("default", 6).Count(d => d.GetBase(data).IsSkillBook);
+        Check(bossBooks is > 480 and < 720 && trashBooks == 0,
+              $"the boss table drops a book on about {bossTable.SkillBookDropChance:P0} of rolls ({bossBooks}/2000); ordinary tables never do");
+        int shamanBooks = 0;
+        foreach (var old in free.World.Drops.Keys.ToList()) free.World.Drops.Remove(old);
+        for (int i = 0; i < 400; i++)
+        {
+            var sh = free.World.SpawnEnemy("goblin_shaman", fp.Position + new Vector2(2f, 0f));
+            free.World.DebugSkillHit(fp, sh, null, sh.Health + 1f);
+            shamanBooks += free.World.Drops.Values.Count(d => d.Item?.GetBase(data).IsSkillBook == true);
+            foreach (var old in free.World.Drops.Keys.ToList()) free.World.Drops.Remove(old);
+            if (i % 40 == 39) free.Pump(0.05f);
+        }
+        Check(shamanBooks is >= 12 and <= 70, $"goblin shamans carry spell books rarely ({shamanBooks} books from 400 kills, ~9% expected)");
+        free.Close();
+
+        string bookDir = TempDir("books");
+        CopyDirectory(Path.Combine(AppContext.BaseDirectory, "Data"), bookDir);
+        string booksPath = Path.Combine(bookDir, "Items", "books.json");
+        File.WriteAllText(booksPath, File.ReadAllText(booksPath).Replace("\"ice_spike\"", "\"ice_spoke\""));
+        var prevOut = Console.Out;
+        Console.SetOut(TextWriter.Null);
+        GameData bookData;
+        try { bookData = GameData.LoadFromDirectory(bookDir); }
+        finally { Console.SetOut(prevOut); }
+        ContentFingerprint.Current = data.Fingerprint;
+        Check(bookData.ValidationErrors.Any(e => e.Contains("book_rime") && e.Contains("ice_spoke")),
+              "the validator catches a book that names a skill that doesn't exist");
+        try { Directory.Delete(bookDir, true); } catch { }
     }
 
     private static void Batch85BanditsAndGoblins(GameData data)
@@ -345,8 +565,8 @@ public static partial class HeadlessNetTest
         Check(crlfPrint == data.Fingerprint && editedPrint != data.Fingerprint,
               "line endings don't change the fingerprint (a Windows checkout matches); any real edit does");
         try { Directory.Delete(fpDir, true); } catch { }
-        Check(Core.GameNetConfig.ProtocolVersion == 48 && Core.GameNetConfig.SimVersion >= 1,
-              $"protocol bumped to 48 for the new JoinRequest; SimVersion is {Core.GameNetConfig.SimVersion}");
+        Check(Core.GameNetConfig.ProtocolVersion >= 48 && Core.GameNetConfig.SimVersion >= 1,
+              $"protocol bumped (48+) for the new JoinRequest — now {Core.GameNetConfig.ProtocolVersion}; SimVersion is {Core.GameNetConfig.SimVersion}");
         var hs = new Session(data, 850801, clients: 1);
         Check(hs.A.Status == ClientStatus.InGame, "a matching build joins as before");
         var wrongSim = hs.Add(data, "WrongSim", null, c => c.SimVersionOverride = Core.GameNetConfig.SimVersion + 1);

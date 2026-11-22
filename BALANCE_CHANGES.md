@@ -1978,3 +1978,24 @@ a Barrow Knight (native 3) 55 hp / 14 dmg / 11 xp.
   wall forever without attacking.
 - Enemy melee riders are data: `AttackKnockback` (tiles), `AttackBleedChance` /
   `AttackBleedDps` / `AttackBleedDuration`.
+
+### Skill books (85.12)
+
+- Skills are **unlocked by books** in story worlds: a book handed to the skill trainer
+  (sanctum or ruins) unlocks its skills for the character who hands it over, nobody
+  else; each unlocked skill still costs **75 gold** to learn. The class start skill is
+  always unlocked; a save from before books keeps every skill it knows. The test
+  grounds and the arena keep everything teachable.
+- Books (Curio, stack 1, 150 gold value, tradeable/stashable): *Hammer and Anvil*
+  (Mace Strike, Mace Slam, Ground Slam), *Shieldbearer's Drill* (Shield Bash),
+  *Fletcher's Manual* (Arrow Shot, Arrow Rain, Piercing Shot), *Grimoire of Embers*
+  (Fire Bolt, Arcane Burst), *Rime Codex* (Ice Spike), *Storm Letters* (Chain
+  Lightning, Arcane Burst), *Ossuary Rites* (both skeleton summons). 3.4/3.5 add more.
+- Drop rates: boss loot table `SkillBookDropChance` **0.30** per roll (bosses roll
+  twice), any book, equal weight. `ExtraDrops`: Goblin Shaman 3% each for Embers /
+  Rime / Storm; Bandit Archer 2.5% Fletcher's Manual; Bandit Brute 3% each for
+  Shieldbearer's Drill / Hammer and Anvil; Bandit Cutthroat 1.2% each for the same two.
+- **Onboarding guarantee:** every character present for a Barrow Lord kill, and for a
+  Gilded Codex kill, gets one book reserved for them (suited to their class when
+  possible) until they have PICKED ONE UP from that boss. A book left on the ground is
+  lost with the map and drops again on the next kill.

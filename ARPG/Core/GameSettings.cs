@@ -77,7 +77,7 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 48; // v48: JoinRequest carries SimVersion + the content fingerprint; the host may attach a reason to a disconnect
+    public const int ProtocolVersion = 49; // v49: SkillBookTurnInRequest, ZoneState carries SkillsGated. v48: JoinRequest carries SimVersion + the content fingerprint; the host may attach a reason to a disconnect
     /// <summary>Bump on ANY change to map generation, collision or simulation rules:
     /// clients rebuild maps from a seed, so two builds that generate differently must
     /// refuse each other at the handshake instead of silently desyncing.

@@ -459,7 +459,8 @@
   "Glow": "FF8A30",
   "SpriteStyle": "Goblin",
   "SpriteRole": "shaman",
-  "SpriteScale": 0.8
+  "SpriteScale": 0.8,
+  "ExtraDrops": [ { "ItemId": "book_embers", "Chance": 0.03 }, { "ItemId": "book_rime", "Chance": 0.03 }, { "ItemId": "book_storm", "Chance": 0.03 } ]
  },
  {
   "Id": "bandit_cutthroat",
@@ -488,7 +489,8 @@
   "Color": "7A5A3C",
   "SpriteStyle": "Bandit",
   "SpriteRole": "blade",
-  "SpriteVariants": 2
+  "SpriteVariants": 2,
+  "ExtraDrops": [ { "ItemId": "book_shieldbearer", "Chance": 0.012 }, { "ItemId": "book_hammer_anvil", "Chance": 0.012 } ]
  },
  {
   "Id": "bandit_archer",
@@ -512,7 +514,8 @@
   "LootTableId": "default",
   "Color": "5C6A44",
   "SpriteStyle": "Bandit",
-  "SpriteRole": "bow"
+  "SpriteRole": "bow",
+  "ExtraDrops": [ { "ItemId": "book_fletcher", "Chance": 0.025 } ]
  },
  {
   "Id": "bandit_brute",
@@ -539,7 +542,8 @@
   "Color": "8A5238",
   "SpriteStyle": "Bandit",
   "SpriteRole": "brute",
-  "SpriteScale": 1.2
+  "SpriteScale": 1.2,
+  "ExtraDrops": [ { "ItemId": "book_shieldbearer", "Chance": 0.03 }, { "ItemId": "book_hammer_anvil", "Chance": 0.03 } ]
  },
  {
   "Id": "bandit_captain",
