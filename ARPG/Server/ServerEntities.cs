@@ -62,6 +62,8 @@ public class ServerPlayer
     public bool CharacterDirty;
     /// <summary>The tracked quest step last broadcast for this player ("questId#step").</summary>
     public string LastQuestStatusKey;
+    /// <summary>Something to tell the player once their connection is registered (join-time repairs).</summary>
+    public string JoinNotice;
 
     // Dodge: cooldown and invulnerability are server-authoritative.
     public float NextDodgeAt;

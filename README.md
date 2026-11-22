@@ -1058,7 +1058,7 @@ how the batch 85 art was checked.
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (1056 checks, about 100 seconds, exit code 0 on success; `--nettest story` runs only the story sections — the road, the ruins, the portal loop — and `--nettest b85` only the batch 85 sections, each in well under a minute). A handful of the OLD checks roll real dice (a 60% slow, a gold drop, a wave timer) and fail roughly one run in three on their own; rerun before believing a single red line there. It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (1058 checks, about 100 seconds, exit code 0 on success; `--nettest story` runs only the story sections — the road, the ruins, the portal loop — and `--nettest b85` only the batch 85 sections, each in well under a minute). A handful of the OLD checks roll real dice (a 60% slow, a gold drop, a wave timer) and fail roughly one run in three on their own; rerun before believing a single red line there. It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.

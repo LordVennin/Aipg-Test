@@ -1,4 +1,5 @@
 using ARPG.Items;
+using ARPG.World;
 
 namespace ARPG.Server;
 
@@ -63,13 +64,50 @@ public partial class ServerWorld
             // Stale ids (dead or gone) never count.
             set.RemoveWhere(id => !Players.TryGetValue(id, out var pl) || !pl.Alive);
             if (set.Count == 0 || set.Count < alive) continue;
-            // Re-press the key for one of the waiting players: DoorReady works out which
-            // door they stand at and completes the move with the usual checks.
-            int waiting = set.First();
-            set.Remove(waiting);
-            DoorReady(waiting);
-            return;
+            // The caravan stand's workbench: "ready" there means "call the wave", wherever
+            // the builders have walked to since.
+            if (Map.Kind == MapKind.Defense && ReferenceEquals(set, _readyAtDefenseDoor))
+            {
+                if (DefPhase == DefensePhase.Build) StartWave();
+                return;
+            }
+            // Doors: ready marks are sticky, so a waiting player may have wandered off —
+            // even over to a DIFFERENT door. Only complete the move if one of them still
+            // stands at this set's own door and it is the door their key would answer;
+            // otherwise leave the marks as they are (they re-press when they come back).
+            foreach (int waiting in set.ToList())
+            {
+                if (!Players.TryGetValue(waiting, out var wp) || !StandsAtDoorOf(wp, set)) continue;
+                set.Remove(waiting);
+                DoorReady(waiting); // re-adds them and completes the move with the usual checks
+                return;
+            }
         }
         _events.ZoneStateChanged(this); // the ready count on everyone's HUD changed
+    }
+
+    /// <summary>Is this player within reach of a door that <paramref name="set"/> belongs
+    /// to, with no OTHER door nearer (DoorReady answers the nearest door in reach)?</summary>
+    private bool StandsAtDoorOf(ServerPlayer p, HashSet<int> set)
+    {
+        var doors = new List<(System.Numerics.Vector2 pos, HashSet<int> ready)>();
+        if (Map.IsRoad)
+        {
+            doors.Add((Map.ExitDoor, _readyAtDoor));
+            doors.Add((Map.EntryDoor, _readyAtDoor));
+        }
+        else if (Map.IsHub)
+        {
+            doors.Add((Map.ExitDoor, _readyAtDoor));
+            doors.Add((Map.DefenseDoor, _readyAtDefenseDoor));
+            doors.Add((Map.TutorialDoor, _readyAtTutorialDoor));
+            if (Map.Kind == MapKind.RuinsHub) doors.Add((Map.EntryDoor, _readyAtRoad));
+            if (PortalOpen) doors.Add((Map.PortalSpot, _readyAtPortal));
+        }
+        else doors.Add((Map.ExitDoor, _readyAtDoor));
+        var inReach = doors
+            .Where(d => d.pos != System.Numerics.Vector2.Zero && System.Numerics.Vector2.Distance(p.Position, d.pos) <= 2.6f)
+            .OrderBy(d => System.Numerics.Vector2.Distance(p.Position, d.pos)).ToList();
+        return inReach.Count > 0 && ReferenceEquals(inReach[0].ready, set);
     }
 }

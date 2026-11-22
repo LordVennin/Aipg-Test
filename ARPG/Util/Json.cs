@@ -48,6 +48,13 @@ public static class Json
             sw.Flush();
             fs.Flush(flushToDisk: true);
         }
+        // Never rotate a main file that is itself unreadable into the backup slot: after
+        // a load that fell back to .bak, the .bak is the only good copy until this lands.
+        if (File.Exists(path) && !LooksLikeJson(path))
+        {
+            File.Move(tmp, path, overwrite: true);
+            return;
+        }
         if (File.Exists(path))
         {
             try { File.Replace(tmp, path, BackupPath(path)); }
@@ -59,6 +66,16 @@ public static class Json
             }
         }
         else File.Move(tmp, path);
+    }
+
+    private static bool LooksLikeJson(string path)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            return true;
+        }
+        catch { return false; }
     }
 
     /// <summary>Load <paramref name="path"/>; if it is missing, empty or fails to parse,

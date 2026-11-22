@@ -241,6 +241,18 @@ public static partial class HeadlessNetTest
         Check(waiting && dw.Players.Count == 1 && dw.MapIndex == 1 && door.A.World.Map.Kind == World.MapKind.Forest,
               "one ready at the door, the other disconnects without readying: the door opens for the one still here (it used to hang at 1/1)");
         door.Close();
+        var wander = new Session(data, 851710, campaign: true, clients: 2);
+        var wd = wander.World;
+        wander.Place(wander.A, wd.Map.ExitDoor + new Vector2(-0.9f, 0f));
+        wander.Place(wander.B, wd.Map.ExitDoor + new Vector2(-6f, 0f));
+        wander.A.RequestDoorReady();
+        wander.Pump(0.5f);
+        wander.Place(wander.A, wd.Map.DefenseDoor + new Vector2(0.9f, 0f)); // readied at the run door, then wandered to ANOTHER door
+        wander.B.Disconnect();
+        wander.Pump(1.5f);
+        Check(wd.MapIndex == 0 && wd.Map.IsHub && wd.ReadyCount == 1,
+              "a readied player who has wandered over to a different door is NOT sent through that one when the other player leaves (their mark just stays)");
+        wander.Close();
         var door2 = new Session(data, 851707, campaign: true, clients: 2);
         var d2 = door2.World;
         door2.Place(door2.A, d2.Map.ExitDoor + new Vector2(-0.9f, 0f));
@@ -262,10 +274,11 @@ public static partial class HeadlessNetTest
         door2.Place(door2.B, d2.Map.WorkbenchSpot + new Vector2(0.8f, 0f));
         door2.B.RequestDoorReady();
         door2.Pump(0.5f);
+        door2.Place(door2.B, d2.Map.WorkbenchSpot + new Vector2(6f, 0f)); // ...and walks off to their post
         bool buildPhase = d2.DefPhase == DefensePhase.Build;
         late.Disconnect();
         door2.Pump(1.2f);
-        Check(buildPhase && d2.DefPhase == DefensePhase.Wave, "the same at the caravan's workbench: the wave starts when the un-ready player leaves");
+        Check(buildPhase && d2.DefPhase == DefensePhase.Wave, "the same at the caravan's workbench: the wave starts when the un-ready player leaves, even though the ready one has walked to their post");
         // ---- joiners arriving at awkward moments.
         var midWave = door2.Add(data, "MidWave");
         door2.Pump(3.0f);
@@ -1748,6 +1761,10 @@ public static partial class HeadlessNetTest
         Check(SaveManager.ListCharacters().Any(ch => ch.Name == saveName), "the character list also reads through to the backup");
         File.WriteAllText(savePath, "");
         Check(SaveManager.LoadCharacter(saveName)?.Gold == 111, "an empty (zero-byte) main save falls back to the backup too");
+        recovered.Gold = 333;
+        SaveManager.SaveCharacter(recovered);
+        Check(Json.LoadFile<CharacterData>(savePath).Gold == 333 && Json.LoadFile<CharacterData>(Json.BackupPath(savePath)).Gold == 111,
+              "saving over a corrupt main file keeps the good backup (the broken file is not rotated into its place)");
         string settingsLike = Path.Combine(TempDir("settings"), "settings.json");
         Json.SaveFile(settingsLike, new Core.GameSettings { PlayerName = "First" });
         Json.SaveFile(settingsLike, new Core.GameSettings { PlayerName = "Second" });

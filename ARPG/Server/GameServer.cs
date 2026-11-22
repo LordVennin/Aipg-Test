@@ -485,6 +485,7 @@ public class GameServer : IServerEvents
         // Baseline resource sync (potion flask charges ride PlayerHealth — without
         // this the joiner's flasks read empty until the first health change).
         PlayerHealthChanged(player);
+        if (player.JoinNotice != null) { MessageFor(player, player.JoinNotice); player.JoinNotice = null; }
         Console.WriteLine($"[Server] {player.Name} joined as player {playerId}");
     }
 

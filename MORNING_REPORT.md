@@ -4,7 +4,7 @@
 
 Everything in the plan was reached: Phases 0-3, the Phase 4 soft-lock audit and the
 Phase 5 handoff. The build is at 0 warnings and the headless suite went from **841 to
-1056 checks**, green. The game now writes a log and crash reports, survives a throwing
+1058 checks**, green. The game now writes a log and crash reports, survives a throwing
 server tick, saves atomically with a backup and autosaves, repairs bad characters on
 join, validates its data, and refuses mismatched builds at the handshake. On top of
 that: enemy populations are data; seven new enemies (goblins and bandits) own the
@@ -41,7 +41,8 @@ went much faster than the 8-hour budget, so nothing had to be cut for time.
 | `e5ee03d` | 85.15: the Scorched Bluffs (3.6) | done, green |
 | `6ffde34` | 85.16: quest tracker (3.7) | done, green |
 | `38532b8` | 85.17: soft-lock audit (4.1) | done, green |
-| (last commit) | 85.18: handoff — CLAUDE.md, README, this report, SimVersion 2, Captain tuning, review fixes | done, green |
+| `b87fe3e` | 85.18: handoff — CLAUDE.md, README, this report, SimVersion 2, Captain tuning | done, green |
+| (last commit) | 85.19: fixes from an independent review of the batch | done, green |
 
 Nothing was reverted. Nothing was skipped. See "Not reached / left for you" for what
 was deliberately left alone.
@@ -54,9 +55,10 @@ was deliberately left alone.
 | After Phases 1-2 | 897 | ~66 s |
 | After 3.1 / 3.2 / 3.3 | 906 / 933 / 959 | ~69-77 s |
 | After 3.4 / 3.5 / 3.6 / 3.7 | 985 / 1001 / 1008 / 1038 | ~78-85 s |
-| After 4.1 (final) | **1056** | ~100 s |
+| After 4.1 | 1056 | ~100 s |
+| After the review fixes (final) | **1058** | ~100 s |
 
-`--nettest b85` runs only the 215 new checks (~35 s). Versions now:
+`--nettest b85` runs only the 217 new checks (~35 s); they passed 8 runs out of 8 in a row, so the new sections add no flakiness of their own. Versions now:
 **ProtocolVersion 51, SimVersion 2.**
 
 ## What was added, with numbers
@@ -186,6 +188,24 @@ Build and run from `ARPG/`: `dotnet run`. Check the bottom-right of the main men
 4. If the host hits a simulation error it no longer vanishes: the host's
    `Logs/scrollbound-<date>.log` has the stack, and after 30 failing ticks in a row
    everyone is dropped to the menu with a message.
+
+## Independent review of the batch
+
+After the handoff commit I had a second agent review the whole diff read-only for real
+bugs. It found no crash, save-corruption or packet-order problem, and five defects,
+all fixed in the last commit:
+
+1. **The door-release net could send the party through the wrong door.** Ready marks
+   are sticky; if a readied player had wandered next to a different door when the other
+   player disconnected, my first version re-pressed the key for them there. Now the door
+   only opens if a waiting player still stands at THAT door; otherwise the mark stays.
+2. Same code un-readied a waiting player who had stepped away. At the caravan workbench
+   (ready, then walk to your post) the wave now starts regardless of where they stand.
+3. A player's bleed survived death, revive and map changes. Cleared on all three.
+4. Saving after a load that fell back to `.bak` rotated the corrupt file INTO the backup
+   slot. A main file that doesn't parse is now overwritten without rotation.
+5. The "the camp found you a spare weapon" message on join was sent before the
+   connection was registered and never arrived. Sent after the accept now.
 
 ## Decisions log
 

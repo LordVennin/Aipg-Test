@@ -570,6 +570,8 @@ public partial class ServerWorld
             // from the last fight must not keep rejecting movement on the new map.
             p.FrozenUntil = 0f;
             p.ElectrocutedUntil = 0f;
+            p.BleedUntil = 0f;
+            p.BleedDps = 0f;
             if (!p.Alive)
             {
                 p.Health = p.Stats.MaxHealth * 0.5f;
@@ -801,6 +803,8 @@ public partial class ServerWorld
     /// place (a teammate's revive), with the given fraction of max health.</summary>
     private void RevivePlayer(ServerPlayer p, bool atSpawn, float healthFraction)
     {
+        p.BleedUntil = 0f; // a bleed never follows anyone through death
+        p.BleedDps = 0f;
         p.Alive = true;
         if (atSpawn)
         {
@@ -984,7 +988,13 @@ public partial class ServerWorld
         Players[id] = p;
         // A save with no weapon anywhere (sold, lost, stripped by the sanitizer) can't
         // fight: the camp hands over the class's plain starting weapon.
-        if (EnsureHasWeapon(p)) { p.Health = p.Stats.MaxHealth; p.Mana = p.Stats.MaxMana; }
+        if (EnsureHasWeapon(p))
+        {
+            p.Health = p.Stats.MaxHealth;
+            p.Mana = p.Stats.MaxMana;
+            // (No peer is mapped to this player yet: the transport repeats the notice after the accept.)
+            p.JoinNotice = "You had no weapon — the camp found you a spare.";
+        }
         return p;
     }
 
