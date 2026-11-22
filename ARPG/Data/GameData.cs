@@ -157,6 +157,15 @@ public class PackPoolEntry
     /// <summary>PromisedPacks only: station this pack if no rolled pack contains this enemy.</summary>
     public string RequireEnemy { get; set; }
 
+    private (string typeId, int count)[] _members;
+    /// <summary>The decoded roster.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public (string typeId, int count)[] Members => _members ??= ZoneTheme.ParseEntries(Entries).ToArray();
+
+    /// <summary>Build one in code (the server's built-in undead lists).</summary>
+    public static PackPoolEntry Of(int minLoop, int minLevel, params (string typeId, int count)[] members) =>
+        new() { _members = members, MinLoop = minLoop, MinLevel = minLevel };
+
     public bool Available(int loop, int level) =>
         (MinLoop <= 1 && MinLevel <= 1) || (MinLoop > 1 && loop >= MinLoop) || (MinLevel > 1 && level >= MinLevel);
 }
@@ -169,6 +178,12 @@ public class BossPackDef
     public List<List<System.Text.Json.JsonElement>> Guards { get; set; } = new();
     public int MinLoop { get; set; } = 1;
     public int MinLevel { get; set; } = 1;
+
+    private (string typeId, int count)[] _guards;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public (string typeId, int count)[] GuardMembers => _guards ??= ZoneTheme.ParseEntries(Guards).ToArray();
+    public static BossPackDef Of(string boss, int minLoop, int minLevel, params (string typeId, int count)[] guards) =>
+        new() { Boss = boss, _guards = guards, MinLoop = minLoop, MinLevel = minLevel };
     public bool Available(int loop, int level) =>
         (MinLoop <= 1 && MinLevel <= 1) || (MinLoop > 1 && loop >= MinLoop) || (MinLevel > 1 && level >= MinLevel);
 }

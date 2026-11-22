@@ -968,6 +968,18 @@ public partial class ServerWorld
                 if (warp != null && Map.Kind == MapKind.RuinsHub && !PortalOpen) OpenPortal(warp);
                 break;
             }
+            case "enter_portal":
+            {
+                // Dev: straight into the portal run a scroll describes (same arg as
+                // give_warp) — home first if the party is elsewhere. Story worlds only.
+                var warp = DevWarpScroll(c, arg);
+                if (warp == null || !Campaign || !Story) break;
+                if (MapIndex != 0) TransitionTo(0);
+                _portalScroll = warp;
+                _portalRun = ScrollRun.Read(warp, Data, _runSeed);
+                EnterPortal();
+                break;
+            }
             case "give_curio":
             {
                 string curioId = string.IsNullOrEmpty(arg) ? "merc_contract" : arg;

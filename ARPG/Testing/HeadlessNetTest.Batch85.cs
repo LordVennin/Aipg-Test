@@ -91,6 +91,78 @@ public static partial class HeadlessNetTest
     {
         Batch85Hardening(data);
         Batch85Multiplayer(data);
+        Batch85Pools(data);
+    }
+
+    /// <summary>A story world with the party already inside the portal run the seals describe.</summary>
+    private static Session PortalRun(GameData data, int seed, string seals, int clients = 2, CharacterData[] characters = null)
+    {
+        var s = new Session(data, seed, campaign: true, story: true, clients: clients, characters: characters);
+        s.A.SendDebugCommand("enter_portal", seals);
+        s.Pump(1.6f);
+        return s;
+    }
+
+    private static void Batch85Pools(GameData data)
+    {
+        Console.WriteLine("\n-- Batch 85.10: data-driven enemy pools per theme --");
+        static bool SamePools(List<PackPoolEntry> a, List<PackPoolEntry> b) =>
+            a.Count == b.Count && a.Zip(b).All(p => p.First.Members.SequenceEqual(p.Second.Members) &&
+                p.First.MinLoop == p.Second.MinLoop && p.First.MinLevel == p.Second.MinLevel &&
+                p.First.Weight == p.Second.Weight && p.First.RequireEnemy == p.Second.RequireEnemy);
+        var builtIn = ServerWorld.BuiltInUndead;
+        foreach (var id in new[] { "graveyard", "tomb" })
+        {
+            var t = data.ZoneThemes.First(z => z.Id == id);
+            Check(SamePools(t.PackPool, builtIn.PackPool) && SamePools(t.OverlookPool, builtIn.OverlookPool) &&
+                  SamePools(t.PromisedPacks, builtIn.PromisedPacks) && t.BossPacks.Count == builtIn.BossPacks.Count &&
+                  t.BossPacks.Zip(builtIn.BossPacks).All(p => p.First.Boss == p.Second.Boss && p.First.GuardMembers.SequenceEqual(p.Second.GuardMembers) &&
+                      p.First.MinLoop == p.Second.MinLoop && p.First.MinLevel == p.Second.MinLevel),
+                  $"the {id} theme's pools in themes.json are exactly the old hard-coded undead lists");
+        }
+        Check(builtIn.PackPool.Count(e => e.Available(1, 1)) == 4 && builtIn.PackPool.Count(e => e.Available(2, 1)) == 6 &&
+              builtIn.PackPool.Count(e => e.Available(1, 4)) == 6 && builtIn.PackPool.Count(e => e.Available(1, 3)) == 4,
+              "pool gates: knights join from campaign loop 2 OR zone level 4, as before");
+
+        var fen = PortalRun(data, 851001, "warp_zone_swamp+warp_boss");
+        var fenWorld = fen.World;
+        var fenLive = fenWorld.Enemies.Values.Where(e => !e.Dead).ToList();
+        Check(fenWorld.MapIndex == ServerWorld.ScrollMapIndex && fenWorld.Map.Theme?.Id == "graveyard" &&
+              ReferenceEquals(fenWorld.PopulationTheme, fenWorld.Map.Theme),
+              "a Fen portal run populates from the graveyard theme's own pool");
+        Check(fenLive.Count >= 6 && fenLive.All(e => e.Def.Undead) &&
+              fenLive.Any(e => e.Def.Id == "gravelord" && e.Affixes.HasFlag(EliteAffix.Boss)) && fenWorld.BossAlive && fenWorld.ExitLocked,
+              $"a graveyard run still spawns only undead ({fenLive.Count} of them), the Gravelord sealing the exit");
+        Check(fenWorld.Packs.All(pk => pk.Entries.All(en => data.Enemies[en.typeId].Undead)) &&
+              fenWorld.Packs.Where(pk => pk.Entries.Length > 0).Any(pk => pk.Buried == true || pk.Buried == false),
+              "its packs are all-undead compositions (the only kind that may lie buried)");
+        Check(fen.B.World.Enemies.Count == fenLive.Count && fen.A.World.Enemies.Count == fenLive.Count,
+              "both clients see the whole population");
+        fen.Close();
+
+        var grounds = new Session(data, 851002, campaign: true, theme: "forest", clients: 1);
+        grounds.A.SendDebugCommand("warp_next");
+        grounds.Pump(1.0f);
+        var groundsLive = grounds.World.Enemies.Values.Where(e => !e.Dead).ToList();
+        Check(grounds.World.Map.Kind == World.MapKind.Forest && grounds.World.Map.Theme?.Id == "forest" &&
+              ReferenceEquals(grounds.World.PopulationTheme, ServerWorld.BuiltInUndead) &&
+              groundsLive.Count >= 6 && groundsLive.All(e => e.Def.Undead),
+              $"the test-grounds campaign loop keeps its undead on a forest-themed map ({groundsLive.Count} undead)");
+        grounds.Close();
+
+        string poolDir = TempDir("pools");
+        CopyDirectory(Path.Combine(AppContext.BaseDirectory, "Data"), poolDir);
+        string themesPath = Path.Combine(poolDir, "Zones", "themes.json");
+        File.WriteAllText(themesPath, File.ReadAllText(themesPath).Replace("[\"crypt_leaper\", 2]", "[\"crypt_creeper\", 2]"));
+        var prevOut = Console.Out;
+        Console.SetOut(TextWriter.Null);
+        GameData poolData;
+        try { poolData = GameData.LoadFromDirectory(poolDir); }
+        finally { Console.SetOut(prevOut); }
+        ContentFingerprint.Current = data.Fingerprint;
+        Check(poolData.ValidationErrors.Any(e => e.Contains("PackPool") && e.Contains("crypt_creeper")),
+              "the validator catches a pack pool naming an enemy that doesn't exist");
+        try { Directory.Delete(poolDir, true); } catch { }
     }
 
     private static void Batch85Multiplayer(GameData data)

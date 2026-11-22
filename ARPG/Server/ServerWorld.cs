@@ -393,7 +393,6 @@ public partial class ServerWorld
         Chests.Clear();
         _bossEnemyId = -1;
         int level = ZoneEnemyLevel;
-        bool knights = Loop >= 2 || level >= 4;
         var packRng = new Random(Map.Seed ^ 0x5041434B); // "PACK" — deterministic per map
         var run = MapIndex == ScrollMapIndex ? _scrollRun : null;
         if (run?.Survival == true) return; // the waves are the population
@@ -411,18 +410,24 @@ public partial class ServerWorld
                 if (!Map.CircleHitsWall(pos, 0.5f) && !Map.IsWater((int)pos.X, (int)pos.Y)) packSpots.Add(pos);
             }
         }
-        // Loop 1 mixes in Crypt Leapers; loop 2+ adds Graveguard AND Grave Callers.
+        // WHO lives here comes from data: the map theme's PackPool on portal runs
+        // (Data/Zones/themes.json), the built-in undead lists everywhere else — the
+        // test-grounds campaign loop stays undead whatever theme it wears.
+        var pop = PopulationTheme;
+        var pool = pop.PackPool.Where(en => en.Available(Loop, level)).ToList();
+        int totalWeight = pool.Sum(en => Math.Max(1, en.Weight));
         foreach (var spot in packSpots)
         {
-            (string, int)[] entries = packRng.Next(knights ? 6 : 4) switch
+            if (pool.Count == 0) break;
+            // Weighted pick. With every weight 1 this is packRng.Next(count) — the same
+            // draw the old hard-coded switch made, so seeded maps populate as before.
+            int pick = packRng.Next(totalWeight);
+            var chosen = pool[^1];
+            foreach (var en in pool)
             {
-                0 => new[] { ("grunt", 3) },
-                1 => new[] { ("grunt", 2), ("spitter", 1) },
-                2 => new[] { ("grunt", 1), ("spitter", 2) },
-                3 => new[] { ("crypt_leaper", 2), ("grunt", 1) },
-                4 => new[] { ("bone_knight", 2), ("grunt", 1) },
-                _ => new[] { ("grave_caller", 1), ("crypt_leaper", 1), ("grunt", 1) },
-            };
+                pick -= Math.Max(1, en.Weight);
+                if (pick < 0) { chosen = en; break; }
+            }
             var affix = EliteAffixInfo.RollPackLeader(packRng, out string leaderName);
             // "of Champions": a plain pack gets another chance at a leader.
             if (affix == EliteAffix.None && run != null && run.ElitePct > 0 &&
@@ -431,55 +436,60 @@ public partial class ServerWorld
             Packs.Add(new PackSpawner
             {
                 Position = spot,
-                Entries = entries,
+                Entries = chosen.Members,
                 LeaderAffixes = affix,
                 LeaderName = leaderName,
                 EnemyLevel = level,
                 NoRespawn = true,
             });
         }
-        foreach (var overlook in Map.OverlookSpots)
-            Packs.Add(new PackSpawner
-            {
-                Position = overlook,
-                Entries = knights
-                    ? new[] { ("spitter", 2), ("bone_knight", 1) }
-                    : new[] { ("spitter", 2) },
-                EnemyLevel = level,
-                ScatterRadius = 0.9f,
-                NoRespawn = true,
-            });
-        // From the second loop on, Graveguard skeletons are a PROMISE, not a dice
-        // roll — if the mixes above happened not to roll any, station a patrol.
-        if (knights && Map.PackSpots.Count > 0 &&
-            !Packs.Any(pk => pk.Entries.Any(en => en.typeId == "bone_knight")))
-            Packs.Add(new PackSpawner
-            {
-                Position = Map.PackSpots[Map.PackSpots.Count / 2],
-                Entries = new[] { ("bone_knight", 2) },
-                EnemyLevel = level,
-                ScatterRadius = 1.1f,
-                NoRespawn = true,
-            });
-        if (MapIndex == 3 || (run?.Boss == true && _scrollRoom >= run.Rooms))
+        // Overlooks: the theme's ranged pick for high ground (the last open entry).
+        var overlookPack = pop.OverlookPool.LastOrDefault(en => en.Available(Loop, level));
+        if (overlookPack != null)
+            foreach (var overlook in Map.OverlookSpots)
+                Packs.Add(new PackSpawner
+                {
+                    Position = overlook,
+                    Entries = overlookPack.Members,
+                    EnemyLevel = level,
+                    ScatterRadius = 0.9f,
+                    NoRespawn = true,
+                });
+        // Promised packs: a PROMISE, not a dice roll — if the mixes above happened not
+        // to roll the promised enemy, station a patrol of it (Graveguard from loop 2).
+        foreach (var promised in pop.PromisedPacks)
+            if (promised.Available(Loop, level) && Map.PackSpots.Count > 0 &&
+                !Packs.Any(pk => pk.Entries.Any(en => en.typeId == promised.RequireEnemy)))
+                Packs.Add(new PackSpawner
+                {
+                    Position = Map.PackSpots[Map.PackSpots.Count / 2],
+                    Entries = promised.Members,
+                    EnemyLevel = level,
+                    ScatterRadius = 1.1f,
+                    NoRespawn = true,
+                });
+        int bossPackIndex = -1;
+        var bossPack = pop.BossPacks.LastOrDefault(bp => bp.Available(Loop, level) && Data.Enemies.ContainsKey(bp.Boss ?? ""));
+        if (bossPack != null && (MapIndex == 3 || (run?.Boss == true && _scrollRoom >= run.Rooms)))
+        {
+            bossPackIndex = Packs.Count;
             Packs.Add(new PackSpawner
             {
                 Position = Map.BossSpot,
-                Entries = knights
-                    ? new[] { ("gravelord", 1), ("bone_knight", 2) }
-                    : new[] { ("gravelord", 1), ("grunt", 2) },
+                Entries = new[] { (bossPack.Boss, 1) }.Concat(bossPack.GuardMembers).ToArray(),
                 LeaderAffixes = EliteAffix.Boss,
-                EnemyLevel = Math.Max(Data.Enemies["gravelord"].Level, level + 3),
+                EnemyLevel = Math.Max(Data.Enemies[bossPack.Boss].Level, level + 3),
                 ScatterRadius = 1.8f,
                 NoRespawn = true,
             });
+        }
 
         // Spawn everything NOW (after the MapChanged broadcast the transport sends the
         // spawns in order), and remember which enemy is the door-sealing boss.
         for (int pi = 0; pi < Packs.Count; pi++)
             SpawnPackMembers(Packs[pi], pi);
-        _bossEnemyId = Enemies.Values
-            .FirstOrDefault(e => !e.Dead && e.Def.Id == "gravelord")?.Id ?? -1;
+        _bossEnemyId = bossPackIndex < 0 ? -1 : Enemies.Values
+            .FirstOrDefault(e => !e.Dead && e.PackId == bossPackIndex && e.Affixes.HasFlag(EliteAffix.Boss))?.Id ?? -1;
     }
 
     /// <summary>Swap the world onto another campaign map and move everyone there.</summary>
@@ -683,7 +693,7 @@ public partial class ServerWorld
             if (Vector2.Distance(p.Position, Map.ExitDoor) > 2.6f) return;
             if (ExitLocked)
             {
-                _events.MessageFor(p, BossAlive ? "The way is sealed — the Gravelord still stands." : "The way is sealed — beat every wave first.");
+                _events.MessageFor(p, BossAlive ? $"The way is sealed — {BossNameMidSentence} still stands." : "The way is sealed — beat every wave first.");
                 return;
             }
             // A scroll zone with rooms left leads deeper; everything else authored leads home.
@@ -3932,7 +3942,7 @@ public partial class ServerWorld
         if (Campaign && e.Id == _bossEnemyId)
         {
             foreach (var pl in Players.Values)
-                _events.MessageFor(pl, "The Gravelord falls — the way home is open.");
+                _events.MessageFor(pl, $"{e.Def.Name} falls — the way home is open.");
             _events.ZoneStateChanged(this);
         }
     }

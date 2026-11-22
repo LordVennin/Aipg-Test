@@ -21,6 +21,60 @@
       "deadgrass:3F4A3A",
       "mud:33362F",
       "dirt:4E4636"
+    ],
+    "PackPool": [
+      {
+        "Entries": [["grunt", 3]]
+      },
+      {
+        "Entries": [["grunt", 2], ["spitter", 1]]
+      },
+      {
+        "Entries": [["grunt", 1], ["spitter", 2]]
+      },
+      {
+        "Entries": [["crypt_leaper", 2], ["grunt", 1]]
+      },
+      {
+        "Entries": [["bone_knight", 2], ["grunt", 1]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      },
+      {
+        "Entries": [["grave_caller", 1], ["crypt_leaper", 1], ["grunt", 1]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      }
+    ],
+    "OverlookPool": [
+      {
+        "Entries": [["spitter", 2]]
+      },
+      {
+        "Entries": [["spitter", 2], ["bone_knight", 1]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      }
+    ],
+    "PromisedPacks": [
+      {
+        "RequireEnemy": "bone_knight",
+        "Entries": [["bone_knight", 2]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      }
+    ],
+    "BossPacks": [
+      {
+        "Boss": "gravelord",
+        "Guards": [["grunt", 2]]
+      },
+      {
+        "Boss": "gravelord",
+        "Guards": [["bone_knight", 2]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      }
     ]
   },
   {
@@ -45,6 +99,60 @@
       "dust:3A3844",
       "flagstone:403E4A",
       "gravel:46434E"
+    ],
+    "PackPool": [
+      {
+        "Entries": [["grunt", 3]]
+      },
+      {
+        "Entries": [["grunt", 2], ["spitter", 1]]
+      },
+      {
+        "Entries": [["grunt", 1], ["spitter", 2]]
+      },
+      {
+        "Entries": [["crypt_leaper", 2], ["grunt", 1]]
+      },
+      {
+        "Entries": [["bone_knight", 2], ["grunt", 1]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      },
+      {
+        "Entries": [["grave_caller", 1], ["crypt_leaper", 1], ["grunt", 1]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      }
+    ],
+    "OverlookPool": [
+      {
+        "Entries": [["spitter", 2]]
+      },
+      {
+        "Entries": [["spitter", 2], ["bone_knight", 1]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      }
+    ],
+    "PromisedPacks": [
+      {
+        "RequireEnemy": "bone_knight",
+        "Entries": [["bone_knight", 2]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      }
+    ],
+    "BossPacks": [
+      {
+        "Boss": "gravelord",
+        "Guards": [["grunt", 2]]
+      },
+      {
+        "Boss": "gravelord",
+        "Guards": [["bone_knight", 2]],
+        "MinLoop": 2,
+        "MinLevel": 4
+      }
     ]
   },
   {

@@ -206,17 +206,19 @@ public partial class ServerWorld
         _portalCursor = 0;
         // The final wave brings its own BOSS: the Gravelord strides out of a random
         // portal ahead of the horde, boss loot table and all.
-        if (wave >= DefenseBalance.WavesTotal && Data.Enemies.ContainsKey("gravelord"))
+        // (On a portal run the zone theme's own boss answers instead.)
+        string waveBossId = PopulationTheme.BossPacks.LastOrDefault(bp => Data.Enemies.ContainsKey(bp.Boss ?? ""))?.Boss ?? "gravelord";
+        if (wave >= DefenseBalance.WavesTotal && Data.Enemies.ContainsKey(waveBossId))
         {
             var bossPortal = Map.SpawnPortals.Count > 0
                 ? Map.SpawnPortals[_rng.Next(Map.SpawnPortals.Count)]
                 : Map.PlayerSpawn;
-            var boss = SpawnEnemy("gravelord", bossPortal, EliteAffix.Boss,
+            var boss = SpawnEnemy(waveBossId, bossPortal, EliteAffix.Boss,
                 level: ZoneEnemyLevel + DefenseBalance.WaveLevelStep * (wave - 1) + 1);
             boss.State = EnemyState.Chase;
             _events.WorldEffect("burst", bossPortal, 1.6f, 0.6f, boss.Height);
             foreach (var pl in Players.Values)
-                _events.MessageFor(pl, "The ground shakes — the Gravelord answers the final horn!");
+                _events.MessageFor(pl, $"The ground shakes — {LowerThe(boss.Def.Name)} answers the final horn!");
         }
         // The camp crew steps clear while the fighting runs.
         foreach (var npc in Npcs.ToList())
@@ -233,6 +235,20 @@ public partial class ServerWorld
     /// <summary>What crawls out of the portal next: chaff early, teeth later.</summary>
     private string RollWaveEnemy(int wave)
     {
+        // Portal runs draw from the zone theme's WaveEnemies when it lists any
+        // (Data/Zones/themes.json); everything else keeps the undead table below.
+        var themed = MapIndex == ScrollMapIndex ? Map.Theme?.WaveEnemies : null;
+        var open = themed?.Where(w => w.MinWave <= wave && Data.Enemies.ContainsKey(w.Id ?? "")).ToList();
+        if (open is { Count: > 0 })
+        {
+            int pick = _rng.Next(open.Sum(w => Math.Max(1, w.Weight)));
+            foreach (var w in open)
+            {
+                pick -= Math.Max(1, w.Weight);
+                if (pick < 0) return w.Id;
+            }
+            return open[^1].Id;
+        }
         int roll = _rng.Next(100);
         return wave switch
         {
