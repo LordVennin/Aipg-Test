@@ -515,7 +515,7 @@
   "Color": "5C6A44",
   "SpriteStyle": "Bandit",
   "SpriteRole": "bow",
-  "ExtraDrops": [ { "ItemId": "book_fletcher", "Chance": 0.025 } ]
+  "ExtraDrops": [ { "ItemId": "book_fletcher", "Chance": 0.025 }, { "ItemId": "book_longdraw", "Chance": 0.02 } ]
  },
  {
   "Id": "bandit_brute",

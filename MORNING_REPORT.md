@@ -94,6 +94,14 @@ _Running log; final pass at the end._
   arrivals and bosses. Left as is — flag it if you would rather the repeat follow the victims.
 - ProtocolVersion **50** (the damage event carries the Crash flag for its own number tint).
 
+- **3.5 Disengage's hop** is client-predicted like the dodge roll (the server grants i-frames
+  and broadcasts the roll); the headless test checks the server half and the replicated
+  dodge event, not the local movement.
+- **3.5 Piercing Shot moved** from *Fletcher's Manual* to the second bow book (*The Long
+  Draw*: Piercing Shot, Snipe, Disengage) so each bow book keeps three skills.
+- **3.5 "+1 pierce"** is a flat stat, so *Piercing* has two tiers (+1, +2 at item level 20)
+  rather than four percentage bands.
+
 ## Behavior changes to existing checks
 - `tiered modifier database loaded (482 modifiers)`: pinned the exact modifier count.
   Now asserts the original database is still 482 entries once the new mace/bow-only
@@ -115,3 +123,4 @@ _Running log; final pass at the end._
 | 3.2 bandits and goblins (7 enemies, sprites, shove, bleed), snapshot chunking | done | 933 |
 | 3.3 skill books and the trainer | done | 959 |
 | 3.4 mace identity (Crash, Leap Slam, Skull Crack, Fault Line, 4 modifiers, Aftershock) | done | 985 |
+| 3.5 bow skills (Snipe, Split Arrow, Disengage, 3 modifiers, second bow book) | done | 1001 |

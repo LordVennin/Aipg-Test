@@ -205,6 +205,9 @@ public class SkillDefinition
     public float FissureDelay { get; set; } = 0.25f;
     public float FissureRadius { get; set; }
     public float FissureDamageMult { get; set; } = 1f;
+    /// <summary>The skill keeps its own Range even when the weapon reaches farther
+    /// (Split Arrow is short-ranged on any bow).</summary>
+    public bool IgnoreWeaponRange { get; set; }
     /// <summary>Radians between projectiles of a multi-projectile cast (Split Arrow's fan).</summary>
     public float ProjectileSpread { get; set; } = 0.21f;
     /// <summary>Chargeable projectiles (Snipe): at full charge, +this fraction of range

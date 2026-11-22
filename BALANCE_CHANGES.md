@@ -2033,3 +2033,28 @@ a Barrow Knight (native 3) 55 hp / 14 dmg / 11 xp.
 - Books: *Shieldbearer's Drill* now also teaches Skull Crack; new *Earthshaker's
   Creed* teaches Leap Slam and Fault Line (boss table; Bandit Brute 3%).
 - Stuns never shorten: a fresh stun on an already-stunned enemy keeps the longer one.
+
+### Bow skills (85.14)
+
+- **Snipe** (chargeable, 0.9 s to full): 130% weapon damage (+10%/level), range 10
+  (the bow's own range if longer), speed 14. A full draw is **+150% damage** (325%
+  total), **+60% range**, **+80% speed** and **pierces everything** in line; anything
+  short of ~95% charge stops in the first enemy. 25 stun buildup. 1.8 s cooldown, 9 mana.
+- **Split Arrow**: five arrows 9° apart (a 37° fan), each 45% weapon damage
+  (+4%/level), range **5.5** whatever the bow (`IgnoreWeaponRange`). Point blank three
+  to five arrows land on one body (135-225%); at range usually one. 0.9 s cooldown, 8 mana.
+- **Disengage**: hop **3 tiles** straight back from the aim over 0.22 s (dodge-system
+  i-frames for 0.32 s) and loose an arrow at the aim for 80% weapon damage (+6%/level)
+  that **slows for 2.5 s**. 4 s cooldown, 6 mana.
+- **Bow-only modifiers:**
+
+  | Modifier | Type | Effect | Tiers |
+  |---|---|---|---|
+  | Piercing | prefix | arrows pass through +N enemies | I: +1 (ilvl 1), II: +2 (ilvl 20) |
+  | Barbed | prefix | % chance to bleed with bow attacks | 8-12 / 13-18 / 19-25 / 26-34 (ilvl 1/10/20/30) |
+  | of the Hawk | suffix | % projectile speed and range with bows | 8-12 / 13-18 / 19-25 / 26-34 |
+
+- Books: *Fletcher's Manual* teaches Arrow Shot, Arrow Rain, Split Arrow; the new
+  *The Long Draw* teaches Piercing Shot, Snipe, Disengage (boss table; Bandit Archer 2%).
+- Chargeable skills may set their own full-charge damage bonus (`ChargeDamageBonus`;
+  Shield Bash and Piercing Shot keep the default +70%).

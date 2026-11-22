@@ -4504,5 +4504,69 @@
   "MaximumValue": 42,
   "Weight": 42,
   "IsPercent": true
+ },
+ {
+  "Id": "of_the_hawk",
+  "Name": "of the Hawk I",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_hawk",
+  "StatAffected": "ProjectileReach",
+  "MinimumValue": 8,
+  "MaximumValue": 12,
+  "Weight": 60,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_the_hawk_t2",
+  "Name": "of the Hawk II",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_hawk",
+  "StatAffected": "ProjectileReach",
+  "MinimumValue": 13,
+  "MaximumValue": 18,
+  "Weight": 54,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_the_hawk_t3",
+  "Name": "of the Hawk III",
+  "AffixType": "Suffix",
+  "Tier": 3,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_hawk",
+  "StatAffected": "ProjectileReach",
+  "MinimumValue": 19,
+  "MaximumValue": 25,
+  "Weight": 48,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_the_hawk_t4",
+  "Name": "of the Hawk IV",
+  "AffixType": "Suffix",
+  "Tier": 4,
+  "MinimumItemLevel": 30,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_hawk",
+  "StatAffected": "ProjectileReach",
+  "MinimumValue": 26,
+  "MaximumValue": 34,
+  "Weight": 42,
+  "IsPercent": true
  }
 ]

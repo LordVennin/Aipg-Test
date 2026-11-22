@@ -95,6 +95,200 @@ public static partial class HeadlessNetTest
         Batch85BanditsAndGoblins(data);
         Batch85SkillBooks(data);
         Batch85Mace(data);
+        Batch85Bow(data);
+    }
+
+    private static void Batch85Bow(GameData data)
+    {
+        Console.WriteLine("\n-- Batch 85.14: bow skills — Snipe, Split Arrow, Disengage, bow modifiers --");
+        var archer = CharacterData.CreateNew(data, "Fletch", "archer");
+        var bs = new Session(data, 851401, characters: new[] { archer, null }, names: new[] { "Fletch", "Watcher" });
+        var w = bs.World;
+        var pa = bs.P(bs.A);
+        foreach (var id in new[] { "snipe", "split_arrow", "disengage" }) bs.A.SendDebugCommand("learn_skill", id);
+        bs.Pump(0.6f);
+        var spawn = w.Map.PlayerSpawn;
+        var open = OpenDirection(w.Map, spawn, 9f);
+        var side = new Vector2(-open.Y, open.X);
+        Check(open != Vector2.Zero && pa.Character.MainHand?.GetBase(data).Category == ItemCategory.Bow &&
+              new[] { "snipe", "split_arrow", "disengage" }.All(id => pa.Character.GetSkill(id) != null),
+              "(setup) an archer with a bow, the three new skills learned, a clear lane to shoot down");
+        void Quiet()
+        {
+            foreach (var e in w.Enemies.Values.ToList())
+                if (!e.Dead && Vector2.Distance(e.Position, spawn) < 16f) w.DebugSkillHit(pa, e, null, e.Health + 1e7f);
+            foreach (var pr in w.Projectiles.Keys.ToList()) w.Projectiles.Remove(pr);
+            bs.A.SendDebugCommand("heal");
+            bs.Pump(0.3f);
+            bs.Place(bs.A, spawn);
+        }
+        void Flat()
+        {
+            pa.Stats.WeaponMinDamage = pa.Stats.WeaponMaxDamage = 10f;
+            pa.Stats.CritChance = 0f;
+        }
+        ServerEnemy Dummy(Vector2 at)
+        {
+            var e = w.SpawnEnemy("grunt", at);
+            e.MaxHealth = e.Health = 100000f;
+            e.AttackReadyAt = w.Time + 9999f;
+            e.StunnedUntil = w.Time + 600f;
+            return e;
+        }
+        ServerProjectile Loose(string skill, Vector2 at, float charge = 0f)
+        {
+            pa.Mana = pa.Stats.MaxMana;
+            pa.SkillReadyAt.Clear();
+            pa.GlobalSkillReadyAt = 0;
+            int lastId = w.Projectiles.Keys.DefaultIfEmpty(0).Max();
+            bs.A.RequestUseSkill(skill, at, -1, charge);
+            ServerProjectile found = null;
+            for (int i = 0; i < 40 && found == null; i++)
+            {
+                bs.Server.Update(1f / 60f);
+                foreach (var c in bs.Clients) c.Update(1f / 60f);
+                Thread.Sleep(2);
+                found = w.Projectiles.Values.Where(pr => pr.FromPlayer && pr.Id > lastId).OrderBy(pr => pr.Id).FirstOrDefault();
+            }
+            return found;
+        }
+
+        // ---- Snipe.
+        Quiet(); Flat();
+        var snipeDef = data.Skills["snipe"];
+        var snipeStats = Skills.SkillMath.Compute(data, snipeDef, 1, Array.Empty<Skills.ScrollDefinition>(), pa.Stats);
+        var line = new[] { Dummy(spawn + open * 3f), Dummy(spawn + open * 4.5f), Dummy(spawn + open * 6f) };
+        var quick = Loose("snipe", spawn + open * 8f, charge: 0f);
+        float quickMin = quick?.MinDamage ?? 0f, quickRange = quick?.MaxRange ?? 0f, quickSpeed = quick?.Speed ?? 0f;
+        bool quickPierce = quick?.Pierce ?? true;
+        bs.Pump(1.0f);
+        int quickHits = line.Count(e => e.Health < e.MaxHealth);
+        Check(quick != null && !quickPierce && quickHits == 1 && line[0].Health < line[0].MaxHealth &&
+              MathF.Abs(quickRange - snipeStats.Range) < 0.01f && MathF.Abs(quickSpeed - snipeStats.ProjectileSpeed) < 0.01f,
+              $"Snipe released at once: one ordinary arrow (range {quickRange:0.#}, speed {quickSpeed:0.#}) that stops in the first enemy");
+        foreach (var e in line) e.Health = e.MaxHealth;
+        var full = Loose("snipe", spawn + open * 8f, charge: 1f);
+        float fullMin = full?.MinDamage ?? 0f, fullRange = full?.MaxRange ?? 0f, fullSpeed = full?.Speed ?? 0f;
+        bool fullPierce = full?.Pierce ?? false;
+        bs.Pump(1.0f);
+        Check(full != null && MathF.Abs(fullMin / quickMin - (1f + snipeDef.ChargeDamageBonus)) < 0.01f &&
+              MathF.Abs(fullRange / quickRange - (1f + snipeDef.ChargeRangeBonus)) < 0.01f &&
+              MathF.Abs(fullSpeed / quickSpeed - (1f + snipeDef.ChargeSpeedBonus)) < 0.01f,
+              $"a full draw: damage x{fullMin / quickMin:0.0}, range {quickRange:0.#} -> {fullRange:0.#}, speed {quickSpeed:0.#} -> {fullSpeed:0.#}");
+        Check(fullPierce && line.All(e => e.Health < e.MaxHealth) && snipeDef.Chargeable && snipeDef.PierceAtFullCharge && !snipeDef.Pierce,
+              "and at full charge it pierces everything in line (all three enemies hit)");
+        foreach (var e in line) e.Health = e.MaxHealth;
+        var half = Loose("snipe", spawn + open * 8f, charge: 0.5f);
+        bool halfPierce = half?.Pierce ?? true;
+        float halfMin = half?.MinDamage ?? 0f;
+        bs.Pump(1.0f);
+        Check(half != null && !halfPierce && halfMin > quickMin * 1.5f && halfMin < fullMin * 0.8f && line.Count(e => e.Health < e.MaxHealth) == 1,
+              "a half draw sits in between and does not pierce");
+
+        // ---- Split Arrow.
+        Quiet(); Flat();
+        var splitDef = data.Skills["split_arrow"];
+        int lastBefore = w.Projectiles.Keys.DefaultIfEmpty(0).Max();
+        Loose("split_arrow", spawn + open * 5f);
+        var fan = w.Projectiles.Values.Where(pr => pr.FromPlayer && pr.Id > lastBefore).OrderBy(pr => MathF.Atan2(Vector2.Dot(pr.Direction, side), Vector2.Dot(pr.Direction, open))).ToList();
+        float fanWidth = fan.Count == 5 ? MathF.Acos(Math.Clamp(Vector2.Dot(fan[0].Direction, fan[4].Direction), -1f, 1f)) : 0f;
+        Check(fan.Count == 5 && MathF.Abs(fanWidth - splitDef.ProjectileSpread * 4f) < 0.02f &&
+              Vector2.Dot(fan[2].Direction, open) > 0.999f && fan.All(pr => MathF.Abs(pr.MaxRange - fan[0].MaxRange) < 0.01f && pr.MaxRange < 7f),
+              $"Split Arrow looses five arrows in a {fanWidth * 180f / MathF.PI:0}° fan, short-ranged ({fan.FirstOrDefault()?.MaxRange:0.#} tiles)");
+        bs.Pump(0.8f);
+        Quiet(); Flat();
+        var closeDummy = Dummy(spawn + open * 0.9f);
+        Loose("split_arrow", spawn + open * 5f);
+        bs.Pump(0.8f);
+        float closeDamage = closeDummy.MaxHealth - closeDummy.Health;
+        float perArrow = 10f * splitDef.WeaponDamageMultiplier;
+        Quiet(); Flat();
+        var farDummy = Dummy(spawn + open * 5f);
+        Loose("split_arrow", spawn + open * 5f);
+        bs.Pump(0.9f);
+        float farDamage = farDummy.MaxHealth - farDummy.Health;
+        Check(closeDamage >= perArrow * 2.9f && farDamage > 0f && farDamage <= perArrow * 2.1f && closeDamage >= farDamage * 1.5f,
+              $"point blank several arrows find the same body ({closeDamage / perArrow:0.#} arrows' worth); at five tiles it is thin ({farDamage / perArrow:0.#})");
+
+        // ---- Disengage.
+        Quiet(); Flat();
+        var disDef = data.Skills["disengage"];
+        var chaser = Dummy(spawn + open * 2.5f);
+        chaser.SlowedUntil = 0f;
+        int dodgesSeen = bs.B.World.DodgeEventsSeen;
+        var parting = Loose("disengage", chaser.Position);
+        bool hopSafe = pa.InvulnerableUntil > w.Time && pa.DodgeUntil > w.Time;
+        bool towardAim = parting != null && Vector2.Dot(parting.Direction, open) > 0.99f;
+        bs.Pump(0.8f);
+        Check(parting != null && hopSafe && towardAim && bs.B.World.DodgeEventsSeen == dodgesSeen + 1 &&
+              disDef.HopBackDistance >= 2.5f && disDef.HopBackDuration > 0f,
+              $"Disengage: a {disDef.HopBackDistance}-tile backward hop on the dodge system (i-frames granted, the roll replicates) while an arrow flies at the aim");
+        Check(chaser.Health < chaser.MaxHealth && chaser.SlowedUntil > w.Time + 1f,
+              $"its arrow slows what it hits ({chaser.SlowedUntil - w.Time:0.0} s of slow left)");
+
+        // ---- Bow-only modifiers.
+        Quiet();
+        string[] bowMods = { "piercing", "of_the_hawk", "barbed" };
+        Check(bowMods.All(id => data.Modifiers.TryGetValue(id, out var m) && m.CompatibleItemCategories.SequenceEqual(new[] { ItemCategory.Bow }) &&
+                  !m.CompatibleWith(ItemCategory.Mace) && !m.CompatibleWith(ItemCategory.Quiver)) &&
+              data.Modifiers["piercing"].MinimumValue == 1f && data.Modifiers["piercing_t2"].MinimumValue == 2f &&
+              data.Modifiers["of_the_hawk"].AffixType == AffixType.Suffix && data.Modifiers["barbed_t4"].MinimumItemLevel == 30,
+              "Piercing, of the Hawk and Barbed roll on bows only");
+        var plainBow = pa.Character.MainHand;
+        ItemInstance Modded(string modId, float value)
+        {
+            var it = new ItemInstance { BaseItemId = plainBow.BaseItemId, ItemLevel = 1, Rarity = ItemRarity.Magic, MaxPrefixes = 3, MaxSuffixes = 3 };
+            it.Modifiers.Add(new ItemModifierRoll { ModifierId = modId, Value = value });
+            return it;
+        }
+        void Wield(ItemInstance it)
+        {
+            pa.Character.Equipment[EquipSlot.MainHand] = it;
+            pa.RecomputeStats(data);
+        }
+        var shotDef = data.Skills["arrow_shot"];
+        var baseShot = Skills.SkillMath.Compute(data, shotDef, 1, Array.Empty<Skills.ScrollDefinition>(), pa.Stats);
+        var row = new[] { Dummy(spawn + open * 3f), Dummy(spawn + open * 4.5f), Dummy(spawn + open * 6f) };
+        Loose("arrow_shot", spawn + open * 8f);
+        bs.Pump(1.0f);
+        int plainHits = row.Count(e => e.Health < e.MaxHealth);
+        foreach (var e in row) e.Health = e.MaxHealth;
+        Wield(Modded("piercing", 1f));
+        var pierced = Loose("arrow_shot", spawn + open * 8f);
+        int pierceLeft = pierced?.PierceLeft ?? -1;
+        bs.Pump(1.0f);
+        int pierceHits = row.Count(e => e.Health < e.MaxHealth);
+        Check(pa.Stats.ExtraPierce == 1 && plainHits == 1 && pierceLeft == 1 && pierceHits == 2 && row[2].Health == row[2].MaxHealth,
+              $"Piercing +1: an Arrow Shot passes through one enemy and stops in the second ({plainHits} -> {pierceHits} hit)");
+        Wield(Modded("of_the_hawk", 20f));
+        var hawkShot = Skills.SkillMath.Compute(data, shotDef, 1, Array.Empty<Skills.ScrollDefinition>(), pa.Stats);
+        var hawkArrow = Loose("arrow_shot", spawn + open * 8f);
+        Check(pa.Stats.ProjectileReachIncrease == 20f && MathF.Abs(hawkShot.Range - baseShot.Range * 1.2f) < 0.01f &&
+              MathF.Abs(hawkShot.ProjectileSpeed - baseShot.ProjectileSpeed * 1.2f) < 0.01f &&
+              hawkArrow != null && MathF.Abs(hawkArrow.Speed - baseShot.ProjectileSpeed * 1.2f) < 0.01f && MathF.Abs(hawkArrow.MaxRange - baseShot.Range * 1.2f) < 0.01f,
+              $"of the Hawk +20%: Arrow Shot's range {baseShot.Range:0.#} -> {hawkShot.Range:0.#} and speed {baseShot.ProjectileSpeed:0.#} -> {hawkShot.ProjectileSpeed:0.#}");
+        bs.Pump(1.0f);
+        Wield(Modded("barbed", 30f));
+        var barbedShot = Skills.SkillMath.Compute(data, shotDef, 1, Array.Empty<Skills.ScrollDefinition>(), pa.Stats);
+        var fireDef = data.Skills["fire_bolt"];
+        var barbedSpell = Skills.SkillMath.Compute(data, fireDef, 1, Array.Empty<Skills.ScrollDefinition>(), pa.Stats);
+        Wield(Modded("barbed", 100f));
+        foreach (var e in row) { e.Health = e.MaxHealth; e.BleedStacks.Clear(); }
+        Loose("arrow_shot", spawn + open * 8f);
+        bs.Pump(1.0f);
+        Check(pa.Stats.BowBleedChance == 100f && MathF.Abs(barbedShot.BleedChance - 0.30f) < 0.001f && baseShot.BleedChance == 0f &&
+              barbedSpell.BleedChance == 0f && row[0].BleedStacks.Count > 0,
+              "Barbed: bow attacks gain the bleed chance (30% rolled -> 0.30; a spell gets nothing) and a barbed arrow leaves its target bleeding");
+        Check(data.Modifiers["piercing"].DescribeRoll(1f).Contains("Pierced") && data.Modifiers["of_the_hawk"].DescribeRoll(20f).Contains("Range") &&
+              data.Modifiers["barbed"].DescribeRoll(30f).Contains("Bleed"),
+              $"their tooltips read plainly (\"{data.Modifiers["of_the_hawk"].DescribeRoll(20f)}\")");
+        Wield(plainBow);
+        var fletcher = data.Items["book_fletcher"]; var longDraw = data.Items["book_longdraw"];
+        Check(fletcher.UnlocksSkills.Contains("split_arrow") && longDraw.UnlocksSkills.Contains("snipe") && longDraw.UnlocksSkills.Contains("disengage") &&
+              data.LootTables["boss"].SkillBooks.Any(b => b.ItemId == "book_longdraw"),
+              "the new bow skills are in Fletcher's Manual and a second bow book, The Long Draw");
+        Check(bs.Server.TickFailures == 0, "no tick failures through the bow checks");
+        bs.Close();
     }
 
     /// <summary>A direction from <paramref name="from"/> with <paramref name="tiles"/> of clear, level ground.</summary>

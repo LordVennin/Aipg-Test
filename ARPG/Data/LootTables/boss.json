@@ -61,6 +61,10 @@
     {
       "ItemId": "book_earthshaker",
       "Weight": 10
+    },
+    {
+      "ItemId": "book_longdraw",
+      "Weight": 10
     }
   ]
 }

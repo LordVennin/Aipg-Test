@@ -1299,6 +1299,14 @@ public class PlayScreen : IScreen
             _lungeTimeLeft = lungeDuration;
             _lungeSpeed = dist / lungeDuration;
         }
+        // Hop-back skills (Disengage): a predicted hop straight away from the aim.
+        else if (def.HopBackDistance > 0 && _client.World.Me is { Alive: true } hopper)
+        {
+            var away = hopper.Position - target;
+            _lungeDir = away.LengthSquared() > 0.001f ? NumVec2.Normalize(away) : -hopper.Facing;
+            _lungeTimeLeft = MathF.Max(0.08f, def.HopBackDuration);
+            _lungeSpeed = def.HopBackDistance / _lungeTimeLeft;
+        }
         // Leap skills (Leap Slam): jump to the aimed point over the wind-up — the same
         // predicted shove as the lunge, just longer and with nothing body-checking it
         // (walls still stop it). The server lands the slam where we come down.

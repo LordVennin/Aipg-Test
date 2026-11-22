@@ -430,6 +430,9 @@ public class ServerProjectile
     /// takes the hit once (tracked here).</summary>
     public bool Pierce;
     public HashSet<int> HitIds;
+    /// <summary>Extra enemies a NON-piercing shot still passes through (the "Piercing"
+    /// bow prefix): each hit spends one; at zero the next body stops it.</summary>
+    public int PierceLeft;
     /// <summary>Sprite name override (shatter shards use "IceShard" instead of the
     /// parent skill's sprite). Null = the skill definition's ProjectileSprite.</summary>
     public string SpriteOverride;

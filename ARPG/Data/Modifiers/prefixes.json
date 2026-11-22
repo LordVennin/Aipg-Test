@@ -4876,5 +4876,101 @@
   "MaximumValue": 50,
   "Weight": 42,
   "IsPercent": true
+ },
+ {
+  "Id": "piercing",
+  "Name": "Piercing I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_pierce",
+  "StatAffected": "ProjectilePierce",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 30,
+  "IsPercent": false
+ },
+ {
+  "Id": "piercing_t2",
+  "Name": "Piercing II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_pierce",
+  "StatAffected": "ProjectilePierce",
+  "MinimumValue": 2,
+  "MaximumValue": 2,
+  "Weight": 18,
+  "IsPercent": false
+ },
+ {
+  "Id": "barbed",
+  "Name": "Barbed I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_barbed",
+  "StatAffected": "BowBleedChance",
+  "MinimumValue": 8,
+  "MaximumValue": 12,
+  "Weight": 60,
+  "IsPercent": true
+ },
+ {
+  "Id": "barbed_t2",
+  "Name": "Barbed II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_barbed",
+  "StatAffected": "BowBleedChance",
+  "MinimumValue": 13,
+  "MaximumValue": 18,
+  "Weight": 54,
+  "IsPercent": true
+ },
+ {
+  "Id": "barbed_t3",
+  "Name": "Barbed III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_barbed",
+  "StatAffected": "BowBleedChance",
+  "MinimumValue": 19,
+  "MaximumValue": 25,
+  "Weight": 48,
+  "IsPercent": true
+ },
+ {
+  "Id": "barbed_t4",
+  "Name": "Barbed IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 30,
+  "CompatibleItemCategories": [
+   "Bow"
+  ],
+  "ModifierGroup": "bow_barbed",
+  "StatAffected": "BowBleedChance",
+  "MinimumValue": 26,
+  "MaximumValue": 34,
+  "Weight": 42,
+  "IsPercent": true
  }
 ]

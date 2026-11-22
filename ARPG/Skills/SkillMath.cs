@@ -268,7 +268,7 @@ public static class SkillMath
         {
             float aps = MathF.Max(0.1f, playerStats.WeaponAttackSpeed * (1f + playerStats.AttackSpeedIncrease / 100f));
             useTime = MathF.Max(def.Cooldown, 1f / aps);
-            if (def.RequiredWeapon == null || playerStats.WeaponCategory == def.RequiredWeapon)
+            if (!def.IgnoreWeaponRange && (def.RequiredWeapon == null || playerStats.WeaponCategory == def.RequiredWeapon))
                 s.Range = MathF.Max(s.Range, playerStats.WeaponRange);
         }
         else

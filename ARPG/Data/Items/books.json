@@ -32,7 +32,7 @@
   "BaseGoldValue": 150,
   "MaxStack": 1,
   "SpriteColor": "5E8A4A",
-  "UnlocksSkills": ["arrow_shot", "arrow_rain", "piercing_shot"],
+  "UnlocksSkills": ["arrow_shot", "arrow_rain", "split_arrow"],
   "Description": "Shafts, heads and the draw that suits each. The skill trainer can teach what it describes."
  },
  {
@@ -94,5 +94,17 @@
   "SpriteColor": "8A6E4E",
   "UnlocksSkills": ["leap_slam", "fault_line"],
   "Description": "The creed is short: the ground is a weapon. The skill trainer can teach what it describes."
+ },
+ {
+  "Id": "book_longdraw",
+  "Name": "The Long Draw",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "3E6E6A",
+  "UnlocksSkills": ["piercing_shot", "snipe", "disengage"],
+  "Description": "A hunter's notebook: patience, distance, and how not to be where the boar arrives. The skill trainer can teach what it describes."
  }
 ]

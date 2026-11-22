@@ -2233,7 +2233,7 @@ public partial class ServerWorld
                 foreach (var e in Enemies.Values)
                 {
                     if (e.Dead || MathF.Abs(e.Height - pr.Height) > 0.75f) continue;
-                    if (pr.Pierce && pr.HitIds.Contains(e.Id)) continue; // already run through
+                    if (pr.HitIds != null && pr.HitIds.Contains(e.Id)) continue; // already run through
                     if (SegmentDistance(prevPos, pr.Position, e.Position) <= e.Def.Radius + 0.25f)
                     {
                         var comps = RollComponentList(pr.MinDamage, pr.MaxDamage, pr.DamageKind, pr.Added);
@@ -2250,10 +2250,16 @@ public partial class ServerWorld
                         // Scroll of Scorched Earth: fire projectiles scorch the ground.
                         if (pr.Ailments.FirePatch)
                             SpawnFirePatch(e.Position, e.Height, MathF.Max(2f, dmg * 0.2f), pr.OwnerId, pr.SkillId);
-                        if (pr.Pierce)
+                        // Slowing shots (Disengage's parting arrow).
+                        if (pr.SkillId != null && Data.Skills.TryGetValue(pr.SkillId, out var slowDef) &&
+                            slowDef.SlowChance > 0 && !e.Dead && _rng.NextDouble() < slowDef.SlowChance)
+                            e.SlowedUntil = MathF.Max(e.SlowedUntil, Time + slowDef.SlowDuration);
+                        if (pr.Pierce || pr.PierceLeft > 0)
                         {
                             // Piercing Shot: the shaft keeps flying — every body along
-                            // the line takes its own hit, once each.
+                            // the line takes its own hit, once each. (The "Piercing" bow
+                            // prefix gives any arrow a limited number of these.)
+                            if (!pr.Pierce) pr.PierceLeft--;
                             pr.HitIds.Add(e.Id);
                             _events.WorldEffect("hit", e.Position, 0.4f, 0.25f, e.Height);
                             continue;
@@ -2320,7 +2326,7 @@ public partial class ServerWorld
         // Hold-to-charge (Shield Bash): scales damage/knockback (and the client's
         // lunge). Client-timed like movement; the server just clamps it.
         charge = def.Chargeable ? Math.Clamp(charge, 0f, 1f) : 0f;
-        float chargeMult = 1f + 0.7f * charge;
+        float chargeMult = 1f + ChargeDamageBonus(def) * charge;
 
         // Weapon requirement: category check, never a specific item check.
         if (def.RequiredWeapon.HasValue)
@@ -2386,6 +2392,17 @@ public partial class ServerWorld
         // collision with brief server-side invulnerability so it can't hurt them.
         if (def.LungeDistance > 0)
             p.InvulnerableUntil = MathF.Max(p.InvulnerableUntil, Time + 0.35f);
+        // Hop-back skills (Disengage): a short backward hop on the dodge system — the
+        // client predicts the movement, the server grants the i-frames and tells
+        // everyone to play the roll.
+        if (def.HopBackDistance > 0)
+        {
+            var away = (p.Position - target).NormalizedOrZero();
+            if (away == Vector2.Zero) away = -p.Facing;
+            p.InvulnerableUntil = MathF.Max(p.InvulnerableUntil, Time + def.HopBackDuration + 0.1f);
+            p.DodgeUntil = MathF.Max(p.DodgeUntil, Time + def.HopBackDuration);
+            _events.PlayerDodged(p, away, def.HopBackDistance, def.HopBackDuration);
+        }
         // Leap skills (Leap Slam): airborne — and untouchable — until the landing.
         if (def.LeapDistance > 0)
             p.InvulnerableUntil = MathF.Max(p.InvulnerableUntil, Time + def.WindupTime + 0.15f);
@@ -2413,6 +2430,9 @@ public partial class ServerWorld
 
         ResolveSkill(p, skillId, def, stats, target, targetHeight, chargeMult, phase: 0);
     }
+
+    /// <summary>Damage gained at full charge (+70% unless the skill sets its own: Snipe).</summary>
+    public static float ChargeDamageBonus(SkillDefinition def) => def.ChargeDamageBonus > 0f ? def.ChargeDamageBonus : 0.7f;
 
     /// <summary>A cast whose hit is still winding up (Mace Slam's delayed impact).</summary>
     private class PendingStrike
@@ -2618,7 +2638,11 @@ public partial class ServerWorld
                 var baseDir = (target - p.Position).NormalizedOrZero();
                 if (baseDir == Vector2.Zero) baseDir = p.Facing;
                 int count = Math.Max(1, stats.ProjectileCount);
-                float spread = 0.21f; // ~12 degrees between projectiles
+                float spread = def.ProjectileSpread; // radians between projectiles (0.21 ≈ 12°)
+                // Charged shots (Snipe): range and speed grow with the draw, and a
+                // full draw punches through everything in line.
+                float charge01 = def.Chargeable ? Math.Clamp((chargeMult - 1f) / ChargeDamageBonus(def), 0f, 1f) : 0f;
+                bool pierces = def.Pierce || (def.PierceAtFullCharge && charge01 >= 0.95f);
                 for (int i = 0; i < count; i++)
                 {
                     float offset = (i - (count - 1) / 2f) * spread;
@@ -2632,8 +2656,8 @@ public partial class ServerWorld
                         Position = p.Position + dir * 0.4f,
                         Height = p.Height,
                         Direction = dir,
-                        Speed = stats.ProjectileSpeed,
-                        MaxRange = stats.Range,
+                        Speed = stats.ProjectileSpeed * (1f + def.ChargeSpeedBonus * charge01),
+                        MaxRange = stats.Range * (1f + def.ChargeRangeBonus * charge01),
                         HeightStep = MathF.Abs(targetHeight - p.Height) > 0.05f
                             ? (targetHeight - p.Height) / MathF.Max(0.5f, Vector2.Distance(p.Position, target))
                             : 0f,
@@ -2647,8 +2671,9 @@ public partial class ServerWorld
                         Ailments = stats,
                         // Piercing shots fly through everything they hit; a charged
                         // draw also flies farther.
-                        Pierce = def.Pierce,
-                        HitIds = def.Pierce ? new HashSet<int>() : null,
+                        Pierce = pierces,
+                        PierceLeft = pierces ? 0 : Math.Max(0, stats.ExtraPierce),
+                        HitIds = pierces || stats.ExtraPierce > 0 ? new HashSet<int>() : null,
                     };
                     if (def.Pierce) pr.MaxRange *= chargeMult;
                     Projectiles[pr.Id] = pr;
