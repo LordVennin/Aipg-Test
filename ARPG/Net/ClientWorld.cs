@@ -274,6 +274,8 @@ public class FloatingNumber
     public bool TargetIsPlayer;
     /// <summary>True: the hit was fully blocked — render "Blocked" instead of a number.</summary>
     public bool Blocked;
+    /// <summary>True: a mace Crash bonus — drawn as "Crash N" in its own tint.</summary>
+    public bool Crash;
     public float Age;
     public const float Lifetime = 0.9f;
 }
@@ -462,6 +464,8 @@ public class ClientWorld
     public bool SurvivalDone;
     /// <summary>This world only teaches skills a book has unlocked (story worlds).</summary>
     public bool SkillsGated;
+    /// <summary>Crash damage events received (diagnostics, tests).</summary>
+    public int CrashEventsSeen;
 
     // Defense-run state (DefenseState packets; drives the wave banner + wagon bar).
     public byte DefensePhase;      // (Server.DefensePhase)

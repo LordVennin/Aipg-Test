@@ -50,6 +50,15 @@ public struct ComputedStats
     public int SummonLimitBonus;         // flat extra minions
     public float LightRadiusIncrease;    // percent — personal torchglow in dark zones
 
+    // Weapon-identity stats (batch 85; roll on maces / bows only)
+    public float StunBuildupIncrease;     // percent — "Concussive"
+    public float ImpactIncrease;          // percent knockback distance + Crash damage — "of Impact"
+    public float SlamAreaIncrease;        // percent area of Slam skills — "Seismic"
+    public float DamageVsStunnedIncrease; // percent vs stunned/frozen — "Crushing"
+    public int ExtraPierce;               // flat — "Piercing"
+    public float ProjectileReachIncrease; // percent projectile speed + range — "of the Hawk"
+    public float BowBleedChance;          // percent — "Barbed"
+
     /// <summary>Equipped items whose requirements are no longer met — still worn but
     /// contributing nothing (the UI paints them red). Null when constructed bare
     /// (tests/defaults), so consumers must null-check.</summary>
@@ -328,6 +337,13 @@ public static class StatCalculator
             SummonLimitBonus = (int)total.Get(StatType.SummonLimit),
             UniqueEffects = uniqueEffects,
             LightRadiusIncrease = total.Get(StatType.LightRadius),
+            StunBuildupIncrease = total.Get(StatType.StunBuildup),
+            ImpactIncrease = total.Get(StatType.Impact),
+            SlamAreaIncrease = total.Get(StatType.SlamArea),
+            DamageVsStunnedIncrease = total.Get(StatType.DamageVsStunned),
+            ExtraPierce = (int)MathF.Round(total.Get(StatType.ProjectilePierce)),
+            ProjectileReachIncrease = total.Get(StatType.ProjectileReach),
+            BowBleedChance = total.Get(StatType.BowBleedChance),
             InactiveItems = inactive,
         };
 

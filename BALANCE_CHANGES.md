@@ -1999,3 +1999,37 @@ a Barrow Knight (native 3) 55 hp / 14 dmg / 11 xp.
   Gilded Codex kill, gets one book reserved for them (suited to their class when
   possible) until they have PICKED ONE UP from that boss. A book left on the ground is
   lost with the map and drops again on the next kill.
+
+### Mace identity (85.13)
+
+- **Crash** (every mace skill, `Data/Config/mace_crash.json`): a mace skill's knockback
+  that drives an enemy into a wall, a structure or another enemy deals a bonus **40%**
+  of the hit that threw it and **+35 stun buildup** (stun lasts 1.2 s when it tips
+  over); an enemy it was thrown INTO takes **20%** of the hit and +15 buildup. Needs
+  at least 0.5 tiles of knockback. Shown as an orange "Crash N" number and a dust puff.
+- **Leap Slam** (Slam, MeleeArea): leap up to **5.5 tiles** to the aimed point over a
+  0.45 s wind-up, invulnerable in the air; on landing 110% weapon damage (+9%/level) in
+  radius 2.0 (+0.08/level), knockback **1.8** outward, 40 stun buildup. 5 s cooldown,
+  12 mana.
+- **Skull Crack** (single target): 170% weapon damage (+12%/level) after a 0.55 s
+  wind-up, **85 stun buildup** (1.4 s stun). Against a stunned or frozen target:
+  **+100% damage** and the stun/freeze is extended by **1.2 s**. 2.2 s cooldown, 10 mana.
+- **Fault Line** (Slam): a slam for 90% weapon damage (+7%/level, radius 1.2, knockback
+  1.2), then three eruptions along the aim at 1.5 / 3.0 / 4.5 tiles, 0.25 s apart, each
+  80% of the skill's hit in radius 1.2 with the same knockback (outward from the
+  eruption, so they Crash off nearby walls). A wall stops the fissure. 3.5 s cooldown,
+  14 mana.
+- **Mace-only modifiers** (four tiers at item level 1 / 10 / 20 / 30):
+
+  | Modifier | Type | Effect | T1 | T2 | T3 | T4 |
+  |---|---|---|---|---|---|---|
+  | Concussive | prefix | % stun buildup | 10-16 | 17-24 | 25-33 | 34-44 |
+  | Seismic | prefix | % area of Slam skills | 6-10 | 11-15 | 16-21 | 22-28 |
+  | Crushing | prefix | % damage vs stunned/frozen | 12-18 | 19-27 | 28-38 | 39-50 |
+  | of Impact | suffix | % knockback distance and Crash damage | 8-14 | 15-22 | 23-31 | 32-42 |
+
+- **Skill scroll *Aftershock*** (`Slam` tag): the slam repeats where it landed 0.6 s
+  later at **50%** damage, half knockback, half stun buildup.
+- Books: *Shieldbearer's Drill* now also teaches Skull Crack; new *Earthshaker's
+  Creed* teaches Leap Slam and Fault Line (boss table; Bandit Brute 3%).
+- Stuns never shorten: a fresh stun on an already-stunned enemy keeps the longer one.

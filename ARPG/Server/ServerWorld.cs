@@ -33,7 +33,7 @@ public interface IServerEvents
     void MessageFor(ServerPlayer p, string text);
     void PlayerDodged(ServerPlayer p, Vector2 direction, float distance, float duration);
     /// <summary>A damage application, for floating combat numbers on all clients.</summary>
-    void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false, Vector2 hitDir = default);
+    void DamageDealt(bool targetIsPlayer, int targetId, float amount, DamageKind kind, Vector2 position, bool blocked = false, Vector2 hitDir = default, bool crash = false);
     /// <summary>A boss ground-slam burst, for the AoE visual on all clients.</summary>
     void EnemySlammed(ServerEnemy e, float radius, byte phase);
     /// <summary>A caster's ranged AoE: warning circle at the locked target spot
@@ -512,6 +512,7 @@ public partial class ServerWorld
         _windups.Clear();
         _rainVolleys.Clear();
         _tremors.Clear();
+        _groundBursts.Clear();
         _flow.Clear();
         _rallyFields.Clear();
         _wagonFlow = null;
@@ -1028,6 +1029,7 @@ public partial class ServerWorld
         UpdateWindups();
         TickRainVolleys();
         TickTremors();
+        TickGroundBursts();
         TickStormBursts();
         TickFirePatches();
         TickSummons(dt);
@@ -2240,7 +2242,7 @@ public partial class ServerWorld
                         HitEnemy(e, dmg, pr.OwnerId, pr.SkillId, hitKind, pr.Direction);
                         ApplyAilments(e, comps, dmg, pr.Ailments);
                         if (pr.SkillId != null && Data.Skills.TryGetValue(pr.SkillId, out var prDef))
-                            ApplyStunBuildup(e, prDef);
+                            ApplyStunBuildupBy(Players.GetValueOrDefault(pr.OwnerId), e, prDef.StunBuildup, prDef.StunDuration);
                         // Scroll of Shattering: cold projectiles burst into small shards
                         // that continue BEHIND the struck enemy in a shotgun spread.
                         if (pr.Ailments.ShatterShards > 0)
@@ -2384,6 +2386,9 @@ public partial class ServerWorld
         // collision with brief server-side invulnerability so it can't hurt them.
         if (def.LungeDistance > 0)
             p.InvulnerableUntil = MathF.Max(p.InvulnerableUntil, Time + 0.35f);
+        // Leap skills (Leap Slam): airborne — and untouchable — until the landing.
+        if (def.LeapDistance > 0)
+            p.InvulnerableUntil = MathF.Max(p.InvulnerableUntil, Time + def.WindupTime + 0.15f);
 
         // Wind-up skills (Mace Slam): costs are paid now, but the hit lands after
         // WindupTime. SkillUsed is broadcast immediately so clients start the slam
@@ -2395,10 +2400,13 @@ public partial class ServerWorld
                 PlayerId = playerId, SkillId = skillId, Target = target,
                 TargetHeight = targetHeight, TargetEnemyId = targetEnemyId,
                 ChargeMult = chargeMult, Stats = stats,
-                ExecuteAt = Time + def.WindupTime,
+                // A leap lands a hair late so the leaper's last position update is in.
+                ExecuteAt = Time + def.WindupTime + (def.LeapDistance > 0 ? 0.06f : 0f),
             });
             _events.SkillUsed(p, skillId,
-                SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range), phase: 1,
+                def.LeapDistance > 0
+                    ? SkillMath.LeapLanding(p.Position, target, p.Facing, def.LeapDistance)
+                    : SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range), phase: 1,
                 radius: stats.Radius);
             return;
         }
@@ -2457,7 +2465,7 @@ public partial class ServerWorld
                 var (dmg, kind) = RollSkillHit(e, tr.Stats, out var comps);
                 HitEnemy(e, dmg * mult, tr.OwnerId, tr.SkillId, kind, e.Position - tr.Position);
                 ApplyAilments(e, comps, dmg * mult, tr.Stats);
-                if (!e.Dead) ApplyStunBuildup(e, tr.Def.StunBuildup * 0.4f, tr.Def.StunDuration);
+                if (!e.Dead) ApplyStunBuildupBy(Players.GetValueOrDefault(tr.OwnerId), e, tr.Def.StunBuildup * 0.4f, tr.Def.StunDuration);
             }
             _events.WorldEffect("aftershock", tr.Position, tr.Radius, 0.8f, tr.Height);
         }
@@ -2537,16 +2545,13 @@ public partial class ServerWorld
                     HitEnemy(e, dmg * chargeMult, playerId, skillId, kind, e.Position - p.Position);
                     ApplyAilments(e, comps, dmg * chargeMult, stats);
                     if (e.Dead) continue;
-                    if (def.Knockback > 0)
-                    {
-                        var push = (e.Position - p.Position).NormalizedOrZero();
-                        if (push == Vector2.Zero) push = p.Facing;
-                        e.Position = Map.MoveWithCollision(e.Position, push * def.Knockback * chargeMult, e.Def.Radius, ref e.Height);
-                    }
-                    ApplyStunBuildup(e, def);
+                    KnockbackEnemy(p, e, p.Position, def.Knockback * chargeMult, dmg * chargeMult, def, skillId);
+                    ApplyStunBuildupBy(p, e, def.StunBuildup, def.StunDuration);
                     if (def.SlowChance > 0 && _rng.NextDouble() < def.SlowChance)
                         e.SlowedUntil = Time + def.SlowDuration;
                 }
+                // Fault Line: the slam cracks the ground onward along the aim.
+                if (def.FissureBursts > 0) QueueFissure(p, skillId, def, stats, effectPoint, aimDir);
                 break;
             }
             case SkillArchetype.MeleeSingle:
@@ -2555,19 +2560,27 @@ public partial class ServerWorld
                 // the hit (a shield bash into a cluster staggers the cluster), each
                 // knocked back away from the caster with wall collision.
                 effectPoint = SkillMath.MeleeImpactPoint(p.Position, target, p.Facing, stats.Range);
-                foreach (var victim in EnemiesNearMelee(p, effectPoint, stats.Radius))
+                var victims = EnemiesNearMelee(p, effectPoint, stats.Radius);
+                // Single-target blows (Skull Crack) pick the one body nearest the impact.
+                if (def.SingleTarget)
+                    victims = victims.OrderBy(v => Vector2.Distance(v.Position, effectPoint)).Take(1).ToList();
+                foreach (var victim in victims)
                 {
+                    // The payoff for the stun game: a helpless target takes far more,
+                    // and stays helpless longer.
+                    bool helpless = Helpless(victim, Time);
+                    float vMult = chargeMult * (helpless && def.BonusVsStunnedPct > 0f ? 1f + def.BonusVsStunnedPct / 100f : 1f);
                     var (vDmg, vKind) = RollSkillHit(victim, stats, out var vComps);
-                    HitEnemy(victim, vDmg * chargeMult, playerId, skillId, vKind, victim.Position - p.Position);
-                    ApplyAilments(victim, vComps, vDmg * chargeMult, stats);
+                    HitEnemy(victim, vDmg * vMult, playerId, skillId, vKind, victim.Position - p.Position);
+                    ApplyAilments(victim, vComps, vDmg * vMult, stats);
                     if (victim.Dead) continue;
-                    if (def.Knockback > 0)
+                    if (helpless && def.StunExtend > 0f)
                     {
-                        var push = (victim.Position - p.Position).NormalizedOrZero();
-                        if (push == Vector2.Zero) push = p.Facing;
-                        victim.Position = Map.MoveWithCollision(victim.Position, push * def.Knockback * chargeMult, victim.Def.Radius, ref victim.Height);
+                        if (Time < victim.StunnedUntil) victim.StunnedUntil += def.StunExtend;
+                        if (Time < victim.FrozenUntil) victim.FrozenUntil += def.StunExtend;
                     }
-                    ApplyStunBuildup(victim, def);
+                    KnockbackEnemy(p, victim, p.Position, def.Knockback * chargeMult, vDmg * vMult, def, skillId);
+                    ApplyStunBuildupBy(p, victim, def.StunBuildup, def.StunDuration);
                 }
                 break;
             }
@@ -2576,16 +2589,13 @@ public partial class ServerWorld
                 effectPoint = p.Position;
                 foreach (var e in EnemiesNearMelee(p, p.Position, stats.Radius))
                 {
-                    { var (dmg, kind) = RollSkillHit(e, stats, out var comps); HitEnemy(e, dmg, playerId, skillId, kind, e.Position - p.Position); ApplyAilments(e, comps, dmg, stats); }
+                    var (dmg, kind) = RollSkillHit(e, stats, out var comps);
+                    HitEnemy(e, dmg, playerId, skillId, kind, e.Position - p.Position);
+                    ApplyAilments(e, comps, dmg, stats);
                     if (e.Dead) continue;
-                    if (def.Knockback > 0)
-                    {
-                        // The shockwave hurls survivors straight away from the caster.
-                        var push = (e.Position - p.Position).NormalizedOrZero();
-                        if (push == Vector2.Zero) push = p.Facing;
-                        e.Position = Map.MoveWithCollision(e.Position, push * def.Knockback, e.Def.Radius, ref e.Height);
-                    }
-                    ApplyStunBuildup(e, def);
+                    // The shockwave hurls survivors straight away from the caster.
+                    KnockbackEnemy(p, e, p.Position, def.Knockback, dmg, def, skillId);
+                    ApplyStunBuildupBy(p, e, def.StunBuildup, def.StunDuration);
                 }
                 // Earthquake follow-up (Ground Slam): the circle keeps shaking where
                 // the slam landed — a lighter slow on everything inside — until the
@@ -2741,6 +2751,11 @@ public partial class ServerWorld
             if (swingDir == Vector2.Zero) swingDir = p.Facing;
             BreakBreakablesNear(p.Position + swingDir * 0.8f, MathF.Max(stats.Range, 1.0f), p);
         }
+        // Aftershock scroll: a Slam repeats where it landed, weaker, a moment later.
+        if (stats.RepeatDamageMult > 0f && def.HasTag("Slam") &&
+            def.Archetype is SkillArchetype.MeleeStrike or SkillArchetype.MeleeSingle or SkillArchetype.MeleeArea)
+            QueueGroundBurst(p, skillId, def, stats, effectPoint, MathF.Max(stats.Radius, 0.8f), stats.RepeatDelay,
+                stats.RepeatDamageMult, def.Knockback * 0.5f, 0.5f);
         _events.SkillUsed(p, skillId, effectPoint, phase, stats.Radius);
     }
 
@@ -3635,8 +3650,9 @@ public partial class ServerWorld
         if (e.StunBuildup < StunThreshold) return;
         e.StunBuildup = 0f;
         e.StunResistStacks++;
-        e.StunnedUntil = Time + (stunDuration > 0 ? stunDuration : DefaultStunDuration) *
-                         (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.5f : 1f);
+        // (Max: a fresh stun never cuts short one Skull Crack has extended.)
+        e.StunnedUntil = MathF.Max(e.StunnedUntil, Time + (stunDuration > 0 ? stunDuration : DefaultStunDuration) *
+                         (e.Affixes.HasFlag(EliteAffix.Boss) ? 0.5f : 1f));
     }
 
     private static Vector2 ClampToRange(Vector2 from, Vector2 target, float range)
@@ -3789,6 +3805,10 @@ public partial class ServerWorld
         Vector2 hitDir = default)
     {
         e.LastHitDir = hitDir.NormalizedOrZero();
+        // "Crushing" (mace prefix): more damage to the stunned and the frozen.
+        if (skillId != null && Helpless(e, Time) && Players.TryGetValue(byPlayer, out var hitter) &&
+            hitter.Stats.DamageVsStunnedIncrease > 0f)
+            damage *= 1f + hitter.Stats.DamageVsStunnedIncrease / 100f;
         DamageEnemy(e, damage, byPlayer, skillId, kind);
         e.LastHitDir = Vector2.Zero;
     }
@@ -3842,14 +3862,14 @@ public partial class ServerWorld
         {
             e.Health = 0;
             e.State = EnemyState.Dead;
-            if (emitEvents) _events.DamageDealt(false, e.Id, damage, kind, e.Position, hitDir: e.LastHitDir);
+            if (emitEvents) _events.DamageDealt(false, e.Id, damage, kind, e.Position, hitDir: e.LastHitDir, crash: _crashHitInProgress);
             _events.EnemyDied(e);
             OnEnemyKilled(e);
         }
         else if (emitEvents)
         {
             e.State = e.State == EnemyState.Idle ? EnemyState.Chase : e.State;
-            _events.DamageDealt(false, e.Id, damage, kind, e.Position, hitDir: e.LastHitDir);
+            _events.DamageDealt(false, e.Id, damage, kind, e.Position, hitDir: e.LastHitDir, crash: _crashHitInProgress);
             _events.EnemyHealthChanged(e);
         }
     }

@@ -97,5 +97,17 @@
   "DropWeight": 100, "SpriteColor": "D0502A",
   "ScrollId": "scorched_earth",
   "Description": "Attach to a Fire skill: projectiles scorch the ground on hit."
+ },
+ {
+  "Id": "scroll_aftershock",
+  "Name": "Aftershock Scroll",
+  "Category": "SkillScroll",
+  "InventoryWidth": 1,
+  "InventoryHeight": 1,
+  "BaseModifierLimit": 0,
+  "DropWeight": 80,
+  "SpriteColor": "B08040",
+  "ScrollId": "aftershock",
+  "Description": "Attach to a Slam skill: the slam repeats 0.6 seconds later at half damage."
  }
 ]

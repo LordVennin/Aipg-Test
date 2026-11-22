@@ -45,6 +45,11 @@ public struct EffectiveSkillStats
     public int ShatterShards;
     /// <summary>Fire projectiles: leave a burning ground patch on hit (Scroll of Scorched Earth).</summary>
     public bool FirePatch;
+    /// <summary>Aftershock scroll: the slam repeats at this damage fraction after RepeatDelay.</summary>
+    public float RepeatDamageMult;
+    public float RepeatDelay;
+    /// <summary>Extra enemies a projectile passes through (the "Piercing" bow prefix).</summary>
+    public int ExtraPierce;
     public float ManaCost;
     public float CritChance;      // percent
     public float CritDamage;      // percent multiplier (150 = 1.5x)
@@ -132,6 +137,19 @@ public static class SkillMath
     /// Damage-per-second by damage type for a computed skill: average of each typed
     /// component times uses per second (1/cooldown). Used by the character sheet.
     /// </summary>
+    /// <summary>Where a leap (Leap Slam) comes down: the aimed point, at most
+    /// <paramref name="maxDistance"/> tiles away. Shared by the server (telegraph) and the
+    /// client (the predicted jump); walls stop the jump itself client-side.</summary>
+    public static System.Numerics.Vector2 LeapLanding(
+        System.Numerics.Vector2 caster, System.Numerics.Vector2 aim,
+        System.Numerics.Vector2 facing, float maxDistance)
+    {
+        var toAim = aim - caster;
+        float len = toAim.Length();
+        if (len < 0.001f) return caster;
+        return caster + toAim / len * MathF.Min(len, maxDistance);
+    }
+
     public static Dictionary<DamageKind, float> DpsBreakdown(in EffectiveSkillStats stats)
     {
         float perSecond = 1f / MathF.Max(0.05f, stats.Cooldown);
@@ -291,6 +309,10 @@ public static class SkillMath
                     case ScrollStat.RangeMultiplier:
                         s.Range = s.Range * fx.Mult + fx.Add;
                         break;
+                    case ScrollStat.Aftershock:
+                        s.RepeatDamageMult = MathF.Max(s.RepeatDamageMult, fx.Add);
+                        s.RepeatDelay = fx.Mult > 0f && fx.Mult != 1f ? fx.Mult : 0.6f;
+                        break;
                     case ScrollStat.IgniteChance:
                         s.IgniteChance = MathF.Min(1f, s.IgniteChance + fx.Add);
                         break;
@@ -322,6 +344,20 @@ public static class SkillMath
                 };
 
         s.Cooldown = MathF.Max(0.1f, useTime / MathF.Max(0.1f, speedMult) * cooldownMult);
+
+        // Weapon-specific gear (batch 85). These stats only roll on maces / bows, so
+        // they only exist while that weapon is held.
+        if (def.HasTag("Slam") && playerStats.SlamAreaIncrease > 0f)
+            s.Radius *= 1f + playerStats.SlamAreaIncrease / 100f;             // "Seismic"
+        if (def.RequiredWeapon == Items.ItemCategory.Bow && playerStats.WeaponCategory == Items.ItemCategory.Bow)
+        {
+            s.ExtraPierce = playerStats.ExtraPierce;                           // "Piercing"
+            float hawk = 1f + playerStats.ProjectileReachIncrease / 100f;      // "of the Hawk"
+            s.ProjectileSpeed *= hawk;
+            if (def.Archetype == SkillArchetype.Projectile) s.Range *= hawk;
+            if (playerStats.BowBleedChance > 0f)                               // "Barbed"
+                s.BleedChance = MathF.Min(1f, s.BleedChance + playerStats.BowBleedChance / 100f);
+        }
 
         // Power has a price: higher skill levels and attached scrolls both raise the
         // cast's mana cost (a Multishot fire bolt is a bigger bolt of mana too).

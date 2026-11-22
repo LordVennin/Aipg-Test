@@ -543,7 +543,7 @@
   "SpriteStyle": "Bandit",
   "SpriteRole": "brute",
   "SpriteScale": 1.2,
-  "ExtraDrops": [ { "ItemId": "book_shieldbearer", "Chance": 0.03 }, { "ItemId": "book_hammer_anvil", "Chance": 0.03 } ]
+  "ExtraDrops": [ { "ItemId": "book_shieldbearer", "Chance": 0.03 }, { "ItemId": "book_hammer_anvil", "Chance": 0.03 }, { "ItemId": "book_earthshaker", "Chance": 0.03 } ]
  },
  {
   "Id": "bandit_captain",

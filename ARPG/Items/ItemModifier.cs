@@ -95,6 +95,13 @@ public class ItemModifier
             StatType.BlockCooldownRecovery => "Block Cooldown Recovery",
             StatType.ModifierLimit => "Modifier Limit",
             StatType.LightRadius => "Light Radius",
+            StatType.StunBuildup => "Stun Buildup",
+            StatType.Impact => "Knockback and Crash Damage",
+            StatType.SlamArea => "Area of Slam skills",
+            StatType.DamageVsStunned => "Damage against Stunned or Frozen enemies",
+            StatType.ProjectilePierce => "Enemies Pierced by Bow Projectiles",
+            StatType.ProjectileReach => "Projectile Speed and Range with Bows",
+            StatType.BowBleedChance => "Chance to Bleed with Bow attacks",
             _ => StatAffected.ToString(),
         };
         return $"+{amount} {statName}";

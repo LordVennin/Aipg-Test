@@ -4684,5 +4684,197 @@
   "MaximumValue": 60,
   "Weight": 10,
   "IsPercent": false
+ },
+ {
+  "Id": "concussive",
+  "Name": "Concussive I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_stun",
+  "StatAffected": "StunBuildup",
+  "MinimumValue": 10,
+  "MaximumValue": 16,
+  "Weight": 60,
+  "IsPercent": true
+ },
+ {
+  "Id": "concussive_t2",
+  "Name": "Concussive II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_stun",
+  "StatAffected": "StunBuildup",
+  "MinimumValue": 17,
+  "MaximumValue": 24,
+  "Weight": 54,
+  "IsPercent": true
+ },
+ {
+  "Id": "concussive_t3",
+  "Name": "Concussive III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_stun",
+  "StatAffected": "StunBuildup",
+  "MinimumValue": 25,
+  "MaximumValue": 33,
+  "Weight": 48,
+  "IsPercent": true
+ },
+ {
+  "Id": "concussive_t4",
+  "Name": "Concussive IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 30,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_stun",
+  "StatAffected": "StunBuildup",
+  "MinimumValue": 34,
+  "MaximumValue": 44,
+  "Weight": 42,
+  "IsPercent": true
+ },
+ {
+  "Id": "seismic",
+  "Name": "Seismic I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_seismic",
+  "StatAffected": "SlamArea",
+  "MinimumValue": 6,
+  "MaximumValue": 10,
+  "Weight": 60,
+  "IsPercent": true
+ },
+ {
+  "Id": "seismic_t2",
+  "Name": "Seismic II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_seismic",
+  "StatAffected": "SlamArea",
+  "MinimumValue": 11,
+  "MaximumValue": 15,
+  "Weight": 54,
+  "IsPercent": true
+ },
+ {
+  "Id": "seismic_t3",
+  "Name": "Seismic III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_seismic",
+  "StatAffected": "SlamArea",
+  "MinimumValue": 16,
+  "MaximumValue": 21,
+  "Weight": 48,
+  "IsPercent": true
+ },
+ {
+  "Id": "seismic_t4",
+  "Name": "Seismic IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 30,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_seismic",
+  "StatAffected": "SlamArea",
+  "MinimumValue": 22,
+  "MaximumValue": 28,
+  "Weight": 42,
+  "IsPercent": true
+ },
+ {
+  "Id": "crushing",
+  "Name": "Crushing I",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_crushing",
+  "StatAffected": "DamageVsStunned",
+  "MinimumValue": 12,
+  "MaximumValue": 18,
+  "Weight": 60,
+  "IsPercent": true
+ },
+ {
+  "Id": "crushing_t2",
+  "Name": "Crushing II",
+  "AffixType": "Prefix",
+  "Tier": 2,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_crushing",
+  "StatAffected": "DamageVsStunned",
+  "MinimumValue": 19,
+  "MaximumValue": 27,
+  "Weight": 54,
+  "IsPercent": true
+ },
+ {
+  "Id": "crushing_t3",
+  "Name": "Crushing III",
+  "AffixType": "Prefix",
+  "Tier": 3,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_crushing",
+  "StatAffected": "DamageVsStunned",
+  "MinimumValue": 28,
+  "MaximumValue": 38,
+  "Weight": 48,
+  "IsPercent": true
+ },
+ {
+  "Id": "crushing_t4",
+  "Name": "Crushing IV",
+  "AffixType": "Prefix",
+  "Tier": 4,
+  "MinimumItemLevel": 30,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_crushing",
+  "StatAffected": "DamageVsStunned",
+  "MinimumValue": 39,
+  "MaximumValue": 50,
+  "Weight": 42,
+  "IsPercent": true
  }
 ]

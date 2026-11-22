@@ -57,6 +57,10 @@
     {
       "ItemId": "book_ossuary",
       "Weight": 10
+    },
+    {
+      "ItemId": "book_earthshaker",
+      "Weight": 10
     }
   ]
 }

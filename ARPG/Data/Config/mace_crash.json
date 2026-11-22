@@ -1,0 +1,8 @@
+{
+  "DamagePct": 40,
+  "SecondaryDamagePct": 20,
+  "StunBuildup": 35,
+  "SecondaryStunBuildup": 15,
+  "StunDuration": 1.2,
+  "MinKnockback": 0.5
+}

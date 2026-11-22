@@ -1118,7 +1118,12 @@ public static partial class HeadlessNetTest
         Check(stunFlagSeen, "stun debuff flag replicated to the client for indicator icons");
 
         Console.WriteLine("\n-- Tiered modifiers and damage types --");
-        Check(data.Modifiers.Count == 482, $"tiered modifier database loaded ({data.Modifiers.Count} modifiers)");
+        // Batch 85 added weapon-identity modifiers (groups "mace_*" and "bow_*"); the
+        // original tiered database is still exactly 482 entries.
+        int weaponIdentityMods = data.Modifiers.Values.Count(m => m.ModifierGroup != null &&
+            (m.ModifierGroup.StartsWith("mace_") || m.ModifierGroup.StartsWith("bow_")));
+        Check(data.Modifiers.Count - weaponIdentityMods == 482 && weaponIdentityMods >= 16,
+              $"tiered modifier database loaded ({data.Modifiers.Count} modifiers: the original 482 + {weaponIdentityMods} mace/bow-only)");
         Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 46,
               "every full family has a tier X (46 tiered families reach tier 10)");
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&

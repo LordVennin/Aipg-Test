@@ -1265,6 +1265,8 @@ public class GameClient
                 fn.Position = r.GetVec2();
                 fn.Blocked = r.GetBool();
                 var hitDir = r.GetVec2();
+                fn.Crash = r.GetBool();
+                if (fn.Crash) World.CrashEventsSeen++;
                 if (fn.Blocked) World.BlockedEventsSeen++;
                 if (fn.Blocked)
                     Audio.AudioManager.PlayWorld(fn.Position, "block");

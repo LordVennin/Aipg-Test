@@ -4032,10 +4032,15 @@ public class WorldRenderer
                 float alpha = 1f - t * t;
                 var color = (fn.Blocked
                     ? new Color(180, 200, 230)
+                    : fn.Crash
+                        ? CrashColor
                     : fn.TargetIsPlayer
                         ? new Color(255, 80, 80)
                         : DamageKindColor((Skills.DamageKind)fn.Kind)) * alpha;
-                string text = fn.Blocked ? "Blocked" : $"{MathF.Max(1, MathF.Round(fn.Amount)):0}";
+                string text = fn.Blocked ? "Blocked"
+                    : fn.Crash ? $"Crash {MathF.Max(1, MathF.Round(fn.Amount)):0}"
+                    : $"{MathF.Max(1, MathF.Round(fn.Amount)):0}";
+                if (fn.Crash) screen.Y -= 14; // sits above the hit that caused it
                 var size = dmgFont.MeasureString(text);
                 sb.DrawString(dmgFont, text, new Vector2(screen.X - size.X / 2, screen.Y), color);
             }
@@ -4229,6 +4234,9 @@ public class WorldRenderer
         Skills.DamageKind.Light => new Color(255, 252, 210),
         _ => new Color(245, 240, 230), // physical: thrust/blunt/slash
     };
+
+    /// <summary>The mace Crash bonus's damage-number tint (a dusty orange no damage type uses).</summary>
+    public static readonly Color CrashColor = new(255, 168, 72);
 
     /// <summary>Loot-label / border colour for skill books: a teal no rarity uses.</summary>
     public static readonly Color SkillBookColor = new(96, 226, 204);

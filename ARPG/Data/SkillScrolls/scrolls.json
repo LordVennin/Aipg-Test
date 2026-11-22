@@ -118,5 +118,18 @@
     "Add": 1
    }
   ]
+ },
+ {
+  "Id": "aftershock",
+  "Name": "Aftershock",
+  "Description": "The slam repeats where it landed 0.6 seconds later for 50% damage.",
+  "RequiredTag": "Slam",
+  "Effects": [
+   {
+    "Stat": "Aftershock",
+    "Add": 0.5,
+    "Mult": 0.6
+   }
+  ]
  }
 ]

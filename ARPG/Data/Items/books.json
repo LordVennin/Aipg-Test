@@ -20,7 +20,7 @@
   "BaseGoldValue": 150,
   "MaxStack": 1,
   "SpriteColor": "7C8898",
-  "UnlocksSkills": ["shield_bash"],
+  "UnlocksSkills": ["shield_bash", "skull_crack"],
   "Description": "Parade-ground drills for the shield line, annotated in a soldier's hand. The skill trainer can teach what it describes."
  },
  {
@@ -82,5 +82,17 @@
   "SpriteColor": "B8B4A0",
   "UnlocksSkills": ["summon_skeleton", "summon_skeleton_warrior"],
   "Description": "Bound in something pale. It explains, patiently, how to ask the dead for a favour. The skill trainer can teach what it describes."
+ },
+ {
+  "Id": "book_earthshaker",
+  "Name": "Earthshaker's Creed",
+  "Category": "Curio",
+  "BaseModifierLimit": 0,
+  "DropWeight": 0,
+  "BaseGoldValue": 150,
+  "MaxStack": 1,
+  "SpriteColor": "8A6E4E",
+  "UnlocksSkills": ["leap_slam", "fault_line"],
+  "Description": "The creed is short: the ground is a weapon. The skill trainer can teach what it describes."
  }
 ]

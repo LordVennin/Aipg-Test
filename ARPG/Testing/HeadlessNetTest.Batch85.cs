@@ -94,6 +94,335 @@ public static partial class HeadlessNetTest
         Batch85Pools(data);
         Batch85BanditsAndGoblins(data);
         Batch85SkillBooks(data);
+        Batch85Mace(data);
+    }
+
+    /// <summary>A direction from <paramref name="from"/> with <paramref name="tiles"/> of clear, level ground.</summary>
+    private static Vector2 OpenDirection(World.GameMap map, Vector2 from, float tiles)
+    {
+        float h = map.GroundHeightAt(from);
+        foreach (var dir in new[] { new Vector2(-1, 0), new Vector2(0, -1), new Vector2(0, 1), new Vector2(1, 0),
+                     Vector2.Normalize(new Vector2(-1, -1)), Vector2.Normalize(new Vector2(-1, 1)), Vector2.Normalize(new Vector2(1, -1)), Vector2.Normalize(new Vector2(1, 1)) })
+        {
+            bool clear = true;
+            for (float t = 0.25f; t <= tiles && clear; t += 0.25f)
+            {
+                var at = from + dir * t;
+                clear = !map.CircleHitsWall(at, 0.55f) && !map.IsWater((int)at.X, (int)at.Y) && MathF.Abs(map.GroundHeightAt(at) - h) < 0.05f;
+            }
+            if (clear) return dir;
+        }
+        return Vector2.Zero;
+    }
+
+    private static void Batch85Mace(GameData data)
+    {
+        Console.WriteLine("\n-- Batch 85.13: mace identity — Crash, Leap Slam, Skull Crack, Fault Line, mace modifiers, Aftershock --");
+        var crashCfg = data.MaceCrash;
+        var ms = new Session(data, 851301);
+        var w = ms.World;
+        var pa = ms.P(ms.A);
+        // (The fresh warrior's own plain club: a dev-granted mace rolls random modifiers —
+        // including tonight's mace ones — which would skew every number below.)
+        foreach (var id in new[] { "mace_slam", "leap_slam", "skull_crack", "fault_line", "ground_slam" }) ms.A.SendDebugCommand("learn_skill", id);
+        ms.Pump(0.6f);
+        // Somewhere quiet: move both players next to a wall with open ground behind them.
+        var spawn = w.Map.PlayerSpawn;
+        var open = OpenDirection(w.Map, spawn, 7f);
+        Vector2 wallDir = Vector2.Zero, wallFoot = Vector2.Zero;
+        foreach (var dir in new[] { new Vector2(1, 0), new Vector2(-1, 0), new Vector2(0, 1), new Vector2(0, -1) })
+        {
+            for (float t = 0.5f; t < 8f && wallDir == Vector2.Zero; t += 0.1f)
+            {
+                var at = spawn + dir * t;
+                if (MathF.Abs(w.Map.GroundHeightAt(at) - w.Map.GroundHeightAt(spawn)) > 0.05f) break;
+                if (!w.Map.CircleHitsWall(at, 0.4f)) continue;
+                if (t > 2.2f) { wallDir = dir; wallFoot = spawn + dir * (t - 0.1f); } // last clear spot before the wall
+                break;
+            }
+            if (wallDir != Vector2.Zero) break;
+        }
+        Check(open != Vector2.Zero && wallDir != Vector2.Zero, "(setup) the arena spawn has open ground one way and a wall another");
+        void Quiet()
+        {
+            foreach (var e in w.Enemies.Values.ToList())
+                if (!e.Dead && Vector2.Distance(e.Position, spawn) < 14f) w.DebugSkillHit(pa, e, null, e.Health + 1e7f);
+            foreach (var drop in w.Drops.Keys.ToList()) w.Drops.Remove(drop);
+            ms.A.SendDebugCommand("heal");
+            pa.Mana = pa.Stats.MaxMana;
+            pa.SkillReadyAt.Clear();
+            pa.GlobalSkillReadyAt = 0;
+            ms.Pump(0.25f);
+        }
+        ServerEnemy Dummy(Vector2 at, float hp = 100000f, bool stunned = false)
+        {
+            var e = w.SpawnEnemy("grunt", at);
+            e.MaxHealth = e.Health = hp;
+            e.AttackReadyAt = w.Time + 9999f;                 // a punching bag: never swings
+            e.FrozenUntil = stunned ? w.Time + 600f : 0f;      // held in place either way...
+            e.StunnedUntil = stunned ? w.Time + 600f : 0f;
+            e.SlowedUntil = w.Time + 600f;
+            return e;
+        }
+        void Cast(string skill, Vector2 at)
+        {
+            pa.Mana = pa.Stats.MaxMana;
+            pa.SkillReadyAt.Clear();
+            pa.GlobalSkillReadyAt = 0;
+            ms.A.RequestUseSkill(skill, at);
+        }
+
+        // ---- Crash: a wall versus open ground.
+        Quiet();
+        ms.Place(ms.A, spawn);
+        var slamDef = data.Skills["mace_slam"];
+        var openDummy = Dummy(spawn + open * 1.2f, stunned: true);
+        int crashes0 = w.CrashCount;
+        w.DebugKnockback(pa, openDummy, spawn, slamDef.Knockback, 100f, "mace_slam");
+        float openMoved = Vector2.Distance(openDummy.Position, spawn + open * 1.2f);
+        Check(w.CrashCount == crashes0 && MathF.Abs(openMoved - slamDef.Knockback) < 0.05f && openDummy.Health == openDummy.MaxHealth,
+              $"knockback across open ground: thrown the full {slamDef.Knockback} tiles, no Crash");
+        var wallDummy = Dummy(wallFoot - wallDir * 0.3f, stunned: false);
+        wallDummy.StunBuildup = 0f;
+        float wallHp = wallDummy.Health;
+        int crashSeen0 = ms.B.World.CrashEventsSeen;
+        w.DebugKnockback(pa, wallDummy, wallFoot - wallDir * 1.5f, slamDef.Knockback, 100f, "mace_slam");
+        float crashBuildup = wallDummy.StunBuildup; // read at once: the stun meter decays
+        ms.Pump(0.3f);
+        float crashTaken = wallHp - wallDummy.Health;
+        Check(w.CrashCount == crashes0 + 1 && MathF.Abs(w.LastCrashDamage - 100f * crashCfg.DamagePct / 100f) < 0.01f &&
+              crashTaken > 0f && crashTaken <= w.LastCrashDamage + 0.01f && crashBuildup >= crashCfg.StunBuildup * 0.99f,
+              $"knockback into a wall: Crash — bonus {crashCfg.DamagePct}% of the hit ({w.LastCrashDamage:0.#} before armor, {crashTaken:0.#} dealt) and +{crashCfg.StunBuildup} stun buildup");
+        Check(ms.B.World.CrashEventsSeen == crashSeen0 + 1 && ms.B.World.Effects.Any(fx => fx.Kind == "dirtburst") &&
+              Render.WorldRenderer.CrashColor != default,
+              "the Crash replicates: its damage number carries the Crash tint flag and a dust puff plays (second client)");
+        // Into another enemy: both pay, the anvil a smaller share.
+        Quiet();
+        var hammer = Dummy(spawn + open * 1.0f, stunned: true);
+        var anvil = Dummy(spawn + open * (1.0f + slamDef.Knockback - 0.1f), stunned: true);
+        float hammerHp = hammer.Health, anvilHp = anvil.Health;
+        crashes0 = w.CrashCount;
+        w.DebugKnockback(pa, hammer, spawn, slamDef.Knockback, 100f, "mace_slam");
+        Check(w.CrashCount == crashes0 + 1 && hammerHp - hammer.Health > 0f && anvilHp - anvil.Health > 0f &&
+              (anvilHp - anvil.Health) < (hammerHp - hammer.Health),
+              $"thrown into another enemy: both take Crash damage, the one hit taking the smaller share ({hammerHp - hammer.Health:0.#} vs {anvilHp - anvil.Health:0.#})");
+        // Only maces crash.
+        Quiet();
+        var bashDummy = Dummy(wallFoot - wallDir * 0.3f, stunned: true);
+        crashes0 = w.CrashCount;
+        w.DebugKnockback(pa, bashDummy, wallFoot - wallDir * 1.5f, 2.5f, 100f, "shield_bash");
+        Check(w.CrashCount == crashes0 && bashDummy.Health == bashDummy.MaxHealth, "a non-mace skill's knockback into a wall is just a knockback");
+        // End to end: a real Mace Slam beside the wall.
+        Quiet();
+        ms.Place(ms.A, wallFoot - wallDir * 1.6f);
+        var realDummy = Dummy(wallFoot - wallDir * 0.35f, stunned: true);
+        crashes0 = w.CrashCount;
+        Cast("mace_slam", realDummy.Position);
+        ms.Pump(0.8f);
+        Check(w.CrashCount > crashes0 && realDummy.Health < realDummy.MaxHealth,
+              "a real Mace Slam that drives its target into the wall triggers Crash");
+
+        // ---- Leap Slam.
+        Quiet();
+        ms.Place(ms.A, spawn);
+        var leapDef = data.Skills["leap_slam"];
+        var landing = spawn + open * 4.5f;
+        var nearLanding = Dummy(landing + open * 1.0f, stunned: true);
+        var sideOfLanding = Dummy(landing - open * 0.9f, stunned: true);
+        var nearTakeoff = Dummy(spawn - open * 0.2f + new Vector2(-open.Y, open.X) * 1.2f, stunned: true);
+        float d0 = Vector2.Distance(nearLanding.Position, landing);
+        Cast("leap_slam", landing);
+        for (int i = 0; i < 20 && pa.InvulnerableUntil <= w.Time; i++) ms.Pump(0.02f); // the request arrives
+        bool airborneSafe = pa.InvulnerableUntil > w.Time + 0.2f;
+        ms.Place(ms.A, landing); // the client's predicted jump (PlayScreen moves the local player the same way)
+        ms.Pump(0.6f);
+        Check(leapDef.LeapDistance >= 5f && leapDef.Archetype == Skills.SkillArchetype.MeleeArea && leapDef.HasTag("Slam") && leapDef.HasTag("Mace") &&
+              Vector2.Distance(Skills.SkillMath.LeapLanding(spawn, spawn + open * 30f, open, leapDef.LeapDistance), spawn + open * leapDef.LeapDistance) < 0.01f &&
+              Vector2.Distance(Skills.SkillMath.LeapLanding(spawn, landing, open, leapDef.LeapDistance), landing) < 0.01f,
+              $"Leap Slam leaps to the aimed point, at most {leapDef.LeapDistance} tiles");
+        Check(airborneSafe && nearLanding.Health < nearLanding.MaxHealth && sideOfLanding.Health < sideOfLanding.MaxHealth &&
+              nearTakeoff.Health == nearTakeoff.MaxHealth,
+              "the slam lands where the leaper comes down (enemies at the landing are hit, the one left at the take-off is not), invulnerable in the air");
+        Check(Vector2.Distance(nearLanding.Position, landing) > d0 + 1.0f &&
+              Vector2.Dot(sideOfLanding.Position - landing, -open) > 0.9f + 1.0f,
+              $"and throws them outward from the impact ({d0:0.0} -> {Vector2.Distance(nearLanding.Position, landing):0.0} tiles)");
+
+        // ---- Skull Crack.
+        Quiet();
+        ms.Place(ms.A, spawn);
+        var crackDef = data.Skills["skull_crack"];
+        // A flat, crit-less weapon for this section, so the +100% reads exactly.
+        pa.Stats.WeaponMinDamage = pa.Stats.WeaponMaxDamage = 10f;
+        pa.Stats.CritChance = 0f;
+        var crackA = Dummy(spawn + open * 1.2f);
+        var crackB = Dummy(spawn + open * 1.2f + new Vector2(-open.Y, open.X) * 0.7f);
+        float plain = 0f;
+        for (int i = 0; i < 6; i++)
+        {
+            crackA.StunBuildup = 0f; crackA.StunnedUntil = 0f; crackA.StunResistStacks = 0;
+            float before = crackA.Health;
+            Cast("skull_crack", crackA.Position);
+            ms.Pump(0.8f);
+            plain += before - crackA.Health;
+        }
+        Check(plain > 0f && crackB.Health == crackB.MaxHealth && crackDef.SingleTarget,
+              "Skull Crack strikes ONE enemy (the neighbour inside the impact circle is untouched)");
+        crackA.StunBuildup = 0f; crackA.StunnedUntil = 0f; crackA.StunResistStacks = 0;
+        Cast("skull_crack", crackA.Position);
+        ms.Pump(0.8f);
+        float oneHitBuildup = crackA.StunBuildup;
+        Cast("skull_crack", crackA.Position);
+        ms.Pump(0.8f);
+        Check(oneHitBuildup >= 80f && crackA.StunnedUntil > w.Time,
+              $"huge stun buildup: {oneHitBuildup:0} of 100 from one blow, stunned by the second");
+        float helpless = 0f;
+        float extendedBy = 0f;
+        for (int i = 0; i < 6; i++)
+        {
+            crackA.StunnedUntil = w.Time + 30f;
+            float before = crackA.Health, untilBefore = crackA.StunnedUntil;
+            Cast("skull_crack", crackA.Position);
+            ms.Pump(0.8f);
+            helpless += before - crackA.Health;
+            extendedBy = crackA.StunnedUntil - untilBefore;
+        }
+        Check(helpless > plain * 1.95f && helpless < plain * 2.05f && MathF.Abs(extendedBy - crackDef.StunExtend) < 0.01f,
+              $"against a stunned target: +{crackDef.BonusVsStunnedPct}% damage ({plain:0} -> {helpless:0} over six blows) and the stun runs {extendedBy:0.0} s longer");
+        crackA.StunnedUntil = 0f;
+        crackA.FrozenUntil = w.Time + 30f;
+        float frozenBefore = crackA.Health, frozenUntil = crackA.FrozenUntil;
+        Cast("skull_crack", crackA.Position);
+        ms.Pump(0.8f);
+        Check(frozenBefore - crackA.Health > plain / 6f * 1.3f && crackA.FrozenUntil > frozenUntil + 1f,
+              "a frozen target counts too (bonus damage, the freeze extended)");
+        pa.RecomputeStats(data);
+
+        // ---- Fault Line.
+        Quiet();
+        ms.Place(ms.A, spawn);
+        var faultDef = data.Skills["fault_line"];
+        var impact = Skills.SkillMath.MeleeImpactPoint(spawn, spawn + open * 6f, open, pa.Stats.WeaponRange > faultDef.Range ? pa.Stats.WeaponRange : faultDef.Range);
+        var farDummy = Dummy(impact + open * faultDef.FissureSpacing * 3f, stunned: true);
+        var midDummy = Dummy(impact + open * faultDef.FissureSpacing * 2f, stunned: true);
+        var offLine = Dummy(impact + open * faultDef.FissureSpacing * 2f + new Vector2(-open.Y, open.X) * 3.2f, stunned: true);
+        Cast("fault_line", spawn + open * 6f);
+        for (int i = 0; i < 30 && w.PendingGroundBursts == 0; i++) ms.Pump(0.05f); // the wind-up lands; the fissure is queued
+        var burstSpots = w.PendingGroundBurstPositions.ToList();
+        bool farUntouchedYet = farDummy.Health == farDummy.MaxHealth;
+        Check(burstSpots.Count == 3 && farUntouchedYet &&
+              Enumerable.Range(1, 3).All(i => burstSpots.Any(b => Vector2.Distance(b, impact + open * faultDef.FissureSpacing * i) < 0.25f)),
+              $"Fault Line queues three eruptions forward along the aim, {faultDef.FissureSpacing} tiles apart; the far enemy isn't hit yet");
+        ms.Pump(1.1f);
+        Check(w.PendingGroundBursts == 0 && farDummy.Health < farDummy.MaxHealth && midDummy.Health < midDummy.MaxHealth &&
+              offLine.Health == offLine.MaxHealth && ms.B.World.Effects.Count >= 0,
+              "the bursts erupt in turn: enemies along the line are hit, one well off to the side is not");
+        Quiet();
+        ms.Place(ms.A, wallFoot - wallDir * 2.2f);
+        Cast("fault_line", wallFoot + wallDir * 3f);
+        int wallBursts = 0;
+        for (int i = 0; i < 16; i++) { ms.Pump(0.05f); wallBursts = Math.Max(wallBursts, w.PendingGroundBursts); }
+        Check(wallBursts < 3, $"a wall stops the fissure ({wallBursts} of 3 bursts queued facing the wall)");
+        ms.Pump(1.0f);
+
+        // ---- Mace-only modifiers: each one changes its number.
+        Quiet();
+        ms.Place(ms.A, spawn);
+        string[] maceMods = { "concussive", "of_impact", "seismic", "crushing" };
+        Check(maceMods.All(id => data.Modifiers.TryGetValue(id, out var m) && m.CompatibleItemCategories.SequenceEqual(new[] { ItemCategory.Mace }) &&
+                  !m.CompatibleWith(ItemCategory.Staff) && !m.CompatibleWith(ItemCategory.Bow) &&
+                  data.Modifiers.ContainsKey(id + "_t2") && data.Modifiers[id + "_t2"].MinimumItemLevel == 10 &&
+                  data.Modifiers[id + "_t4"].MinimumItemLevel == 30) &&
+              data.Modifiers["of_impact"].AffixType == AffixType.Suffix && data.Modifiers["concussive"].AffixType == AffixType.Prefix,
+              "Concussive, of Impact, Seismic and Crushing roll on maces only, in four tiers on the 1/10/20/30 item-level bands");
+        var plainMace = pa.Character.MainHand;
+        ItemInstance Modded(string modId, float value)
+        {
+            var it = new ItemInstance { BaseItemId = plainMace.BaseItemId, ItemLevel = plainMace.ItemLevel, Rarity = ItemRarity.Magic, MaxPrefixes = 3, MaxSuffixes = 3 };
+            it.Modifiers.Add(new ItemModifierRoll { ModifierId = modId, Value = value });
+            return it;
+        }
+        void Wield(ItemInstance it)
+        {
+            pa.Character.Equipment[EquipSlot.MainHand] = it;
+            pa.RecomputeStats(data);
+        }
+        Wield(new ItemInstance { BaseItemId = plainMace.BaseItemId, ItemLevel = plainMace.ItemLevel, MaxPrefixes = 3, MaxSuffixes = 3 });
+        var learnedSlam = pa.Character.GetSkill("mace_slam");
+        float baseRadius = Skills.SkillMath.Compute(data, slamDef, learnedSlam.Level, learnedSlam.ScrollDefinitions(data), pa.Stats).Radius;
+        var stunBag = Dummy(spawn + open * 1.5f);
+        w.DebugStunBuildup(pa, stunBag, 10f);
+        float baseBuildup = stunBag.StunBuildup;
+        var throwBag = Dummy(spawn + open * 1.0f, stunned: true);
+        var throwStart = throwBag.Position;
+        w.DebugKnockback(pa, throwBag, spawn, 1.0f, 100f, "mace_slam");
+        float baseThrow = Vector2.Distance(throwBag.Position, throwStart);
+        var crushBag = Dummy(spawn + open * 1.5f + new Vector2(-open.Y, open.X), stunned: true);
+        float hpC = crushBag.Health;
+        w.DebugDirectHit(pa, crushBag, "mace_slam", 50f);
+        float baseCrush = hpC - crushBag.Health;
+
+        Wield(Modded("concussive", 20f));
+        stunBag.StunBuildup = 0f;
+        w.DebugStunBuildup(pa, stunBag, 10f);
+        Check(pa.Stats.StunBuildupIncrease == 20f && MathF.Abs(stunBag.StunBuildup - baseBuildup * 1.2f) < 0.01f,
+              $"Concussive +20%: the same blow builds {baseBuildup:0.#} -> {stunBag.StunBuildup:0.#} stun");
+        Wield(Modded("of_impact", 30f));
+        throwBag.Position = throwStart;
+        var wallBag = Dummy(wallFoot - wallDir * 0.3f, stunned: true);
+        w.DebugKnockback(pa, throwBag, spawn, 1.0f, 100f, "mace_slam");
+        float impactThrow = Vector2.Distance(throwBag.Position, throwStart);
+        w.DebugKnockback(pa, wallBag, wallFoot - wallDir * 1.5f, slamDef.Knockback, 100f, "mace_slam");
+        Check(pa.Stats.ImpactIncrease == 30f && MathF.Abs(impactThrow - baseThrow * 1.3f) < 0.05f &&
+              MathF.Abs(w.LastCrashDamage - 100f * crashCfg.DamagePct / 100f * 1.3f) < 0.01f,
+              $"of Impact +30%: knockback {baseThrow:0.00} -> {impactThrow:0.00} tiles and Crash damage {100f * crashCfg.DamagePct / 100f:0} -> {w.LastCrashDamage:0}");
+        Wield(Modded("seismic", 25f));
+        float seismicRadius = Skills.SkillMath.Compute(data, slamDef, learnedSlam.Level, learnedSlam.ScrollDefinitions(data), pa.Stats).Radius;
+        float strikeRadius = Skills.SkillMath.Compute(data, crackDef, 1, Array.Empty<Skills.ScrollDefinition>(), pa.Stats).Radius;
+        Check(pa.Stats.SlamAreaIncrease == 25f && MathF.Abs(seismicRadius - baseRadius * 1.25f) < 0.001f && MathF.Abs(strikeRadius - crackDef.Radius) < 0.001f,
+              $"Seismic +25%: Mace Slam's radius {baseRadius:0.00} -> {seismicRadius:0.00} (a non-Slam skill is unchanged)");
+        Wield(Modded("crushing", 40f));
+        hpC = crushBag.Health;
+        w.DebugDirectHit(pa, crushBag, "mace_slam", 50f);
+        float crushed = hpC - crushBag.Health;
+        var awakeBag = Dummy(spawn + open * 2.2f);
+        float hpAwake = awakeBag.Health;
+        w.DebugDirectHit(pa, awakeBag, "mace_slam", 50f);
+        Check(pa.Stats.DamageVsStunnedIncrease == 40f && MathF.Abs(crushed - baseCrush * 1.4f) < 0.01f &&
+              MathF.Abs((hpAwake - awakeBag.Health) - baseCrush) < 0.01f,
+              $"Crushing +40%: a stunned enemy takes {baseCrush:0.#} -> {crushed:0.#}; one on its feet takes the usual {hpAwake - awakeBag.Health:0.#}");
+        var staffItem = new ItemInstance { BaseItemId = "oak_staff", MaxPrefixes = 3, MaxSuffixes = 3 };
+        staffItem.Modifiers.Add(new ItemModifierRoll { ModifierId = "seismic", Value = 25f });
+        Check(maceMods.All(id => data.Modifiers[id].StatAffected.ToString().Length > 0) &&
+              data.Modifiers["concussive"].DescribeRoll(20f).Contains("Stun Buildup") && data.Modifiers["of_impact"].DescribeRoll(30f).Contains("Crash"),
+              $"their tooltips read plainly (\"{data.Modifiers["of_impact"].DescribeRoll(30f)}\")");
+        Wield(plainMace);
+
+        // ---- the Aftershock scroll.
+        Quiet();
+        ms.Place(ms.A, spawn);
+        var afterScroll = data.Scrolls["aftershock"];
+        Check(afterScroll.RequiredTag == "Slam" && afterScroll.CompatibleWith(slamDef) && afterScroll.CompatibleWith(leapDef) &&
+              afterScroll.CompatibleWith(faultDef) && !afterScroll.CompatibleWith(crackDef) &&
+              data.Items["scroll_aftershock"].ScrollId == "aftershock",
+              "the Aftershock scroll attaches to Slam skills only");
+        learnedSlam.Scrolls.Add(new ItemInstance { BaseItemId = "scroll_aftershock" });
+        // Against the wall, so the first slam can't throw the target out of the repeat.
+        ms.Place(ms.A, wallFoot - wallDir * 1.5f);
+        var echoBag = Dummy(wallFoot - wallDir * 0.3f, stunned: true);
+        Cast("mace_slam", echoBag.Position);
+        for (int i = 0; i < 30 && echoBag.Health == echoBag.MaxHealth; i++) ms.Pump(0.05f);
+        float firstHit = echoBag.MaxHealth - echoBag.Health;
+        int queued = w.PendingGroundBursts;
+        ms.Pump(0.3f);
+        float beforeEcho = echoBag.Health;
+        bool notYet = w.PendingGroundBursts == 1;
+        ms.Pump(0.6f);
+        float echoHit = beforeEcho - echoBag.Health;
+        Check(firstHit > 0f && queued == 1 && notYet && echoHit > 0f && echoHit < firstHit && echoHit > firstHit * 0.2f && w.PendingGroundBursts == 0,
+              $"with Aftershock the slam repeats 0.6 s later at half damage ({firstHit:0.#} then {echoHit:0.#})");
+        learnedSlam.Scrolls.Clear();
+        Check(ms.Server.TickFailures == 0, "no tick failures through the mace checks");
+        ms.Close();
     }
 
     private static void Batch85SkillBooks(GameData data)
@@ -443,7 +772,8 @@ public static partial class HeadlessNetTest
             if (pb.Health < pb.Stats.MaxHealth * 0.6f) pit.B.SendDebugCommand("heal");
         }
         pit.World.DebugSkillHit(pa, cutter, null, cutter.Health + 1f);
-        pit.Pump(0.1f);
+        pit.Pump(0.4f); // let any heal command still in flight land before measuring
+        if (bleeder != null) { bleeder.BleedDps = cutthroat.AttackBleedDps; bleeder.BleedUntil = pit.World.Time + cutthroat.AttackBleedDuration; }
         float bleedStart = bleeder?.Health ?? 0f;
         float lifeRegen = bleeder?.Stats.LifeRegeneration ?? 0f;
         pit.Pump(1.6f);

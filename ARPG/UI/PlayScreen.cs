@@ -1299,6 +1299,21 @@ public class PlayScreen : IScreen
             _lungeTimeLeft = lungeDuration;
             _lungeSpeed = dist / lungeDuration;
         }
+        // Leap skills (Leap Slam): jump to the aimed point over the wind-up — the same
+        // predicted shove as the lunge, just longer and with nothing body-checking it
+        // (walls still stop it). The server lands the slam where we come down.
+        else if (def.LeapDistance > 0 && _client.World.Me is { Alive: true } leaper)
+        {
+            var landing = SkillMath.LeapLanding(leaper.Position, target, leaper.Facing, def.LeapDistance);
+            var toLanding = landing - leaper.Position;
+            float leapDist = toLanding.Length();
+            if (leapDist > 0.05f)
+            {
+                _lungeDir = toLanding / leapDist;
+                _lungeTimeLeft = MathF.Max(0.1f, def.WindupTime);
+                _lungeSpeed = leapDist / _lungeTimeLeft;
+            }
+        }
     }
 
     /// <summary>Top-of-screen display for the hovered enemy: name (colored by rank)

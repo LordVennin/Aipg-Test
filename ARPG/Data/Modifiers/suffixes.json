@@ -4440,5 +4440,69 @@
   "MaximumValue": 72,
   "Weight": 40,
   "IsPercent": true
+ },
+ {
+  "Id": "of_impact",
+  "Name": "of Impact I",
+  "AffixType": "Suffix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_impact",
+  "StatAffected": "Impact",
+  "MinimumValue": 8,
+  "MaximumValue": 14,
+  "Weight": 60,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_impact_t2",
+  "Name": "of Impact II",
+  "AffixType": "Suffix",
+  "Tier": 2,
+  "MinimumItemLevel": 10,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_impact",
+  "StatAffected": "Impact",
+  "MinimumValue": 15,
+  "MaximumValue": 22,
+  "Weight": 54,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_impact_t3",
+  "Name": "of Impact III",
+  "AffixType": "Suffix",
+  "Tier": 3,
+  "MinimumItemLevel": 20,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_impact",
+  "StatAffected": "Impact",
+  "MinimumValue": 23,
+  "MaximumValue": 31,
+  "Weight": 48,
+  "IsPercent": true
+ },
+ {
+  "Id": "of_impact_t4",
+  "Name": "of Impact IV",
+  "AffixType": "Suffix",
+  "Tier": 4,
+  "MinimumItemLevel": 30,
+  "CompatibleItemCategories": [
+   "Mace"
+  ],
+  "ModifierGroup": "mace_impact",
+  "StatAffected": "Impact",
+  "MinimumValue": 32,
+  "MaximumValue": 42,
+  "Weight": 42,
+  "IsPercent": true
  }
 ]

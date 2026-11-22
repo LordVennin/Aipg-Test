@@ -82,7 +82,22 @@ _Running log; final pass at the end._
 - Dev hooks: `ARPG_DEVUI=books` (one of each book on the ground), `teach` (opens the
   trainer panel), `book:<id>`; debug `drop_books`, `give_book <id>`.
 
+- **3.4 Leap Slam movement** follows the game's existing model: the CLIENT predicts the jump
+  (same code path as the Shield Bash lunge, stretched over the wind-up) and the server
+  lands the slam wherever the leaper is when the wind-up ends, with i-frames in between.
+  The nettest stands in for the client's jump by moving the client player to the landing.
+- **3.4 Crash into another enemy** means: thrown far enough that it ends up overlapping an
+  enemy that was AHEAD of it along the throw. A tight ring of enemies all thrown outward
+  does not crash into itself.
+- **3.4 Aftershock vs knockback:** the repeat lands where the slam landed; enemies the slam
+  threw clear are out of it. It pays off against walls (which hold them in), fresh
+  arrivals and bosses. Left as is — flag it if you would rather the repeat follow the victims.
+- ProtocolVersion **50** (the damage event carries the Crash flag for its own number tint).
+
 ## Behavior changes to existing checks
+- `tiered modifier database loaded (482 modifiers)`: pinned the exact modifier count.
+  Now asserts the original database is still 482 entries once the new mace/bow-only
+  groups (`mace_*`, `bow_*`) are set aside.
 - `every graveyard enemy is undead ...`: used to assert that EVERY non-tome enemy in the
   data is undead. Now asserts the four graveyard sprite families are undead, and that
   bandits/goblins are not, bleed, and never spawn buried.
@@ -99,3 +114,4 @@ _Running log; final pass at the end._
 | 3.1 data-driven enemy pools per theme | done | 906 |
 | 3.2 bandits and goblins (7 enemies, sprites, shove, bleed), snapshot chunking | done | 933 |
 | 3.3 skill books and the trainer | done | 959 |
+| 3.4 mace identity (Crash, Leap Slam, Skull Crack, Fault Line, 4 modifiers, Aftershock) | done | 985 |

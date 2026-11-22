@@ -187,6 +187,38 @@ public class SkillDefinition
     public float TremorSlow { get; set; } = 0.25f;
 
     /// <summary>"Attack" skills scale with attack speed; "Spell" with cast speed.</summary>
+    // ------------------------------------------------------------------ batch 85: mace & bow
+    /// <summary>Percent more damage against STUNNED or FROZEN targets (Skull Crack: 100).</summary>
+    public float BonusVsStunnedPct { get; set; }
+    /// <summary>Seconds added to an existing stun/freeze on the target (Skull Crack).</summary>
+    public float StunExtend { get; set; }
+    /// <summary>Impact-point skills: strike only the ONE enemy nearest the impact point.</summary>
+    public bool SingleTarget { get; set; }
+    /// <summary>Leap skills (Leap Slam): the caster leaps to the aimed point, up to this
+    /// many tiles, over the WindupTime (client-predicted like the Shield Bash lunge,
+    /// invulnerable in the air); the hit lands where they come down.</summary>
+    public float LeapDistance { get; set; }
+    /// <summary>Fault Line: eruptions sent forward along the aim after the slam — count,
+    /// tiles between them, seconds between them, radius and damage multiplier of each.</summary>
+    public int FissureBursts { get; set; }
+    public float FissureSpacing { get; set; } = 1.4f;
+    public float FissureDelay { get; set; } = 0.25f;
+    public float FissureRadius { get; set; }
+    public float FissureDamageMult { get; set; } = 1f;
+    /// <summary>Radians between projectiles of a multi-projectile cast (Split Arrow's fan).</summary>
+    public float ProjectileSpread { get; set; } = 0.21f;
+    /// <summary>Chargeable projectiles (Snipe): at full charge, +this fraction of range
+    /// and speed; damage uses ChargeDamageBonus (0 = the default +70%).</summary>
+    public float ChargeRangeBonus { get; set; }
+    public float ChargeSpeedBonus { get; set; }
+    public float ChargeDamageBonus { get; set; }
+    /// <summary>The shot only pierces when released at (nearly) full charge.</summary>
+    public bool PierceAtFullCharge { get; set; }
+    /// <summary>Disengage: the caster hops this many tiles AWAY from the aim (dodge
+    /// system: client-predicted, brief i-frames) as the shot is loosed.</summary>
+    public float HopBackDistance { get; set; }
+    public float HopBackDuration { get; set; } = 0.22f;
+
     public bool IsAttack => Tags.Contains(SkillTags.Attack);
 
     public bool HasTag(string tag) => Tags.Contains(tag);
@@ -214,6 +246,9 @@ public enum ScrollStat
     BleedChance,          // 0..1 chance a melee hit bleeds (physical DoT)
     ShatterShards,        // cold projectiles burst into this many shards behind the target
     FirePatch,            // fire projectiles leave a burning ground circle on hit
+    /// <summary>Slam skills repeat: Add = damage fraction of the repeat (0.5), Mult =
+    /// seconds until it lands (0.6). The "Aftershock" scroll.</summary>
+    Aftershock,
 }
 
 /// <summary>

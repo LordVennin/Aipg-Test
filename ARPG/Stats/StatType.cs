@@ -106,6 +106,24 @@ public enum StatType
     DodgeDuration,
     DodgeCooldownRecovery, // % faster cooldown recovery (reduces effective cooldown)
     DodgeInvulnerability,
+
+    // Mace-only modifiers (batch 85)
+    /// <summary>% increased stun buildup dealt ("Concussive").</summary>
+    StunBuildup,
+    /// <summary>% increased knockback distance AND Crash damage ("of Impact").</summary>
+    Impact,
+    /// <summary>% increased area of Slam skills ("Seismic").</summary>
+    SlamArea,
+    /// <summary>% increased damage against stunned or frozen enemies ("Crushing").</summary>
+    DamageVsStunned,
+
+    // Bow-only modifiers (batch 85)
+    /// <summary>Flat: bow projectiles pass through this many extra enemies ("Piercing").</summary>
+    ProjectilePierce,
+    /// <summary>% increased projectile speed AND range with bows ("of the Hawk").</summary>
+    ProjectileReach,
+    /// <summary>% chance for bow attacks to cause bleeding ("Barbed").</summary>
+    BowBleedChance,
 }
 
 /// <summary>Sum of stat contributions from one source group (equipment, temporary effects, ...).</summary>
