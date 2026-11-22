@@ -56,6 +56,13 @@ public class GameClient
 
     private readonly CharacterData _initialCharacter;
 
+    /// <summary>Test hooks: pretend to be a build with a different sim version / data set.</summary>
+    public int? SimVersionOverride;
+    public string FingerprintOverride;
+    /// <summary>CharacterState / PlayerAppearance packets received (diagnostics, tests).</summary>
+    public int CharacterStatePackets { get; private set; }
+    public int AppearancePackets { get; private set; }
+
     public GameClient(GameData data, string playerName, CharacterData savedCharacter)
     {
         _data = data;
@@ -69,6 +76,8 @@ public class GameClient
             Status = ClientStatus.Joining;
             var w = Packets.Make(PacketType.JoinRequest);
             w.Put(GameNetConfig.ProtocolVersion);
+            w.Put(SimVersionOverride ?? GameNetConfig.SimVersion);
+            w.Put(FingerprintOverride ?? _data.Fingerprint ?? "");
             w.Put(PlayerName);
             w.Put(_initialCharacter != null ? Json.SaveCompact(_initialCharacter) : "");
             peer.Send(w, DeliveryMethod.ReliableOrdered);
@@ -90,7 +99,8 @@ public class GameClient
                 DisconnectReason.ConnectionFailed => "Could not reach the host.",
                 DisconnectReason.Timeout => "Connection timed out.",
                 DisconnectReason.ConnectionRejected => ReadRejectReason(info) ?? "Connection rejected by the host.",
-                DisconnectReason.RemoteConnectionClose => "The host closed the connection.",
+                // A host that stops itself (simulation error) says why in the disconnect.
+                DisconnectReason.RemoteConnectionClose => ReadRejectReason(info) ?? "The host closed the connection.",
                 _ => $"Disconnected ({info.Reason}).",
             };
             Status = ClientStatus.Disconnected;
@@ -109,7 +119,10 @@ public class GameClient
         try
         {
             if (info.AdditionalData != null && !info.AdditionalData.EndOfData)
-                return info.AdditionalData.GetString();
+            {
+                string reason = info.AdditionalData.GetString();
+                return string.IsNullOrWhiteSpace(reason) ? null : reason;
+            }
         }
         catch { /* no readable reason attached */ }
         return null;
@@ -1094,6 +1107,7 @@ public class GameClient
 
             case PacketType.CharacterState:
             {
+                CharacterStatePackets++;
                 int levelBefore = World.MyCharacter?.Level ?? 0;
                 World.MyCharacter = Json.Load<CharacterData>(r.GetString());
                 if (levelBefore > 0 && World.MyCharacter?.Level > levelBefore)
@@ -1307,6 +1321,7 @@ public class GameClient
 
             case PacketType.PlayerAppearance:
             {
+                AppearancePackets++;
                 int playerId = r.GetInt();
                 string weaponBaseId = r.GetString();
                 string offHandBaseId = r.GetString();

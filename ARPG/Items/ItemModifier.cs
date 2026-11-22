@@ -42,6 +42,11 @@ public class ItemModifier
     /// shows instead ("{0}" takes the rolled value), and what the portal reads.</summary>
     public string MapEffect { get; set; }
 
+    /// <summary>Warp zone seals (ModifierGroup "warp_zone"): the zone theme the portal
+    /// run takes, and how the zone is named ("the Mirewood").</summary>
+    public string ZoneThemeId { get; set; }
+    public string ZoneName { get; set; }
+
     public bool CompatibleWith(ItemCategory category) =>
         CompatibleItemCategories == null || CompatibleItemCategories.Count == 0 ||
         CompatibleItemCategories.Contains(category);

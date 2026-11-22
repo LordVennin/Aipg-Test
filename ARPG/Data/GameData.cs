@@ -116,6 +116,100 @@ public class EnemyDefinition
     public string Glow { get; set; } = "";
     /// <summary>Visual size multiplier on the sprite (0.75 = a runt, 1 = normal).</summary>
     public float SpriteScale { get; set; } = 1f;
+    /// <summary>Loose grouping for quests and audits ("undead", "goblin", "bandit", "tome").</summary>
+    public string Family { get; set; } = "";
+    /// <summary>Extra knockback (tiles) a landed melee swing shoves its victim (the
+    /// Bandit Brute's heavy lunge). 0 = none. Stops at walls.</summary>
+    public float AttackKnockback { get; set; }
+    /// <summary>Chance (0..1) a landed melee swing leaves a player-side bleed; damage
+    /// per second is BleedDamage for BleedDuration seconds.</summary>
+    public float AttackBleedChance { get; set; }
+    public float AttackBleedDps { get; set; }
+    public float AttackBleedDuration { get; set; } = 4f;
+    /// <summary>Specific drops on top of the loot table: each rolls independently
+    /// (skill books from the monsters that carry them).</summary>
+    public List<ExtraDrop> ExtraDrops { get; set; } = new();
+}
+
+public class ExtraDrop
+{
+    public string ItemId { get; set; }
+    public float Chance { get; set; }
+}
+
+/// <summary>A weighted item id (loot table skill-book lists).</summary>
+public class WeightedItem
+{
+    public string ItemId { get; set; }
+    public int Weight { get; set; } = 1;
+}
+
+/// <summary>One pack composition a theme may roll. Entries are [enemy id, count]
+/// pairs. MinLoop / MinLevel gate it: with neither set it is always available; if
+/// either is set, EITHER gate opening makes it available (campaign loop reached OR
+/// zone enemy level reached — today's "knights from loop 2 or level 4" rule).</summary>
+public class PackPoolEntry
+{
+    public List<List<System.Text.Json.JsonElement>> Entries { get; set; } = new();
+    public int Weight { get; set; } = 1;
+    public int MinLoop { get; set; } = 1;
+    public int MinLevel { get; set; } = 1;
+    /// <summary>PromisedPacks only: station this pack if no rolled pack contains this enemy.</summary>
+    public string RequireEnemy { get; set; }
+
+    public bool Available(int loop, int level) =>
+        (MinLoop <= 1 && MinLevel <= 1) || (MinLoop > 1 && loop >= MinLoop) || (MinLevel > 1 && level >= MinLevel);
+}
+
+/// <summary>A theme's boss encounter: the boss plus its guards. The LAST listed pack
+/// whose gate is open is used (list the early version first).</summary>
+public class BossPackDef
+{
+    public string Boss { get; set; }
+    public List<List<System.Text.Json.JsonElement>> Guards { get; set; } = new();
+    public int MinLoop { get; set; } = 1;
+    public int MinLevel { get; set; } = 1;
+    public bool Available(int loop, int level) =>
+        (MinLoop <= 1 && MinLevel <= 1) || (MinLoop > 1 && loop >= MinLoop) || (MinLevel > 1 && level >= MinLevel);
+}
+
+/// <summary>A weighted survival-wave enemy. MinWave keeps the nastier ones out of the opening waves.</summary>
+public class WaveEnemy
+{
+    public string Id { get; set; }
+    public int Weight { get; set; } = 1;
+    public int MinWave { get; set; } = 1;
+}
+
+/// <summary>A quest (Data/Quests/quests.json): ordered steps and a reward. Quest logs
+/// are per character; a step completes only for characters present when it happens.</summary>
+public class QuestDefinition
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; } = "";
+    /// <summary>Quest id that must be completed before this one is offered (empty = from the start).</summary>
+    public string Requires { get; set; } = "";
+    /// <summary>Side quests don't block the main line and show below it in the log.</summary>
+    public bool Side { get; set; }
+    public List<QuestStep> Steps { get; set; } = new();
+    public int RewardGold { get; set; }
+    public float RewardXp { get; set; }
+    public string RewardItem { get; set; } = "";
+}
+
+/// <summary>One quest step. Type: reach_map (Target = a MapKind name or "zone:&lt;theme id&gt;"),
+/// kill (Target = enemy id or "family:&lt;name&gt;", Count, optional MapKind), kill_boss
+/// (Target = enemy id), talk (Target = npc id), turn_in (Target = item id or
+/// "category:skill_book"), use_podium, complete_run.</summary>
+public class QuestStep
+{
+    public string Type { get; set; }
+    public string Target { get; set; } = "";
+    public int Count { get; set; } = 1;
+    public string MapKind { get; set; } = "";
+    /// <summary>Tracker text, e.g. "Goblins slain" (shown as "Goblins slain 7/12").</summary>
+    public string Text { get; set; } = "";
 }
 
 /// <summary>A scripted scene (Data/Cutscenes/*.json): timed lines, each focused on a
@@ -163,6 +257,22 @@ public class DodgeConfig
     public float Duration { get; set; } = 0.25f;
     public float Cooldown { get; set; } = 2.0f;
     public float InvulnerabilityDuration { get; set; } = 0.3f;
+}
+
+/// <summary>Crash: a mace skill's knockback driving an enemy into a wall, a structure
+/// or another enemy. Loaded from Data/Config/mace_crash.json.</summary>
+public class MaceCrashConfig
+{
+    /// <summary>Bonus damage to the thrown enemy, as a % of the hit that threw it.</summary>
+    public float DamagePct { get; set; } = 40f;
+    /// <summary>Share of the hit an enemy it was slammed INTO takes.</summary>
+    public float SecondaryDamagePct { get; set; } = 20f;
+    /// <summary>Burst of stun buildup (0-100 scale) on the thrown enemy / the one it hit.</summary>
+    public float StunBuildup { get; set; } = 35f;
+    public float SecondaryStunBuildup { get; set; } = 15f;
+    public float StunDuration { get; set; } = 1.2f;
+    /// <summary>Minimum knockback distance (tiles) for a Crash to count.</summary>
+    public float MinKnockback { get; set; } = 0.5f;
 }
 
 /// <summary>
@@ -219,6 +329,35 @@ public class ZoneTheme
     public float ClutterDensity { get; set; } = 0.05f;
     /// <summary>Chance per 1-level wall tile of a themed feature sprite on the block.</summary>
     public float WallFeatureChance { get; set; } = 0.3f;
+
+    // ---- population (batch 85): who lives here. A theme WITHOUT a PackPool falls back
+    // to the server's built-in undead lists.
+    /// <summary>Weighted pack compositions for the map's pack spots.</summary>
+    public List<PackPoolEntry> PackPool { get; set; } = new();
+    /// <summary>Compositions for overlook spots (ranged on high ground). The LAST
+    /// available entry is used. Empty = no overlook packs unless there is no PackPool.</summary>
+    public List<PackPoolEntry> OverlookPool { get; set; } = new();
+    /// <summary>Packs stationed if no rolled pack contains their RequireEnemy.</summary>
+    public List<PackPoolEntry> PromisedPacks { get; set; } = new();
+    /// <summary>The boss encounter for boss rooms on this theme.</summary>
+    public List<BossPackDef> BossPacks { get; set; } = new();
+    /// <summary>Weighted enemy ids for survival waves on this theme.</summary>
+    public List<WaveEnemy> WaveEnemies { get; set; } = new();
+
+    /// <summary>Decode [["id", count], ...] pairs. Malformed pairs are reported and skipped.</summary>
+    public static List<(string typeId, int count)> ParseEntries(
+        List<List<System.Text.Json.JsonElement>> raw, Action<string> onBad = null)
+    {
+        var result = new List<(string, int)>();
+        foreach (var pair in raw ?? new())
+        {
+            if (pair is { Count: 2 } && pair[0].ValueKind == System.Text.Json.JsonValueKind.String &&
+                pair[1].ValueKind == System.Text.Json.JsonValueKind.Number && pair[1].TryGetInt32(out int n))
+                result.Add((pair[0].GetString(), n));
+            else onBad?.Invoke("an entry is not [\"enemy_id\", count]");
+        }
+        return result;
+    }
 }
 
 /// <summary>Loot table, loaded from Data/LootTables/*.json.</summary>
@@ -253,6 +392,9 @@ public class LootTable
     public int RarityWeightRare { get; set; } = 15;
     /// <summary>Relative weights per item category; missing categories use their DropWeight only.</summary>
     public Dictionary<ItemCategory, int> CategoryWeights { get; set; } = new();
+    /// <summary>Independent chance (0..1) that one skill book from SkillBooks drops.</summary>
+    public float SkillBookDropChance { get; set; }
+    public List<WeightedItem> SkillBooks { get; set; } = new();
 }
 
 /// <summary>An NPC type (Data/Npcs/*.json): name and dialogue lines. Merchants get their
@@ -284,70 +426,119 @@ public class GameData
     /// <summary>Scripted scenes by id (Data/Cutscenes/*.json).</summary>
     public Dictionary<string, CutsceneDefinition> Cutscenes { get; } = new();
 
+    /// <summary>Quests in file order (Data/Quests/*.json).</summary>
+    public List<QuestDefinition> Quests { get; } = new();
+    public QuestDefinition GetQuest(string id) => Quests.FirstOrDefault(q => q.Id == id);
+
+    internal void SetValidationErrors(List<string> errors) => ValidationErrors = errors;
+
     /// <summary>Skill level reached -> total scroll slots unlocked (Data/Config/scroll_slots.json).</summary>
     public Dictionary<int, int> ScrollSlotProgression { get; private set; } = new();
 
     public DodgeConfig Dodge { get; private set; } = new();
+    /// <summary>The mace-wide Crash mechanic's numbers (Data/Config/mace_crash.json).</summary>
+    public MaceCrashConfig MaceCrash { get; private set; } = new();
 
     /// <summary>The passive skill tree (Data/SkillTree/tree.json).</summary>
     public Skills.PassiveTree PassiveTree { get; private set; } = new();
 
+    /// <summary>SHA-256 of the data files this was loaded from (see ContentFingerprint).</summary>
+    public string Fingerprint { get; private set; } = "";
+    /// <summary>Data files that failed to parse — content silently missing. The
+    /// validator turns these into errors.</summary>
+    public List<string> LoadFailures { get; } = new();
+    /// <summary>Ids defined more than once ("Items: iron_mace") — the later definition won.</summary>
+    public List<string> DuplicateIds { get; } = new();
+    /// <summary>Validator output (DataValidator.Validate), shown on the main menu.</summary>
+    public List<string> ValidationErrors { get; private set; } = new();
+
     public static GameData LoadFromDirectory(string dataDir)
     {
         var data = new GameData();
+        data.Fingerprint = ContentFingerprint.Compute(dataDir);
+        ContentFingerprint.Current = data.Fingerprint;
 
-        foreach (var item in LoadAll<ItemBase>(Path.Combine(dataDir, "Items")))
-            data.Items[item.Id] = item;
-        foreach (var mod in LoadAll<ItemModifier>(Path.Combine(dataDir, "Modifiers")))
-            data.Modifiers[mod.Id] = mod;
-        foreach (var skill in LoadAll<SkillDefinition>(Path.Combine(dataDir, "Skills")))
-            data.Skills[skill.Id] = skill;
-        foreach (var scroll in LoadAll<ScrollDefinition>(Path.Combine(dataDir, "SkillScrolls")))
-            data.Scrolls[scroll.Id] = scroll;
-        foreach (var enemy in LoadAll<EnemyDefinition>(Path.Combine(dataDir, "Enemies")))
-            data.Enemies[enemy.Id] = enemy;
-        foreach (var table in LoadAll<LootTable>(Path.Combine(dataDir, "LootTables")))
-            data.LootTables[table.Id] = table;
-        foreach (var npc in LoadAll<NpcDefinition>(Path.Combine(dataDir, "Npcs")))
-            data.Npcs[npc.Id] = npc;
-
-        data.ZoneThemes.AddRange(LoadAll<ZoneTheme>(Path.Combine(dataDir, "Zones")));
-        foreach (var scene in LoadAll<CutsceneDefinition>(Path.Combine(dataDir, "Cutscenes")))
-            if (!string.IsNullOrEmpty(scene.Id)) data.Cutscenes[scene.Id] = scene;
-        data.Classes.AddRange(LoadAll<ClassDefinition>(Path.Combine(dataDir, "Classes")));
+        void Register<T>(string kind, Dictionary<string, T> into, string folder, Func<T, string> idOf)
+        {
+            foreach (var def in data.LoadAll<T>(Path.Combine(dataDir, folder)))
+            {
+                string id = idOf(def);
+                if (string.IsNullOrEmpty(id)) { data.LoadFailures.Add($"{folder}: an entry has no Id"); continue; }
+                if (into.ContainsKey(id)) data.DuplicateIds.Add($"{kind}: {id}");
+                into[id] = def;
+            }
+        }
+        void RegisterList<T>(string kind, List<T> into, string folder, Func<T, string> idOf)
+        {
+            foreach (var def in data.LoadAll<T>(Path.Combine(dataDir, folder)))
+            {
+                if (into.Any(o => idOf(o) == idOf(def))) data.DuplicateIds.Add($"{kind}: {idOf(def)}");
+                into.Add(def);
+            }
+        }
+        Register("Items", data.Items, "Items", i => i.Id);
+        Register("Modifiers", data.Modifiers, "Modifiers", m => m.Id);
+        Register("Skills", data.Skills, "Skills", sk => sk.Id);
+        Register("SkillScrolls", data.Scrolls, "SkillScrolls", sc => sc.Id);
+        Register("Enemies", data.Enemies, "Enemies", e => e.Id);
+        Register("LootTables", data.LootTables, "LootTables", t => t.Id);
+        Register("Npcs", data.Npcs, "Npcs", n => n.Id);
+        RegisterList("Zones", data.ZoneThemes, "Zones", t => t.Id);
+        Register("Cutscenes", data.Cutscenes, "Cutscenes", c => c.Id);
+        RegisterList("Classes", data.Classes, "Classes", c => c.Id);
+        RegisterList("Quests", data.Quests, "Quests", q => q.Id);
 
         string slotsPath = Path.Combine(dataDir, "Config", "scroll_slots.json");
         if (File.Exists(slotsPath))
         {
-            var raw = Json.LoadFile<Dictionary<string, int>>(slotsPath);
-            data.ScrollSlotProgression = raw.ToDictionary(kv => int.Parse(kv.Key), kv => kv.Value);
+            try
+            {
+                var raw = Json.LoadFile<Dictionary<string, int>>(slotsPath);
+                data.ScrollSlotProgression = raw.ToDictionary(kv => int.Parse(kv.Key), kv => kv.Value);
+            }
+            catch (Exception e) { data.RecordLoadFailure(slotsPath, e); }
         }
 
         string treePath = Path.Combine(dataDir, "SkillTree", "tree.json");
         if (File.Exists(treePath))
         {
             try { data.PassiveTree = Json.LoadFile<Skills.PassiveTree>(treePath) ?? new Skills.PassiveTree(); }
-            catch (Exception e) { Console.WriteLine($"[Data] Failed to load tree.json: {e.Message}"); }
+            catch (Exception e) { data.RecordLoadFailure(treePath, e); }
         }
 
         string dodgePath = Path.Combine(dataDir, "Config", "dodge.json");
         if (File.Exists(dodgePath))
         {
             try { data.Dodge = Json.LoadFile<DodgeConfig>(dodgePath) ?? new DodgeConfig(); }
-            catch (Exception e) { Console.WriteLine($"[Data] Failed to load dodge.json: {e.Message}"); }
+            catch (Exception e) { data.RecordLoadFailure(dodgePath, e); }
+        }
+
+        string crashPath = Path.Combine(dataDir, "Config", "mace_crash.json");
+        if (File.Exists(crashPath))
+        {
+            try { data.MaceCrash = Json.LoadFile<MaceCrashConfig>(crashPath) ?? new MaceCrashConfig(); }
+            catch (Exception e) { data.RecordLoadFailure(crashPath, e); }
         }
 
         Console.WriteLine($"[Data] Loaded {data.Items.Count} items, {data.Modifiers.Count} modifiers, " +
                           $"{data.Skills.Count} skills, {data.Scrolls.Count} scrolls, " +
                           $"{data.Enemies.Count} enemies, {data.LootTables.Count} loot tables.");
+        DataValidator.Validate(data);
         return data;
+    }
+
+    private void RecordLoadFailure(string file, Exception e)
+    {
+        string name = Path.GetFileName(Path.GetDirectoryName(file)) + "/" + Path.GetFileName(file);
+        LoadFailures.Add($"{name}: {e.Message}");
+        Console.WriteLine($"[Data] Failed to load {file}: {e.Message}");
     }
 
     public static GameData LoadDefault() =>
         LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "Data"));
 
     /// <summary>Each file in the directory may contain either a single object or an array.</summary>
-    private static List<T> LoadAll<T>(string dir)
+    private List<T> LoadAll<T>(string dir)
     {
         var result = new List<T>();
         if (!Directory.Exists(dir)) return result;
@@ -363,7 +554,9 @@ public class GameData
             }
             catch (Exception e)
             {
-                Console.WriteLine($"[Data] Failed to load {file}: {e.Message}");
+                // A file that fails to parse silently removes its content — record it
+                // so the validator can make that loud (menu banner, failing nettest).
+                RecordLoadFailure(file, e);
             }
         }
         return result;

@@ -43,6 +43,8 @@
    "WarpScroll"
   ],
   "ModifierGroup": "warp_zone",
+  "ZoneThemeId": "forest",
+  "ZoneName": "the Mirewood",
   "StatAffected": "MaxHealth",
   "MinimumValue": 1,
   "MaximumValue": 1,
@@ -60,6 +62,8 @@
    "WarpScroll"
   ],
   "ModifierGroup": "warp_zone",
+  "ZoneThemeId": "graveyard",
+  "ZoneName": "the Fen",
   "StatAffected": "MaxHealth",
   "MinimumValue": 1,
   "MaximumValue": 1,
@@ -77,6 +81,8 @@
    "WarpScroll"
   ],
   "ModifierGroup": "warp_zone",
+  "ZoneThemeId": "tomb",
+  "ZoneName": "the Sunken Halls",
   "StatAffected": "MaxHealth",
   "MinimumValue": 1,
   "MaximumValue": 1,

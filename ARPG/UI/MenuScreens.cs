@@ -67,6 +67,7 @@ public class MainMenuScreen : IScreen
         var tSize = titleFont.MeasureString(title);
         sb.DrawString(titleFont, title, new Vector2(size.X / 2f - tSize.X / 2, 90), new Color(230, 210, 150));
         var subFont = FontManager.Get(17);
+        var errFontSmall = FontManager.Get(13);
         var sSize = subFont.MeasureString(subtitle);
         sb.DrawString(subFont, subtitle, new Vector2(size.X / 2f - sSize.X / 2, 150), new Color(150, 145, 130));
 
@@ -82,6 +83,28 @@ public class MainMenuScreen : IScreen
             }
         }
         _panel.Draw(sb);
+
+        // Broken game data is never silent: a red banner with the first problems (the
+        // full list is in the log). Content may be missing — don't trust this session.
+        var dataErrors = _game.Data?.ValidationErrors;
+        if (dataErrors is { Count: > 0 })
+        {
+            var errFont = FontManager.Get(14);
+            int shown = Math.Min(4, dataErrors.Count);
+            int bannerH = 30 + shown * 18 + (dataErrors.Count > shown ? 18 : 0);
+            sb.Draw(TextureGen.Pixel, new Rectangle(0, 0, size.X, bannerH), new Color(120, 20, 20, 235));
+            sb.DrawString(FontManager.GetBold(15), $"GAME DATA ERRORS ({dataErrors.Count}) — content is missing or broken. See the Logs folder.",
+                new Vector2(12, 6), new Color(255, 225, 215));
+            for (int i = 0; i < shown; i++)
+                sb.DrawString(errFont, "- " + dataErrors[i], new Vector2(16, 28 + i * 18), new Color(255, 200, 190));
+            if (dataErrors.Count > shown)
+                sb.DrawString(errFont, $"... and {dataErrors.Count - shown} more", new Vector2(16, 28 + shown * 18), new Color(255, 200, 190));
+        }
+
+        // Build identity: two players can only play together when these match.
+        string build = $"data {Data.ContentFingerprint.ShortOf(_game.Data?.Fingerprint)}  ·  protocol {GameNetConfig.ProtocolVersion}  ·  sim {GameNetConfig.SimVersion}";
+        var bSize = errFontSmall.MeasureString(build);
+        sb.DrawString(errFontSmall, build, new Vector2(size.X - bSize.X - 12, size.Y - 26), new Color(120, 118, 108));
 
         var hint = "You pick (or create) a character when starting any game.";
         var hSize = subFont.MeasureString(hint);

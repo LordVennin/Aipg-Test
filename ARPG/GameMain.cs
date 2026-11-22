@@ -217,6 +217,17 @@ public class GameMain : Game
 
     public void ExitGame() => Exit();
 
+    /// <summary>Crash-handler hook: save the local character if a session is running.
+    /// May be called from ANY thread while the game is dying — it must never throw.</summary>
+    public void EmergencySave()
+    {
+        try { (_screen as PlayScreen)?.SaveLocalCharacter(); }
+        catch (Exception e)
+        {
+            try { Console.WriteLine($"[Crash] Emergency save failed: {e.Message}"); } catch { }
+        }
+    }
+
     // ------------------------------------------------------------------ loop
 
     protected override void Update(GameTime gameTime)

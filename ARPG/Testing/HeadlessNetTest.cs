@@ -14,7 +14,7 @@ namespace ARPG.Testing;
 /// modifiers on both peers, exclusive pickup, equipment stat changes, skill scroll attach,
 /// and clean disconnect handling.
 /// </summary>
-public static class HeadlessNetTest
+public static partial class HeadlessNetTest
 {
     private static readonly List<string> Failures = new();
     private static int _checks;
@@ -524,10 +524,16 @@ public static class HeadlessNetTest
         storyServer.Stop();
     }
 
-    public static int Run(bool storyOnly = false)
+    public static int Run(bool storyOnly = false, bool batch85Only = false)
     {
         Console.WriteLine("=== ARPG headless multiplayer self-test ===");
         var data = GameData.LoadDefault();
+        if (batch85Only)
+        {
+            // `--nettest b85`: only the batch 85 sections (fast iteration).
+            RunBatch85(data);
+            return Finish();
+        }
         if (storyOnly)
         {
             RunStory(data);
@@ -6628,6 +6634,7 @@ public static class HeadlessNetTest
         threadedServer.Stop();
         Check(true, "threaded server stopped cleanly (thread joined)");
 
+        RunBatch85(data);
         return Finish();
     }
 

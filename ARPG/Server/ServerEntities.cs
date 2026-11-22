@@ -57,6 +57,9 @@ public class ServerPlayer
     /// <summary>Skill XP accrued since the last CharacterChanged broadcast — flushed on
     /// a slow clock so per-hit XP grants never flood the wire with character JSON.</summary>
     public bool SkillXpDirty;
+    /// <summary>The character changed and its owner hasn't been sent the new state yet.
+    /// Set through ServerWorld.MarkCharacterDirty; flushed once per server tick.</summary>
+    public bool CharacterDirty;
 
     // Dodge: cooldown and invulnerability are server-authoritative.
     public float NextDodgeAt;

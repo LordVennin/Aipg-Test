@@ -139,6 +139,11 @@ public class ItemBase
     /// <summary>Relative pick weight among uniques when one drops (level-gated).</summary>
     public int UniqueWeight { get; set; } = 10;
 
+    /// <summary>Skill books (Curio): handing this to the skill trainer unlocks these
+    /// skill ids for the character who turns it in.</summary>
+    public List<string> UnlocksSkills { get; set; } = new();
+    public bool IsSkillBook => UnlocksSkills is { Count: > 0 };
+
     public bool IsWeapon => Category is ItemCategory.Mace or ItemCategory.Staff or ItemCategory.Bow;
     /// <summary>Items rendered in the character's hands (weapons and shields).</summary>
     public bool IsHandheld => IsWeapon || Category == ItemCategory.Shield;

@@ -11,7 +11,7 @@ public static class Program
         {
             // Headless multiplayer self-test: runs a server plus two clients in-process
             // without any graphics. Used to validate the authoritative networking model.
-            Environment.Exit(HeadlessNetTest.Run(storyOnly: args.Contains("story")));
+            Environment.Exit(HeadlessNetTest.Run(storyOnly: args.Contains("story"), batch85Only: args.Contains("b85")));
             return;
         }
 
@@ -42,6 +42,11 @@ public static class Program
             Environment.Exit(UdpPathTest.RunPing(host, port));
             return;
         }
+
+        // The real game: everything Console.WriteLine prints lands in Logs/, and a
+        // crash on any thread leaves a report plus an emergency save behind.
+        Util.Log.Init();
+        Util.CrashReporter.Install(() => GameMain.Instance?.EmergencySave());
 
         using var game = new GameMain
         {

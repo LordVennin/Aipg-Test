@@ -23,7 +23,7 @@ public partial class ServerWorld
         // Re-sync the client either way: on failure this reverts any optimistic UI state.
         p.RecomputeStats(Data);
         _events.PlayerHealthChanged(p);
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
     }
 
     public bool TryMoveItem(ServerPlayer p, ItemLocation src, ItemLocation dst, out string error)
@@ -410,7 +410,7 @@ public partial class ServerWorld
 
         p.RecomputeStats(Data);
         _events.PlayerHealthChanged(p);
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
     }
 
     public void DropItem(int playerId, Guid instanceId)
@@ -424,7 +424,7 @@ public partial class ServerWorld
         {
             c.Inventory.Items.Remove(placed);
             SpawnDrop(placed.Item, p.Position);
-            _events.CharacterChanged(p);
+            MarkCharacterDirty(p);
             return;
         }
         foreach (var (slot, item) in c.Equipment)
@@ -434,7 +434,7 @@ public partial class ServerWorld
             p.RecomputeStats(Data);
             SpawnDrop(item, p.Position);
             _events.PlayerHealthChanged(p);
-            _events.CharacterChanged(p); // also rebroadcasts the held/worn appearance
+            MarkCharacterDirty(p); // also rebroadcasts the held/worn appearance
             return;
         }
         if (StashInReach(p, GameMap.HubStashId))
@@ -445,7 +445,7 @@ public partial class ServerWorld
             {
                 stash.Items.Remove(inStash);
                 SpawnDrop(inStash.Item, p.Position);
-                _events.CharacterChanged(p);
+                MarkCharacterDirty(p);
             }
         }
     }
@@ -500,7 +500,7 @@ public partial class ServerWorld
         _events.MessageFor(p, $"{price} gold to fate... she hands you {item.DisplayName(Data)}.");
         p.RecomputeStats(Data);
         _events.PlayerHealthChanged(p);
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
     }
 
     /// <summary>Gold price of learning a skill from the trainer (campaign mode).</summary>
@@ -531,7 +531,7 @@ public partial class ServerWorld
             _events.MessageFor(p, $"Learned {learnedDef.Name} for {SkillPrice} gold.");
         }
         p.Character.Skills.Add(new LearnedSkill { SkillId = skillId });
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
     }
 
     public void AssignHotbar(int playerId, int slot, string skillId)
@@ -547,7 +547,7 @@ public partial class ServerWorld
                     p.Character.Hotbar[i] = null;
         }
         p.Character.Hotbar[slot] = string.IsNullOrEmpty(skillId) ? null : skillId;
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
     }
 
     // ------------------------------------------------------------------ debug commands
@@ -560,6 +560,10 @@ public partial class ServerWorld
 
         switch (cmd)
         {
+            case "throw_in_tick":
+                // Dev: make the next N simulation ticks throw (default 1).
+                _debugThrowTicks = int.TryParse(arg, out int throwTicks) ? Math.Max(1, throwTicks) : 1;
+                break;
             case "warp_next":
                 // Dev shortcut through the campaign loop (skips the ready-door dance).
                 // From any authored map (road, defense, tutorial) the next stop is home.
@@ -616,7 +620,7 @@ public partial class ServerWorld
                 // Dev: the Codex's fixed scroll (the Mirewood, three rooms, the Gravelord).
                 var cs = CodexScroll();
                 if (cs != null) GiveItem(p, cs);
-                _events.CharacterChanged(p);
+                MarkCharacterDirty(p);
                 break;
             }
             case "unlock_scrolls":
@@ -954,7 +958,7 @@ public partial class ServerWorld
                 // a '+'-joined list of warp modifier ids to seal exactly those.
                 var warp = DevWarpScroll(c, arg);
                 if (warp != null) GiveItem(p, warp);
-                _events.CharacterChanged(p);
+                MarkCharacterDirty(p);
                 break;
             }
             case "open_portal":
@@ -987,7 +991,7 @@ public partial class ServerWorld
             // dev-equipped energy shield never recharges (the client computed a max the
             // server didn't know about).
             p.RecomputeStats(Data);
-            _events.CharacterChanged(p);
+            MarkCharacterDirty(p);
             _events.PlayerHealthChanged(p);
         }
     }
@@ -1052,7 +1056,7 @@ public partial class ServerWorld
         p.Health = MathF.Min(p.Health + 0, p.Stats.MaxHealth);
         p.Mana = MathF.Min(p.Mana, p.Stats.MaxMana);
         _events.PlayerHealthChanged(p);
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
     }
 
     // ------------------------------------------------------------------ merchant shop
@@ -1102,7 +1106,7 @@ public partial class ServerWorld
         {
             c.ShopLevel = c.Level;
             c.ShopSoldSlots.Clear();
-            _events.CharacterChanged(p);
+            MarkCharacterDirty(p);
         }
         int seed = StableHash(c.Name) ^ unchecked(c.Level * (int)0x9E3779B1);
         var gen = new LootGenerator(Data, new Random(seed));
@@ -1163,7 +1167,7 @@ public partial class ServerWorld
         }
         c.Gold -= entry.Price;
         c.ShopSoldSlots.Add(slot);
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
         _events.ShopStockFor(p, npcId, GetShopStock(p));
     }
 
@@ -1186,7 +1190,7 @@ public partial class ServerWorld
         p.Buyback.Add(new ShopEntry { Item = placed.Item, Price = value });
         while (p.Buyback.Count > BuybackSlots) p.Buyback.RemoveAt(0);
         for (int i = 0; i < p.Buyback.Count; i++) p.Buyback[i].Slot = i;
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
         // Refresh the open shop so its buy-back tab shows the item immediately.
         var shopNpc = Npcs.FirstOrDefault(n => n.TypeId != "skill_trainer" &&
             Vector2.Distance(n.Position, p.Position) <= ShopInteractRange);
@@ -1215,7 +1219,7 @@ public partial class ServerWorld
         c.Gold -= entry.Price;
         p.Buyback.Remove(entry);
         for (int i = 0; i < p.Buyback.Count; i++) p.Buyback[i].Slot = i;
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
         _events.ShopStockFor(p, npcId, GetShopStock(p));
     }
 }

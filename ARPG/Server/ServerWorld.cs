@@ -773,7 +773,7 @@ public partial class ServerWorld
             p.PotionManaUntil = Time + fb.FlaskDuration;
             p.PotionManaPerSec = fb.FlaskMana / fb.FlaskDuration;
         }
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
         _events.PlayerHealthChanged(p);
     }
 
@@ -861,7 +861,7 @@ public partial class ServerWorld
         if (refilled)
         {
             _events.MessageFor(p, "The fountain's water restores your flasks.");
-            _events.CharacterChanged(p);
+            MarkCharacterDirty(p);
             _events.WorldEffect("hit", Map.FountainSpot, 0.6f, 0.4f, p.Height);
         }
         else
@@ -916,6 +916,10 @@ public partial class ServerWorld
     {
         character ??= CharacterData.CreateNew(Data, name);
         character.Name = name;
+        // The character came from the client: repair anything this build can't hold
+        // BEFORE the first dereference (unknown item bases crash GetBase).
+        SanitizeCharacter(character, name);
+        character.EnsureSkillUnlocks(Data);
         // Migrate items from older saves: derive per-side slot caps and stack counts.
         foreach (var placed in character.Inventory.Items) placed.Item.EnsureSlotData();
         foreach (var equipped in character.Equipment.Values) equipped?.EnsureSlotData();
@@ -999,9 +1003,18 @@ public partial class ServerWorld
 
     // ------------------------------------------------------------------ tick
 
+    /// <summary>Debug (`throw_in_tick [n]`): the next n ticks throw — proves the tick
+    /// guard keeps the server alive and stops it cleanly when every tick fails.</summary>
+    private int _debugThrowTicks;
+
     public void Tick(float dt)
     {
         Time += dt;
+        if (_debugThrowTicks > 0)
+        {
+            _debugThrowTicks--;
+            throw new InvalidOperationException("debug: throw_in_tick");
+        }
         UpdateWindups();
         TickRainVolleys();
         TickTremors();
@@ -1018,18 +1031,33 @@ public partial class ServerWorld
         TickCodexScene();
         TickSurvival();
         CheckPartyWipe();
+    }
 
-        // Batched skill-XP sync: damage-based grants mark players dirty; the full
-        // character state flushes at most ~once a second instead of once per hit.
-        if (Time >= _nextSkillXpFlush)
+    // ---- character sync (batch 85) --------------------------------------------------
+    // Nothing sends CharacterState directly any more. Mutations MARK the player
+    // (MarkCharacterDirty) and GameServer flushes once per tick, after the world tick —
+    // so one AoE that kills twenty enemies costs each party member ONE character packet
+    // instead of twenty, and inventory actions still land in the same tick they happen.
+    // Skill-XP-only changes (every damaging hit) keep their slower 1.1 s cadence.
+
+    /// <summary>The character changed in a way its owner must see this tick.</summary>
+    public void MarkCharacterDirty(ServerPlayer p)
+    {
+        if (p != null) p.CharacterDirty = true;
+    }
+
+    /// <summary>Send each dirty character once. Called by the transport at the end of
+    /// every server update (and safe to call any time).</summary>
+    public void FlushCharacterSync()
+    {
+        bool skillXpDue = Time >= _nextSkillXpFlush;
+        if (skillXpDue) _nextSkillXpFlush = Time + 1.1f;
+        foreach (var p in Players.Values)
         {
-            _nextSkillXpFlush = Time + 1.1f;
-            foreach (var p in Players.Values)
-                if (p.SkillXpDirty)
-                {
-                    p.SkillXpDirty = false;
-                    _events.CharacterChanged(p);
-                }
+            if (!p.CharacterDirty && !(skillXpDue && p.SkillXpDirty)) continue;
+            p.CharacterDirty = false;
+            p.SkillXpDirty = false; // the full state carries the banked skill XP too
+            _events.CharacterChanged(p);
         }
     }
 
@@ -1089,7 +1117,7 @@ public partial class ServerWorld
                 p.Character.Gold += drop.GoldAmount;
                 Drops.Remove(drop.DropId);
                 _events.WorldItemRemoved(drop, p.Id);
-                _events.CharacterChanged(p);
+                MarkCharacterDirty(p);
             }
 
             // Life regeneration (from the LifeRegeneration stat, e.g. the Mending prefix)
@@ -3183,7 +3211,7 @@ public partial class ServerWorld
             owner.Character.Gold += coin.GoldAmount;
             Drops.Remove(coin.DropId);
             _events.WorldItemRemoved(coin, owner.Id);
-            _events.CharacterChanged(owner);
+            MarkCharacterDirty(owner);
         }
     }
 
@@ -3752,6 +3780,10 @@ public partial class ServerWorld
         }
     }
 
+    /// <summary>Test hook: one direct skill hit on an enemy, credited to a player's skill.</summary>
+    public void DebugSkillHit(ServerPlayer p, ServerEnemy e, string skillId, float damage) =>
+        DamageEnemy(e, damage, p.Id, skillId);
+
     /// <summary>Enemy death: award XP (character + skill) and generate loot authoritatively.</summary>
     private void OnEnemyKilled(ServerEnemy e)
     {
@@ -3824,7 +3856,7 @@ public partial class ServerWorld
                            Stats.XpBalance.LevelFactor(member.Character.Level, e.Level);
                 // Skill XP accrued per DAMAGE dealt (see DamageEnemy) — kills grant
                 // character XP only.
-                if (GrantCharacterXp(member, xp)) _events.CharacterChanged(member);
+                if (GrantCharacterXp(member, xp)) MarkCharacterDirty(member);
             }
         }
 
@@ -3845,7 +3877,7 @@ public partial class ServerWorld
                 bool refilled = false;
                 foreach (var it in slayer.Character.Equipment.Values)
                     if (it?.GetBase(Data)?.Category == ItemCategory.Flask && it.FlaskCharges < 1) { it.FlaskCharges = 1; refilled = true; }
-                if (refilled) _events.CharacterChanged(slayer);
+                if (refilled) MarkCharacterDirty(slayer);
             }
         }
 
@@ -3959,7 +3991,7 @@ public partial class ServerWorld
                     r.ManaReserved = reservation;
             RecomputeManaReservation(p);
         }
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
     }
 
     /// <summary>Apply a typed hit to a player. `attackHit` marks a direct Attack (enemy
@@ -4096,6 +4128,6 @@ public partial class ServerWorld
         }
         Drops.Remove(dropId);
         _events.WorldItemRemoved(drop, playerId);
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
     }
 }

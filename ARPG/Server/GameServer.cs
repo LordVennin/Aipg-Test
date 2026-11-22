@@ -136,8 +136,73 @@ public class GameServer : IServerEvents
     /// drive the loop itself instead of using StartLoop's thread.</summary>
     public void Update(float dt)
     {
+        if (FatalError != null) return; // stopped after repeated simulation failures
+        try
+        {
+            UpdateCore(dt);
+            _consecutiveTickFailures = 0;
+        }
+        catch (Exception e)
+        {
+            OnTickFailed(e);
+        }
+    }
+
+    // ---- tick guard ---------------------------------------------------------------
+    // An exception escaping the tick on the dedicated server thread would terminate the
+    // whole process (no save, no message). Instead: log it, skip the rest of this tick
+    // and keep running. A simulation that fails every tick is beyond saving — after
+    // MaxConsecutiveTickFailures in a row the server stops cleanly, tells everyone why
+    // and disconnects them (clients save on disconnect; the host lands on the menu).
+
+    public const int MaxConsecutiveTickFailures = 30;
+    public const string FatalTickMessage = "Host simulation error — see the host's Logs folder";
+    /// <summary>Total failed ticks this session (diagnostics, tests).</summary>
+    public int TickFailures { get; private set; }
+    /// <summary>Set once the server has stopped itself after repeated tick failures.</summary>
+    public string FatalError { get; private set; }
+    private int _consecutiveTickFailures;
+    private readonly Dictionary<string, int> _tickFailureCounts = new();
+
+    private void OnTickFailed(Exception e)
+    {
+        TickFailures++;
+        _consecutiveTickFailures++;
+        string key = e.GetType().FullName + "|" + e.StackTrace;
+        int seen = _tickFailureCounts.GetValueOrDefault(key) + 1;
+        _tickFailureCounts[key] = seen;
+        if (seen == 1)
+            Console.WriteLine($"[Server] TICK FAILED (the simulation keeps running): {e}");
+        else if (seen <= 5 || seen % 30 == 0)
+            Console.WriteLine($"[Server] Tick failed again (x{seen}): {e.GetType().Name}: {e.Message}");
+
+        if (_consecutiveTickFailures < MaxConsecutiveTickFailures) return;
+        FatalError = FatalTickMessage;
+        Console.WriteLine($"[Server] {MaxConsecutiveTickFailures} consecutive ticks failed — stopping the server. Last error: {e}");
+        try
+        {
+            var msg = Packets.Make(PacketType.ServerMessage);
+            msg.Put(FatalTickMessage);
+            Broadcast(msg, DeliveryMethod.ReliableOrdered);
+            // The reason rides the disconnect itself so every client shows it on its menu.
+            _net.DisconnectAll(MakeDenyData(FatalTickMessage).Data, 0, MakeDenyData(FatalTickMessage).Length);
+        }
+        catch (Exception stopError)
+        {
+            Console.WriteLine($"[Server] Error while stopping after tick failures: {stopError.Message}");
+        }
+        _peerToPlayer.Clear();
+        _playerToPeer.Clear();
+        _running = false; // ends the dedicated thread's loop; Stop() closes the socket
+    }
+
+    private void UpdateCore(float dt)
+    {
         _net.PollEvents();
         World.Tick(dt);
+        // Coalesced character sync: everything this tick's requests and kills changed
+        // goes out as ONE CharacterState per affected player.
+        World.FlushCharacterSync();
 
         _playerStateTimer += dt;
         if (_playerStateTimer >= 0.05f) // 20 Hz
@@ -304,15 +369,38 @@ public class GameServer : IServerEvents
     private void HandleJoin(NetPeer peer, NetDataReader r)
     {
         int version = r.GetInt();
-        string name = r.GetString();
-        string characterJson = r.GetString();
-
-        if (version != GameNetConfig.ProtocolVersion)
+        void Deny(string reason)
         {
             var deny = Packets.Make(PacketType.JoinDeny);
-            deny.Put($"Version mismatch (server {GameNetConfig.ProtocolVersion}, you {version}).");
+            deny.Put(reason);
             peer.Send(deny, DeliveryMethod.ReliableOrdered);
-            peer.Disconnect();
+            // The reason also rides the disconnect itself: the reliable JoinDeny above
+            // can lose the race against the close.
+            peer.Disconnect(MakeDenyData(reason));
+            Console.WriteLine($"[Server] Join denied for {peer.Address}: {reason}");
+        }
+        if (version != GameNetConfig.ProtocolVersion)
+        {
+            // Checked FIRST: the rest of the packet is laid out per protocol version.
+            Deny($"Version mismatch (server {GameNetConfig.ProtocolVersion}, you {version}).");
+            return;
+        }
+        int simVersion = r.GetInt();
+        string fingerprint = r.GetString();
+        string name = r.GetString();
+        string characterJson = r.GetString();
+        // Clients rebuild maps from a seed and resolve skills/items from their own data
+        // files: a build that generates or simulates differently, or carries different
+        // content, would connect fine and then silently desync. Refuse it readably.
+        if (simVersion != GameNetConfig.SimVersion)
+        {
+            Deny($"Game simulation differs from the host (host sim {GameNetConfig.SimVersion}, you {simVersion}) — both players need the same build.");
+            return;
+        }
+        if (fingerprint != Data.Fingerprint)
+        {
+            Deny("Game data differs from the host — both players need the same build " +
+                 $"(host {ContentFingerprint.ShortOf(Data.Fingerprint)}, you {ContentFingerprint.ShortOf(fingerprint)}).");
             return;
         }
 
@@ -378,7 +466,7 @@ public class GameServer : IServerEvents
         foreach (var other in World.Players.Values)
             if (other.Id != playerId)
                 peer.Send(AppearancePacket(other), DeliveryMethod.ReliableOrdered);
-        Broadcast(AppearancePacket(player), DeliveryMethod.ReliableOrdered);
+        BroadcastAppearanceIfChanged(player, force: true);
         // Baseline resource sync (potion flask charges ride PlayerHealth — without
         // this the joiner's flasks read empty until the first health change).
         PlayerHealthChanged(player);
@@ -390,6 +478,7 @@ public class GameServer : IServerEvents
         if (!_peerToPlayer.TryGetValue(peer, out int playerId)) return;
         _peerToPlayer.Remove(peer);
         _playerToPeer.Remove(playerId);
+        _lastAppearance.Remove(playerId);
         World.RemovePlayer(playerId);
         var w = Packets.Make(PacketType.PlayerLeft);
         w.Put(playerId);
@@ -898,8 +987,24 @@ public class GameServer : IServerEvents
         var w = Packets.Make(PacketType.CharacterState);
         w.Put(Json.SaveCompact(p.Character));
         SendTo(p.Id, w, DeliveryMethod.ReliableOrdered);
-        // Equipment may have changed what the player is visibly holding.
-        Broadcast(AppearancePacket(p), DeliveryMethod.ReliableOrdered);
+        // Equipment may have changed what the player is visibly holding — but only
+        // tell everyone when it actually did (most character changes are gold/XP).
+        BroadcastAppearanceIfChanged(p);
+    }
+
+    /// <summary>Last appearance each player was broadcast with (the packet bytes).</summary>
+    private readonly Dictionary<int, byte[]> _lastAppearance = new();
+    /// <summary>Appearance broadcasts sent (diagnostics, tests).</summary>
+    public int AppearanceBroadcasts { get; private set; }
+
+    private void BroadcastAppearanceIfChanged(ServerPlayer p, bool force = false)
+    {
+        var w = AppearancePacket(p);
+        var bytes = w.CopyData();
+        if (!force && _lastAppearance.TryGetValue(p.Id, out var last) && last.AsSpan().SequenceEqual(bytes)) return;
+        _lastAppearance[p.Id] = bytes;
+        AppearanceBroadcasts++;
+        Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
 
     private NetDataWriter AppearancePacket(ServerPlayer p)

@@ -59,6 +59,24 @@ public class StoryProgress
     public List<string> ScenesSeen { get; set; } = new();
 }
 
+/// <summary>One accepted quest: which step the character is on and its progress.</summary>
+public class QuestProgress
+{
+    public string QuestId { get; set; }
+    public int Step { get; set; }
+    public int Count { get; set; }
+}
+
+/// <summary>A character's quest log: active quests (in acceptance order) and completed ids.</summary>
+public class QuestLog
+{
+    public List<QuestProgress> Active { get; set; } = new();
+    public List<string> Completed { get; set; } = new();
+
+    public QuestProgress Get(string questId) => Active.FirstOrDefault(q => q.QuestId == questId);
+    public bool IsCompleted(string questId) => Completed.Contains(questId);
+}
+
 public class CharacterData
 {
     public StoryProgress Story { get; set; } = new();
@@ -150,6 +168,34 @@ public class CharacterData
     public Dictionary<string, InventoryGrid> Stashes { get; set; } = new();
 
     public const int StashWidth = 10, StashHeight = 8;
+
+    // ---- skill books (batch 85)
+    /// <summary>Skill ids the trainer will teach this character. Skills unlock by
+    /// handing skill books to the trainer; the class start skill and every skill
+    /// already known always count as unlocked (see <see cref="IsSkillUnlocked"/>).</summary>
+    public HashSet<string> UnlockedSkills { get; set; } = new();
+    /// <summary>Boss ids whose guaranteed first-kill skill book this character has
+    /// PICKED UP. Until then the book drops again on every kill they are present for.</summary>
+    public List<string> BookGuarantees { get; set; } = new();
+
+    public bool IsSkillUnlocked(GameData data, string skillId) =>
+        UnlockedSkills.Contains(skillId) || GetSkill(skillId) != null ||
+        data.Classes.FirstOrDefault(cl => cl.Id == ClassId)?.StartSkill == skillId;
+
+    /// <summary>Migration + invariant: everything already learned (and the class start
+    /// skill) is recorded as unlocked. Idempotent; run on load and on join.</summary>
+    public void EnsureSkillUnlocks(GameData data)
+    {
+        UnlockedSkills ??= new HashSet<string>();
+        foreach (var sk in Skills)
+            if (sk?.SkillId != null) UnlockedSkills.Add(sk.SkillId);
+        var start = data.Classes.FirstOrDefault(cl => cl.Id == ClassId)?.StartSkill;
+        if (start != null && data.Skills.ContainsKey(start)) UnlockedSkills.Add(start);
+    }
+
+    // ---- quests (batch 85)
+    /// <summary>This character's own quest log. Never copied from the host.</summary>
+    public QuestLog Quests { get; set; } = new();
 
     public InventoryGrid GetStash(string containerId)
     {

@@ -49,8 +49,10 @@ public class GameSettings
     {
         try
         {
-            if (File.Exists(SettingsPath))
-                return Json.LoadFile<GameSettings>(SettingsPath) ?? new GameSettings();
+            // Falls back to settings.json.bak when the main file is corrupt.
+            var loaded = Json.LoadFileWithBackup<GameSettings>(SettingsPath, out bool usedBackup);
+            if (usedBackup) Console.WriteLine("[Settings] settings.json was unreadable — loaded the backup.");
+            if (loaded != null) return loaded;
         }
         catch (Exception e)
         {
@@ -75,7 +77,12 @@ public class GameSettings
 public static class GameNetConfig
 {
     public const int DefaultPort = 7777;
-    public const int ProtocolVersion = 47; // v47: sealed warp scrolls, the portal, zone state additions, map weather on the wire
+    public const int ProtocolVersion = 48; // v48: JoinRequest carries SimVersion + the content fingerprint; the host may attach a reason to a disconnect
+    /// <summary>Bump on ANY change to map generation, collision or simulation rules:
+    /// clients rebuild maps from a seed, so two builds that generate differently must
+    /// refuse each other at the handshake instead of silently desyncing.
+    /// v1 (batch 85): first version; covers batches 82-84's GameMap/barrier changes.</summary>
+    public const int SimVersion = 1;
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

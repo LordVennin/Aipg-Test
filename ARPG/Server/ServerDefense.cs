@@ -762,7 +762,7 @@ public partial class ServerWorld
             foreach (var pl in Players.Values)
                 _events.MessageFor(pl,
                     $"{p.Name} hired {merc.Name} — {(merc.Kind == "archer" ? "an" : "a")} {merc.Kind} of power {merc.Power}.");
-            _events.CharacterChanged(p);
+            MarkCharacterDirty(p);
             return;
         }
 
@@ -783,7 +783,7 @@ public partial class ServerWorld
             if (blueprint.Item.StackCount <= 0) p.Character.Inventory.Items.Remove(blueprint);
             p.Character.FlamethrowerUnlocked = true;
             _events.MessageFor(p, "Odessa pores over the schematics... the flamethrower turret is yours to build.");
-            _events.CharacterChanged(p);
+            MarkCharacterDirty(p);
         }
     }
 

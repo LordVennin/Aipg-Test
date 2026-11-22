@@ -166,7 +166,7 @@ public class PlayScreen : IScreen
     }
     private float _fpsTimer;
     private int _fpsCounter;
-    private float _autosaveTimer;
+    private readonly Persistence.Autosaver _autosaver;
     private float _lastNoManaMsgAt = -10f;
 
     /// <summary>A draggable gameplay panel wrapped for z-ordering (see ctor).</summary>
@@ -195,6 +195,7 @@ public class PlayScreen : IScreen
         _game = game;
         _server = server;
         _client = client;
+        _autosaver = new Persistence.Autosaver(client);
         _renderer = new WorldRenderer(game.Data, game.Settings);
         _hud = new HudUI(game.Data, client, game.Settings);
         _inventory = new InventoryUI(game.Data, client, _drag);
@@ -635,13 +636,8 @@ public class PlayScreen : IScreen
         var character = _client.World.MyCharacter;
         if (me == null || character == null) return;
 
-        // Periodic local safety save.
-        _autosaveTimer += dt;
-        if (_autosaveTimer > 30f)
-        {
-            _autosaveTimer = 0;
-            SaveLocalCharacter();
-        }
+        // Autosave: every 60 s, on map changes and on level-up (background write).
+        _autosaver.Update(dt);
 
         // Rebuild open overlays when the resolution/UI scale changes under them.
         if (uiScreen != _lastUiScreen)

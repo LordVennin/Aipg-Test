@@ -31,7 +31,7 @@ public class ScrollRun
             EnemyLevel = Math.Max(1, scroll.ItemLevel),
             Seed = unchecked(runSeed * 31 + scroll.InstanceId.GetHashCode()),
         };
-        string zoneName = "Mirewood";
+        string zoneName = "the Mirewood";
         string modeName = "";
         foreach (var roll in scroll.Modifiers)
         {
@@ -45,12 +45,10 @@ public class ScrollRun
                     modeName = run.Defense ? "Caravan Stand" : "Last Stand";
                     break;
                 case "warp_zone":
-                    (run.ThemeId, zoneName) = def.Id switch
-                    {
-                        "warp_zone_swamp" => ("graveyard", "the Fen"),
-                        "warp_zone_ruins" => ("tomb", "the Sunken Halls"),
-                        _ => ("forest", "the Mirewood"),
-                    };
+                    // The seal itself carries its destination (Data/Modifiers/warp.json):
+                    // a new zone is a data entry, not a code change.
+                    if (!string.IsNullOrEmpty(def.ZoneThemeId)) run.ThemeId = def.ZoneThemeId;
+                    if (!string.IsNullOrEmpty(def.ZoneName)) zoneName = def.ZoneName;
                     break;
                 case "warp_weather":
                     run.Weather = def.Id switch
@@ -107,7 +105,7 @@ public partial class ServerWorld
         {
             pl.Character.Story ??= new Sim.StoryProgress();
             mark(pl.Character.Story);
-            _events.CharacterChanged(pl);
+            MarkCharacterDirty(pl);
         }
     }
 
@@ -141,7 +139,7 @@ public partial class ServerWorld
         if (CodexFelled && !sp.CodexFelled) { sp.CodexFelled = true; changed = true; }
         if (ScrollsUnlocked && !sp.ScrollsUnlocked) { sp.ScrollsUnlocked = true; changed = true; }
         if (ContractsUnlocked && !sp.ContractsUnlocked) { sp.ContractsUnlocked = true; changed = true; }
-        if (changed) _events.CharacterChanged(p);
+        if (changed) MarkCharacterDirty(p);
     }
 
     /// <summary>Story progression flips: scrolls exist once the Codex has given one up.</summary>
@@ -255,7 +253,7 @@ public partial class ServerWorld
             return;
         }
         p.Character.Inventory.Remove(itemId);
-        _events.CharacterChanged(p);
+        MarkCharacterDirty(p);
         OpenPortal(placed.Item);
     }
 
