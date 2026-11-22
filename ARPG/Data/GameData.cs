@@ -226,7 +226,8 @@ public class QuestDefinition
 /// <summary>One quest step. Type: reach_map (Target = a MapKind name or "zone:&lt;theme id&gt;"),
 /// kill (Target = enemy id or "family:&lt;name&gt;", Count, optional MapKind), kill_boss
 /// (Target = enemy id), talk (Target = npc id), turn_in (Target = item id or
-/// "category:skill_book"), use_podium, complete_run.</summary>
+/// "category:skill_book"), collect (pick an item up yourself: item id, "category:skill_book"
+/// or "category:warp_scroll" — never auto-granted), use_podium, complete_run.</summary>
 public class QuestStep
 {
     public string Type { get; set; }

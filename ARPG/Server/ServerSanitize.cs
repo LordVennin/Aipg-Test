@@ -192,7 +192,7 @@ public partial class ServerWorld
         c.Quests.Active.RemoveAll(q =>
         {
             var def = q == null ? null : Data.GetQuest(q.QuestId ?? "");
-            bool bad = def == null || seen.Contains(q.QuestId) || !active.Add(q.QuestId);
+            bool bad = def == null || def.Steps.Count == 0 || seen.Contains(q.QuestId) || !active.Add(q.QuestId);
             if (bad) note($"removed unknown or duplicate quest '{q?.QuestId}'");
             return bad;
         });

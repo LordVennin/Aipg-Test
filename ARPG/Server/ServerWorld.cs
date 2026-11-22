@@ -77,6 +77,9 @@ public interface IServerEvents
     /// <summary>A scripted scene fires for everyone (tutorial beats): clients play the
     /// cutscene identified by id locally — letterbox, camera focus, dialogue.</summary>
     void CutscenePlayed(string id);
+    /// <summary>A player's tracked quest step changed (questId "" = none): everyone is
+    /// told, so the HUD can say who a finished player is helping.</summary>
+    void QuestStatusChanged(ServerPlayer p, string questId, int step);
 }
 
 /// <summary>One merchant stock slot as offered to a specific player.</summary>
@@ -611,6 +614,7 @@ public partial class ServerWorld
             else SetupForest();
         }
         _events.ZoneStateChanged(this);
+        QuestMapChanged(); // everyone who came through is PRESENT on the new map
     }
 
     /// <summary>The sanctum hub always renders in its own purple-stone theme; run maps
@@ -717,6 +721,9 @@ public partial class ServerWorld
             if (doorTarget == ScrollMapIndex && MapIndex != ScrollMapIndex) EnterPortal();
             else
             {
+                // Out through a portal run's final exit (it only opens once the boss is
+                // down / the waves are beaten): the run is complete for everyone here.
+                if (MapIndex == ScrollMapIndex && doorTarget == 0) QuestRunCompleted();
                 _roadReturn = doorTarget == StoryRoadIndex && Map.Kind == MapKind.RuinsHub;
                 TransitionTo(doorTarget);
             }
@@ -1071,6 +1078,7 @@ public partial class ServerWorld
             p.SkillXpDirty = false; // the full state carries the banked skill XP too
             _events.CharacterChanged(p);
         }
+        FlushQuestStatus();
     }
 
     private float _nextSkillXpFlush;
@@ -3937,6 +3945,7 @@ public partial class ServerWorld
                 foreach (var other in Enemies.Values.ToList())
                     if (!other.Dead && other.SummonerId == e.Id)
                         DamageEnemy(other, other.Health + 1f, -1, null);
+                var scrollBase = Data.Items.Values.FirstOrDefault(b => b.Category == ItemCategory.WarpScroll);
                 if (!CodexFelled)
                 {
                     CodexFelled = true;
@@ -3947,6 +3956,23 @@ public partial class ServerWorld
                     _codexSceneAt = -1f; // armed: plays on the next return to the camp
                     foreach (var pl in Players.Values)
                         _events.MessageFor(pl, "Something falls from between the Codex's pages: a scroll, sealed with wax.");
+                }
+                else
+                {
+                    // A later kill: the world's first scroll is long gone, but anyone
+                    // PRESENT whose quest still needs one (they joined after the first
+                    // kill, or left theirs on the floor) gets the Codex's scroll again
+                    // — and their own saved story record now says they were there.
+                    MarkStory(sp => { sp.CodexFelled = true; sp.ScrollsUnlocked = true; });
+                    foreach (var pl in Players.Values)
+                    {
+                        if (!QuestStillNeedsItem(pl, scrollBase)) continue;
+                        if (pl.Character.Inventory.Items.Any(it => it.Item.GetBase(Data).Category == ItemCategory.WarpScroll)) continue;
+                        var again = CodexScroll();
+                        if (again == null) continue;
+                        SpawnDrop(again, e.Position, e.Height).ReservedForPlayerId = pl.Id;
+                        _events.MessageFor(pl, "The Codex gives up another sealed scroll — this one is yours.");
+                    }
                 }
                 _events.ZoneStateChanged(this);
             }
@@ -4037,6 +4063,8 @@ public partial class ServerWorld
             }
             SpawnDrop(drop, e.Position, e.Height);
         }
+
+        QuestEnemyKilled(e);
 
         // Specific drops this enemy carries, and the first-kill skill book guarantee.
         RollExtraDrops(e);

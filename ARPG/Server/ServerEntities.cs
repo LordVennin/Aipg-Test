@@ -60,6 +60,8 @@ public class ServerPlayer
     /// <summary>The character changed and its owner hasn't been sent the new state yet.
     /// Set through ServerWorld.MarkCharacterDirty; flushed once per server tick.</summary>
     public bool CharacterDirty;
+    /// <summary>The tracked quest step last broadcast for this player ("questId#step").</summary>
+    public string LastQuestStatusKey;
 
     // Dodge: cooldown and invulnerability are server-authoritative.
     public float NextDodgeAt;

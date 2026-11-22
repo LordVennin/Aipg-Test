@@ -200,7 +200,8 @@ public static class DataValidator
                         if (!data.Npcs.ContainsKey(step.Target ?? "")) Err($"{where}: unknown npc '{step.Target}'");
                         break;
                     case "turn_in":
-                        if (!data.Items.ContainsKey(step.Target ?? "") && step.Target != "category:skill_book")
+                    case "collect":
+                        if (!data.Items.ContainsKey(step.Target ?? "") && step.Target is not ("category:skill_book" or "category:warp_scroll"))
                             Err($"{where}: unknown item '{step.Target}'");
                         break;
                     case "use_podium":

@@ -49,7 +49,8 @@ public class MercData
 /// </summary>
 /// <summary>Where the story stands for this character — saved with the character so a
 /// reload puts them back in the camp with the world as they left it. The host's
-/// progress is the world's; anyone who joins catches up to it.</summary>
+/// progress is the world's; a joiner plays in that world, but their own saved flags
+/// only record what happened while they were present (no catch-up, batch 85).</summary>
 public class StoryProgress
 {
     public bool ReachedCamp { get; set; }

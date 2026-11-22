@@ -386,6 +386,14 @@ public class GameClient
         Send(w, DeliveryMethod.ReliableOrdered);
     }
 
+    /// <summary>Tell the server we spoke to an NPC (quest "talk" steps; reach is checked there).</summary>
+    public void RequestTalk(int npcId)
+    {
+        var w = Packets.Make(PacketType.TalkRequest);
+        w.Put(npcId);
+        Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestTurnInSkillBook(Guid itemInstanceId)
     {
         var w = Packets.Make(PacketType.SkillBookTurnInRequest);
@@ -1359,6 +1367,19 @@ public class GameClient
                     p.GlovesBaseId = string.IsNullOrEmpty(glovesId) ? null : glovesId;
                     p.BootsBaseId = string.IsNullOrEmpty(bootsId) ? null : bootsId;
                     p.BeltBaseId = string.IsNullOrEmpty(beltId) ? null : beltId;
+                }
+                break;
+            }
+
+            case PacketType.QuestStatus:
+            {
+                int questPlayer = r.GetInt();
+                string questId = r.GetString();
+                int questStep = r.GetInt();
+                if (World.Players.TryGetValue(questPlayer, out var quester))
+                {
+                    quester.QuestId = questId.Length == 0 ? null : questId;
+                    quester.QuestStep = questStep;
                 }
                 break;
             }

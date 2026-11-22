@@ -1,0 +1,86 @@
+[
+ {
+  "Id": "q_road",
+  "Name": "The Old Road",
+  "Description": "The caravan can't reach the ruins while the Barrow Lord holds the gate. Clear the way and make camp.",
+  "Steps": [
+   { "Type": "kill_boss", "Target": "barrowlord", "Text": "Fell the Barrow Lord at the gate" },
+   { "Type": "reach_map", "Target": "RuinsHub", "Text": "Reach the camp in the ruins" }
+  ],
+  "RewardGold": 40,
+  "RewardXp": 60
+ },
+ {
+  "Id": "q_lorekeeper",
+  "Name": "A Word with the Lorekeeper",
+  "Description": "The crew's lorekeeper teaches what the books describe. Introduce yourself.",
+  "Requires": "q_road",
+  "Steps": [
+   { "Type": "talk", "Target": "skill_trainer", "Text": "Speak to the skill trainer in the camp" }
+  ],
+  "RewardGold": 25,
+  "RewardXp": 30
+ },
+ {
+  "Id": "q_archive",
+  "Name": "Under the Ruins",
+  "Description": "Stairs lead down from the camp into an archive that should be empty. Something is turning the pages.",
+  "Requires": "q_lorekeeper",
+  "Steps": [
+   { "Type": "reach_map", "Target": "Archive", "Text": "Descend to the archive" },
+   { "Type": "kill_boss", "Target": "codex", "Text": "Fell the Gilded Codex" },
+   { "Type": "collect", "Target": "category:warp_scroll", "Text": "Take the sealed scroll it was guarding" }
+  ],
+  "RewardGold": 80,
+  "RewardXp": 150
+ },
+ {
+  "Id": "q_portal",
+  "Name": "The Sealed Way",
+  "Description": "The scroll's seals describe a place. The podium in the ruins can read them aloud.",
+  "Requires": "q_archive",
+  "Steps": [
+   { "Type": "use_podium", "Text": "Place a sealed warp scroll on the podium" },
+   { "Type": "complete_run", "Text": "Finish a portal run and come home" }
+  ],
+  "RewardGold": 120,
+  "RewardXp": 250
+ },
+ {
+  "Id": "q_book",
+  "Name": "Words on Paper",
+  "Description": "Skill books turn up on bosses and on those who can read. The trainer will make sense of one.",
+  "Side": true,
+  "Steps": [
+   { "Type": "turn_in", "Target": "category:skill_book", "Text": "Hand a skill book to the skill trainer" }
+  ],
+  "RewardGold": 30,
+  "RewardXp": 40
+ },
+ {
+  "Id": "q_goblins",
+  "Name": "Thin the Warrens",
+  "Description": "Goblins have overrun the Mirewood. The caravan would sleep better with fewer of them.",
+  "Side": true,
+  "Requires": "q_archive",
+  "Steps": [
+   { "Type": "reach_map", "Target": "zone:forest", "Text": "Enter the Mirewood through the portal" },
+   { "Type": "kill", "Target": "family:goblin", "Count": 12, "Text": "Goblins slain" }
+  ],
+  "RewardGold": 90,
+  "RewardXp": 180
+ },
+ {
+  "Id": "q_captain",
+  "Name": "The Captain's Head",
+  "Description": "The bandits answer to one voice. Wherever a Bandit Captain holds court, bring them down.",
+  "Side": true,
+  "Requires": "q_archive",
+  "Steps": [
+   { "Type": "kill_boss", "Target": "bandit_captain", "Text": "Bring down a Bandit Captain" }
+  ],
+  "RewardGold": 150,
+  "RewardXp": 300,
+  "RewardItem": "scroll_aftershock"
+ }
+]

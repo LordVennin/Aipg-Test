@@ -2072,3 +2072,21 @@ a Barrow Knight (native 3) 55 hp / 14 dmg / 11 xp.
   Boss room: the Bandit Captain + brute + archer x2. Survival waves: cutthroat 4,
   archer 3, skulker 2, brute 2 (wave 3+).
 - Tall grass on arid maps is painted as dry straw-coloured scrub (render only).
+
+### Quests (85.16)
+
+Per-character quest logs, story worlds only. A step completes only for characters
+present when it happens; nothing is copied from the host.
+
+| Quest | Steps | Reward |
+|---|---|---|
+| The Old Road | fell the Barrow Lord; reach the camp in the ruins | 40 gold, 60 xp |
+| A Word with the Lorekeeper | speak to the skill trainer | 25 gold, 30 xp |
+| Under the Ruins | descend to the archive; fell the Gilded Codex; pick up its sealed scroll | 80 gold, 150 xp |
+| The Sealed Way | place a sealed warp scroll on the podium; finish a portal run | 120 gold, 250 xp |
+| Words on Paper (side, from the start) | hand a skill book to the trainer | 30 gold, 40 xp |
+| Thin the Warrens (side, after the archive) | enter the Mirewood; 12 goblins slain | 90 gold, 180 xp |
+| The Captain's Head (side, after the archive) | bring down a Bandit Captain | 150 gold, 300 xp, an Aftershock scroll |
+
+- The Codex gives its sealed scroll again (reserved for that player) on any later kill
+  to a present character whose quest still needs one and who isn't carrying one.

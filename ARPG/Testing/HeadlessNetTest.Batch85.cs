@@ -97,6 +97,225 @@ public static partial class HeadlessNetTest
         Batch85Mace(data);
         Batch85Bow(data);
         Batch85ScorchedBluffs(data);
+        Batch85Quests(data);
+    }
+
+    private static void Batch85Quests(GameData data)
+    {
+        Console.WriteLine("\n-- Batch 85.16: the quest tracker (per-character logs, presence credit, no catch-up) --");
+        string[] stepTypes = { "reach_map", "kill", "kill_boss", "talk", "turn_in", "collect", "use_podium", "complete_run" };
+        Check(data.Quests.Count >= 7 && data.Quests.Count(q => !q.Side) == 4 && data.Quests.Count(q => q.Side) >= 3 &&
+              data.Quests.SelectMany(q => q.Steps).All(st => stepTypes.Contains(st.Type) && st.Text.Length > 0) &&
+              data.Quests.SelectMany(q => q.Steps).Select(st => st.Type).Distinct().Count() == stepTypes.Length &&
+              data.Quests.All(q => q.RewardGold > 0 && q.RewardXp > 0) && data.GetQuest("q_captain").RewardItem.Length > 0,
+              $"{data.Quests.Count} quests in Data/Quests/quests.json: a four-quest story line and three side quests, every step type used, gold + XP rewards (one with an item)");
+        Check(Core.InputManager.DefaultBindings()[Core.InputAction.QuestLog].ToString() == "Key:J",
+              "the quest log has its own rebindable action, default J");
+
+        // ---- the story line, one character, start to finish.
+        var qs = new Session(data, 851601, campaign: true, story: true, clients: 1, names: new[] { "Quester" });
+        var w = qs.World;
+        var pa = qs.P(qs.A);
+        var log = pa.Character.Quests;
+        Check(w.QuestsActive && log.Active.Select(q => q.QuestId).OrderBy(x => x).SequenceEqual(new[] { "q_book", "q_road" }) &&
+              log.Get("q_road").Step == 0 && qs.A.World.MyCharacter.Quests.Active.Count == 2,
+              "a new character starts with the first story quest and the open side quest (client holds the same log)");
+        var tracker = UI.QuestUI.TrackerLines(data, qs.A.World.MyCharacter, qs.A.World.Players.Values);
+        Check(tracker.Count >= 2 && tracker[0].Kind == "title" && tracker[0].Text == "The Old Road" &&
+              tracker[1].Kind == "step" && tracker[1].Text.Contains("Barrow Lord") && tracker.Any(l => l.Kind == "side" && l.Text.Contains("Words on Paper")),
+              $"the tracker shows the active quest's current step (\"{tracker[0].Text} / {tracker[1].Text}\") and the side quest under it");
+        int gold0 = pa.Character.Gold;
+        var lord = w.Enemies.Values.First(e => e.Def.Id == "barrowlord");
+        w.DebugSkillHit(pa, lord, null, lord.Health + 1f);
+        qs.Pump(0.5f);
+        Check(log.Get("q_road")?.Step == 1 && qs.A.World.MyCharacter.Quests.Get("q_road")?.Step == 1 &&
+              qs.Messages[0].Any(m => m.StartsWith("Quest updated")),
+              "kill_boss: the Barrow Lord's fall advances the step (server and client)");
+        qs.A.SendDebugCommand("warp_home");
+        qs.Pump(1.2f);
+        Check(log.IsCompleted("q_road") && log.Get("q_lorekeeper") != null && pa.Character.Gold == gold0 + data.GetQuest("q_road").RewardGold &&
+              qs.Messages[0].Any(m => m.StartsWith("Quest complete")) && qs.A.World.MyCharacter.Quests.IsCompleted("q_road"),
+              $"reach_map: arriving in the camp completes the quest, pays {data.GetQuest("q_road").RewardGold} gold and offers the next one");
+        var trainer = w.Npcs.First(n => n.TypeId == "skill_trainer");
+        qs.Place(qs.A, trainer.Position + new Vector2(8f, 0f));
+        qs.A.RequestTalk(trainer.Id);
+        qs.Pump(0.4f);
+        bool talkTooFar = log.Get("q_lorekeeper") != null;
+        qs.Place(qs.A, trainer.Position + new Vector2(0.9f, 0.3f));
+        qs.A.RequestTalk(w.Npcs.First(n => n.TypeId == "merchant").Id);
+        qs.Pump(0.4f);
+        bool wrongNpc = log.Get("q_lorekeeper") != null;
+        qs.A.RequestTalk(trainer.Id);
+        qs.Pump(0.4f);
+        Check(talkTooFar && wrongNpc && log.IsCompleted("q_lorekeeper") && log.Get("q_archive")?.Step == 0 &&
+              log.Get("q_goblins") == null,
+              "talk: only speaking to the trainer, within reach, counts; the side quests behind the archive aren't offered yet");
+        qs.A.SendDebugCommand("warp_basement");
+        qs.Pump(1.2f);
+        Check(w.Map.Kind == World.MapKind.Archive && log.Get("q_archive")?.Step == 1, "reach_map: descending to the archive advances the step");
+        var codex = w.Enemies.Values.First(e => e.Def.Id == "codex");
+        w.DebugSkillHit(pa, codex, null, codex.Health + 1f);
+        qs.Pump(0.6f);
+        var firstScroll = w.Drops.Values.FirstOrDefault(d => d.Item?.GetBase(data).Category == ItemCategory.WarpScroll);
+        Check(log.Get("q_archive")?.Step == 2 && firstScroll != null && pa.Character.Story.CodexFelled &&
+              !pa.Character.Inventory.Items.Any(pl => pl.Item.GetBase(data).Category == ItemCategory.WarpScroll),
+              "kill_boss: the Codex falls; the next step needs its scroll — which is on the ground, NOT auto-added to the bag");
+        // Leave it behind: the step stays open, and the source is there again next visit.
+        qs.A.SendDebugCommand("warp_home");
+        qs.Pump(1.2f);
+        bool stillOpen = log.Get("q_archive")?.Step == 2 && w.Drops.Count == 0;
+        qs.A.SendDebugCommand("warp_basement");
+        qs.Pump(1.2f);
+        var codexAgain = w.Enemies.Values.FirstOrDefault(e => e.Def.Id == "codex");
+        if (codexAgain != null) w.DebugSkillHit(pa, codexAgain, null, codexAgain.Health + 1f);
+        qs.Pump(0.6f);
+        var secondScroll = w.Drops.Values.FirstOrDefault(d => d.Item?.GetBase(data).Category == ItemCategory.WarpScroll);
+        Check(stillOpen && codexAgain != null && secondScroll != null && secondScroll.ReservedForPlayerId == pa.Id,
+              "leaving the quest item behind loses it and leaves the step open; the Codex is there again and gives the scroll again");
+        if (secondScroll != null)
+        {
+            qs.Place(qs.A, secondScroll.Position);
+            qs.A.RequestPickup(secondScroll.DropId);
+            qs.Pump(0.5f);
+        }
+        Check(log.IsCompleted("q_archive") && log.Get("q_portal")?.Step == 0 && log.Get("q_goblins") != null && log.Get("q_captain") != null,
+              "collect: picking the scroll up yourself completes the quest and opens the portal quest and both side quests");
+        var codexThird = w.SpawnEnemy("codex", pa.Position + new Vector2(2f, 0f), EliteAffix.Boss);
+        w.DebugSkillHit(pa, codexThird, null, codexThird.Health + 1f);
+        qs.Pump(0.4f);
+        Check(!w.Drops.Values.Any(d => d.Item?.GetBase(data).Category == ItemCategory.WarpScroll && d.ReservedForPlayerId == pa.Id),
+              "once the step is done the Codex stops handing out quest scrolls");
+        foreach (var leftover in w.Drops.Keys.ToList()) w.Drops.Remove(leftover);
+
+        // ---- a second character joins late: their own log, and NO catch-up.
+        var late = qs.Add(data, "Latecomer");
+        qs.Pump(1.2f);
+        var pb = qs.P(late);
+        var logB = pb.Character.Quests;
+        Check(late.Status == ClientStatus.InGame && w.CodexFelled && w.ScrollsUnlocked &&
+              !pb.Character.Story.CodexFelled && !pb.Character.Story.ScrollsUnlocked && !pb.Character.Story.ReachedCamp &&
+              !late.World.MyCharacter.Story.CodexFelled,
+              "no catch-up: the world keeps the host's progress, but the joiner's saved story record does NOT gain the Codex kill they weren't there for");
+        Check(logB.Get("q_road")?.Step == 0 && logB.Get("q_archive") == null && !logB.IsCompleted("q_road") &&
+              late.World.MyCharacter.Quests.Get("q_road")?.Step == 0,
+              "the joiner starts their own log at the beginning — nothing copied from the host");
+        Check(late.World.Players[qs.A.World.MyPlayerId].QuestId == "q_portal" && qs.A.World.Players[late.World.MyPlayerId].QuestId == "q_road" &&
+              qs.A.World.Players[late.World.MyPlayerId].QuestStep == 0,
+              "each player's current quest step is broadcast to the other");
+        var helping = UI.QuestUI.TrackerLines(data, qs.A.World.MyCharacter, qs.A.World.Players.Values);
+        var notHelping = UI.QuestUI.TrackerLines(data, late.World.MyCharacter, late.World.Players.Values);
+        Check(helping.Any(l => l.Kind == "helping" && l.Text.Contains("helping Latecomer") && l.Text.Contains("Barrow Lord")) &&
+              !notHelping.Any(l => l.Kind == "helping"),
+              $"the host's tracker says who they are helping (\"{helping.FirstOrDefault(l => l.Kind == "helping").Text}\"); the newcomer's doesn't");
+        // Both present for a Codex kill now: the joiner's story record gains it (they were
+        // there) — but their quest log doesn't, because they don't have that step.
+        var codexShared = w.SpawnEnemy("codex", pa.Position + new Vector2(2f, 0f), EliteAffix.Boss);
+        w.DebugSkillHit(pa, codexShared, null, codexShared.Health + 1f);
+        qs.Pump(0.5f);
+        Check(pb.Character.Story.CodexFelled && logB.Get("q_archive") == null && logB.Get("q_road")?.Step == 0,
+              "present for a later Codex kill: the joiner's record says so from then on, yet a quest step they don't hold isn't credited");
+        foreach (var leftover in w.Drops.Keys.ToList()) w.Drops.Remove(leftover);
+        qs.A.SendDebugCommand("warp_home");
+        qs.Pump(1.2f);
+        Check(pb.Character.Story.ReachedCamp && logB.Get("q_road")?.Step == 0,
+              "the joiner reaches the camp with the party (recorded), but 'Reach the camp' waits behind the Barrow Lord step they haven't done");
+
+        // ---- presence: a kill credits everyone on the map who has the step — alive or dead.
+        qs.B.SendDebugCommand("die");
+        qs.Pump(0.4f);
+        var sharedLord = w.SpawnEnemy("barrowlord", pa.Position + new Vector2(3f, 0f), EliteAffix.Boss);
+        w.DebugSkillHit(pa, sharedLord, null, sharedLord.Health + 1f);
+        qs.Pump(0.6f);
+        Check(!pb.Alive && logB.IsCompleted("q_road") && logB.Get("q_lorekeeper") != null && log.IsCompleted("q_road"),
+              "a dead player on the map is still credited for the boss kill (and, standing in the camp, finishes the quest)");
+        foreach (var leftover in w.Drops.Keys.ToList()) w.Drops.Remove(leftover);
+        w.DebugRevive(pb);
+        qs.Pump(0.4f);
+        // Kill counts are per player, and only for those holding the step.
+        qs.A.SendDebugCommand("enter_portal", "warp_zone_forest");
+        qs.Pump(1.6f);
+        Check(w.Map.Theme?.Id == "forest" && log.Get("q_goblins")?.Step == 1 && logB.Get("q_goblins") == null,
+              "reach_map zone:forest — entering the Mirewood advances the host's goblin quest; the joiner doesn't have it");
+        foreach (var e in w.Enemies.Values.ToList()) e.Position = pa.Position + new Vector2(40f, 40f); // park the run's own packs
+        for (int i = 0; i < 3; i++)
+        {
+            var gob = w.SpawnEnemy(i == 0 ? "goblin_shaman" : "goblin_skulker", pa.Position + new Vector2(2f, 0f));
+            w.DebugSkillHit(pb, gob, null, gob.Health + 1f); // the JOINER lands the killing blows
+        }
+        var notGoblin = w.SpawnEnemy("bandit_archer", pa.Position + new Vector2(2f, 0f));
+        w.DebugSkillHit(pa, notGoblin, null, notGoblin.Health + 1f);
+        qs.Pump(0.5f);
+        var sideLine = UI.QuestUI.TrackerLines(data, qs.A.World.MyCharacter, qs.A.World.Players.Values).FirstOrDefault(l => l.Text.Contains("Goblins slain"));
+        Check(log.Get("q_goblins")?.Count == 3 && logB.Get("q_goblins") == null && sideLine.Text != null && sideLine.Text.Contains("Goblins slain 3/12"),
+              $"kill family:goblin — three goblins (killed by the OTHER player) count for the holder, a bandit doesn't: \"{sideLine.Text}\"");
+        // The portal quest: podium, then walking out of a finished run.
+        qs.A.SendDebugCommand("warp_home");
+        qs.Pump(1.2f);
+        Check(log.Get("q_portal")?.Step == 0, "leaving a run through a debug warp is not 'finishing' it");
+        var podiumScroll = pa.Character.Inventory.Items.First(pl => pl.Item.GetBase(data).Category == ItemCategory.WarpScroll);
+        qs.Place(qs.A, w.Map.PodiumSpot + new Vector2(-1.0f, 0.5f));
+        qs.Place(qs.B, w.Map.PodiumSpot + new Vector2(-1.0f, -0.5f));
+        qs.A.RequestUsePodium(podiumScroll.Item.InstanceId);
+        qs.Pump(0.5f);
+        Check(w.PortalOpen && log.Get("q_portal")?.Step == 1, "use_podium: placing the scroll advances the step");
+        qs.A.SendDebugCommand("enter_portal", "warp_zone_swamp"); // a one-room run with no boss: the exit is open
+        qs.Pump(1.6f);
+        qs.Place(qs.A, w.Map.ExitDoor + new Vector2(-1.0f, 0.5f));
+        qs.Place(qs.B, w.Map.ExitDoor + new Vector2(-1.0f, -0.5f));
+        int goldBeforeRun = pa.Character.Gold;
+        qs.A.RequestDoorReady();
+        qs.B.RequestDoorReady();
+        qs.Pump(1.4f);
+        Check(w.MapIndex == 0 && log.IsCompleted("q_portal") && pa.Character.Gold == goldBeforeRun + data.GetQuest("q_portal").RewardGold &&
+              logB.Get("q_portal") == null && !logB.IsCompleted("q_portal"),
+              "complete_run: walking out of the run's exit finishes the story line for the one who held the step");
+        // Turn-ins credit only the turner.
+        var trainerNow = w.Npcs.First(n => n.TypeId == "skill_trainer");
+        qs.Place(qs.A, trainerNow.Position + new Vector2(0.9f, 0.3f));
+        qs.Place(qs.B, trainerNow.Position + new Vector2(-0.9f, 0.3f));
+        qs.A.SendDebugCommand("give_book", "book_ossuary");
+        qs.Pump(0.4f);
+        var handIn = pa.Character.Inventory.Items.First(pl => pl.Item.BaseItemId == "book_ossuary");
+        qs.A.RequestTurnInSkillBook(handIn.Item.InstanceId);
+        qs.Pump(0.4f);
+        Check(log.IsCompleted("q_book") && logB.Get("q_book") != null && !logB.IsCompleted("q_book"),
+              "turn_in: handing a skill book to the trainer credits the turner only (the other player's side quest stays open)");
+        // The reward item, and the Captain side quest crediting both holders at once.
+        logB.Active.Add(new QuestProgress { QuestId = "q_captain" });
+        var chief = w.SpawnEnemy("bandit_captain", pa.Position + new Vector2(3f, 0f), EliteAffix.Boss);
+        w.DebugSkillHit(pa, chief, null, chief.Health + 1f);
+        qs.Pump(0.5f);
+        Check(log.IsCompleted("q_captain") && logB.IsCompleted("q_captain") &&
+              (pa.Character.Inventory.Items.Any(pl => pl.Item.BaseItemId == "scroll_aftershock") || w.Drops.Values.Any(d => d.Item?.BaseItemId == "scroll_aftershock")),
+              "two players holding the same step are both credited by one kill, each receiving the reward (an Aftershock scroll)");
+
+        // ---- the log survives save / load, and the sanitizer keeps it honest.
+        var savedLog = Json.Load<CharacterData>(Json.Save(pa.Character));
+        const string questSave = "nettest_quest_85";
+        savedLog.Name = questSave;
+        SaveManager.SaveCharacter(savedLog);
+        var reloaded = SaveManager.LoadCharacter(questSave);
+        SaveManager.DeleteCharacter(questSave);
+        Check(reloaded != null && reloaded.Quests.Completed.SequenceEqual(log.Completed) &&
+              reloaded.Quests.Active.Select(q => (q.QuestId, q.Step, q.Count)).SequenceEqual(log.Active.Select(q => (q.QuestId, q.Step, q.Count))) &&
+              reloaded.Quests.Get("q_goblins")?.Count == 3,
+              $"quest logs survive save/load ({reloaded?.Quests.Completed.Count} completed, {reloaded?.Quests.Active.Count} active, goblin count intact)");
+        reloaded.Quests.Active.Add(new QuestProgress { QuestId = "q_from_another_build" });
+        reloaded.Quests.Active.Add(new QuestProgress { QuestId = "q_goblins", Step = 99, Count = -5 });
+        reloaded.Quests.Completed.Add("q_never_existed");
+        w.SanitizeCharacter(reloaded, "QuestSanity");
+        Check(reloaded.Quests.Active.All(q => data.GetQuest(q.QuestId) != null) && reloaded.Quests.Active.Count(q => q.QuestId == "q_goblins") == 1 &&
+              !reloaded.Quests.Completed.Contains("q_never_existed"),
+              "join sanitization drops unknown and duplicated quest entries");
+        Check(qs.Server.TickFailures == 0, "no tick failures through the quest checks");
+        qs.Close();
+
+        // The test grounds don't run the story's quests.
+        var grounds = new Session(data, 851602, campaign: true, clients: 1);
+        Check(!grounds.World.QuestsActive && grounds.P(grounds.A).Character.Quests.Active.Count == 0 &&
+              UI.QuestUI.TrackerLines(data, grounds.A.World.MyCharacter, grounds.A.World.Players.Values).Count == 0,
+              "the test grounds carry no quests (nothing to track, no tracker drawn)");
+        grounds.Close();
     }
 
     private static void Batch85ScorchedBluffs(GameData data)
@@ -781,6 +1000,7 @@ public static partial class HeadlessNetTest
               $"handing {aBookBase.Name} to the trainer consumes it and unlocks {string.Join(" + ", aBookBase.UnlocksSkills)} (server and the turner's client)");
         Check(aBookBase.UnlocksSkills.All(id => !pb.Character.UnlockedSkills.Contains(id) && !st.B.World.MyCharacter.UnlockedSkills.Contains(id)),
               "the unlock belongs to the turner only: the second player is unchanged");
+        pa.Character.Gold = 500; // (handing the book in also paid the "Words on Paper" side quest)
         st.A.RequestLearnSkill(lockedSkill);
         st.B.RequestLearnSkill(lockedSkill);
         st.Pump(0.4f);

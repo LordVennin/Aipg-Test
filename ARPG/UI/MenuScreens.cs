@@ -471,6 +471,7 @@ public class OptionsPanel
         InputAction.ManaPotion => "Mana Potion",
         InputAction.Pause => "Pause",
         InputAction.DebugMenu => "Debug Menu",
+        InputAction.QuestLog => "Quest Log",
         _ => a.ToString(),
     };
 

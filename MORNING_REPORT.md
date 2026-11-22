@@ -107,6 +107,33 @@ _Running log; final pass at the end._
   theme; on arid maps it is now painted as dry scrub (render-only, no generation change).
   Dev hook `ARPG_DEVUI=run:<seal+seal>` (with `ARPG_STORY=1`) drops straight into a run.
 
+- **3.7 quest order:** the plan lists "reach the camp -> fell the Barrow Lord"; in the game
+  the Barrow Lord guards the gate BEFORE the camp, and steps are ordered, so the first
+  quest is "fell the Barrow Lord" then "reach the camp". The story line is four chained
+  quests rather than one long one, so each pays out as it lands.
+- **3.7 step type `collect`** (not in the plan's list) carries the "quest items are never
+  auto-added" rule: "Under the Ruins" ends with picking the Codex's scroll up yourself.
+  Leave it and the step stays open; the Codex is there again on the next visit and drops
+  a scroll reserved for you.
+- **3.7 where quests run:** story worlds only (the quest line follows the story; the test
+  grounds have no tracker).
+- **3.7 `talk`** needed a new tiny request (`TalkRequest`): NPC panels used to open purely
+  client-side, so the server never knew a conversation happened.
+- **3.7 "finish a portal run"** = the party walks out through the run's final exit (which
+  only opens once the boss is dead / the waves are beaten). A debug warp home or a party
+  wipe is not a finish.
+- **3.7 NO CATCH-UP (behaviour change, as the owner decided):** `AdoptStoryProgress` no
+  longer writes the host's story flags into a joiner's saved `StoryProgress`. The world
+  still follows the host (same map, scrolls unlocked, portal available). A joiner's saved
+  flags now change only from what happens while they are present: standing in the camp
+  sets `ReachedCamp`; being there for a Codex kill (any Codex kill, not only the world's
+  first) sets `CodexFelled`/`ScrollsUnlocked`. Consequence to be aware of: a character who
+  only ever joined a far-advanced host will, when they later HOST their own story world,
+  start it from wherever their own record says — typically the road.
+- **3.7 tracker placement:** there is no minimap in the game, so the tracker sits in the
+  top-right corner. Quest log: `J` (rebindable, Options -> Controls).
+- ProtocolVersion **51** (`TalkRequest`, `QuestStatus`).
+
 ## Behavior changes to existing checks
 - `the sealed warp ... warp pool` check counted exactly 3 `warp_zone` seals; now 4.
   The modifier-count check also sets the new zone seal aside.
@@ -132,3 +159,4 @@ _Running log; final pass at the end._
 | 3.4 mace identity (Crash, Leap Slam, Skull Crack, Fault Line, 4 modifiers, Aftershock) | done | 985 |
 | 3.5 bow skills (Snipe, Split Arrow, Disengage, 3 modifiers, second bow book) | done | 1001 |
 | 3.6 fourth portal zone (the Scorched Bluffs) | done | 1008 |
+| 3.7 quest tracker (7 quests, per-character logs, presence credit, no catch-up, HUD + log) | done | 1038 |

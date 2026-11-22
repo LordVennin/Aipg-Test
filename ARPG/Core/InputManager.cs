@@ -27,6 +27,7 @@ public enum InputAction
     ManaPotion,
     Pause,
     DebugMenu,
+    QuestLog,
 }
 
 /// <summary>A binding is either a keyboard key or a mouse button. Serialized as e.g. "Key:W" or "Mouse:Left".</summary>
@@ -124,6 +125,7 @@ public class InputManager
         [InputAction.ManaPotion] = new InputBinding(Keys.E),
         [InputAction.Pause] = new InputBinding(Keys.Escape),
         [InputAction.DebugMenu] = new InputBinding(Keys.F1),
+        [InputAction.QuestLog] = new InputBinding(Keys.J),
     };
 
     public void ApplyBindings(Dictionary<string, string> saved)

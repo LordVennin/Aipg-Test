@@ -119,7 +119,8 @@ public partial class ServerWorld
 
     /// <summary>A player has joined a story world. The FIRST player's saved progress
     /// becomes the world's (a returning host wakes in the camp with the Codex felled
-    /// and the scenes already seen); later joiners catch up to the world.</summary>
+    /// and the scenes already seen). Later joiners play in that world but their own
+    /// saved record is NOT caught up to it — see the note below.</summary>
     public void AdoptStoryProgress(ServerPlayer p)
     {
         if (!Story) return;
@@ -134,12 +135,16 @@ public partial class ServerWorld
             if (sp.ReachedCamp) TransitionTo(0);
             return;
         }
-        bool changed = false;
-        if (MapIndex != StoryRoadIndex && !sp.ReachedCamp) { sp.ReachedCamp = true; changed = true; }
-        if (CodexFelled && !sp.CodexFelled) { sp.CodexFelled = true; changed = true; }
-        if (ScrollsUnlocked && !sp.ScrollsUnlocked) { sp.ScrollsUnlocked = true; changed = true; }
-        if (ContractsUnlocked && !sp.ContractsUnlocked) { sp.ContractsUnlocked = true; changed = true; }
-        if (changed) MarkCharacterDirty(p);
+        // NO CATCH-UP (batch 85, decided by the owner): the WORLD follows the host —
+        // the joiner plays on the host's map with the host's unlocks — but the joiner's
+        // SAVED story record only ever changes from what they are present for. Standing
+        // in the camp counts as having reached it; a Codex that fell before they
+        // arrived does not become their kill.
+        if (Map.Kind == MapKind.RuinsHub && !sp.ReachedCamp)
+        {
+            sp.ReachedCamp = true;
+            MarkCharacterDirty(p);
+        }
     }
 
     /// <summary>Story progression flips: scrolls exist once the Codex has given one up.</summary>
@@ -255,6 +260,7 @@ public partial class ServerWorld
         p.Character.Inventory.Remove(itemId);
         MarkCharacterDirty(p);
         OpenPortal(placed.Item);
+        QuestPodiumUsed();
     }
 
     /// <summary>The seals burn: the portal opens onto the scroll's zone.</summary>

@@ -606,6 +606,7 @@ public class HudUI
         string hints = $"{input.Bindings[InputAction.Inventory].Display()} Inventory · " +
                        $"{input.Bindings[InputAction.SkillMenu].Display()} Skills · " +
                        $"{input.Bindings[InputAction.SkillTree].Display()} Tree · " +
+                       $"{input.Bindings[InputAction.QuestLog].Display()} Quests · " +
                        $"{input.Bindings[InputAction.Interact].Display()} Pickup · " +
                        $"{input.Bindings[InputAction.DebugMenu].Display()} Debug · " +
                        $"{input.Bindings[InputAction.Pause].Display()} Menu";

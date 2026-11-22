@@ -169,6 +169,13 @@ public enum PacketType : byte
     /// trainer. The server checks reach, consumes the book and unlocks its skills for
     /// THIS player only.</summary>
     SkillBookTurnInRequest,
+
+    // Quests (batch 85)
+    /// <summary>Client -> server: the player spoke to an NPC (npc id) — "talk" quest steps.</summary>
+    TalkRequest,
+    /// <summary>Server -> client: a player's tracked quest step (player id, quest id or "",
+    /// step index) — lets the HUD say who a finished player is helping.</summary>
+    QuestStatus,
 }
 
 /// <summary>Where an item sits, for inventory move requests: grid cell, equip slot, or a skill's scroll slot.</summary>

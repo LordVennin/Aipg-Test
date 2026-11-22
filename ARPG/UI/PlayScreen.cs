@@ -36,6 +36,7 @@ public class PlayScreen : IScreen
     private readonly SkillTreeUI _skillTree;
     private readonly ShopUI _shop;
     private readonly TrainerUI _trainer;
+    private readonly QuestUI _quests;
     private readonly GambleUI _gamble;
     private readonly PodiumUI _podium;
     private readonly BuildUI _build;
@@ -214,6 +215,7 @@ public class PlayScreen : IScreen
         _skillTree = new SkillTreeUI(game.Data, client);
         _shop = new ShopUI(game.Data, client, _inventory);
         _trainer = new TrainerUI(game.Data, client);
+        _quests = new QuestUI(game.Data, client);
         _gamble = new GambleUI(game.Data, client);
         _podium = new PodiumUI(game.Data, client);
         _build = new BuildUI(client);
@@ -257,6 +259,7 @@ public class PlayScreen : IScreen
         _panelZ.Add(new PanelZ { Owner = _skillTree, IsOpen = () => _skillTree.Open, Contains = p => _skillTree.Contains(p), Update = (i, b) => _skillTree.Update(i, b), Draw = sb => _skillTree.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _shop, IsOpen = () => _shop.Open, Contains = p => _shop.Contains(p), Update = (i, b) => _shop.Update(i, b), Draw = sb => _shop.Draw(sb, _game.UiScreenSize) });
         _panelZ.Add(new PanelZ { Owner = _trainer, IsOpen = () => _trainer.Open, Contains = p => _trainer.Contains(p), Update = (i, b) => _trainer.Update(i, b), Draw = sb => _trainer.Draw(sb) });
+        _panelZ.Add(new PanelZ { Owner = _quests, IsOpen = () => _quests.Open, Contains = p => _quests.Contains(p), Update = (i, b) => _quests.Update(i, b), Draw = sb => _quests.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _gamble, IsOpen = () => _gamble.Open, Contains = p => _gamble.Contains(p), Update = (i, b) => _gamble.Update(i, b), Draw = sb => _gamble.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _podium, IsOpen = () => _podium.Open, Contains = p => _podium.Contains(p), Update = (i, b) => _podium.Update(i, b), Draw = sb => _podium.Draw(sb) });
         _panelZ.Add(new PanelZ { Owner = _build, IsOpen = () => _build.Open, Contains = p => _build.Contains(p), Update = (i, b) => _build.Update(i, b), Draw = sb => _build.Draw(sb) });
@@ -287,6 +290,7 @@ public class PlayScreen : IScreen
             if (devUi.Split(',').Contains("books")) _devDropBooks = true;
             if (devUi.Contains("spritesheet")) _devSpriteSheet = true;
             if (devUi.Split(',').Contains("teach")) _trainer.Open = true;
+            if (devUi.Split(',').Contains("questlog")) _quests.Open = true;
             var bookToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("book:"));
             if (bookToken != null) _devGiveBook = bookToken.Substring(5);
             var runToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("run:"));
@@ -654,6 +658,7 @@ public class PlayScreen : IScreen
         _skillTree.Layout(uiScreen);
         _shop.Layout(uiScreen);
         _trainer.Layout(uiScreen);
+        _quests.Layout(uiScreen);
         _gamble.Layout(uiScreen);
         _podium.Layout(uiScreen);
         _build.Layout(uiScreen);
@@ -725,6 +730,7 @@ public class PlayScreen : IScreen
         if (input.WasActionPressed(InputAction.SkillMenu)) { _skillMenu.Open = !_skillMenu.Open; if (_skillMenu.Open) RaisePanel(_skillMenu); }
         if (input.WasActionPressed(InputAction.CharacterSheet)) { _characterSheet.Open = !_characterSheet.Open; if (_characterSheet.Open) RaisePanel(_characterSheet); }
         if (input.WasActionPressed(InputAction.SkillTree)) { _skillTree.Open = !_skillTree.Open; if (_skillTree.Open) RaisePanel(_skillTree); }
+        if (input.WasActionPressed(InputAction.QuestLog)) { _quests.Open = !_quests.Open; if (_quests.Open) RaisePanel(_quests); }
         if (input.WasActionPressed(InputAction.DebugMenu)) _debug.Open = !_debug.Open;
 
         // Ctrl+click quick-move wiring: with the stash open (and no merchant selling),
@@ -1068,6 +1074,7 @@ public class PlayScreen : IScreen
                 else if (npcNear != null && !_shop.Open && !_trainer.Open && !_gamble.Open &&
                          !_researcher.Open)
                 {
+                    _client.RequestTalk(npcNear.Id); // quest "talk" steps (the server checks reach)
                     if (npcNear.TypeId == "skill_trainer")
                     {
                         // The trainer's list is local knowledge — no stock roundtrip.
@@ -1531,6 +1538,7 @@ public class PlayScreen : IScreen
                 frac >= 1f ? new Color(255, 226, 120) : new Color(120, 180, 255));
         }
         _hud.Draw(sb, screen, _game.Input, _cooldownEnds, _clientTime);
+        _quests.DrawTracker(sb, screen); // top right: the active quest step
         _cutscene.Draw(sb, screen); // letterbox + dialogue over everything
         // Story maps open from BLACK: a beat of dark, then a fade — no sudden start.
         if (_client.World.Map is { Kind: World.MapKind.StoryRoad or World.MapKind.RuinsHub })

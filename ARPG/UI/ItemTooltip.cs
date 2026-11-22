@@ -347,7 +347,7 @@ public static class ItemTooltip
         return lines;
     }
 
-    private static IEnumerable<string> WrapText(string text, int maxChars)
+    internal static IEnumerable<string> WrapText(string text, int maxChars)
     {
         var words = text.Split(' ');
         var line = "";

@@ -360,6 +360,9 @@ public class GameServer : IServerEvents
             case PacketType.ResearchRequest:
                 World.Research(playerId, r.GetByte());
                 break;
+            case PacketType.TalkRequest:
+                World.TalkTo(playerId, r.GetInt());
+                break;
             case PacketType.SkillBookTurnInRequest:
                 World.TurnInSkillBook(playerId, r.GetGuid());
                 break;
@@ -436,6 +439,7 @@ public class GameServer : IServerEvents
         // Story worlds pick up where the character left off (a map change, if any,
         // follows the accept like any other transition).
         World.AdoptStoryProgress(player);
+        World.QuestOnJoin(player);
         peer.Send(ZoneStatePacket(), DeliveryMethod.ReliableOrdered);
         foreach (var chest in World.Chests)
             peer.Send(ChestPacket(chest), DeliveryMethod.ReliableOrdered);
@@ -470,6 +474,14 @@ public class GameServer : IServerEvents
             if (other.Id != playerId)
                 peer.Send(AppearancePacket(other), DeliveryMethod.ReliableOrdered);
         BroadcastAppearanceIfChanged(player, force: true);
+        // Everyone's tracked quest step, for the newcomer's "helping X" line (their own
+        // goes out with the next flush).
+        foreach (var other in World.Players.Values)
+            if (other.Id != playerId)
+            {
+                var (qid, qstep) = World.QuestStatusOf(other);
+                peer.Send(QuestStatusPacket(other.Id, qid, qstep), DeliveryMethod.ReliableOrdered);
+            }
         // Baseline resource sync (potion flask charges ride PlayerHealth — without
         // this the joiner's flasks read empty until the first health change).
         PlayerHealthChanged(player);
@@ -1099,6 +1111,18 @@ public class GameServer : IServerEvents
         foreach (var pt in points) w.PutVec2(pt);
         Broadcast(w, DeliveryMethod.ReliableOrdered);
     }
+
+    private static NetDataWriter QuestStatusPacket(int playerId, string questId, int step)
+    {
+        var w = Packets.Make(PacketType.QuestStatus);
+        w.Put(playerId);
+        w.Put(questId ?? "");
+        w.Put(step);
+        return w;
+    }
+
+    public void QuestStatusChanged(ServerPlayer p, string questId, int step) =>
+        Broadcast(QuestStatusPacket(p.Id, questId, step), DeliveryMethod.ReliableOrdered);
 
     public void MessageFor(ServerPlayer p, string text)
     {

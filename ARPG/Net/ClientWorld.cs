@@ -11,6 +11,9 @@ public class ClientPlayer
 {
     public int Id;
     public string Name;
+    /// <summary>The quest step this player is on, as the server broadcasts it (null = none).</summary>
+    public string QuestId;
+    public int QuestStep;
     public Vector2 Position;       // displayed (interpolated) position
     public Vector2 NetTarget;      // latest position from the server
     /// <summary>Surface height in elevation levels (see GameMap). Local: predicted; remote: replicated.</summary>

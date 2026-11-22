@@ -174,7 +174,11 @@ public partial class ServerWorld
                 _events.MessageFor(pl,
                     $"{p.Name} is {(nowReady ? "ready" : "no longer ready")} at the door ({_readyAtDoor.Count}/{alive}).");
             _events.ZoneStateChanged(this);
-            if (alive > 0 && _readyAtDoor.Count >= alive) TransitionTo(0);
+            if (alive > 0 && _readyAtDoor.Count >= alive)
+            {
+                if (MapIndex == ScrollMapIndex) QuestRunCompleted(); // a won Caravan Stand run
+                TransitionTo(0);
+            }
             return;
         }
         if (DefPhase == DefensePhase.Build &&
