@@ -298,7 +298,8 @@ public static partial class HeadlessNetTest
         Check(data.Modifiers.Values.Where(m => m.CompatibleItemCategories.Contains(Items.ItemCategory.WarpScroll))
                   .All(m => !string.IsNullOrEmpty(m.MapEffect)) &&
               data.Modifiers.Values.Count(m => m.ModifierGroup == "warp_mode") == 2 &&
-              data.Modifiers.Values.Count(m => m.ModifierGroup == "warp_zone") == 3 &&
+              data.Modifiers.Values.Count(m => m.ModifierGroup == "warp_zone") == 4 && // batch 85 added the Scorched Bluffs
+
               data.Modifiers.Values.Count(m => m.ModifierGroup == "warp_weather") == 3,
               "every warp seal explains what it does to the destination; modes, zones and weathers are exclusive groups");
         Check(data.LootTables["default"].WarpScrollDropChance <= 0.02f && data.LootTables["boss"].WarpScrollDropChance >= 0.3f &&
@@ -1122,8 +1123,9 @@ public static partial class HeadlessNetTest
         // original tiered database is still exactly 482 entries.
         int weaponIdentityMods = data.Modifiers.Values.Count(m => m.ModifierGroup != null &&
             (m.ModifierGroup.StartsWith("mace_") || m.ModifierGroup.StartsWith("bow_")));
-        Check(data.Modifiers.Count - weaponIdentityMods == 482 && weaponIdentityMods >= 16,
-              $"tiered modifier database loaded ({data.Modifiers.Count} modifiers: the original 482 + {weaponIdentityMods} mace/bow-only)");
+        int newSeals = data.Modifiers.ContainsKey("warp_zone_arid") ? 1 : 0; // the fourth portal zone
+        Check(data.Modifiers.Count - weaponIdentityMods - newSeals == 482 && weaponIdentityMods >= 16,
+              $"tiered modifier database loaded ({data.Modifiers.Count} modifiers: the original 482 + {weaponIdentityMods} mace/bow-only + {newSeals} new zone seal)");
         Check(data.Modifiers.Values.Count(m => m.Tier == 10) == 46,
               "every full family has a tier X (46 tiered families reach tier 10)");
         Check(data.Modifiers["of_precision"].StatAffected == Stats.StatType.CriticalChance &&

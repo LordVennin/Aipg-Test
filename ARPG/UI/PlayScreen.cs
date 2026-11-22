@@ -79,6 +79,8 @@ public class PlayScreen : IScreen
     private bool _devSpriteSheet;
     /// <summary>ARPG_DEVUI=teach opens the trainer panel; book:&lt;id&gt; puts that skill book in the bag.</summary>
     private string _devGiveBook;
+    /// <summary>ARPG_DEVUI=run:&lt;seal+seal&gt; (story): straight into that portal run five seconds in.</summary>
+    private string _devEnterRun;
     /// <summary>ARPG_DEVUI=reaper: keep culling nearby enemies so scripted walkthroughs
     /// survive any map (GUI automation).</summary>
     private bool _devReaper;
@@ -287,6 +289,8 @@ public class PlayScreen : IScreen
             if (devUi.Split(',').Contains("teach")) _trainer.Open = true;
             var bookToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("book:"));
             if (bookToken != null) _devGiveBook = bookToken.Substring(5);
+            var runToken = devUi.Split(',').FirstOrDefault(t => t.StartsWith("run:"));
+            if (runToken != null) _devEnterRun = runToken.Substring(4);
             if (devUi.Contains("reaper")) _devReaper = true;
             if (devUi.Contains("gold")) _devGiveGold = true;
             if (devUi.Contains("supplies")) _devGiveSupplies = true;
@@ -528,6 +532,11 @@ public class PlayScreen : IScreen
         {
             _client.SendDebugCommand("spawn_family", _devSpawnFamily);
             _devSpawnFamily = null;
+        }
+        if (_devEnterRun != null && _clientTime > 5f)
+        {
+            _client.SendDebugCommand("enter_portal", _devEnterRun);
+            _devEnterRun = null;
         }
         if (_devGiveBook != null && _clientTime > 3f)
         {

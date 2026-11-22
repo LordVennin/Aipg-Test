@@ -2058,3 +2058,17 @@ a Barrow Knight (native 3) 55 hp / 14 dmg / 11 xp.
   *The Long Draw* teaches Piercing Shot, Snipe, Disengage (boss table; Bandit Archer 2%).
 - Chargeable skills may set their own full-charge damage bonus (`ChargeDamageBonus`;
   Shield Bash and Piercing Shot keep the default +70%).
+
+### The Scorched Bluffs (85.15)
+
+- A fourth zone seal, `warp_zone_arid` ("Scorched", weight 60 against 80 / 70 / 60 for
+  the Mirewood / Fen / Sunken Halls): the unused `arid` theme as a portal zone, "the
+  Scorched Bluffs". Zone seals carry `ZoneThemeId` and `ZoneName` in
+  `Data/Modifiers/warp.json` — a fifth zone is a data entry.
+- **Bandit stronghold pool**, weights: cutthroat x2 + archer (4), cutthroat + archer x2
+  (3), cutthroat x3 (2), archer x3 (2), brute + cutthroat x2 (3), brute + archer x2 (2),
+  brute x2 + archer x2 (1, zone level 7+), goblin camp followers skulker x4 + slinger (1).
+  Overlooks: archer x2 (x3 from zone level 7). A Brute patrol is promised if none rolled.
+  Boss room: the Bandit Captain + brute + archer x2. Survival waves: cutthroat 4,
+  archer 3, skulker 2, brute 2 (wave 3+).
+- Tall grass on arid maps is painted as dry straw-coloured scrub (render only).

@@ -96,6 +96,54 @@ public static partial class HeadlessNetTest
         Batch85SkillBooks(data);
         Batch85Mace(data);
         Batch85Bow(data);
+        Batch85ScorchedBluffs(data);
+    }
+
+    private static void Batch85ScorchedBluffs(GameData data)
+    {
+        Console.WriteLine("\n-- Batch 85.15: a fourth portal zone — the Scorched Bluffs --");
+        var seals = data.Modifiers.Values.Where(m => m.ModifierGroup == "warp_zone").ToList();
+        var aridSeal = data.Modifiers.GetValueOrDefault("warp_zone_arid");
+        Check(seals.Count == 4 && seals.All(m => data.ZoneThemes.Any(t => t.Id == m.ZoneThemeId) && !string.IsNullOrEmpty(m.ZoneName)) &&
+              aridSeal?.ZoneThemeId == "arid" && aridSeal.ZoneName == "the Scorched Bluffs" &&
+              seals.Select(m => m.ZoneThemeId).Distinct().Count() == 4,
+              "four zone seals, each carrying its own theme id and zone name in data (no switch in code)");
+        var arid = data.ZoneThemes.First(t => t.Id == "arid");
+        var poolCount = arid.PackPool.SelectMany(pk => pk.Members).GroupBy(m => data.Enemies[m.typeId].Family)
+            .ToDictionary(g => g.Key, g => g.Sum(m => m.count));
+        Check(arid.PackPool.Count >= 6 && poolCount.GetValueOrDefault("bandit") > poolCount.GetValueOrDefault("goblin") * 3 &&
+              arid.OverlookPool.All(pk => pk.Members.All(m => m.typeId == "bandit_archer")) && arid.OverlookPool.Count >= 1 &&
+              arid.BossPacks.Single().Boss == "bandit_captain" && arid.GroundMaterials.Count >= 3 && arid.PropStyle == "arid",
+              "the arid theme has its own pool: a bandit stronghold — bandit-heavy packs, archers on the high ground, the Captain as boss");
+        var scroll = new LootGenerator(data, new Random(8515));
+        int aridRolled = 0;
+        for (int i = 0; i < 400; i++)
+            if (scroll.GenerateWarpScroll(5, ItemRarity.Rare).Modifiers.Any(m => m.ModifierId == "warp_zone_arid")) aridRolled++;
+        Check(aridRolled > 10, $"sealed scrolls roll the new zone seal like the other three ({aridRolled}/400 rare scrolls)");
+
+        var bluffs = PortalRun(data, 851501, "warp_zone_arid+warp_boss+warp_level_t1");
+        var bw = bluffs.World;
+        var live = bw.Enemies.Values.Where(e => !e.Dead).ToList();
+        var allowed = arid.PackPool.SelectMany(pk => pk.Members.Select(m => m.typeId))
+            .Concat(arid.OverlookPool.SelectMany(pk => pk.Members.Select(m => m.typeId)))
+            .Concat(arid.PromisedPacks.SelectMany(pk => pk.Members.Select(m => m.typeId)))
+            .Concat(arid.BossPacks.SelectMany(b => b.GuardMembers.Select(m => m.typeId).Append(b.Boss))).ToHashSet();
+        Check(bw.MapIndex == ServerWorld.ScrollMapIndex && bw.Map.Theme?.Id == "arid" && bw.ZoneTitle.Contains("Scorched Bluffs") &&
+              bluffs.A.World.Map.Theme?.Id == "arid" && bluffs.B.World.ZoneTitle == bw.ZoneTitle,
+              $"an arid warp scroll opens an arid run ('{bw.ZoneTitle}', both clients)");
+        int banditsThere = live.Count(e => e.Def.Family == "bandit");
+        Check(live.Count >= 8 && live.All(e => allowed.Contains(e.Def.Id) && !e.Def.Undead) && banditsThere >= live.Count * 0.7f,
+              $"populated from its pool: {live.Count} enemies, {banditsThere} of them bandits ({string.Join(", ", live.Select(e => e.Def.Id).Distinct().OrderBy(x => x))})");
+        var overlookPacks = bw.Packs.Where(pk => bw.Map.OverlookSpots.Any(o => Vector2.Distance(o, pk.Position) < 0.01f)).ToList();
+        Check((bw.Map.OverlookSpots.Count == 0 || (overlookPacks.Count == bw.Map.OverlookSpots.Count &&
+                  overlookPacks.All(pk => pk.Entries.All(en => en.typeId == "bandit_archer")))) &&
+              live.Any(e => e.Def.Id == "bandit_brute"),
+              $"archers hold the {bw.Map.OverlookSpots.Count} overlook(s), and a Brute is always somewhere on the bluffs");
+        var chief = live.FirstOrDefault(e => e.Def.Id == "bandit_captain");
+        Check(chief != null && chief.Affixes.HasFlag(EliteAffix.Boss) && bw.ExitLocked && bw.BossAlive &&
+              bluffs.B.World.Enemies.Count == live.Count && bluffs.Server.TickFailures == 0,
+              "the Bandit Captain seals the exit, the second client sees the same population, no tick failures");
+        bluffs.Close();
     }
 
     private static void Batch85Bow(GameData data)

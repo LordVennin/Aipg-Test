@@ -102,7 +102,14 @@ _Running log; final pass at the end._
 - **3.5 "+1 pierce"** is a flat stat, so *Piercing* has two tiers (+1, +2 at item level 20)
   rather than four percentage bands.
 
+- **3.6 arid check:** captured an arid run under xvfb — sand/cracked ground, bluff walls,
+  skull and rock clutter all read fine. The run generator scatters tall grass on every
+  theme; on arid maps it is now painted as dry scrub (render-only, no generation change).
+  Dev hook `ARPG_DEVUI=run:<seal+seal>` (with `ARPG_STORY=1`) drops straight into a run.
+
 ## Behavior changes to existing checks
+- `the sealed warp ... warp pool` check counted exactly 3 `warp_zone` seals; now 4.
+  The modifier-count check also sets the new zone seal aside.
 - `tiered modifier database loaded (482 modifiers)`: pinned the exact modifier count.
   Now asserts the original database is still 482 entries once the new mace/bow-only
   groups (`mace_*`, `bow_*`) are set aside.
@@ -124,3 +131,4 @@ _Running log; final pass at the end._
 | 3.3 skill books and the trainer | done | 959 |
 | 3.4 mace identity (Crash, Leap Slam, Skull Crack, Fault Line, 4 modifiers, Aftershock) | done | 985 |
 | 3.5 bow skills (Snipe, Split Arrow, Disengage, 3 modifiers, second bow book) | done | 1001 |
+| 3.6 fourth portal zone (the Scorched Bluffs) | done | 1008 |

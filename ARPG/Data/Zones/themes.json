@@ -176,6 +176,81 @@
       "sand:6A5C3E",
       "cracked:5C4E34",
       "gravel:5A503A"
+    ],
+    "PackPool": [
+      {
+        "Entries": [["bandit_cutthroat", 2], ["bandit_archer", 1]],
+        "Weight": 4
+      },
+      {
+        "Entries": [["bandit_cutthroat", 1], ["bandit_archer", 2]],
+        "Weight": 3
+      },
+      {
+        "Entries": [["bandit_cutthroat", 3]],
+        "Weight": 2
+      },
+      {
+        "Entries": [["bandit_archer", 3]],
+        "Weight": 2
+      },
+      {
+        "Entries": [["bandit_brute", 1], ["bandit_cutthroat", 2]],
+        "Weight": 3
+      },
+      {
+        "Entries": [["bandit_brute", 1], ["bandit_archer", 2]],
+        "Weight": 2
+      },
+      {
+        "Entries": [["bandit_brute", 2], ["bandit_archer", 2]],
+        "Weight": 1,
+        "MinLevel": 7
+      },
+      {
+        "Entries": [["goblin_skulker", 4], ["goblin_slinger", 1]],
+        "Weight": 1
+      }
+    ],
+    "OverlookPool": [
+      {
+        "Entries": [["bandit_archer", 2]]
+      },
+      {
+        "Entries": [["bandit_archer", 3]],
+        "MinLevel": 7
+      }
+    ],
+    "PromisedPacks": [
+      {
+        "RequireEnemy": "bandit_brute",
+        "Entries": [["bandit_brute", 1], ["bandit_cutthroat", 1]]
+      }
+    ],
+    "BossPacks": [
+      {
+        "Boss": "bandit_captain",
+        "Guards": [["bandit_brute", 1], ["bandit_archer", 2]]
+      }
+    ],
+    "WaveEnemies": [
+      {
+        "Id": "bandit_cutthroat",
+        "Weight": 4
+      },
+      {
+        "Id": "bandit_archer",
+        "Weight": 3
+      },
+      {
+        "Id": "goblin_skulker",
+        "Weight": 2
+      },
+      {
+        "Id": "bandit_brute",
+        "Weight": 2,
+        "MinWave": 3
+      }
     ]
   },
   {

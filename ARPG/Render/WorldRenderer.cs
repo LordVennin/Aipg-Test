@@ -1630,15 +1630,20 @@ public class WorldRenderer
                 // under them, the fringe over them — but under the NEXT tile row.
                 float bedDepth = gx2 + gy2 + 1 + gGround * 1.0f + 0.05f;
                 float fringeDepth = gx2 + gy2 + 1 + gGround * 1.0f + 0.3f;
-                var deep = new Color(52, 96, 46);
-                var mid = new Color(70, 122, 56);
-                var lit = new Color(104, 158, 76);
+                // Arid zones grow dry straw-coloured scrub, not lush green (same tiles,
+                // same cover — only the paint differs, so map generation is untouched).
+                bool dryGrass = Theme?.PropStyle == "arid";
+                var deep = dryGrass ? new Color(112, 96, 52) : new Color(52, 96, 46);
+                var mid = dryGrass ? new Color(146, 126, 68) : new Color(70, 122, 56);
+                var lit = dryGrass ? new Color(180, 160, 92) : new Color(104, 158, 76);
+                var bedShade = dryGrass ? new Color(74, 62, 36) : new Color(34, 62, 34);
+                var tipLit = dryGrass ? new Color(206, 188, 118) : new Color(140, 190, 96);
                 _sorted.Add((bedDepth, batch =>
                 {
                     // Bed: a soft dark patch plus short back-row blades across the tile.
                     batch.Draw(TextureGen.Circle32,
                         new Rectangle((int)gScreen.X - 26, (int)gScreen.Y - 12, 52, 22),
-                        new Color(34, 62, 34) * 0.55f);
+                        bedShade * 0.55f);
                     for (int b = 0; b < 9; b++)
                     {
                         int shift = (b * 7) % 26;
@@ -1666,7 +1671,7 @@ public class WorldRenderer
                             new Rectangle((int)gScreen.X - 32 + bx + sway, (int)gScreen.Y - 16 + by - tall, 2, tall), c);
                         batch.Draw(TextureGen.Pixel,
                             new Rectangle((int)gScreen.X - 32 + bx + sway, (int)gScreen.Y - 16 + by - tall - 1, 1, 2),
-                            new Color(140, 190, 96)); // lit tip
+                            tipLit); // lit tip
                     }
                 }));
             }

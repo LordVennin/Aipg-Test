@@ -327,5 +327,24 @@
   "Weight": 30,
   "IsPercent": false,
   "MapEffect": "Three rooms deep: each room's exit leads to the next, the last leads home"
+ },
+ {
+  "Id": "warp_zone_arid",
+  "Name": "Scorched",
+  "AffixType": "Prefix",
+  "Tier": 1,
+  "MinimumItemLevel": 1,
+  "CompatibleItemCategories": [
+   "WarpScroll"
+  ],
+  "ModifierGroup": "warp_zone",
+  "ZoneThemeId": "arid",
+  "ZoneName": "the Scorched Bluffs",
+  "StatAffected": "MaxHealth",
+  "MinimumValue": 1,
+  "MaximumValue": 1,
+  "Weight": 60,
+  "IsPercent": false,
+  "MapEffect": "Zone: the Scorched Bluffs (bandit stronghold)"
  }
 ]
