@@ -1963,8 +1963,11 @@ a Barrow Knight (native 3) 55 hp / 14 dmg / 11 xp.
 | Bandit Cutthroat | 4 | 62 | 2.9 | 17 Slash | sword, 0.55 s wind-up, 1.9 s cd | 14 | 50% to bleed: 3 dps for 4 s (ignores armor) |
 | Bandit Archer | 4 | 40 | 2.6 | 12 Thrust | ranged 7.5, 2.1 s cd, arrow at speed 11 | 13 | keeps 4 tiles away |
 | Bandit Brute | 5 | 130 | 2.0 | 20 Blunt | lunge, 0.75 s wind-up, 2.4 s cd | 24 | landed hit shoves 2.2 tiles; 15% physical res; pool gate: zone level 4+ |
-| The Bandit Captain | 6 | 520 | 2.5 | 16 Slash + 6 Blunt | sword, 0.5 s wind-up, 1.5 s cd | 110 | boss table; dash 30 dmg / 7 tiles / 0.95 s telegraph / 8 s cd; 35% bleed 4 dps; calls 2 bandits every 30 s (first at 14 s) |
+| The Bandit Captain | 5 | 450 | 2.5 | 16 Slash + 6 Blunt | sword, 0.5 s wind-up, 1.5 s cd | 100 | boss table; dash 26 dmg / 7 tiles / 0.95 s telegraph / 8 s cd; 35% bleed 4 dps; calls 2 bandits every 30 s (first at 14 s) |
 
+  The Captain is tuned against the Gravelord at the same level (380 hp native 4 ->
+  441 hp at level 5): he is the first portal boss a new character meets (the Codex's
+  Mirewood scroll), so he sits at 450 hp with a lighter charge than the Gravelord's 34.
 - **Forest (Mirewood) pool**, weights: skulker x4 (3), skulker x3 + slinger x2 (3),
   skulker x4 + slinger x2 (2), skulker x3 + slinger + shaman (1), cutthroat x2 (2),
   cutthroat x2 + archer (3), cutthroat + archer x2 (2), brute + cutthroat x2 (2, zone

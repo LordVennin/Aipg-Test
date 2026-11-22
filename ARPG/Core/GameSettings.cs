@@ -81,8 +81,10 @@ public static class GameNetConfig
     /// <summary>Bump on ANY change to map generation, collision or simulation rules:
     /// clients rebuild maps from a seed, so two builds that generate differently must
     /// refuse each other at the handshake instead of silently desyncing.
-    /// v1 (batch 85): first version; covers batches 82-84's GameMap/barrier changes.</summary>
-    public const int SimVersion = 1;
+    /// v1 (batch 85): first version; covers batches 82-84's GameMap/barrier changes.
+    /// v2 (batch 85): kiting ranged AI fires while retreating, enemy shove/bleed riders,
+    /// mace Crash + ground bursts, leap/hop skills, pierce counts, stuns never shorten.</summary>
+    public const int SimVersion = 2;
     public const int MaxPlayers = 4;
     public const string ConnectionKey = "ARPG-Proto";
 }

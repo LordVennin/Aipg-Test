@@ -146,6 +146,7 @@ firewall rules the real game hits.
 | Skill Menu | `K` |
 | Character Sheet (defenses, resistances, skill DPS by damage type) | `C` |
 | Passive Skill Tree | `P` |
+| Quest Log (your own quests; the tracker sits top right) | `J` |
 | Command summons: TAP to rally the focused pack at the cursor, HOLD to order it back to following (aiming near yourself also recalls) | `` ` `` (backquote) |
 | Cycle summon focus (which pack the command key drives) | `Tab` |
 | Interact: doors (ready up) / chests / NPCs / pick up items | `F` (hover a ground label to target a specific drop) |
@@ -330,7 +331,8 @@ ARPG/
 ├── Program.cs            entry point (+ --nettest / --sp flags)
 ├── GameMain.cs           window, game loop, screen switching, session startup
 ├── Core/                 InputManager (rebindable actions), GameSettings, net constants
-├── Util/                 JSON config, System.Numerics<->XNA vector helpers
+├── Util/                 JSON config (atomic saves + .bak), Log (Logs/ file + console
+│                         tee), CrashReporter, System.Numerics<->XNA vector helpers
 ├── Stats/                StatType/StatCollection + StatCalculator (single place where
 │                         base + equipment + modifiers + temporary effects combine)
 ├── Items/                ItemBase (definitions), ItemInstance (generated items),
@@ -343,16 +345,22 @@ ARPG/
 ├── World/                GameMap: seeded generation, layered terrain + collision
 ├── Server/               Authoritative simulation: ServerWorld (AI, combat, loot,
 │                         pickups), ServerCharacterOps (inventory/equip/scroll moves),
-│                         GameServer (LiteNetLib host + packet translation)
+│                         GameServer (LiteNetLib host + packet translation + tick guard),
+│                         and partials per system: ServerPopulation (theme pack pools),
+│                         ServerSkillBooks, ServerMace (Crash, ground bursts),
+│                         ServerQuests, ServerSanitize (join repair), ServerSafety
+│                         (soft-lock nets), ServerScrollRuns, ServerDefense, ServerTutorial
 ├── Net/                  Packets (protocol), GameClient, ClientWorld (interpolated view)
 ├── Render/               TextureGen (runtime placeholder art), FontManager, IsoCamera
 │                         (world<->screen conversion), WorldRenderer
 ├── UI/                   Minimal widget kit + MainMenu/Host/Join/Options screens, HUD,
 │                         InventoryUI, SkillMenuUI, DebugUI, ItemTooltip, PlayScreen
-├── Persistence/          SaveManager (character JSON saves)
+├── Persistence/          SaveManager (character JSON saves, one writer per file),
+│                         Autosaver (60 s / map change / level-up)
 ├── Testing/              HeadlessNetTest (automated 2-client multiplayer test)
 ├── Data/                 ALL game content as JSON (items, modifiers, skills, scrolls,
-│                         enemies, loot tables, scroll-slot progression)
+│                         enemies, loot tables, zone themes + enemy pools, quests,
+│                         cutscenes, config) + DataValidator and ContentFingerprint
 └── Content/Fonts/        optional bundled TTFs — if absent, FontManager falls back to
                           common OS-installed fonts (DejaVu/Liberation on Linux,
                           Segoe UI/Arial on Windows, Arial/Helvetica on macOS)
@@ -486,7 +494,9 @@ Hosted games now run the actual GAME LOOP instead of the old test arena
 **Starter economy**: new characters begin with **100 gold** and only their
 class kit's single skill. Every other skill is bought from the skill trainer
 for **75 gold** (server-validated: in person, gold up front). The K menu lists
-only learned skills and points at the trainer for the rest.
+only learned skills and points at the trainer for the rest. In **story** worlds
+(since batch 85) a skill must first be unlocked by handing the trainer a skill
+book — see "Skill books and the trainer" below; the test grounds sell everything.
 
 ### Sound (drop-in WAV pipeline)
 
@@ -827,6 +837,110 @@ Clients never reroll anything — they deserialize the exact generated item. Pic
 requests; the server checks existence + range + inventory space, so two players can
 never both take the same drop.
 
+### Batch 85: safety nets, the living Mirewood, skill books, mace and bow identity, quests
+
+**Never lose progress, never crash silently**
+
+- **Logs.** Everything the game prints goes to `Logs/scrollbound-<date>.log` next to the
+  executable (the build is a `WinExe`, so the console itself shows nothing on Windows).
+  Flushed per line; the five newest files are kept.
+- **Crash reports.** An unhandled exception on any thread writes
+  `Logs/crash-<timestamp>.txt` (exception, stack, the last 200 log lines, build
+  identity) and attempts an emergency save of the local character.
+- **The server tick is guarded.** An exception inside the simulation tick used to
+  terminate the whole process from the server thread. Now it is logged (full stack the
+  first time, a count for repeats) and that tick is skipped. After 30 consecutive
+  failing ticks the host stops cleanly: everyone is disconnected with "Host simulation
+  error — see the host's Logs folder" (clients save on disconnect) and the host lands on
+  the menu with that message. Debug command `throw_in_tick [n]` exercises it.
+- **Saves are atomic, with a backup.** Every save goes to `<file>.tmp`, is flushed to
+  disk and then replaces the real file, keeping the previous one as `<file>.bak`. If a
+  character file or `settings.json` fails to parse, the backup is loaded instead (and
+  the log says so). Deleting a character removes its backup too.
+- **Autosave.** The client saves its last server-sent character every 60 seconds, on
+  every map change and on level-up — serialized on the render thread, written on a
+  background task, never two writers in one file. (Save & Exit, app close and
+  disconnect still save immediately.)
+- **Join sanitization.** The character a client sends on join is repaired before the
+  simulation touches it: null collections, items/modifiers/skills/passives/quests whose
+  ids this build doesn't know, impossible values (negative gold or level, over-full
+  stacks). Each repair is logged. A character with no weapon anywhere is handed its
+  class's starting weapon.
+- **Data validation.** After loading, `Data/DataValidator.cs` checks for files that
+  failed to parse, duplicate ids, broken cross references and every id the code depends
+  on. Problems show as a **red banner on the main menu** and in the log, and fail the
+  nettest. (A broken JSON file used to silently delete its content.)
+
+**Multiplayer**
+
+- **Same build or no join.** The join handshake carries `ProtocolVersion` (wire
+  format), `SimVersion` (map generation, collision and simulation rules) and a SHA-256
+  **content fingerprint** over every `Data/**/*.json` (line endings normalized). A
+  mismatch is refused with a readable reason. The main menu shows the first 8 hex
+  characters bottom right (`data 1a2b3c4d · protocol 51 · sim 2`) — **two players can
+  play together when those lines match.**
+- **Character sync is coalesced.** Server code marks a player `CharacterDirty`; the
+  character is sent once per tick. One AoE killing twenty enemies costs each party
+  member one character packet instead of twenty. Skill-XP-only changes keep their
+  1.1 s cadence; the appearance broadcast only goes out when the visible gear changed.
+- Enemy/summon snapshots are split into packets of 40 entities (one oversized
+  unreliable packet used to throw above ~51 live enemies).
+
+**Enemy populations are data.** `Data/Zones/themes.json` says who lives in a zone:
+`PackPool` (weighted pack compositions with `MinLoop`/`MinLevel` gates),
+`OverlookPool`, `PromisedPacks`, `BossPacks` and `WaveEnemies`. They apply on portal
+runs; the test-grounds loop and the story road keep the built-in undead.
+
+**Bandits and goblins.** The Mirewood (forest portal zone) belongs to the living:
+Goblin Skulkers (fast lungers), Slingers (stones from range) and Shamans (a telegraphed
+fire burst); Bandit Cutthroats (a slow heavy blade that leaves a bleed), Archers,
+Brutes (a landed hit shoves you 2 tiles) and the **Bandit Captain** (dash-charges,
+calls reinforcements) as the zone's boss. None are undead, so none lie buried.
+Numbers: `BALANCE_CHANGES.md`, "Batch 85".
+
+**A fourth portal zone: the Scorched Bluffs.** The `Scorched` zone seal opens a bandit
+stronghold on the arid theme — bandit-heavy packs, archers on the high ground, the
+Captain at the end. Zone seals carry their theme and name in `Data/Modifiers/warp.json`.
+
+**Skill books and the trainer.** In story worlds the trainer only teaches what a
+**skill book** has unlocked for *that character*. Books are rare drops (bosses roll any
+book; bandits carry bow, shield and mace books; goblin shamans carry spell books).
+Walk up to the skill trainer, press Interact, and use **Hand over** next to a book in
+your bag: it is consumed and its skills unlock for you alone, then cost 75 gold each
+as before. Locked skills show greyed with "Requires: <book>". Your class's starting
+skill is always unlocked, and everything an old save already knows stays unlocked.
+The first time you are present for a **Barrow Lord** kill and for a **Gilded Codex**
+kill, a book suited to your class drops for you (one per player, reserved for its
+player). The guarantee is spent when you pick the book up — leave it on the ground and
+the next kill drops it again. The test grounds and the arena keep every skill teachable.
+
+**Mace identity.** *Crash*: a mace skill's knockback that drives an enemy into a wall,
+a structure or another enemy deals bonus damage and stun buildup (an orange "Crash N"
+number). New skills: **Leap Slam** (leap to the cursor, untouchable in the air, an
+impact that throws enemies outward), **Skull Crack** (one target, huge stun buildup,
+double damage and a longer stun against stunned or frozen enemies), **Fault Line** (a
+slam whose fissure erupts three times along your aim). Mace-only modifiers: Concussive
+(stun buildup), of Impact (knockback and Crash damage), Seismic (Slam area), Crushing
+(damage vs stunned). Skill scroll **Aftershock**: a Slam repeats 0.6 s later at half damage.
+
+**Bow skills.** **Snipe** (hold to charge: damage, range and speed grow; a full draw
+pierces everything in line), **Split Arrow** (five arrows in a fan — brutal point
+blank, thin at range), **Disengage** (hop back with i-frames and loose a slowing
+arrow). Bow-only modifiers: Piercing (+1 pierce), of the Hawk (projectile speed and
+range), Barbed (bleed chance).
+
+**Quests.** Story worlds run a quest line (the road → the lorekeeper → the archive and
+the Codex's scroll → a portal run) and three side quests. The **tracker** in the top
+right shows your current step and progress ("Goblins slain 7/12"); `J` opens the
+quest log. Every character has their **own log, and there is no catch-up**: a step
+completes only for characters present when it happens (everyone on the map holding
+that step is credited, alive or dead; kill counts are per player; turn-ins and item
+pickups credit only whoever did them). Quest items are never put in your bag for you:
+leave the Codex's scroll on the floor and the step stays open — the Codex is there
+again next visit. If a party member is on a step you have already done, your tracker
+says "helping <name>". Joining a host who is further along does **not** copy their
+story progress into your save any more.
+
 ## 9. Item serialization
 
 `ItemInstance` is plain JSON everywhere (network packets, saves, world drops):
@@ -870,6 +984,18 @@ learned skills with levels/XP/attached scrolls, and hotbar assignments included.
   (`MeleeStrike` / `MeleeArea` / `Projectile` / `AreaBurst` / `Summon`), tags,
   damage/scaling fields. A genuinely new behavior means one new archetype case in
   `ServerWorld.UseSkill` — nothing else changes.
+- **New enemy family / who lives in a zone**: add enemies to `Data/Enemies/`
+  (`Family`, `SpriteStyle` + `SpriteRole`, `MinSpawnLevel`, the behaviour fields
+  `Ranged` / `KeepDistance` / `Dash*` / `Cast*` / `AttackKnockback` / `AttackBleed*`,
+  `ExtraDrops`) and list them in a theme's `PackPool` in `Data/Zones/themes.json`. A
+  new look is one drawing function in `Render/SpriteGen.cs` (see `DrawBandit`).
+- **New portal zone**: a zone theme in `themes.json` (with a `PackPool`) plus a
+  `warp_zone` modifier in `Data/Modifiers/warp.json` carrying `ZoneThemeId` and `ZoneName`.
+- **New skill book**: a `Curio` item with `UnlocksSkills` in `Data/Items/books.json`;
+  give it to enemies via `ExtraDrops` and/or the boss table's `SkillBooks`.
+- **New quest**: an entry in `Data/Quests/quests.json` (ordered `Steps` of type
+  `reach_map` / `kill` / `kill_boss` / `talk` / `turn_in` / `collect` / `use_podium` /
+  `complete_run`, `Requires`, rewards). The validator checks every reference.
 - **New Skill Scroll**: add to `Data/SkillScrolls/` (a `RequiredTag` + a list of
   `Effects` over `ScrollStat` values), plus a 1x1 `SkillScroll`-category item in
   `Data/Items/scrolls.json` whose `ScrollId` points at it. Tag-based compatibility means
@@ -909,7 +1035,7 @@ computed stats. All commands execute server-side like any other request.
 
 Dev conveniences for automated/headless sessions: `--sp` starts straight into
 single player, `ARPG_THEME=<id>` forces the hosted zone theme, and
-`ARPG_DEVUI=debug[,skills][,inventory][,drops][,loot][,elite[:rare|magic|affix+affix]][,shop][,shopgrid][,tree][,summons][,knight][,warp][,tutorial][,mace][,flamefx][,scroll[:rare|magic|warp_id+warp_id]][,portal[:same]][,basement][,defense][,barriers][,tp:x;y]` (set `ARPG_STORY=1` to boot the story world instead of the test grounds)
+`ARPG_DEVUI=debug[,skills][,inventory][,drops][,loot][,elite[:rare|magic|affix+affix]][,shop][,shopgrid][,tree][,summons][,knight][,warp][,tutorial][,mace][,flamefx][,scroll[:rare|magic|warp_id+warp_id]][,portal[:same]][,basement][,defense][,barriers][,tp:x;y][,books][,book:<id>][,teach][,bandits][,goblins][,spritesheet][,run:<seal+seal>][,questlog]` (set `ARPG_STORY=1` to boot the story world instead of the test grounds)
 opens panels at startup (scene text lives in `ARPG/Data/Cutscenes/cutscenes.json`; `warp` jumps to the next campaign map and `tutorial` into
 the Old Road three seconds in — debug commands `warp_tutorial`, `warp_home`; `scroll` hands out a sealed warp scroll and `portal` seals one straight onto the ruins' podium (debug `give_warp`, `open_portal`); `basement` takes the ruins' stairs down into the archive (debug `warp_basement`); `defense` warps into the caravan stand and `barriers` lays a sample wall there (debug `warp_defense`, `build kind,x,y[,rot]`); `tp` teleports five seconds in; `drops` scatters one of every scroll shortly after
 joining, for loot-UI work; `loot` rings the player with one drop of every item
@@ -919,31 +1045,51 @@ spawns a magic/rare grunt ahead once out of the hub (debug commands
 keyboard input; `summons` learns the summon skills and raises a pack; `knight`
 spawns a Barrow Knight beside the player for attack-animation work).
 
+Batch 85 hooks: `books` drops one of every skill book around the player and
+`book:<id>` puts one in the bag (debug `drop_books`, `give_book <id>`); `teach` opens
+the trainer panel; `bandits` / `goblins` ring the player with one of each (debug
+`spawn_family <family>`); `spritesheet` shows every bandit and goblin frame and downed
+pose on a plain background; `run:<seal+seal>` (story) drops straight into the portal
+run those seals describe, e.g. `run:warp_zone_arid+warp_boss` (debug `enter_portal`);
+`questlog` opens the quest log. Debug `throw_in_tick [n]` makes the next n server
+ticks throw (tick-guard testing). Everything boots headless under `xvfb-run`, which is
+how the batch 85 art was checked.
+
 ## 12. Testing
 
 - `dotnet run -- --nettest` — the automated two-client sync test described above
-  (841 checks, exit code 0 on success; `--nettest story` runs only the story sections — the road, the ruins, the portal loop — in well under a minute). It exercises `127.0.0.1`; LAN/ZeroTier use the
+  (1056 checks, about 100 seconds, exit code 0 on success; `--nettest story` runs only the story sections — the road, the ruins, the portal loop — and `--nettest b85` only the batch 85 sections, each in well under a minute). A handful of the OLD checks roll real dice (a 60% slow, a gold drop, a wave timer) and fail roughly one run in three on their own; rerun before believing a single red line there. It exercises `127.0.0.1`; LAN/ZeroTier use the
   identical socket path with a different address.
 - Manual: run two instances on one machine — instance A "Host Game" on 7777, instance B
   "Join Game" → `127.0.0.1:7777`.
 
 ## 13. Known limitations
 
-- Placeholder shapes/labels instead of sprites; no animations or audio.
-- Off-hand slot exists but no off-hand item types (shields) are defined yet.
-- Client-predicted movement is only sanity-clamped, not fully server-simulated.
-- Character save is written by the owning client (host doesn't persist other players).
-- No NAT traversal: internet play requires port forwarding or a virtual LAN
-  (ZeroTier/Meshnet/Tailscale — these work out of the box).
-- Skill/character XP curves, enemy stats and drop rates are prototype-tuned, not balanced.
-- One map layout algorithm (seeded arena + fixed terrain demo); no zones/waypoints.
+- All art is procedural pixel art drawn in code; there is no asset pipeline beyond
+  drop-in WAV sounds. New enemies and skills reuse existing effects and read clearly
+  rather than look polished (Leap Slam has no jump arc, just the dash and the slam).
+- The game is an early test build: content is tuned for roughly levels 1-15, gear tiers
+  stop around item level 35.
+- Client-predicted movement is only sanity-clamped, not server-simulated (a modified
+  client can move as it likes). Any peer can run debug commands. Fine among friends.
+- Character saves are written by the owning client; the host does not persist other
+  players. A joiner's save only records story/quest progress they were present for.
+- No NAT traversal: internet play needs port forwarding or a virtual LAN
+  (ZeroTier/Meshnet/Tailscale work out of the box). Both players need the same build
+  (the main menu's `data … · protocol … · sim …` line must match).
+- The server RNG is unseeded, so a few old nettest checks that depend on dice are flaky.
+- `MapIndex` is a set of magic integers (hub 0, runs 1-3, sentinels below zero) rather
+  than a zone graph.
+- Cosmetic sprite detail is seeded with `string.GetHashCode()` in places, so two
+  clients may draw slightly different dents and tatters on the same enemy (never
+  gameplay state).
 
 ## 14. Recommended next steps
 
-1. Sprite/animation pipeline (still runtime-loaded, e.g. free isometric packs) + audio.
-2. Server-simulated movement with client reconciliation; interest management.
-3. More archetypes (beams, chains, minions), support-scroll interactions (e.g. scrolls
-   that modify other scrolls), unique items with fixed modifier sets.
-4. Persistent host-side world/stash; trading between players.
-5. Death penalties, potions/flasks, town/hideout area, waypoint travel between maps.
-6. Lobby listing over LAN broadcast (still engine-free).
+1. A zone/act graph replacing the magic `MapIndex` integers.
+2. Seed the server RNG per test and split `HeadlessNetTest.cs` (6,600+ lines) into
+   per-feature files, like `HeadlessNetTest.Batch85.cs`.
+3. Composable data-driven enemy abilities, so a new family needs no code at all.
+4. Gear tiers past item level 35 once content reaches those levels.
+5. Server-side movement checks and a debug-command switch before playing with strangers.
+6. Host-side persistence (shared stash, trading), lobby listing over LAN broadcast.
