@@ -46,6 +46,12 @@ public static class SpriteGen
             },
             "Necro" => new[] { DrawNecromancer(tint, 0), DrawNecromancer(tint, 1) },
             "Tome" => new[] { DrawTome(tint, def.Id, 0), DrawTome(tint, def.Id, 1), DrawTome(tint, def.Id, 2) },
+            "Bandit" => new[]
+            {
+                DrawBandit(tint, def.SpriteRole, variant, 0), DrawBandit(tint, def.SpriteRole, variant, 1),
+                DrawBandit(tint, def.SpriteRole, variant, 2),
+            },
+            "Goblin" => new[] { DrawGoblin(tint, def.SpriteRole, variant, 0), DrawGoblin(tint, def.SpriteRole, variant, 1) },
             _ => null,
         };
         _cache[key] = frames;
@@ -1906,6 +1912,7 @@ public static class SpriteGen
             "IceSpike" => DrawIceSpike(),
             "IceShard" => DrawIceShard(),
             "Arrow" => DrawArrow(),
+            "Stone" => DrawSlingStone(),
             _ => null,
         };
         if (tex == null) return null;
@@ -2111,6 +2118,19 @@ public static class SpriteGen
     }
 
     /// <summary>A slim arrow for skeleton archers: shaft, iron head, feather fletching.</summary>
+    /// <summary>A goblin's sling stone: a small grey pebble with a lit edge.</summary>
+    private static Texture2D DrawSlingStone()
+    {
+        const int w = 5, h = 5;
+        var px = new Color[w * h];
+        void Set(int x, int y, Color c) { if (x >= 0 && x < w && y >= 0 && y < h) px[y * w + x] = c; }
+        var stone = new Color(132, 128, 120);
+        for (int y = 1; y <= 3; y++) for (int x = 1; x <= 3; x++) Set(x, y, stone);
+        Set(1, 1, new Color(176, 172, 162)); Set(2, 1, new Color(160, 156, 148));
+        Set(3, 3, new Color(92, 88, 84));
+        return BakeStrip(px, w, h);
+    }
+
     private static Texture2D DrawArrow()
     {
         const int w = 13, h = 5;
@@ -3163,6 +3183,8 @@ public static class SpriteGen
             "Ghoul" => DrawGhoulDowned(tint, def.Id, pose),
             "Skeleton" => DrawSkeletonDowned(tint, def.Id, pose),
             "Necro" => DrawNecroDowned(tint, pose),
+            "Bandit" => DrawBanditDowned(tint, def.SpriteRole, variant, pose),
+            "Goblin" => DrawGoblinDowned(tint, def.SpriteRole, pose),
             _ => GetEnemyCorpseSprite(def, variant),
         };
         if (tex == null) return null;
@@ -4367,5 +4389,333 @@ public static class SpriteGen
         }
 
         return c.Bake(_device);
+    }
+
+    // ------------------------------------------------------------------ bandits & goblins (batch 85)
+
+    /// <summary>Bandit palette shared by the standing and downed sprites.</summary>
+    private static void BanditPalette(Color tint, string role, int variant, out Color leather, out Color leatherDark,
+        out Color leatherLight, out Color hood, out Color hoodDark, out Color skin, out Color skinDark,
+        out Color cloth, out Color boots, out Color steel, out Color steelDark, out Color wood)
+    {
+        leather = Shade(tint, 0.95f);
+        leatherDark = Shade(tint, 0.6f);
+        leatherLight = Shade(tint, 1.25f);
+        hood = role == "captain" ? new Color(150, 40, 36) : variant == 1 ? new Color(74, 52, 40) : new Color(58, 66, 48);
+        hoodDark = Shade(hood, 0.65f);
+        skin = new Color(206, 166, 128);
+        skinDark = Shade(skin, 0.72f);
+        cloth = new Color(92, 84, 70);
+        boots = new Color(52, 40, 30);
+        steel = new Color(176, 178, 188);
+        steelDark = new Color(110, 112, 124);
+        wood = new Color(112, 82, 50);
+    }
+
+    /// <summary>
+    /// A human outlaw in leathers and a hood — the same upright proportions as the
+    /// camp's sellsword, with a weapon per role so each reads at a glance:
+    /// "blade" (masked cutthroat; the renderer adds the drawn sword), "bow" (archer:
+    /// bow in hand, quiver on the back), "brute" (bare-armed, broad, a studded club),
+    /// "captain" (red hat and plume, steel pauldrons, a cloak). Three marching frames.
+    /// </summary>
+    private static Texture2D DrawBandit(Color tint, string role, int variant, int frame)
+    {
+        var c = new Canvas();
+        bool brute = role == "brute", captain = role == "captain", bow = role == "bow", blade = !brute && !captain && !bow;
+        BanditPalette(tint, role, variant, out var leather, out var leatherDark, out var leatherLight, out var hood,
+            out var hoodDark, out var skin, out var skinDark, out var cloth, out var boots, out var steel,
+            out var steelDark, out var wood);
+        var eyes = new Color(30, 24, 20);
+
+        int leftLegUp = frame == 1 ? 2 : 0;
+        int rightLegUp = frame == 2 ? 2 : 0;
+        int bob = frame == 0 ? 0 : 1;
+        int armSwing = frame == 1 ? 1 : frame == 2 ? -1 : 0;
+        int wide = brute ? 1 : 0;
+
+        // Legs: trousers and boots, striding.
+        c.Rect(9 - wide, 27, 3 + wide, 8 - leftLegUp, cloth);
+        c.Rect(14, 27, 3 + wide, 8 - rightLegUp, cloth);
+        c.Rect(8 - wide + leftLegUp / 2, 34 - leftLegUp, 4 + wide, 2, boots);
+        c.Rect(14 - rightLegUp / 2, 34 - rightLegUp, 4 + wide, 2, boots);
+
+        // The captain's cloak hangs behind everything else.
+        int ty = 17 + bob;
+        if (captain)
+        {
+            c.Rect(6, ty + 1, 2, 12, hood);
+            c.Rect(18, ty + 1, 2, 12, hoodDark);
+            c.Set(6, ty + 13, hoodDark); c.Set(19, ty + 13, hoodDark);
+        }
+
+        // Torso: a leather jerkin, belt and buckle, a strap across the chest.
+        c.Rect(8 - wide, ty, 10 + 2 * wide, 10, leather);
+        c.Rect(8 - wide, ty, 10 + 2 * wide, 1, leatherLight);
+        c.Rect(16 + wide, ty, 2, 10, leatherDark);
+        c.Rect(8 - wide, ty + 7, 10 + 2 * wide, 1, boots);
+        c.Set(12, ty + 7, steel);
+        for (int i = 0; i < 6; i++) c.Set(9 + i, ty + 1 + i, leatherDark);
+        if (brute) c.Rect(10, ty + 2, 5, 4, skin); // open vest over a bare chest
+        if (captain)
+        {
+            c.Rect(6, ty - 1, 4, 3, steel); c.Rect(6, ty + 1, 4, 1, steelDark);
+            c.Rect(16, ty - 1, 4, 3, steel); c.Rect(16, ty + 1, 4, 1, steelDark);
+        }
+        if (bow)
+        {
+            // Quiver on the back, fletchings showing over the shoulder.
+            c.Rect(6, ty - 1, 2, 7, wood);
+            c.Set(6, ty - 2, steel); c.Set(7, ty - 3, new Color(214, 208, 190));
+        }
+
+        // Arms: counter-swinging; the brute's are bare and thick.
+        int ay = 18 + bob;
+        var arm = brute ? skin : leather;
+        var armDark = brute ? skinDark : leatherDark;
+        int thick = brute ? 3 : 2;
+        c.Rect(17 + wide + armSwing, ay, 4, thick, arm);
+        c.Set(20 + wide + armSwing, ay + thick - 1, skin);
+        c.Rect(5 - wide - armSwing, ay, 3, thick, arm);
+        c.Rect(5 - wide - armSwing, ay + thick, 2, 4, arm);
+        c.Set(5 - wide - armSwing, ay + thick + 4, skin);
+        c.Set(6 - wide - armSwing, ay + thick + 1, armDark);
+
+        // Head.
+        int hy = 9 + bob;
+        c.Rect(9, hy, 8, 8, skin);
+        c.Rect(9, hy + 7, 8, 1, skinDark);
+        c.Set(11, hy + 3, eyes); c.Set(15, hy + 3, eyes);
+        if (brute)
+        {
+            // Bald, scarred, a heavy beard.
+            c.Rect(9, hy, 8, 1, skinDark);
+            c.Rect(10, hy + 5, 6, 3, new Color(70, 50, 36));
+            c.Set(16, hy + 1, new Color(150, 60, 50)); c.Set(15, hy + 2, new Color(150, 60, 50));
+        }
+        else if (captain)
+        {
+            // Wide red hat with a pale plume, an eyepatch and its strap.
+            c.Rect(7, hy - 1, 12, 2, hood);
+            c.Rect(9, hy - 3, 8, 2, hood);
+            c.Rect(9, hy - 1, 8, 1, hoodDark);
+            c.Rect(15 - armSwing, hy - 6, 2, 4, new Color(232, 224, 204));
+            c.Set(17 - armSwing, hy - 5, new Color(232, 224, 204));
+            c.Set(15, hy + 3, new Color(20, 16, 16)); c.Set(14, hy + 3, new Color(20, 16, 16));
+            c.Set(16, hy + 2, new Color(20, 16, 16));
+            c.Rect(10, hy + 6, 6, 1, new Color(60, 44, 34)); // moustache
+        }
+        else
+        {
+            // Hood up; the cutthroat also wears a kerchief over the mouth.
+            c.Rect(8, hy - 1, 10, 3, hood);
+            c.Rect(8, hy, 1, 8, hood);
+            c.Rect(17, hy, 1, 8, hoodDark);
+            c.Rect(9, hy + 2, 8, 1, skinDark); // the hood's shadow
+            if (blade) c.Rect(9, hy + 5, 8, 3, hoodDark);
+        }
+
+        // Weapons (sword-style roles get their blade from the renderer).
+        if (bow)
+        {
+            int bx = 22 + armSwing;
+            for (int dy = -6; dy <= 6; dy++)
+                c.Set(bx - (Math.Abs(dy) >= 5 ? 1 : 0), ay + dy, wood);
+            for (int dy = -5; dy <= 5; dy++) c.Set(bx - 2, ay + dy, new Color(220, 214, 196));
+            c.Set(bx - 1, ay - 6, wood); c.Set(bx - 1, ay + 6, wood);
+        }
+        else if (brute)
+        {
+            int cx = 21 + armSwing;
+            c.Rect(cx, ay - 6, 2, 8, wood);
+            c.Rect(cx - 1, ay - 10, 4, 5, Shade(wood, 0.8f));
+            c.Set(cx - 1, ay - 9, steel); c.Set(cx + 2, ay - 7, steel); c.Set(cx, ay - 10, steel);
+        }
+        else if (blade)
+        {
+            // An off-hand dagger, low at the hip.
+            c.Set(4 - armSwing, ay + 7, steel); c.Set(4 - armSwing, ay + 8, steel); c.Set(4 - armSwing, ay + 9, steelDark);
+        }
+        return c.Bake(_device);
+    }
+
+    /// <summary>Bandit downed: pose 0 flat on the back with an arm flung up, pose 1
+    /// face-down reaching past the head. The role's weapon lies dropped beside them.</summary>
+    private static Texture2D DrawBanditDowned(Color tint, string role, int variant, int pose)
+    {
+        var s = new Sheet(DW, DH);
+        bool brute = role == "brute", captain = role == "captain", bow = role == "bow";
+        BanditPalette(tint, role, variant, out var leather, out var leatherDark, out var leatherLight, out var hood,
+            out var hoodDark, out var skin, out var skinDark, out var cloth, out var boots, out var steel,
+            out var steelDark, out var wood);
+        var arm = brute ? skin : leather;
+        int girth = brute ? 2 : 0;
+        // Legs out to the left, boots at the far end.
+        s.Rect(4, 9, 9, 3, cloth); s.Rect(5, 12, 8, 2 + girth / 2, Shade(cloth, 0.8f));
+        s.Rect(1, 9, 3, 3, boots); s.Rect(2, 12, 3, 2, boots);
+        if (pose == 0)
+        {
+            // On the back: jerkin up, belt across, head lolled to the right.
+            s.Rect(13, 7 - girth / 2, 12, 8 + girth, leather);
+            s.Rect(13, 7 - girth / 2, 12, 1, leatherLight);
+            s.Rect(13, 14 + girth / 2, 12, 1, leatherDark);
+            s.Rect(13, 7 - girth / 2, 1, 8 + girth, boots);
+            if (brute) s.Rect(16, 9, 6, 4, skin);
+            s.Line(21, 6, 27, 2, arm); s.Line(21, 7, 27, 3, arm); s.Set(28, 2, skin);   // arm flung up
+            s.Rect(15, 15 + girth / 2, 8, 2, arm); s.Set(23, 16 + girth / 2, skin);     // arm along the side
+            s.Rect(25, 7, 7, 7, skin); s.Rect(25, 13, 7, 1, skinDark);
+            s.Set(27, 9, skinDark); s.Set(27, 12, skinDark);                            // eyes shut
+            if (brute) s.Rect(29, 9, 3, 4, new Color(70, 50, 36));
+            else if (captain) { s.Rect(34, 3, 5, 3, hood); s.Set(36, 2, new Color(232, 224, 204)); s.Set(37, 1, new Color(232, 224, 204)); }
+            else { s.Rect(31, 6, 3, 9, hood); s.Rect(25, 6, 7, 1, hood); s.Set(33, 15, hoodDark); }
+        }
+        else
+        {
+            // Face-down: the back of the jerkin, an arm reaching past the head.
+            s.Rect(13, 8 - girth / 2, 12, 8 + girth, leatherDark);
+            s.Rect(13, 8 - girth / 2, 12, 1, leather);
+            s.Rect(13, 8 - girth / 2, 1, 8 + girth, boots);
+            for (int i = 0; i < 5; i++) s.Set(15 + i * 2, 10 + i, Shade(leatherDark, 0.8f));
+            s.Rect(26, 5, 9, 2, arm); s.Set(35, 5, skin);                               // reaching arm
+            s.Rect(16, 16 + girth / 2, 7, 2, arm);
+            if (brute || captain) { s.Rect(25, 8, 7, 7, skinDark); s.Rect(25, 8, 7, 2, brute ? skinDark : new Color(60, 44, 34)); }
+            else { s.Rect(25, 8, 7, 7, hood); s.Rect(25, 14, 7, 1, hoodDark); }
+            if (captain) { s.Rect(31, 12, 6, 3, hood); s.Set(37, 11, new Color(232, 224, 204)); }
+        }
+        if (captain)
+        {
+            s.Rect(11, 15, 3, 3, hood); s.Rect(9, 16, 3, 3, hoodDark);                  // cloak pooled under
+            s.Rect(13, 6, 4, 2, steel);                                                  // a pauldron
+        }
+        // The dropped weapon.
+        if (bow) { s.Line(27, 17, 37, 16, wood); s.Set(27, 16, wood); s.Set(37, 15, wood); s.Line(28, 16, 36, 15, new Color(220, 214, 196)); }
+        else if (brute) { s.Rect(27, 16, 7, 2, wood); s.Rect(33, 15, 5, 4, Shade(wood, 0.8f)); s.Set(35, 15, steel); s.Set(36, 18, steel); }
+        else { s.Line(28, 17, 37, 17, steel); s.Rect(26, 16, 2, 3, wood); s.Set(37, 17, steelDark); }
+        return s.Bake();
+    }
+
+    /// <summary>
+    /// A goblin: short and hunched under a head too big for it — green skin, huge
+    /// pointed ears, yellow eyes, a toothy grin, rags. Roles: "skulker" (a jagged
+    /// dagger; variant 1 wears a rag hood), "slinger" (a loaded sling and a pouch of
+    /// stones), "shaman" (an ember-topped staff, feathers and a bone necklace).
+    /// Two frames (a scuttling step); drawn low in the canvas so it stands short.
+    /// </summary>
+    private static Texture2D DrawGoblin(Color tint, string role, int variant, int frame)
+    {
+        var c = new Canvas();
+        var skin = tint;
+        var skinDark = Shade(tint, 0.62f);
+        var skinLight = Shade(tint, 1.25f);
+        var eye = new Color(255, 214, 64);
+        var pupil = new Color(24, 18, 14);
+        var rag = role == "shaman" ? new Color(110, 60, 96) : new Color(104, 78, 52);
+        var ragDark = Shade(rag, 0.62f);
+        var tooth = new Color(236, 230, 204);
+        var steel = new Color(168, 170, 178);
+        var wood = new Color(112, 82, 50);
+        int step = frame == 1 ? 1 : 0;
+
+        // Bandy legs and flat feet.
+        c.Rect(9, 29 - step, 3, 5 + step, skinDark);
+        c.Rect(14, 29, 3, 5, skinDark);
+        c.Rect(8, 34 - step, 4, 2, skin);
+        c.Rect(14, 34, 4, 2, skin);
+
+        // A small hunched body in rags, bare chest showing.
+        int ty = 22 + step;
+        c.Rect(8, ty, 10, 7, rag);
+        c.Rect(8, ty, 10, 1, Shade(rag, 1.2f));
+        c.Rect(16, ty, 2, 7, ragDark);
+        c.Rect(11, ty + 1, 4, 3, skin);
+        c.Rect(9, ty + 6, 2, 1, Color.Transparent); c.Rect(14, ty + 6, 1, 1, Color.Transparent); // ragged hem
+
+        // Long arms.
+        c.Rect(17, ty + 1, 4, 2, skin); c.Set(21, ty + 2, skinDark);
+        c.Rect(5, ty + 1, 3, 2, skin); c.Rect(5, ty + 3, 2, 3 - step, skin); c.Set(5, ty + 6 - step, skinDark);
+
+        // The big head.
+        int hy = 12 + step;
+        c.Rect(8, hy, 10, 9, skin);
+        c.Rect(8, hy, 10, 1, skinLight);
+        c.Rect(8, hy + 8, 10, 1, skinDark);
+        // Ears: long points sticking out sideways and up.
+        c.Rect(5, hy + 2, 3, 2, skin); c.Rect(3, hy + 1, 2, 2, skin); c.Set(2, hy, skin); c.Set(6, hy + 3, skinDark);
+        c.Rect(18, hy + 2, 3, 2, skin); c.Rect(21, hy + 1, 2, 2, skin); c.Set(23, hy, skin); c.Set(19, hy + 3, skinDark);
+        // Eyes, nose, grin.
+        c.Rect(10, hy + 3, 2, 2, eye); c.Rect(14, hy + 3, 2, 2, eye);
+        c.Set(11, hy + 4, pupil); c.Set(15, hy + 4, pupil);
+        c.Set(13, hy + 5, skinDark);
+        c.Rect(10, hy + 7, 6, 1, new Color(60, 24, 28));
+        c.Set(11, hy + 7, tooth); c.Set(14, hy + 7, tooth);
+
+        if (role == "slinger")
+        {
+            // The sling whirls: cord up from the hand, the pouch swapping sides per frame.
+            c.Set(22, ty, new Color(190, 170, 130)); c.Set(22 + step, ty - 1, new Color(190, 170, 130));
+            c.Set(22 + step, ty - 2, new Color(190, 170, 130));
+            c.Rect(22 + step, ty - 4, 2, 2, new Color(132, 128, 120));
+            c.Rect(6, ty + 5, 3, 3, ragDark); c.Set(7, ty + 5, new Color(132, 128, 120)); // stone pouch
+        }
+        else if (role == "shaman")
+        {
+            // Staff with a live ember, feathers on the brow, a bone necklace.
+            c.Rect(22, hy - 1, 1, 24 - step, wood);
+            c.Rect(21, hy - 4, 3, 3, new Color(255, 150, 40));
+            c.Set(22, hy - 5, new Color(255, 222, 120)); c.Set(22, hy - 3, new Color(255, 236, 170));
+            c.Set(10, hy - 1, new Color(190, 50, 40)); c.Set(10, hy - 2, new Color(190, 50, 40));
+            c.Set(13, hy - 1, tooth); c.Set(13, hy - 2, tooth); c.Set(13, hy - 3, tooth);
+            c.Set(16, hy - 1, new Color(190, 50, 40)); c.Set(16, hy - 2, new Color(190, 50, 40));
+            for (int x = 10; x <= 16; x += 2) c.Set(x, ty, tooth);
+        }
+        else
+        {
+            // Skulker: a jagged dagger held forward; the second look wears a rag hood.
+            c.Rect(22, ty - 3, 1, 5, steel); c.Set(23, ty - 2, steel); c.Set(23, ty, steel);
+            c.Set(22, ty + 2, wood);
+            if (variant == 1) { c.Rect(8, hy - 1, 10, 2, ragDark); c.Set(8, hy + 1, ragDark); c.Set(17, hy + 1, ragDark); }
+        }
+        return c.Bake(_device);
+    }
+
+    /// <summary>Goblin downed: pose 0 on its back, one ear up and limbs splayed; pose 1
+    /// curled face-down. Small on the ground too; its weapon lies beside it.</summary>
+    private static Texture2D DrawGoblinDowned(Color tint, string role, int pose)
+    {
+        var s = new Sheet(DW, DH);
+        var skin = tint;
+        var skinDark = Shade(tint, 0.62f);
+        var rag = role == "shaman" ? new Color(110, 60, 96) : new Color(104, 78, 52);
+        var ragDark = Shade(rag, 0.62f);
+        var tooth = new Color(236, 230, 204);
+        var steel = new Color(168, 170, 178);
+        var wood = new Color(112, 82, 50);
+        if (pose == 0)
+        {
+            s.Rect(8, 10, 6, 2, skinDark); s.Rect(9, 13, 5, 2, skinDark);              // legs
+            s.Rect(6, 9, 2, 3, skin); s.Rect(7, 13, 2, 3, skin);                        // feet up
+            s.Rect(14, 9, 8, 6, rag); s.Rect(14, 14, 8, 1, ragDark); s.Rect(16, 10, 4, 3, skin);
+            s.Line(18, 8, 22, 5, skin); s.Set(23, 4, skinDark);                         // arm up
+            s.Rect(15, 15, 6, 2, skin);                                                 // arm down
+            s.Rect(22, 7, 9, 8, skin); s.Rect(22, 14, 9, 1, skinDark);                  // head
+            s.Rect(25, 4, 2, 3, skin); s.Set(26, 3, skin);                              // ear up
+            s.Rect(26, 15, 2, 2, skin); s.Set(27, 17, skin);                            // ear down
+            s.Set(25, 9, skinDark); s.Set(26, 10, skinDark); s.Set(25, 12, skinDark); s.Set(26, 13, skinDark); // eyes shut
+            s.Rect(29, 9, 1, 4, new Color(60, 24, 28)); s.Set(29, 10, tooth);           // slack mouth
+        }
+        else
+        {
+            s.Rect(9, 12, 6, 2, skinDark); s.Rect(8, 14, 6, 2, skinDark);
+            s.Rect(6, 12, 3, 2, skin); s.Rect(5, 15, 3, 2, skin);
+            s.Rect(14, 9, 9, 7, ragDark); s.Rect(14, 9, 9, 1, rag);                     // hunched back
+            s.Rect(12, 16, 5, 2, skin); s.Rect(22, 16, 6, 2, skin); s.Set(28, 17, skinDark);
+            s.Rect(22, 8, 8, 8, skin); s.Rect(22, 8, 8, 2, skinDark);                   // back of the head
+            s.Rect(24, 5, 2, 3, skin); s.Set(25, 4, skin);
+            s.Rect(30, 11, 3, 2, skin); s.Set(33, 11, skin);
+        }
+        if (role == "slinger") { s.Line(30, 17, 36, 15, new Color(190, 170, 130)); s.Rect(36, 14, 2, 2, new Color(132, 128, 120)); s.Rect(33, 18, 2, 2, new Color(132, 128, 120)); }
+        else if (role == "shaman") { s.Line(3, 5, 14, 3, wood); s.Line(17, 3, 22, 2, wood); s.Rect(0, 4, 3, 3, new Color(96, 60, 40)); s.Set(1, 5, new Color(150, 80, 40)); s.Set(34, 6, new Color(190, 50, 40)); s.Set(35, 7, tooth); }
+        else { s.Line(32, 17, 37, 17, steel); s.Set(31, 17, wood); s.Set(35, 16, steel); }
+        return s.Bake();
     }
 }

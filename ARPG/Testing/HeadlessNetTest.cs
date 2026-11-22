@@ -217,7 +217,7 @@ public static partial class HeadlessNetTest
               codexDrop.Item.Modifiers.Any(m => m.ModifierId == "warp_boss") && codexDrop.Item.Locked &&
               !sw.Enemies.Values.Any(e => !e.Dead && e.SummonerId == codex.Id) &&
               storyP.Character.Story.CodexFelled && storyP.Character.Story.ScrollsUnlocked,
-              "the Codex falls, its summoned tomes with it: the sealed scroll (the Mirewood, three rooms, the Gravelord) drops, scrolls are unlocked from now on, and the character remembers");
+              "the Codex falls, its summoned tomes with it: the sealed scroll (the Mirewood, three rooms, a boss on the last) drops, scrolls are unlocked from now on, and the character remembers");
         storyA.World.Me.Position = codexDrop.Position + new Vector2(0.3f, 0f);
         SPump(0.3f);
         storyA.RequestPickup(codexDrop.DropId);
@@ -471,7 +471,8 @@ public static partial class HeadlessNetTest
         SPump(1.2f);
         Check(sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && storyA.World.CutscenesSeen.Count == scenesBeforeGrind,
               "the doorway home works with the boss still standing; no scenes play on a grind");
-        // The Codex's scroll: the Mirewood three rooms deep, the Gravelord on the last.
+        // The Codex's scroll: the Mirewood three rooms deep, its boss on the last. Since
+        // batch 85 the Mirewood belongs to bandits and goblins: the Bandit Captain waits.
         var longRoad = storyP.Character.Inventory.Items.First(it => it.Item.Modifiers.Any(m => m.ModifierId == "warp_rooms"));
         storyA.World.Me.Position = ruins.PodiumSpot + new Vector2(-1.0f, 0.5f);
         storyA.World.Me.Height = ruins.GroundHeightAt(ruins.PodiumSpot);
@@ -500,8 +501,9 @@ public static partial class HeadlessNetTest
         SPump(0.4f);
         storyA.RequestDoorReady();
         SPump(1.2f);
-        var lastBoss = sw.Enemies.Values.FirstOrDefault(e => e.Def.Id == "gravelord");
-        Check(sw.ScrollRoom == 3 && lastBoss != null && sw.ExitLocked, "room three: the Gravelord waits and the way home is sealed");
+        var lastBoss = sw.Enemies.Values.FirstOrDefault(e => e.Def.Id == "bandit_captain");
+        Check(sw.ScrollRoom == 3 && lastBoss != null && sw.ExitLocked && !sw.Enemies.Values.Any(e => e.Def.Id == "gravelord"),
+              "room three: the Bandit Captain waits (the Mirewood's boss since batch 85) and the way home is sealed");
         storyA.World.Me.Position = lastBoss.Position + new Vector2(-1.5f, 0f);
         storyA.World.Me.Height = sw.Map.GroundHeightAt(lastBoss.Position);
         SPump(0.4f);
@@ -518,7 +520,7 @@ public static partial class HeadlessNetTest
         storyA.RequestDoorReady();
         SPump(1.2f);
         Check(lastBoss.Dead && sw.MapIndex == 0 && sw.Map.Kind == World.MapKind.RuinsHub && sw.ScrollRoom == 0,
-              "the Gravelord falls and the last room's exit leads home");
+              "the Bandit Captain falls and the last room's exit leads home");
         storyA.Disconnect();
         SPump(0.3f);
         storyServer.Stop();
@@ -6361,11 +6363,15 @@ public static partial class HeadlessNetTest
             Check(hiddenAtFirst && lurkOnA != null && lurkOnA.RevealedAtMs > 0 && lurkOnA.Rose &&
                   (clientA.World.Effects.Any(fx => fx.Kind == "dirtburst") || clientA.World.BloodDrops.Count + clientA.World.BloodStains.Count > 0),
                   $"a BURIED enemy lies unseen until a player nears ({Vector2.Distance(farSpot, meAOnServer.Position):0.0} tiles) then rises; an unburied one stands in view");
-            Check(data.Enemies.Values.Where(d => d.SpriteStyle != "Tome").All(d => d.Undead) &&
+            // Batch 85: the graveyard families are still all undead, but the world now
+            // also holds the living (bandits, goblins) — who never lie buried either.
+            Check(data.Enemies.Values.Where(d => d.SpriteStyle is "Zombie" or "Ghoul" or "Skeleton" or "Necro").All(d => d.Undead) &&
                   data.Enemies.Values.Where(d => d.SpriteStyle == "Tome").All(d => !d.Undead && d.Blood.Length == 0) &&
+                  data.Enemies.Values.Where(d => d.SpriteStyle is "Bandit" or "Goblin").All(d => !d.Undead && d.Blood.Length > 0) &&
                   server.World.Enemies.Values.Any(e => e.Buried) &&
+                  !server.World.SpawnEnemy("goblin_skulker", farSpot, buried: true).Buried &&
                   !server.World.SpawnEnemy("gravelord", farSpot, Server.EliteAffix.Boss, buried: true).Buried,
-                  "every graveyard enemy is undead (the archive's tomes are bloodless paper, never buried); bosses never spawn buried");
+                  "every graveyard enemy is undead (the archive's tomes are bloodless paper, the living bandits and goblins bleed; neither is ever buried); bosses never spawn buried");
             clientA.World.Me.Position = meAOnServer.Position;
             Pump(0.3f);
         }

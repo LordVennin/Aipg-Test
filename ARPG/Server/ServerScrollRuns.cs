@@ -149,8 +149,8 @@ public partial class ServerWorld
         Loot.WarpScrollsAllowed = on;
     }
 
-    /// <summary>The Codex's scroll: the Mirewood, three rooms deep, the Gravelord on the
-    /// last — the test grounds' forest run, sealed onto paper. Always the same.</summary>
+    /// <summary>The Codex's scroll: the Mirewood, three rooms deep, the zone's boss on
+    /// the last (the Bandit Captain since batch 85). Always the same.</summary>
     public ItemInstance CodexScroll()
     {
         var scrollBase = Data.Items.Values.FirstOrDefault(b => b.Category == ItemCategory.WarpScroll);

@@ -71,6 +71,12 @@ public class PlayScreen : IScreen
     private bool _devLearnSummons, _devRaiseSummons;
     /// <summary>ARPG_DEVUI=knight: spawn Barrow Knights next to the player (GUI automation).</summary>
     private bool _devSpawnKnights;
+    /// <summary>ARPG_DEVUI=bandits / goblins: ring the player with one of each (4 s in);
+    /// books: one of every skill book on the ground; spritesheet: every bandit and
+    /// goblin frame + downed pose in a grid, for art checks.</summary>
+    private string _devSpawnFamily;
+    private bool _devDropBooks;
+    private bool _devSpriteSheet;
     /// <summary>ARPG_DEVUI=reaper: keep culling nearby enemies so scripted walkthroughs
     /// survive any map (GUI automation).</summary>
     private bool _devReaper;
@@ -272,6 +278,10 @@ public class PlayScreen : IScreen
             if (devUi.Contains("sheet")) _characterSheet.Open = true;
             if (devUi.Contains("summons")) _devLearnSummons = _devRaiseSummons = true;
             if (devUi.Contains("knight")) _devSpawnKnights = true;
+            if (devUi.Contains("bandits")) _devSpawnFamily = "bandit";
+            else if (devUi.Contains("goblins")) _devSpawnFamily = "goblin";
+            if (devUi.Split(',').Contains("books")) _devDropBooks = true;
+            if (devUi.Contains("spritesheet")) _devSpriteSheet = true;
             if (devUi.Contains("reaper")) _devReaper = true;
             if (devUi.Contains("gold")) _devGiveGold = true;
             if (devUi.Contains("supplies")) _devGiveSupplies = true;
@@ -508,6 +518,16 @@ public class PlayScreen : IScreen
             _client.RequestSummonAdjust("summon_skeleton_warrior", +1);
             _client.RequestSummonAdjust("summon_skeleton", +1);
             _client.RequestSummonAdjust("summon_skeleton", +1);
+        }
+        if (_devSpawnFamily != null && _clientTime > 4f)
+        {
+            _client.SendDebugCommand("spawn_family", _devSpawnFamily);
+            _devSpawnFamily = null;
+        }
+        if (_devDropBooks && _clientTime > 4f)
+        {
+            _client.SendDebugCommand("drop_books");
+            _devDropBooks = false;
         }
         if (_devSpawnKnights && _clientTime > 9f)
         {
@@ -1396,9 +1416,48 @@ public class PlayScreen : IScreen
     }
 
     /// <summary>HUD + menus — drawn in UI (virtual) space through the global UI scale matrix.</summary>
+    /// <summary>Dev art check (ARPG_DEVUI=spritesheet): every bandit and goblin —
+    /// walking frames, then both downed poses — at 3x on a neutral ground.</summary>
+    private void DrawDevSpriteSheet(SpriteBatch sb)
+    {
+        var screen = _game.UiScreenSize;
+        sb.Draw(TextureGen.Pixel, new Rectangle(0, 0, screen.X, screen.Y), new Color(58, 82, 52));
+        var font = FontManager.Get(13);
+        int y = 14;
+        foreach (var def in _game.Data.Enemies.Values.Where(d => d.SpriteStyle is "Bandit" or "Goblin"))
+        {
+            int x = 14;
+            sb.DrawString(font, $"{def.Name}  (L{def.Level}, {def.MaxHealth:0} hp)", new Vector2(x, y + 44), Color.White);
+            x += 210;
+            for (int variant = 0; variant < Math.Max(1, def.SpriteVariants); variant++)
+            {
+                var frames = SpriteGen.GetEnemyFrames(def, variant);
+                if (frames == null) continue;
+                foreach (var frame in frames)
+                {
+                    int w = (int)(frame.Width * 3 * def.SpriteScale), h = (int)(frame.Height * 3 * def.SpriteScale);
+                    sb.Draw(frame, new Rectangle(x, y + 96 - h, w, h), Color.White);
+                    x += 84;
+                }
+                for (int pose = 0; pose < 2; pose++)
+                {
+                    var downed = SpriteGen.GetEnemyDeathPose(def, variant, pose);
+                    if (downed == null) continue;
+                    int w = (int)(downed.Width * 3 * def.SpriteScale), h = (int)(downed.Height * 3 * def.SpriteScale);
+                    sb.Draw(downed, new Rectangle(x, y + 96 - h, w, h), Color.White);
+                    x += 126;
+                }
+                x += 16;
+            }
+            y += 99;
+        }
+    }
+
     public void DrawUI(SpriteBatch sb)
     {
         var screen = _game.UiScreenSize;
+
+        if (_devSpriteSheet) { DrawDevSpriteSheet(sb); return; }
 
         if (_client.Status != ClientStatus.InGame)
         {

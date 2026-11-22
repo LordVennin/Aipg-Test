@@ -45,6 +45,34 @@ _Running log; final pass at the end._
 - New debug command `enter_portal <seals>` (story worlds): straight into the portal run
   a scroll would open.
 
+- **3.2 enemy level floor:** new enemies carry `MinSpawnLevel` (= native level) so a
+  level-1 Codex scroll doesn't field "level 1" bandits with level-4 stats and level-1 XP.
+  Undead are unaffected (their value is 0).
+- **3.2 "bleeds via a high-damage telegraphed swing":** I read this as the Cutthroat's
+  slow, heavy swing leaving a bleed on the player. Player-side bleed did not exist; it is
+  a small addition (half-second ticks that ignore armor), not a new AI system. The
+  Brute's "big knockback" likewise needed a player shove: the server moves the player
+  (walls stop it) and snaps the client with the existing respawn/teleport packet.
+- **3.2 kiting AI fix:** while testing, ranged enemies with `KeepDistance` turned out to
+  never attack while a player stood inside their comfort ring next to a wall. They now
+  loose a shot whenever it is ready while backing off. This also changes Frost Tomes.
+- **Pre-existing crash found by the new tick guard:** `EnemyStates` went out as ONE
+  unreliable packet; LiteNetLib throws above ~1 KB, i.e. above ~51 live enemies. Goblin
+  packs push portal runs past that. Before tonight that exception would have killed the
+  server process. Snapshots are now chunked (40 entities per packet).
+- **Art check:** the game boots under `xvfb` in this container, so the new sprites were
+  looked at for real. New dev hooks: `ARPG_DEVUI=spritesheet` (every bandit/goblin frame
+  and downed pose), `bandits`, `goblins` (ring the player with one of each; debug
+  `spawn_family <family>`).
+
+## Behavior changes to existing checks
+- `every graveyard enemy is undead ...`: used to assert that EVERY non-tome enemy in the
+  data is undead. Now asserts the four graveyard sprite families are undead, and that
+  bandits/goblins are not, bleed, and never spawn buried.
+- `room three: the Gravelord waits ...` / `the Gravelord falls and the last room's exit
+  leads home` (story, the Codex's Mirewood scroll): the Mirewood's boss is now the
+  Bandit Captain; both checks look for `bandit_captain` (and that no Gravelord is there).
+
 ## Progress log
 | Task | Status | Checks (full suite) |
 |---|---|---|
@@ -52,3 +80,4 @@ _Running log; final pass at the end._
 | 1.1 logging, 1.2 crash handlers, 1.3 tick guard, 1.4 atomic saves, 1.5 autosave, 1.6 join sanitization, 1.7 data validator | done | |
 | 2.1 fingerprint handshake (protocol 48, SimVersion 1), 2.2 coalesced character sync | done | 897 |
 | 3.1 data-driven enemy pools per theme | done | 906 |
+| 3.2 bandits and goblins (7 enemies, sprites, shove, bleed), snapshot chunking | done | 933 |

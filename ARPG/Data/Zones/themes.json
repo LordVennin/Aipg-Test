@@ -226,6 +226,91 @@
       "grass:3A5632",
       "litter:3E482C",
       "dirt:5C4A32"
+    ],
+    "PackPool": [
+      {
+        "Entries": [["goblin_skulker", 4]],
+        "Weight": 3
+      },
+      {
+        "Entries": [["goblin_skulker", 3], ["goblin_slinger", 2]],
+        "Weight": 3
+      },
+      {
+        "Entries": [["goblin_skulker", 4], ["goblin_slinger", 2]],
+        "Weight": 2
+      },
+      {
+        "Entries": [["goblin_skulker", 3], ["goblin_slinger", 1], ["goblin_shaman", 1]],
+        "Weight": 1
+      },
+      {
+        "Entries": [["bandit_cutthroat", 2]],
+        "Weight": 2
+      },
+      {
+        "Entries": [["bandit_cutthroat", 2], ["bandit_archer", 1]],
+        "Weight": 3
+      },
+      {
+        "Entries": [["bandit_cutthroat", 1], ["bandit_archer", 2]],
+        "Weight": 2
+      },
+      {
+        "Entries": [["bandit_brute", 1], ["bandit_cutthroat", 2]],
+        "Weight": 2,
+        "MinLevel": 4
+      },
+      {
+        "Entries": [["bandit_brute", 1], ["bandit_archer", 2], ["bandit_cutthroat", 1]],
+        "Weight": 1,
+        "MinLevel": 5
+      }
+    ],
+    "OverlookPool": [
+      {
+        "Entries": [["goblin_slinger", 2]]
+      },
+      {
+        "Entries": [["bandit_archer", 2]],
+        "MinLevel": 6
+      }
+    ],
+    "BossPacks": [
+      {
+        "Boss": "bandit_captain",
+        "Guards": [["bandit_cutthroat", 2], ["bandit_archer", 1]]
+      }
+    ],
+    "WaveEnemies": [
+      {
+        "Id": "goblin_skulker",
+        "Weight": 4
+      },
+      {
+        "Id": "goblin_slinger",
+        "Weight": 2
+      },
+      {
+        "Id": "bandit_cutthroat",
+        "Weight": 2,
+        "MinWave": 2
+      },
+      {
+        "Id": "bandit_archer",
+        "Weight": 2,
+        "MinWave": 2
+      },
+      {
+        "Id": "goblin_shaman",
+        "Weight": 1,
+        "MinWave": 3
+      },
+      {
+        "Id": "bandit_brute",
+        "Weight": 1,
+        "MinWave": 4
+      }
     ]
   },
   {

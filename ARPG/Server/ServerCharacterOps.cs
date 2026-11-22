@@ -968,6 +968,20 @@ public partial class ServerWorld
                 if (warp != null && Map.Kind == MapKind.RuinsHub && !PortalOpen) OpenPortal(warp);
                 break;
             }
+            case "spawn_family":
+            {
+                // Dev: one of every enemy of a family ("bandit", "goblin", "undead"...)
+                // in a ring around the player — art and behaviour checks.
+                var family = Data.Enemies.Values.Where(d => d.Family == arg).ToList();
+                for (int i = 0; i < family.Count; i++)
+                {
+                    float ang = i * MathF.PI * 2f / family.Count;
+                    var at = p.Position + new System.Numerics.Vector2(MathF.Cos(ang), MathF.Sin(ang)) * 4.5f;
+                    if (Map.CircleHitsWall(at, 0.5f)) at = p.Position + new System.Numerics.Vector2(2f, 0f);
+                    SpawnEnemy(family[i].Id, at, level: Math.Max(1, c.Level));
+                }
+                break;
+            }
             case "enter_portal":
             {
                 // Dev: straight into the portal run a scroll describes (same arg as

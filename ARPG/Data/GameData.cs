@@ -116,6 +116,16 @@ public class EnemyDefinition
     public string Glow { get; set; } = "";
     /// <summary>Visual size multiplier on the sprite (0.75 = a runt, 1 = normal).</summary>
     public float SpriteScale { get; set; } = 1f;
+    /// <summary>Art role within a SpriteStyle: Bandit "blade"/"bow"/"brute"/"captain",
+    /// Goblin "skulker"/"slinger"/"shaman". Empty = the style's default look.</summary>
+    public string SpriteRole { get; set; } = "";
+    /// <summary>Ranged enemies: projectile sprite key ("Arrow", "Stone"). Empty = the
+    /// default bolt (cold projectiles always draw the ice shard).</summary>
+    public string ProjectileSprite { get; set; } = "";
+    /// <summary>Spawned into a zone BELOW this level, the enemy keeps this level (its
+    /// stats are authored for it): bandits and goblins never turn up as "level 1".
+    /// 0 = follow the zone level exactly (all the undead).</summary>
+    public int MinSpawnLevel { get; set; }
     /// <summary>Loose grouping for quests and audits ("undead", "goblin", "bandit", "tome").</summary>
     public string Family { get; set; } = "";
     /// <summary>Extra knockback (tiles) a landed melee swing shoves its victim (the

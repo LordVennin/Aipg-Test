@@ -598,36 +598,50 @@ public class GameServer : IServerEvents
         Broadcast(w, DeliveryMethod.Unreliable);
     }
 
+    /// <summary>Entities per unreliable snapshot packet. LiteNetLib refuses unreliable
+    /// packets over ~1 KB (it THROWS — before batch 85 that killed the server once more
+    /// than ~51 enemies were alive); at 20 bytes an entity, 40 stays well inside it.</summary>
+    public const int SnapshotChunk = 40;
+    /// <summary>EnemyStates packets sent by the last snapshot (diagnostics, tests).</summary>
+    public int LastEnemySnapshotPackets { get; private set; }
+
     private void BroadcastEnemyStates()
     {
         if (_peerToPlayer.Count == 0) return;
         var alive = World.Enemies.Values.Where(e => !e.Dead).ToList();
-        var w = Packets.Make(PacketType.EnemyStates);
-        w.Put(alive.Count);
-        foreach (var e in alive)
+        LastEnemySnapshotPackets = 0;
+        for (int start = 0; start < alive.Count || start == 0; start += SnapshotChunk)
         {
-            w.Put(e.Id);
-            w.PutVec2(e.Position);
-            w.Put((byte)e.State);
-            // Debuff bitmask so clients can render per-debuff indicators.
-            byte debuffs = 0;
-            if (World.Time < e.StunnedUntil) debuffs |= EnemyDebuffs.Stunned;
-            if (e.BurnTimeLeft > 0) debuffs |= EnemyDebuffs.Burning;
-            if (World.Time < e.SlowedUntil || World.Time < e.TremorSlowUntil) debuffs |= EnemyDebuffs.Slowed;
-            if (e.ChillMagnitude > 5f) debuffs |= EnemyDebuffs.Chilled;
-            if (World.Time < e.FrozenUntil) debuffs |= EnemyDebuffs.Frozen;
-            if (World.Time < e.ElectrocutedUntil) debuffs |= EnemyDebuffs.Shocked;
-            if (e.PoisonTimeLeft > 0) debuffs |= EnemyDebuffs.Poisoned;
-            if (e.BleedTimeLeft > 0) debuffs |= EnemyDebuffs.Bleeding;
-            w.Put(debuffs);
-            // Chill buildup toward the freeze cap, 0..100 — the debuff icon shows it.
-            w.Put((byte)Math.Clamp((int)MathF.Round(
-                e.ChillMagnitude * 100f / ServerWorld.ChillMaxMagnitude), 0, 100));
-            // Stun buildup toward the threshold, 0..100 — drives the client stun bar.
-            w.Put((byte)Math.Clamp((int)MathF.Round(e.StunBuildup), 0, 100));
-            w.Put(e.Height);
+            int n = Math.Min(SnapshotChunk, alive.Count - start);
+            var w = Packets.Make(PacketType.EnemyStates);
+            w.Put(n);
+            for (int i = start; i < start + n; i++)
+            {
+                var e = alive[i];
+                w.Put(e.Id);
+                w.PutVec2(e.Position);
+                w.Put((byte)e.State);
+                // Debuff bitmask so clients can render per-debuff indicators.
+                byte debuffs = 0;
+                if (World.Time < e.StunnedUntil) debuffs |= EnemyDebuffs.Stunned;
+                if (e.BurnTimeLeft > 0) debuffs |= EnemyDebuffs.Burning;
+                if (World.Time < e.SlowedUntil || World.Time < e.TremorSlowUntil) debuffs |= EnemyDebuffs.Slowed;
+                if (e.ChillMagnitude > 5f) debuffs |= EnemyDebuffs.Chilled;
+                if (World.Time < e.FrozenUntil) debuffs |= EnemyDebuffs.Frozen;
+                if (World.Time < e.ElectrocutedUntil) debuffs |= EnemyDebuffs.Shocked;
+                if (e.PoisonTimeLeft > 0) debuffs |= EnemyDebuffs.Poisoned;
+                if (e.BleedTimeLeft > 0) debuffs |= EnemyDebuffs.Bleeding;
+                w.Put(debuffs);
+                // Chill buildup toward the freeze cap, 0..100 — the debuff icon shows it.
+                w.Put((byte)Math.Clamp((int)MathF.Round(
+                    e.ChillMagnitude * 100f / ServerWorld.ChillMaxMagnitude), 0, 100));
+                // Stun buildup toward the threshold, 0..100 — drives the client stun bar.
+                w.Put((byte)Math.Clamp((int)MathF.Round(e.StunBuildup), 0, 100));
+                w.Put(e.Height);
+            }
+            Broadcast(w, DeliveryMethod.Unreliable);
+            LastEnemySnapshotPackets++;
         }
-        Broadcast(w, DeliveryMethod.Unreliable);
     }
 
     // ------------------------------------------------------------------ IServerEvents
@@ -940,16 +954,22 @@ public class GameServer : IServerEvents
     private void BroadcastSummonStates()
     {
         if (_peerToPlayer.Count == 0 || World.Summons.Count == 0) return;
-        var w = Packets.Make(PacketType.SummonStates);
-        w.Put(World.Summons.Count);
-        foreach (var s in World.Summons.Values)
+        var summons = World.Summons.Values.ToList();
+        for (int start = 0; start < summons.Count; start += SnapshotChunk)
         {
-            w.Put(s.Id);
-            w.PutVec2(s.Position);
-            w.Put(s.Height);
-            w.Put(s.Health);
+            int n = Math.Min(SnapshotChunk, summons.Count - start);
+            var w = Packets.Make(PacketType.SummonStates);
+            w.Put(n);
+            for (int i = start; i < start + n; i++)
+            {
+                var s = summons[i];
+                w.Put(s.Id);
+                w.PutVec2(s.Position);
+                w.Put(s.Height);
+                w.Put(s.Health);
+            }
+            Broadcast(w, DeliveryMethod.Unreliable);
         }
-        Broadcast(w, DeliveryMethod.Unreliable);
     }
 
     public void WorldEffect(string kind, Vector2 position, float radius, float duration, float height)

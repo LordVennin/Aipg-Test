@@ -103,6 +103,12 @@ public class ServerPlayer
     // Ailments on players (electrocute's periodic freeze affects players too).
     public float FrozenUntil;
     public float ElectrocutedUntil;
+    /// <summary>Bleeding from an enemy blade: BleedDps per second until BleedUntil.</summary>
+    public float BleedUntil;
+    public float BleedDps;
+    public float NextBleedTickAt;
+    /// <summary>World time an enemy last shoved this player (tests, future stagger).</summary>
+    public float LastKnockbackAt = -100f;
     public float NextShockRollAt;
     /// <summary>Position pinned while frozen — movement updates are rejected against it.</summary>
     public Vector2 FrozenAt;

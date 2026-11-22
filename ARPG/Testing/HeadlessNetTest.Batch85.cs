@@ -92,6 +92,167 @@ public static partial class HeadlessNetTest
         Batch85Hardening(data);
         Batch85Multiplayer(data);
         Batch85Pools(data);
+        Batch85BanditsAndGoblins(data);
+    }
+
+    private static void Batch85BanditsAndGoblins(GameData data)
+    {
+        Console.WriteLine("\n-- Batch 85.11: bandits and goblins in the Mirewood --");
+        string[] goblins = { "goblin_skulker", "goblin_slinger", "goblin_shaman" };
+        string[] bandits = { "bandit_cutthroat", "bandit_archer", "bandit_brute", "bandit_captain" };
+        var newIds = goblins.Concat(bandits).ToArray();
+        Check(newIds.All(id => data.Enemies.TryGetValue(id, out var d) && !d.Undead && d.Blood == "8E1818" &&
+                  d.Level is >= 3 and <= 8 && d.MinSpawnLevel == d.Level && !string.IsNullOrEmpty(d.SpriteRole)) &&
+              goblins.All(id => data.Enemies[id].Family == "goblin" && data.Enemies[id].SpriteStyle == "Goblin" && data.Enemies[id].SpriteScale <= 0.8f) &&
+              bandits.All(id => data.Enemies[id].Family == "bandit" && data.Enemies[id].SpriteStyle == "Bandit"),
+              "seven new enemies: three goblins and four bandits, none undead, all bleed red, native levels 3-8");
+        var skulker = data.Enemies["goblin_skulker"]; var slinger = data.Enemies["goblin_slinger"]; var shaman = data.Enemies["goblin_shaman"];
+        var cutthroat = data.Enemies["bandit_cutthroat"]; var archer = data.Enemies["bandit_archer"]; var brute = data.Enemies["bandit_brute"]; var captain = data.Enemies["bandit_captain"];
+        Check(skulker.MoveSpeed > data.Enemies["grunt"].MoveSpeed && skulker.MaxHealth < data.Enemies["grunt"].MaxHealth && skulker.AttackStyle == "lunge" &&
+              slinger.Ranged && slinger.KeepDistance > 0 && slinger.DamageTypes.ContainsKey(Skills.DamageKind.Blunt) && slinger.ProjectileSprite == "Stone" &&
+              shaman.CastRadius > 0 && shaman.CastKind == Skills.DamageKind.Fire && shaman.KeepDistance > 0,
+              "goblins: a fast frail lunger, a stone slinger that keeps its distance, a fire-casting shaman");
+        Check(cutthroat.AttackStyle == "sword" && cutthroat.AttackBleedChance > 0 && cutthroat.AttackWindup >= 0.5f &&
+              cutthroat.DamageTypes[Skills.DamageKind.Slash] > data.Enemies["bone_knight"].DamageTypes[Skills.DamageKind.Slash] &&
+              archer.Ranged && archer.KeepDistance > 0 && archer.ProjectileSprite == "Arrow" &&
+              brute.MoveSpeed <= 2.1f && brute.MaxHealth >= 2 * cutthroat.MaxHealth && brute.AttackKnockback >= 2f &&
+              captain.DashDamage > 0 && captain.DashMinLevel <= captain.Level && captain.LootTableId == "boss" && captain.AttackStyle == "sword",
+              "bandits: a bleeding telegraphed blade, an archer, a slow brute with a heavy shove, a dash-charging captain on the boss table");
+
+        // ---- a forest portal run: only the pool's non-undead, the Captain at the end.
+        var mire = PortalRun(data, 851101, "warp_zone_forest+warp_boss");
+        var mw = mire.World;
+        var live = mw.Enemies.Values.Where(e => !e.Dead).ToList();
+        var poolIds = mw.Map.Theme.PackPool.SelectMany(pk => pk.Members.Select(m => m.typeId))
+            .Concat(mw.Map.Theme.OverlookPool.SelectMany(pk => pk.Members.Select(m => m.typeId)))
+            .Concat(mw.Map.Theme.BossPacks.SelectMany(b => b.GuardMembers.Select(m => m.typeId).Append(b.Boss))).ToHashSet();
+        Check(mw.Map.Theme?.Id == "forest" && live.Count >= 8 && live.All(e => !e.Def.Undead && poolIds.Contains(e.Def.Id)),
+              $"a Mirewood portal run spawns only non-undead from the forest pool ({live.Count} enemies: {string.Join(", ", live.Select(e => e.Def.Id).Distinct().OrderBy(x => x))})");
+        Check(mw.Packs.All(pk => pk.Buried != true) && live.All(e => !e.Buried),
+              "nothing in a bandit or goblin pack lies buried (that stays an undead trick)");
+        var cap = live.FirstOrDefault(e => e.Def.Id == "bandit_captain");
+        Check(cap != null && cap.Affixes.HasFlag(EliteAffix.Boss) && mw.BossAlive && mw.ExitLocked && cap.Level >= captain.Level &&
+              live.Count(e => e.PackId == cap.PackId && e.Def.Family == "bandit") >= 3,
+              $"the forest boss pack is the Bandit Captain (level {cap?.Level}) with bandit guards, sealing the exit");
+        Check(live.All(e => e.Level >= e.Def.MinSpawnLevel) && mw.ZoneEnemyLevel < 3,
+              $"in a level-{mw.ZoneEnemyLevel} zone they keep their native levels (never 'level 1' bandits)");
+        Check(mire.B.World.Enemies.Count == live.Count && mire.B.World.Enemies.Values.All(ce => ce.Def != null && !ce.Def.Undead) &&
+              mire.Server.TickFailures == 0,
+              "the second client sees the same non-undead population");
+        mire.Close();
+
+        // ---- each new enemy: spawns, attacks, dies, leaves a corpse — on both clients.
+        var pit = new Session(data, 851102);
+        var pa = pit.P(pit.A);
+        var pb = pit.P(pit.B);
+        void Reset()
+        {
+            pit.A.SendDebugCommand("kill_nearby");
+            pit.B.SendDebugCommand("kill_nearby");
+            pit.A.SendDebugCommand("heal");
+            pit.B.SendDebugCommand("heal");
+            pa.BleedUntil = pb.BleedUntil = 0f;
+            pit.Pump(0.3f);
+            pit.Place(pit.A, pit.World.Map.PlayerSpawn);
+            pit.Place(pit.B, pit.World.Map.PlayerSpawn + new Vector2(0f, 1.2f));
+        }
+        foreach (var id in newIds)
+        {
+            Reset();
+            var def = data.Enemies[id];
+            var foe = pit.World.SpawnEnemy(id, pa.Position + new Vector2(2.2f, 0f));
+            float t0 = pit.World.Time;
+            bool seenByBoth = false, attacked = false, dashed = false, cast = false, shot = false;
+            for (int i = 0; i < 100 && !(attacked && (id != "bandit_captain" || dashed)); i++)
+            {
+                pit.Pump(0.2f);
+                seenByBoth |= pit.A.World.Enemies.ContainsKey(foe.Id) && pit.B.World.Enemies.ContainsKey(foe.Id);
+                attacked |= pa.LastDamagedAt > t0 || pb.LastDamagedAt > t0;
+                dashed |= foe.DashPrepareUntil > 0 || foe.DashUntil > 0;
+                cast |= foe.CastResolveAt > 0;
+                // (A shot can be born and land inside one pump: the spent cooldown is the proof.)
+                shot |= def.Ranged && (foe.AttackReadyAt > t0 || pit.World.Projectiles.Values.Any(pr => !pr.FromPlayer && pr.OwnerId == foe.Id));
+                if (pa.Health < pa.Stats.MaxHealth * 0.5f) pit.A.SendDebugCommand("heal");
+                if (pb.Health < pb.Stats.MaxHealth * 0.5f) pit.B.SendDebugCommand("heal");
+            }
+            bool styleOk = id switch
+            {
+                "goblin_slinger" or "bandit_archer" => shot,
+                "goblin_shaman" => cast,
+                "bandit_captain" => dashed,
+                _ => true,
+            };
+            Check(seenByBoth && attacked && styleOk && !foe.Buried,
+                  $"{def.Name}: spawns on both clients and attacks{(id == "bandit_captain" ? " (and dash-charges)" : shot ? " (with a projectile)" : cast ? " (with its fire cast)" : "")}");
+            pit.World.DebugSkillHit(pa, foe, null, foe.Health + 1f);
+            pit.Pump(0.5f);
+            Check(foe.Dead && pit.World.Corpses.Any(co => co.SourceId == foe.Id && co.TypeId == id) &&
+                  pit.A.World.Corpses.Values.Any(co => co.SourceId == foe.Id && co.TypeId == id) &&
+                  pit.B.World.Corpses.Values.Any(co => co.SourceId == foe.Id && co.TypeId == id) &&
+                  !pit.A.World.Enemies.ContainsKey(foe.Id) && !pit.B.World.Enemies.ContainsKey(foe.Id),
+                  $"{def.Name}: dies and leaves its corpse on the server and both clients");
+        }
+
+        // ---- the Brute's shove.
+        Reset();
+        var shover = pit.World.SpawnEnemy("bandit_brute", pa.Position + new Vector2(1.6f, 0f));
+        float shoveT0 = pit.World.Time;
+        for (int i = 0; i < 80 && pa.LastKnockbackAt <= shoveT0 && pb.LastKnockbackAt <= shoveT0; i++)
+        {
+            pit.Pump(0.2f);
+            if (pa.Health < pa.Stats.MaxHealth * 0.6f) pit.A.SendDebugCommand("heal");
+            if (pb.Health < pb.Stats.MaxHealth * 0.6f) pit.B.SendDebugCommand("heal");
+        }
+        var shoved = pa.LastKnockbackAt > shoveT0 ? pa : pb;
+        var shovedClient = shoved == pa ? pit.A : pit.B;
+        float shoveGap = Vector2.Distance(shoved.Position, shover.Position);
+        pit.Pump(0.1f);
+        Check(shoved.LastKnockbackAt > shoveT0 && shoveGap > brute.AttackRange + 0.5f &&
+              Vector2.Distance(shovedClient.World.Me.Position, shoved.Position) < 0.6f,
+              $"the Brute's landed swing shoves its victim back ({shoveGap:0.0} tiles from it) and the victim's client is moved with it");
+
+        // ---- the Cutthroat's bleed.
+        Reset();
+        var cutter = pit.World.SpawnEnemy("bandit_cutthroat", pa.Position + new Vector2(1.4f, 0f));
+        ServerPlayer bleeder = null;
+        for (int i = 0; i < 200 && bleeder == null; i++)
+        {
+            pit.Pump(0.2f);
+            bleeder = pa.BleedUntil > pit.World.Time ? pa : pb.BleedUntil > pit.World.Time ? pb : null;
+            if (pa.Health < pa.Stats.MaxHealth * 0.6f) pit.A.SendDebugCommand("heal");
+            if (pb.Health < pb.Stats.MaxHealth * 0.6f) pit.B.SendDebugCommand("heal");
+        }
+        pit.World.DebugSkillHit(pa, cutter, null, cutter.Health + 1f);
+        pit.Pump(0.1f);
+        float bleedStart = bleeder?.Health ?? 0f;
+        float lifeRegen = bleeder?.Stats.LifeRegeneration ?? 0f;
+        pit.Pump(1.6f);
+        Check(bleeder != null && bleeder.Health < bleedStart - cutthroat.AttackBleedDps * 0.9f + lifeRegen * 1.6f && bleeder.Alive,
+              $"the Cutthroat's blade leaves a bleed that keeps hurting after it is dead ({bleedStart:0.0} -> {bleeder?.Health:0.0} hp in 1.6 s)");
+        pit.Pump(cutthroat.AttackBleedDuration + 0.5f);
+        float afterBleed = bleeder?.Health ?? 0f;
+        pit.Pump(1.0f);
+        Check(bleeder != null && bleeder.Health >= afterBleed - 0.01f && bleeder.BleedDps == 0f,
+              "and the bleed runs out");
+        Check(pit.Server.TickFailures == 0, "no tick failures through any of it");
+
+        // ---- a crowd: more enemies than fit one unreliable snapshot packet.
+        Reset();
+        var crowd = new List<ServerEnemy>();
+        for (int i = 0; i < 70; i++)
+        {
+            var g = pit.World.SpawnEnemy("goblin_skulker", pa.Position + new Vector2(12f + (i % 10) * 0.8f, -4f + (i / 10) * 0.8f));
+            g.StunnedUntil = pit.World.Time + 60f;
+            crowd.Add(g);
+        }
+        pit.Pump(0.6f);
+        crowd[69].Position += new Vector2(0.5f, 0.5f);
+        var movedTo = crowd[69].Position;
+        pit.Pump(0.6f);
+        Check(pit.Server.TickFailures == 0 && pit.Server.LastEnemySnapshotPackets >= 2 &&
+              pit.B.World.Enemies.TryGetValue(crowd[69].Id, out var farGoblin) && Vector2.Distance(farGoblin.NetTarget, movedTo) < 0.05f,
+              $"seventy-plus live enemies: snapshots split into {pit.Server.LastEnemySnapshotPackets} packets and the last enemy still syncs (one oversized packet used to throw and take the server down)");
+        pit.Close();
     }
 
     /// <summary>A story world with the party already inside the portal run the seals describe.</summary>

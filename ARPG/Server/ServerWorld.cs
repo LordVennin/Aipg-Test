@@ -1119,6 +1119,27 @@ public partial class ServerWorld
                 continue;
             }
 
+            // Bleeding (a bandit's blade): half-second ticks that armor does not stop.
+            if (Time < p.BleedUntil && Time >= p.NextBleedTickAt)
+            {
+                p.NextBleedTickAt = Time + 0.5f;
+                p.Health -= p.BleedDps * 0.5f;
+                p.LastDamagedAt = Time;
+                _events.DamageDealt(true, p.Id, p.BleedDps * 0.5f, DamageKind.Slash, p.Position);
+                if (p.Health <= 0f)
+                {
+                    p.Health = 0f;
+                    p.Alive = false;
+                    p.RespawnTimer = PlayerRespawnDelay;
+                    p.BleedUntil = 0f;
+                    _events.PlayerDied(p);
+                    continue;
+                }
+                p.LastSyncedHealth = p.Health;
+                _events.PlayerHealthChanged(p);
+            }
+            else if (Time >= p.BleedUntil) p.BleedDps = 0f;
+
             // Gold is picked up automatically by walking over it.
             foreach (var drop in Drops.Values.ToList())
             {
@@ -1278,7 +1299,7 @@ public partial class ServerWorld
             EliteName = EliteAffixInfo.IsRare(affixes) ? eliteName : "",
             Buried = buried && def.Undead && !affixes.HasFlag(EliteAffix.Boss),
             PackId = packId,
-            Level = level > 0 ? level : def.Level,
+            Level = level > 0 ? Math.Max(level, def.MinSpawnLevel) : def.Level,
         };
         // Level override: any enemy type can serve a later zone — its numbers scale
         // from the def's native level through the central EnemyLevelScaling curves.
@@ -1695,6 +1716,15 @@ public partial class ServerWorld
                 float threatDist = MathF.Min(target != null && sameSurface ? dist : float.MaxValue, meatDist);
                 if (threatDist < e.Def.KeepDistance)
                 {
+                    // Ranged kiters loose a shot whenever one is ready, then keep
+                    // backing off. (They used to ONLY retreat while crowded — pinned
+                    // against a wall with room to sidestep, they never fired at all.)
+                    if (e.Def.Ranged && Time >= e.AttackReadyAt && target != null &&
+                        dist <= e.Def.AttackRange && CanAttack(e, target, sameSurface))
+                    {
+                        e.AttackReadyAt = Time + e.Def.AttackCooldown * e.CooldownScale;
+                        SpawnEnemyProjectile(e, target);
+                    }
                     var threatPos = (meat != null && meatDist <= dist) ? meat.Position : target.Position;
                     var awayDir = (e.Position - threatPos).NormalizedOrZero();
                     if (awayDir == Vector2.Zero) awayDir = new Vector2(1, 0);
@@ -1869,8 +1899,41 @@ public partial class ServerWorld
             if (d < bestDist) { bestDist = d; hitSummon = s; hitPlayer = null; }
         }
         if (hitSummon != null) DamageSummon(hitSummon, RollEnemyDamage(e).Sum(c => c.amount));
-        else if (hitPlayer != null) DamagePlayerTyped(hitPlayer, RollEnemyDamage(e), attacker: e);
+        else if (hitPlayer != null)
+        {
+            float before = hitPlayer.Health + hitPlayer.EnergyShield;
+            DamagePlayerTyped(hitPlayer, RollEnemyDamage(e), attacker: e);
+            bool landed = hitPlayer.Alive && hitPlayer.Health + hitPlayer.EnergyShield < before; // not blocked
+            if (landed) ApplySwingRiders(e, hitPlayer);
+        }
         // else: whiff — the dodge worked.
+    }
+
+    /// <summary>Data-driven riders on a LANDED enemy melee swing: a heavy shove (the
+    /// Bandit Brute — stops at walls; the client is snapped to the new spot) and a
+    /// bleed (the Bandit Cutthroat's blade).</summary>
+    private void ApplySwingRiders(ServerEnemy e, ServerPlayer victim)
+    {
+        if (e.Def.AttackKnockback > 0f)
+        {
+            var push = (victim.Position - e.Position).NormalizedOrZero();
+            if (push == Vector2.Zero) push = e.WindupDir;
+            var from = victim.Position;
+            victim.Position = Map.MoveWithCollision(victim.Position, push * e.Def.AttackKnockback, ServerPlayer.Radius, ref victim.Height);
+            if (Vector2.DistanceSquared(from, victim.Position) > 0.01f)
+            {
+                victim.IgnoreStateUntil = Time + 0.3f; // in-flight client positions can't undo the shove
+                victim.LastKnockbackAt = Time;
+                _events.PlayerRespawned(victim);       // snaps the client (alive: a plain teleport)
+                _events.WorldEffect("hit", victim.Position, 0.8f, 0.3f, victim.Height);
+            }
+        }
+        if (e.Def.AttackBleedChance > 0f && e.Def.AttackBleedDps > 0f && _rng.NextDouble() < e.Def.AttackBleedChance)
+        {
+            victim.BleedDps = MathF.Max(victim.BleedDps, e.Def.AttackBleedDps * e.DamageScale);
+            victim.BleedUntil = MathF.Max(victim.BleedUntil, Time + e.Def.AttackBleedDuration);
+            victim.NextBleedTickAt = Time + 0.5f;
+        }
     }
 
     private void MoveEnemyToward(ServerEnemy e, Vector2 target, float dt)
@@ -2114,7 +2177,8 @@ public partial class ServerWorld
             DamageKind = primary.Key,
             AttackHit = !e.Def.ProjectileIsSpell,
             Added = extra.Count > 0 ? extra : null,
-            SpriteOverride = primary.Key == DamageKind.Cold ? "IceShard" : null,
+            SpriteOverride = primary.Key == DamageKind.Cold ? "IceShard"
+                : string.IsNullOrEmpty(e.Def.ProjectileSprite) ? null : e.Def.ProjectileSprite,
         };
         Projectiles[pr.Id] = pr;
         _events.ProjectileSpawned(pr);

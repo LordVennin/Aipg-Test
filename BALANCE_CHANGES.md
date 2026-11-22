@@ -1933,3 +1933,48 @@ item's flavour under it.
 - Dev: `ARPG_DEVUI=defense` warps into the caravan stand (debug `warp_defense`);
   `barriers` lays a sample run and a turret beside the player six seconds in
   (debug `build kind,x,y[,rot]` places a structure outright, no phase or cost).
+
+## Batch 85: hardening, the living Mirewood, skill books, mace and bow identity, quests
+
+Numbers for everything batch 85 added. All of them live in JSON
+(`Data/Enemies/enemies.json`, `Data/Zones/themes.json`, `Data/Skills/skills.json`,
+`Data/Modifiers/*.json`, `Data/Config/mace_crash.json`, `Data/Quests/quests.json`).
+
+### Enemy populations are data (85.10)
+
+- `themes.json` carries who lives in a zone: `PackPool` (weighted compositions,
+  `MinLoop`/`MinLevel` gates — either gate opens an entry), `OverlookPool`,
+  `PromisedPacks`, `BossPacks`, `WaveEnemies`. They apply on **portal runs**.
+  graveyard and tomb carry the old hard-coded undead lists verbatim; the
+  test-grounds campaign loop and the story road keep the built-in undead.
+
+### Bandits and goblins (85.11)
+
+None are `Undead` (never buried), all bleed red, and all carry `MinSpawnLevel` =
+their native level, so a level-1 zone still fields level-3 goblins. Reference at
+the same level: a Gravebound Grunt scaled to level 3 has 46 hp / 12.8 dmg / 8.6 xp,
+a Barrow Knight (native 3) 55 hp / 14 dmg / 11 xp.
+
+| Enemy | Lvl | Life | Speed | Damage | Attack | XP | Notes |
+|---|---|---|---|---|---|---|---|
+| Goblin Skulker | 3 | 26 | 3.5 | 8 Slash | lunge, 0.28 s wind-up, 1.1 s cd | 6 | fast, frail; packs of 3-4 |
+| Goblin Slinger | 3 | 20 | 2.7 | 8 Blunt | ranged 6.5, 2.0 s cd, stone at speed 9 | 7 | keeps 3.5 tiles away |
+| Goblin Shaman | 4 | 34 | 2.2 | 5 Fire melee | fire cast: 15 dmg, radius 1.7, range 7, 1.1 s wind-up, 6 s cd | 14 | keeps 3.2 away; +30% fire res, -20% cold; rare in packs (weight 1 of 19) |
+| Bandit Cutthroat | 4 | 62 | 2.9 | 17 Slash | sword, 0.55 s wind-up, 1.9 s cd | 14 | 50% to bleed: 3 dps for 4 s (ignores armor) |
+| Bandit Archer | 4 | 40 | 2.6 | 12 Thrust | ranged 7.5, 2.1 s cd, arrow at speed 11 | 13 | keeps 4 tiles away |
+| Bandit Brute | 5 | 130 | 2.0 | 20 Blunt | lunge, 0.75 s wind-up, 2.4 s cd | 24 | landed hit shoves 2.2 tiles; 15% physical res; pool gate: zone level 4+ |
+| The Bandit Captain | 6 | 520 | 2.5 | 16 Slash + 6 Blunt | sword, 0.5 s wind-up, 1.5 s cd | 110 | boss table; dash 30 dmg / 7 tiles / 0.95 s telegraph / 8 s cd; 35% bleed 4 dps; calls 2 bandits every 30 s (first at 14 s) |
+
+- **Forest (Mirewood) pool**, weights: skulker x4 (3), skulker x3 + slinger x2 (3),
+  skulker x4 + slinger x2 (2), skulker x3 + slinger + shaman (1), cutthroat x2 (2),
+  cutthroat x2 + archer (3), cutthroat + archer x2 (2), brute + cutthroat x2 (2, zone
+  level 4+), brute + archer x2 + cutthroat (1, zone level 5+). Overlooks: slinger x2
+  (archer x2 from zone level 6). Boss room: the Bandit Captain + cutthroat x2 + archer.
+  Survival waves: skulker 4, slinger 2, cutthroat 2 (wave 2+), archer 2 (wave 2+),
+  shaman 1 (wave 3+), brute 1 (wave 4+).
+- **AI change (all kiting ranged enemies, Frost Tomes included):** an enemy with
+  `KeepDistance` that is `Ranged` now fires whenever its shot is ready while it backs
+  away. Before, it only retreated while crowded and could stand pinned against a
+  wall forever without attacking.
+- Enemy melee riders are data: `AttackKnockback` (tiles), `AttackBleedChance` /
+  `AttackBleedDps` / `AttackBleedDuration`.
