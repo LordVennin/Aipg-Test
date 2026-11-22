@@ -200,7 +200,9 @@ public partial class ServerWorld
         foreach (var p in Players.Values.ToList()) QuestEvent(p, "complete_run", _ => true);
     }
 
-    /// <summary>Does this player have an unfinished "collect" step for this kind of item?</summary>
+    /// <summary>Does this player have an unfinished step that needs this kind of item —
+    /// a "collect" step for it, or (for sealed warp scrolls) a podium / portal-run step
+    /// they cannot do without one?</summary>
     public bool QuestStillNeedsItem(ServerPlayer p, ItemBase item)
     {
         if (!QuestsActive || item == null) return false;
@@ -209,7 +211,12 @@ public partial class ServerWorld
             var def = Data.GetQuest(q.QuestId);
             if (def == null) continue;
             for (int i = q.Step; i < def.Steps.Count; i++)
-                if (def.Steps[i].Type == "collect" && ItemMatches(def.Steps[i].Target, item)) return true;
+            {
+                var step = def.Steps[i];
+                if (step.Type == "collect" && ItemMatches(step.Target, item)) return true;
+                // A wiped first run burns the scroll: the Codex is the guaranteed way back.
+                if (item.Category == ItemCategory.WarpScroll && step.Type is "use_podium" or "complete_run") return true;
+            }
         }
         return false;
     }

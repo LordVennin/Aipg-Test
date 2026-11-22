@@ -98,6 +98,204 @@ public static partial class HeadlessNetTest
         Batch85Bow(data);
         Batch85ScorchedBluffs(data);
         Batch85Quests(data);
+        Batch85SoftLocks(data);
+    }
+
+    private static void Batch85SoftLocks(GameData data)
+    {
+        Console.WriteLine("\n-- Batch 85.17: soft-lock audit --");
+
+        // ---- solo death on every map kind ends with the player on their feet, somewhere playable.
+        var solo = new Session(data, 851701, campaign: true, story: true, clients: 1, names: new[] { "Lonely" });
+        var w = solo.World;
+        var p = solo.P(solo.A);
+        bool DieAndRecover(string where)
+        {
+            solo.A.SendDebugCommand("die");
+            solo.Pump(0.5f);
+            bool died = !p.Alive;
+            for (int i = 0; i < 40 && !p.Alive; i++) solo.Pump(0.25f);
+            solo.Pump(0.8f);
+            bool ok = died && p.Alive && p.Health > 0 && solo.A.World.Me.Alive && (w.Map.IsHub || w.Map.IsRoad) &&
+                      solo.A.World.Map.Kind == w.Map.Kind && !w.Map.CircleHitsWall(p.Position, 0.3f);
+            if (!ok) Console.WriteLine($"    (soft-lock detail: {where} died={died} alive={p.Alive} map={w.Map.Kind} client={solo.A.World.Map.Kind})");
+            return ok;
+        }
+        var soloResults = new List<string>();
+        void Try(string where, string cmd, string arg = "")
+        {
+            if (cmd != null) { solo.A.SendDebugCommand(cmd, arg); solo.Pump(1.5f); }
+            soloResults.Add($"{where}:{(DieAndRecover(where) ? "ok" : "STUCK")}");
+        }
+        Try("road", null);
+        Try("ruins", "warp_home");
+        Try("archive", "warp_basement");
+        Try("portal run", "enter_portal", "warp_zone_forest+warp_boss");
+        Try("survival run", "enter_portal", "warp_mode_survival+warp_zone_swamp");
+        Try("defense run", "enter_portal", "warp_mode_defense");
+        Try("arid run", "enter_portal", "warp_zone_arid");
+        Check(soloResults.All(r => r.EndsWith(":ok")), $"solo death on each story map kind recovers ({string.Join(", ", soloResults)})");
+        Check(w.MapIndex == 0 && !w.PortalOpen && solo.Server.TickFailures == 0, "after the last one the party is home, the abandoned portal closed, no tick failures");
+        solo.Close();
+        var groundsSolo = new Session(data, 851702, campaign: true, clients: 1, names: new[] { "Tester" });
+        solo = groundsSolo; w = solo.World; p = solo.P(solo.A);
+        soloResults.Clear();
+        Try("sanctum", null);
+        Try("forest run", "warp_next");
+        Try("caravan stand", "warp_defense");
+        Try("old road", "warp_tutorial");
+        Check(soloResults.All(r => r.EndsWith(":ok")), $"and on the test grounds ({string.Join(", ", soloResults)})");
+        groundsSolo.Close();
+
+        // ---- a whole-party wipe in a portal run; the burnt scroll is not the end of the road.
+        var wipe = PortalRun(data, 851703, "warp_zone_forest+warp_boss");
+        var ww = wipe.World;
+        var wa = wipe.P(wipe.A);
+        var wb = wipe.P(wipe.B);
+        wa.Character.Quests.Completed.AddRange(new[] { "q_road", "q_lorekeeper", "q_archive" });
+        wa.Character.Quests.Active.RemoveAll(q => q.QuestId != "q_book");
+        wa.Character.Quests.Active.Add(new QuestProgress { QuestId = "q_portal", Step = 1 });
+        wipe.A.SendDebugCommand("die");
+        wipe.Pump(0.6f);
+        bool oneDownStays = !wa.Alive && wb.Alive && ww.MapIndex == ServerWorld.ScrollMapIndex;
+        wipe.B.SendDebugCommand("die");
+        for (int i = 0; i < 40 && ww.MapIndex != 0; i++) wipe.Pump(0.25f);
+        wipe.Pump(0.8f);
+        Check(oneDownStays && ww.MapIndex == 0 && wa.Alive && wb.Alive && wipe.A.World.Me.Alive && wipe.B.World.Me.Alive &&
+              wipe.A.World.Map.Kind == World.MapKind.RuinsHub && !ww.PortalOpen,
+              "a whole-party wipe in a portal run: with one down the run goes on; with both down everyone wakes in the camp");
+        Check(!wa.Character.Inventory.Items.Any(pl => pl.Item.GetBase(data).Category == ItemCategory.WarpScroll) &&
+              wa.Character.Quests.Get("q_portal")?.Step == 1,
+              "(the scroll burnt on entry, and 'finish a portal run' is still open)");
+        wipe.A.SendDebugCommand("warp_basement");
+        wipe.Pump(1.2f);
+        var mercy = ww.Enemies.Values.First(e => e.Def.Id == "codex");
+        ww.DebugSkillHit(wa, mercy, null, mercy.Health + 1f);
+        wipe.Pump(0.6f);
+        var mercyScrolls = ww.Drops.Values.Where(d => d.Item?.GetBase(data).Category == ItemCategory.WarpScroll).ToList();
+        Check(mercyScrolls.Any(d => d.ReservedForPlayerId == wa.Id || d.ReservedForPlayerId < 0),
+              "a warp scroll is always obtainable: the first Codex kill gives one, and it gives another to a present player whose portal quest is stuck without one");
+        // The one teammate who could have revived you leaves: that is a wipe too.
+        wipe.A.SendDebugCommand("die");
+        wipe.Pump(0.6f);
+        bool waitingForRevive = !wa.Alive && ww.MapIndex == ServerWorld.BasementMapIndex;
+        wipe.B.Disconnect();
+        for (int i = 0; i < 40 && ww.MapIndex != 0; i++) wipe.Pump(0.25f);
+        wipe.Pump(0.6f);
+        Check(waitingForRevive && ww.Players.Count == 1 && ww.MapIndex == 0 && wa.Alive && wipe.A.World.Me.Alive,
+              "a dead player whose only living teammate disconnects is not left on the floor: the wipe rule brings them home");
+        wipe.Close();
+
+        // ---- selling your only weapon.
+        var shop = new Session(data, 851704, campaign: true, clients: 1, names: new[] { "Seller" });
+        var sp = shop.P(shop.A);
+        var sc = sp.Character;
+        var merchant = shop.World.Npcs.First(n => n.TypeId == "merchant");
+        shop.Place(shop.A, merchant.Position + new Vector2(0.9f, 0.3f));
+        var club = sc.MainHand;
+        shop.A.RequestMoveItem(ItemLocation.AtEquip(EquipSlot.MainHand), ItemLocation.AtGrid(0, 0));
+        shop.Pump(0.4f);
+        bool inBag = sc.Inventory.FindByInstance(club.InstanceId) != null && sc.MainHand == null;
+        int goldBefore = sc.Gold;
+        shop.A.RequestShopSell(club.InstanceId);
+        shop.Pump(0.4f);
+        Check(inBag && sc.Inventory.FindByInstance(club.InstanceId) != null && sc.Gold == goldBefore &&
+              shop.Messages[0].Any(m => m.Contains("only weapon")),
+              "the merchant refuses to buy your only weapon");
+        shop.A.SendDebugCommand("give_mace");
+        shop.Pump(0.4f);
+        shop.A.RequestShopSell(club.InstanceId);
+        shop.Pump(0.4f);
+        var lastMace = sc.Inventory.Items.Select(pl => pl.Item).FirstOrDefault(it => it.GetBase(data).IsWeapon);
+        Check(sc.Inventory.FindByInstance(club.InstanceId) == null && sc.Gold > goldBefore && lastMace != null,
+              "with a second weapon in the bag the first one sells normally");
+        // Drop the last one on the floor and walk away: the camp finds a spare.
+        shop.A.RequestDropItem(lastMace.InstanceId);
+        shop.Pump(0.4f);
+        bool weaponless = !sc.Equipment.Values.Concat(sc.Inventory.Items.Select(pl => pl.Item)).Any(it => it != null && it.GetBase(data).IsWeapon);
+        shop.A.SendDebugCommand("warp_next");
+        shop.Pump(1.0f);
+        shop.A.SendDebugCommand("warp_home");
+        shop.Pump(1.0f);
+        Check(weaponless && sc.MainHand != null && sc.MainHand.BaseItemId == data.Classes.First(cl => cl.Id == sc.ClassId).StartWeapon &&
+              shop.A.World.MyCharacter.MainHand != null,
+              $"a character with no weapon left anywhere is handed a spare {sc.MainHand?.GetBase(data).Name} on coming home");
+        shop.Close();
+        var unarmed = CharacterData.CreateNew(data, "Unarmed", "archer");
+        unarmed.Equipment.Remove(EquipSlot.MainHand);
+        var armed = new Session(data, 851705, campaign: true, story: true, clients: 1, characters: new[] { unarmed }, names: new[] { "Unarmed" });
+        Check(armed.P(armed.A).Character.MainHand?.GetBase(data).Category == ItemCategory.Bow,
+              "and a save that arrives with no weapon at all gets one on joining");
+        armed.Close();
+
+        // ---- a player disconnecting while others stand readied at a door.
+        var door = new Session(data, 851706, campaign: true, clients: 2);
+        var dw = door.World;
+        door.Place(door.A, dw.Map.ExitDoor + new Vector2(-0.9f, 0f));
+        door.Place(door.B, dw.Map.ExitDoor + new Vector2(-6f, 0f));
+        door.A.RequestDoorReady();
+        door.Pump(0.5f);
+        bool waiting = dw.MapIndex == 0 && dw.ReadyCount == 1;
+        door.B.Disconnect();
+        door.Pump(1.5f);
+        Check(waiting && dw.Players.Count == 1 && dw.MapIndex == 1 && door.A.World.Map.Kind == World.MapKind.Forest,
+              "one ready at the door, the other disconnects without readying: the door opens for the one still here (it used to hang at 1/1)");
+        door.Close();
+        var door2 = new Session(data, 851707, campaign: true, clients: 2);
+        var d2 = door2.World;
+        door2.Place(door2.A, d2.Map.ExitDoor + new Vector2(-0.9f, 0f));
+        door2.Place(door2.B, d2.Map.ExitDoor + new Vector2(-0.9f, 0.7f));
+        door2.A.RequestDoorReady();
+        door2.Pump(0.5f);
+        door2.A.Disconnect();
+        door2.Pump(1.0f);
+        bool readyGone = d2.ReadyCount == 0 && d2.MapIndex == 0 && door2.B.World.ZoneReadyCount == 0;
+        door2.B.RequestDoorReady();
+        door2.Pump(1.2f);
+        Check(readyGone && d2.MapIndex == 1, "the READY player disconnects: their mark is cleared (HUD shows 0), and the one left can go through alone");
+        // Mid-defense: a wave is called with one ready, the other leaves.
+        door2.B.SendDebugCommand("warp_defense");
+        door2.Pump(1.2f);
+        var late = door2.Add(data, "WaveJoiner");
+        door2.Pump(1.2f);
+        var lp = door2.P(late);
+        door2.Place(door2.B, d2.Map.WorkbenchSpot + new Vector2(0.8f, 0f));
+        door2.B.RequestDoorReady();
+        door2.Pump(0.5f);
+        bool buildPhase = d2.DefPhase == DefensePhase.Build;
+        late.Disconnect();
+        door2.Pump(1.2f);
+        Check(buildPhase && d2.DefPhase == DefensePhase.Wave, "the same at the caravan's workbench: the wave starts when the un-ready player leaves");
+        // ---- joiners arriving at awkward moments.
+        var midWave = door2.Add(data, "MidWave");
+        door2.Pump(3.0f);
+        var mp = door2.P(midWave);
+        Check(midWave.Status == ClientStatus.InGame && mp.Supplies == World.DefenseBalance.SupplyStart && mp.Alive &&
+              midWave.World.Map.Kind == World.MapKind.Defense && midWave.World.Structures.Count == d2.Structures.Count &&
+              door2.Server.TickFailures == 0,
+              $"a joiner arriving mid-defense-wave gets the map, the structures and the starting supplies ({mp.Supplies})");
+        door2.Close();
+        var sealedRun = PortalRun(data, 851708, "warp_zone_swamp+warp_boss", clients: 1);
+        var joiner = sealedRun.Add(data, "DoorJoiner");
+        sealedRun.Pump(1.5f);
+        Check(sealedRun.World.ExitLocked && joiner.Status == ClientStatus.InGame && joiner.World.ZoneExitLocked &&
+              joiner.World.Enemies.Values.Any(e => e.IsBoss) && joiner.World.Map.Theme?.Id == "graveyard",
+              "a joiner arriving while the exit is sealed sees the seal and the boss holding it");
+        sealedRun.Close();
+        var scene = new Session(data, 851709, campaign: true, story: true, clients: 1);
+        var sceneJoiner = scene.Add(data, "SceneJoiner"); // the road's opening scene is still playing
+        scene.Pump(1.5f);
+        scene.A.Disconnect();                             // ...and the host's client drops mid-scene
+        scene.Pump(1.0f);
+        var sj = scene.P(sceneJoiner);
+        var gate = scene.World.Enemies.Values.FirstOrDefault(e => e.Def.Id == "barrowlord");
+        if (gate != null) scene.World.DebugSkillHit(sj, gate, null, gate.Health + 1f);
+        scene.Pump(0.6f);
+        Check(sceneJoiner.Status == ClientStatus.InGame && scene.World.Players.Count == 1 && gate != null && !scene.World.ExitLocked &&
+              scene.Server.TickFailures == 0,
+              "a joiner arriving mid-cutscene plays on, and a player dropping mid-cutscene blocks nothing (the gate still opens)");
+        scene.Close();
+        Check(true, "leaving a map without a guaranteed book or a quest item is covered above (85.12: the book drops again; 85.16: the Codex gives the scroll again)");
     }
 
     private static void Batch85Quests(GameData data)
@@ -867,6 +1065,8 @@ public static partial class HeadlessNetTest
               data.Items["scroll_aftershock"].ScrollId == "aftershock",
               "the Aftershock scroll attaches to Slam skills only");
         learnedSlam.Scrolls.Add(new ItemInstance { BaseItemId = "scroll_aftershock" });
+        pa.Stats.WeaponMinDamage = pa.Stats.WeaponMaxDamage = 10f; // exact numbers: 10 a slam, 5 a repeat
+        pa.Stats.CritChance = 0f;
         // Against the wall, so the first slam can't throw the target out of the repeat.
         ms.Place(ms.A, wallFoot - wallDir * 1.5f);
         var echoBag = Dummy(wallFoot - wallDir * 0.3f, stunned: true);
@@ -879,9 +1079,12 @@ public static partial class HeadlessNetTest
         bool notYet = w.PendingGroundBursts == 1;
         ms.Pump(0.6f);
         float echoHit = beforeEcho - echoBag.Health;
-        Check(firstHit > 0f && queued == 1 && notYet && echoHit > 0f && echoHit < firstHit && echoHit > firstHit * 0.2f && w.PendingGroundBursts == 0,
+        // (Either hit may also Crash the target into the wall: +40% of that hit.)
+        // so the repeat is 0.5x the slam, give or take a Crash on either side: 0.36x .. 0.70x.)
+        Check(firstHit >= 9.9f && queued == 1 && notYet && echoHit >= firstHit * 0.35f && echoHit <= firstHit * 0.71f && w.PendingGroundBursts == 0,
               $"with Aftershock the slam repeats 0.6 s later at half damage ({firstHit:0.#} then {echoHit:0.#})");
         learnedSlam.Scrolls.Clear();
+        pa.RecomputeStats(data);
         Check(ms.Server.TickFailures == 0, "no tick failures through the mace checks");
         ms.Close();
     }

@@ -1242,6 +1242,13 @@ public partial class ServerWorld
         var c = p.Character;
         var placed = c.Inventory.FindByInstance(itemInstanceId);
         if (placed == null) return;
+        // The merchant won't buy your LAST weapon: a warrior or archer without one
+        // cannot use a single skill.
+        if (placed.Item.GetBase(Data).IsWeapon && OwnedWeapons(c).Count() <= 1)
+        {
+            _events.MessageFor(p, "\"Your only weapon? Keep it — you'll want it out there.\"");
+            return;
+        }
         c.Inventory.Remove(itemInstanceId);
         int value = Math.Max(1, placed.Item.GoldValue(Data));
         c.Gold += value;

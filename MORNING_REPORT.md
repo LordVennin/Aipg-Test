@@ -13,7 +13,8 @@ _Running log; final pass at the end._
 - .NET 8 SDK wasn't in the container; installed `dotnet-sdk-8.0` from apt (8.0.134).
 - **Baseline is flaky.** I ran the untouched baseline suite repeatedly: 3 of 6 baseline
   runs failed 1-2 *old* checks that depend on dice (`Mace Slam slows survivors` is a 60%
-  roll, `overlook spitter fires a descending shot`, `five waves beaten: the Last Stand is won`,
+  roll, `overlook spitter fires a descending shot`, `five waves beaten: the Last Stand is won`, `enemies drop gold`,
+  `Shattering bursts 5 ice shards out behind the struck enemy`,
   `warriors close to melee range and hit`).
   The server RNG is unseeded. I did not change those checks; when one of them fails I
   rerun (up to 3 attempts) and only treat a failure as real if it repeats or is in a
@@ -134,6 +135,20 @@ _Running log; final pass at the end._
   top-right corner. Quest log: `J` (rebindable, Options -> Controls).
 - ProtocolVersion **51** (`TalkRequest`, `QuestStatus`).
 
+## Soft-lock audit (Phase 4.1)
+| Situation | Finding | Result |
+|---|---|---|
+| Solo death on each map kind (road, ruins, archive, forest/arid/survival/defense portal runs; sanctum, test forest run, caravan stand, old road) | Road maps respawn you on a timer; everywhere else a solo death is a party wipe and brings you home alive. | OK, now covered by checks |
+| Whole-party wipe in a portal run | Everyone wakes in the camp; the scroll is burnt. | OK |
+| Is the first warp scroll guaranteed? | Yes (the world's first Codex kill). **But** a wiped first run left "finish a portal run" open with no scroll and only random drops to fix it. | **Fixed:** the Codex gives another scroll (reserved) to a present player whose portal quest needs one and who carries none |
+| Selling your only weapon | Possible: a warrior or archer could sell (or drop and abandon) their only weapon and have no usable skill. | **Fixed:** the merchant refuses the last weapon; and a character with no weapon anywhere is handed their class's starting weapon on joining or on coming home |
+| Leaving a map without a quest item / guaranteed book | Step stays open, guarantee stays unspent, source is there again. | OK (designed in 3.3 / 3.7, covered by checks) |
+| A player disconnects while others are readied at a door | **Bug:** the leaver's ready mark stayed and nothing re-evaluated the door: one ready player waited at "1/1" until they re-pressed the key. Same at the caravan workbench. | **Fixed:** leavers are cleared from every ready set and the door opens if everyone still here was ready |
+| A dead player's only living teammate disconnects | The wipe rule already catches it. | OK, now covered |
+| A player disconnects mid-cutscene | Scenes are client-side; nothing waits on them. | OK |
+| A joiner arrives mid-cutscene / mid-defense-wave / while the exit is sealed | Gets the map, structures, starting supplies, the seal state and the boss. | OK, now covered |
+| (found on the way) A leaver's summons | They stayed in the world ownerless. | **Fixed:** despawned with their owner |
+
 ## Behavior changes to existing checks
 - `the sealed warp ... warp pool` check counted exactly 3 `warp_zone` seals; now 4.
   The modifier-count check also sets the new zone seal aside.
@@ -160,3 +175,4 @@ _Running log; final pass at the end._
 | 3.5 bow skills (Snipe, Split Arrow, Disengage, 3 modifiers, second bow book) | done | 1001 |
 | 3.6 fourth portal zone (the Scorched Bluffs) | done | 1008 |
 | 3.7 quest tracker (7 quests, per-character logs, presence credit, no catch-up, HUD + log) | done | 1038 |
+| 4.1 soft-lock audit (3 fixes, 18 checks) | done | 1056 |

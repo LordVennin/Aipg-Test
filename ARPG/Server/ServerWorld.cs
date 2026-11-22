@@ -601,6 +601,8 @@ public partial class ServerWorld
         Chests.Clear();
         if (newIndex == 0) { if (Story) SetupRuinsHub(); else SetupHub(); }
         if (newIndex == 0 && Story) MarkStory(sp => sp.ReachedCamp = true);
+        // Home is where a weaponless character gets a spare (soft-lock net).
+        if (newIndex == 0) foreach (var pl in Players.Values) EnsureHasWeapon(pl);
         _events.MapChanged(this);
         if (newIndex == 0) FurnishHub(); // structures spawn AFTER the map broadcast
         if (newIndex > 0) SetupForest(); // packs spawn AFTER the map broadcast
@@ -980,6 +982,9 @@ public partial class ServerWorld
         // Joining mid-defense-run: the newcomer gets the same stipend everyone else did.
         if (Map.Kind == MapKind.Defense) p.Supplies = DefenseBalance.SupplyStart;
         Players[id] = p;
+        // A save with no weapon anywhere (sold, lost, stripped by the sanitizer) can't
+        // fight: the camp hands over the class's plain starting weapon.
+        if (EnsureHasWeapon(p)) { p.Health = p.Stats.MaxHealth; p.Mana = p.Stats.MaxMana; }
         return p;
     }
 
@@ -989,6 +994,14 @@ public partial class ServerWorld
         _flow.Remove(id);
         foreach (var key in _rallyFields.Keys.Where(k => k.playerId == id).ToList())
             _rallyFields.Remove(key);
+        // Their minions go with them (nobody is left to pay the reservation or command them).
+        foreach (var orphan in Summons.Values.Where(su => su.OwnerId == id).ToList())
+        {
+            Summons.Remove(orphan.Id);
+            _events.SummonDespawned(orphan);
+        }
+        _summonRespawns.RemoveAll(r => r.OwnerId == id);
+        ReleaseDoorsAfterLeave(id);
     }
 
     /// <summary>Movement is client-computed for responsiveness; the server sanity-clamps it.
